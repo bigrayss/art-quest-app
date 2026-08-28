@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ArtQuest · 创意绘画</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">🎨 ArtQuest <span class="stage">Stage 1 · PC 原型</span></div>
+  <div class="steps" id="steps">
+    <span data-step="quest">1 任务</span><span data-step="intent">2 意图</span><span data-step="draw">3 创作</span><span data-step="result">4 反馈</span><span data-step="final">5 完成</span>
+  </div>
+  <div class="backend" id="backend-badge"></div>
+</header>
+
+<main>
+<!-- 1. Quest -->
+<section class="view" id="view-quest">
+  <h1>今天想挑战哪一个？</h1>
+  <p class="muted">每个任务都没有标准答案。选一个让你有点想动笔的。</p>
+  <div class="quest-grid" id="quest-grid"></div>
+  <p class="muted small"><a href="#" id="link-sessions">查看以前的作品记录</a></p>
+</section>
+
+<!-- 2. Intent -->
+<section class="view hidden" id="view-intent">
+  <h1 id="intent-quest-title"></h1>
+  <p class="quest-prompt" id="intent-quest-prompt"></p>
+  <p class="hint" id="intent-quest-hint"></p>
+  <h2>开始画之前</h2>
+  <label>你现在的心情是？</label>
+  <div class="chips" id="emotion-chips"></div>
+  <label for="intent-text">用一句话说说，你想在这幅画里表达什么？</label>
+  <textarea id="intent-text" rows="2" placeholder="比如：我想画一个很安静、只有一盏灯的房间……"></textarea>
+  <label for="participant">代号（可选，不要写真名）</label>
+  <input id="participant" type="text" placeholder="例如 P03">
+  <div class="actions">
+    <button class="secondary" id="btn-back-quest">← 换个任务</button>
+    <button class="primary" id="btn-start-draw">开始创作 →</button>
+  </div>
+</section>
+
+<!-- 3. Draw -->
+<section class="view hidden" id="view-draw">
+  <div class="draw-layout">
+    <aside class="toolbox">
+      <div class="quest-card small" id="draw-quest-card"></div>
+      <div class="intent-card" id="draw-intent-card"></div>
+      <div class="tool-group">
+        <div class="label">工具</div>
+        <div class="tools" id="tools">
+          <button data-tool="pencil" class="active" title="铅笔">✏️ 铅笔</button>
+          <button data-tool="brush" title="笔刷">🖌️ 笔刷</button>
+          <button data-tool="marker" title="马克笔">🖍️ 马克笔</button>
+          <button data-tool="eraser" title="橡皮">⬜ 橡皮</button>
+        </div>
+      </div>
+      <div class="tool-group">
+        <div class="label">粗细 <span id="size-val">4</span></div>
+        <input type="range" id="size" min="1" max="60" value="4">
+      </div>
+      <div class="tool-group">
+        <div class="label">颜色</div>
+        <div class="palette" id="palette"></div>
+        <input type="color" id="color-custom" value="#222222" title="自定义颜色">
+      </div>
+      <div class="tool-group row">
+        <button id="btn-undo" title="撤销 (Ctrl+Z)">↶ 撤销</button>
+        <button id="btn-redo" title="重做 (Ctrl+Y)">↷ 重做</button>
+        <button id="btn-clear">🗑 清空</button>
+      </div>
+      <div class="tool-group">
+        <div class="timer">⏱ <span id="timer">00:00</span> <span class="muted small" id="snap-info"></span></div>
+        <button id="btn-download" class="secondary">⬇ 保存到本机</button>
+        <button id="btn-submit" class="primary big">画好了，听听反馈</button>
+        <div id="revision-banner" class="hidden banner">✍️ 修改阶段：改动一小处就可以。<button id="btn-submit-after" class="primary">修改完成</button></div>
+      </div>
+    </aside>
+    <div class="canvas-wrap"><canvas id="canvas" width="1024" height="704"></canvas></div>
+  </div>
+</section>
+
+<!-- 4. Result / feedback -->
+<section class="view hidden" id="view-result">
+  <div class="result-layout">
+    <div>
+      <img id="result-img" class="artwork" alt="你的作品">
+      <div class="scores" id="scores"></div>
+      <p class="muted small" id="score-summary"></p>
+    </div>
+    <div class="feedback-card">
+      <h2>教练的话</h2>
+      <div class="feedback-text" id="feedback-text"></div>
+      <div class="actions column">
+        <button class="primary big" id="btn-revise">我想改一改 →</button>
+        <button class="secondary" id="btn-skip-revise">不改了，就这样完成</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 5. Final -->
+<section class="view hidden" id="view-final">
+  <h1>完成 🎉</h1>
+  <div class="compare">
+    <figure><img id="final-before" class="artwork"><figcaption>修改前</figcaption></figure>
+    <figure><img id="final-after" class="artwork"><figcaption>修改后</figcaption></figure>
+  </div>
+  <div class="feedback-card"><div class="feedback-text" id="comparison-text"></div></div>
+  <div class="scores" id="final-scores"></div>
+  <p class="muted small" id="final-meta"></p>
+  <div class="actions"><button class="primary" id="btn-again">再来一个任务</button></div>
+</section>
+
+<!-- Sessions list -->
+<section class="view hidden" id="view-sessions">
+  <h1>作品记录</h1>
+  <table class="sessions" id="sessions-table"><thead><tr><th>时间</th><th>任务</th><th>代号</th><th>状态</th><th>修改</th><th>文件</th></tr></thead><tbody></tbody></table>
+  <div class="actions"><button class="secondary" id="btn-sessions-back">← 返回</button></div>
+</section>
+
+<div id="overlay" class="hidden"><div class="spinner"></div><div id="overlay-text">正在观察你的画……</div></div>
+</main>
+<script src="/static/app.js"></script>
+</body>
+</html>

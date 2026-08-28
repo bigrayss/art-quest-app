@@ -1,0 +1,7 @@
+# session data (children's artwork) — never commit
+data/
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
