@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Protocol
 
-SCALE_MAX = 10  # 1–10; adjust to match the official KidsArtBench scale if it differs
+SCALE_MAX = 5  # 1–5; adjust to match the official KidsArtBench scale if it differs
 
 # (key, 中文名, English, one-line rubric used in prompts/UI)
 DIMENSIONS: List[Dict[str, str]] = [

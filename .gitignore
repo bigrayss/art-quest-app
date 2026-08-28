@@ -1,6 +1,8 @@
 # session data (children's artwork) — never commit
 data/
 .env
+.venv/
+venv/
 __pycache__/
 *.pyc
 .pytest_cache/

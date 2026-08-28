@@ -169,17 +169,91 @@
   }
   $("#btn-again").onclick = () => { state.sessionId = null; state.startedAt = null; $("#intent-text").value = ""; show("quest"); };
 
-  function renderScores(el, scores, baseline) {
-    el.innerHTML = "";
-    const max = state.cfg.scale_max, focus = new Set(state.quest ? state.quest.focus_dims : []);
-    state.cfg.dimensions.forEach(d => {
-      const s = scores.dims[d.key]; if (!s) return;
-      const b = baseline && baseline.dims[d.key]; const delta = b ? (s.score - b.score) : null;
-      const div = document.createElement("div"); div.className = "dim" + (focus.has(d.key) ? " focus" : "");
-      div.innerHTML = `<div class="name"><span>${d.zh}</span><span>${s.score}${delta !== null ? ` <span class="delta ${delta < 0 ? "neg" : ""}">(${delta >= 0 ? "+" : ""}${delta.toFixed(1)})</span>` : ""}</span></div>
-        <div class="bar"><i style="width:${(s.score / max) * 100}%"></i></div><div class="note">${s.note || ""}</div>`;
-      el.appendChild(div);
+  // 9 维分为 4 个家族，扇形图按家族上色（配色经 dataviz 校验：CVD 全部通过）
+  const FAMILIES = {
+    color: { label: "色彩", color: "#e8632b" },
+    line:  { label: "线条", color: "#2b7de8" },
+    comp:  { label: "画面", color: "#2e9e5b" },
+    sem:   { label: "表达", color: "#7b4fd6" },
+  };
+  const DIM_FAMILY = {
+    color_richness: "color", color_contrast: "color",
+    line_combination: "line", line_texture: "line",
+    picture_organization: "comp",
+    realism: "sem", deformation: "sem", imagination: "sem", transformation: "sem",
+  };
+  // 扇区顺序：同家族相邻，读起来成组
+  const CHART_ORDER = ["color_richness", "color_contrast", "line_combination", "line_texture",
+    "picture_organization", "realism", "deformation", "imagination", "transformation"];
+
+  const polar = (cx, cy, r, deg) => { const t = deg * Math.PI / 180; return [cx + r * Math.cos(t), cy + r * Math.sin(t)]; };
+  const fmt = (n) => n.toFixed(2);
+  function sectorPath(cx, cy, r, a0, a1) {
+    const [x0, y0] = polar(cx, cy, r, a0), [x1, y1] = polar(cx, cy, r, a1);
+    return `M${cx},${cy} L${fmt(x0)},${fmt(y0)} A${r},${r} 0 0 1 ${fmt(x1)},${fmt(y1)} Z`;
+  }
+  function arcPath(cx, cy, r, a0, a1) {
+    const [x0, y0] = polar(cx, cy, r, a0), [x1, y1] = polar(cx, cy, r, a1);
+    return `M${fmt(x0)},${fmt(y0)} A${r},${r} 0 0 1 ${fmt(x1)},${fmt(y1)}`;
+  }
+
+  // 南丁格尔玫瑰扇形图：每个维度一个扇区，半径 = 分数；baseline 存在时用虚线弧标出修改前的分数
+  function roseChart(scores, baseline) {
+    const max = state.cfg.scale_max, N = CHART_ORDER.length, SLOT = 360 / N, PAD = 2;
+    const cx = 200, cy = 200, R = 118, LABEL_R = R + 20;
+    const dimsByKey = Object.fromEntries(state.cfg.dimensions.map(d => [d.key, d]));
+    const focus = new Set(state.quest ? state.quest.focus_dims : []);
+    const rOf = (s) => (Math.max(1, Math.min(max, s)) / max) * R;
+
+    let grid = "";
+    for (let s = 1; s <= max; s++) grid += `<circle cx="${cx}" cy="${cy}" r="${fmt((s / max) * R)}" class="rose-grid"/>`;
+    let sectors = "", marks = "", labels = "";
+    CHART_ORDER.forEach((key, i) => {
+      const d = dimsByKey[key], sc = scores.dims[key]; if (!d || !sc) return;
+      const fam = FAMILIES[DIM_FAMILY[key]];
+      const a0 = -90 + i * SLOT + PAD, a1 = -90 + (i + 1) * SLOT - PAD, mid = (a0 + a1) / 2;
+      const r = rOf(sc.score), isFocus = focus.has(key);
+      const b = baseline && baseline.dims[key], delta = b ? sc.score - b.score : null;
+      sectors += `<path d="${sectorPath(cx, cy, r, a0, a1)}" fill="${fam.color}" fill-opacity="${isFocus ? 0.95 : 0.72}"`
+        + ` stroke="#fff" stroke-width="2"${isFocus ? ' class="rose-focus"' : ''}>`
+        + `<title>${d.zh}：${sc.score}/${max}${delta !== null ? `（${delta >= 0 ? "+" : ""}${delta.toFixed(1)}）` : ""}</title></path>`;
+      if (b) {  // 修改前的水平：一条虚线弧
+        const rb = rOf(b.score);
+        marks += `<path d="${arcPath(cx, cy, rb, a0, a1)}" class="rose-before" stroke="${fam.color}"/>`;
+      }
+      const [lx, ly] = polar(cx, cy, LABEL_R, mid);
+      const anchor = Math.cos(mid * Math.PI / 180) > 0.25 ? "start" : Math.cos(mid * Math.PI / 180) < -0.25 ? "end" : "middle";
+      labels += `<text x="${fmt(lx)}" y="${fmt(ly)}" text-anchor="${anchor}" class="rose-label${isFocus ? " focus" : ""}">`
+        + `<tspan>${d.zh}</tspan><tspan dx="4" class="rose-num">${sc.score}${delta !== null ? ` ${delta >= 0 ? "▲" : "▼"}` : ""}</tspan></text>`;
     });
+    const shown = CHART_ORDER.map(k => scores.dims[k]).filter(Boolean);
+    const avg = shown.length ? shown.reduce((a, s) => a + s.score, 0) / shown.length : 0;
+    const legend = Object.values(FAMILIES).map(f =>
+      `<span class="rose-leg"><i style="background:${f.color}"></i>${f.label}</span>`).join("");
+    return `<div class="rose-wrap">
+      <svg viewBox="0 0 400 400" class="rose" role="img" aria-label="九维扇形评分图">
+        ${grid}${sectors}${marks}
+        <circle cx="${cx}" cy="${cy}" r="30" class="rose-hub"/>
+        <text x="${cx}" y="${cy - 2}" text-anchor="middle" class="rose-avg">${avg.toFixed(1)}</text>
+        <text x="${cx}" y="${cy + 14}" text-anchor="middle" class="rose-avg-sub">平均 /${max}</text>
+        ${labels}
+      </svg>
+      <div class="rose-legend">${legend}${baseline ? '<span class="rose-leg dash"><i></i>修改前</span>' : ""}</div>
+    </div>`;
+  }
+
+  function renderScores(el, scores, baseline) {
+    const focus = new Set(state.quest ? state.quest.focus_dims : []);
+    const notes = state.cfg.dimensions.map(d => {
+      const s = scores.dims[d.key]; if (!s) return "";
+      const b = baseline && baseline.dims[d.key], delta = b ? s.score - b.score : null;
+      const fam = FAMILIES[DIM_FAMILY[d.key]];
+      return `<div class="dim${focus.has(d.key) ? " focus" : ""}">
+        <div class="name"><span><i class="dot" style="background:${fam.color}"></i>${d.zh}</span>
+          <span class="sval">${s.score}${delta !== null ? ` <span class="delta ${delta < 0 ? "neg" : ""}">${delta >= 0 ? "+" : ""}${delta.toFixed(1)}</span>` : ""}</span></div>
+        <div class="note">${s.note || ""}</div></div>`;
+    }).join("");
+    el.innerHTML = roseChart(scores, baseline) + `<div class="dim-notes">${notes}</div>`;
   }
 
   // ---------- sessions list ----------

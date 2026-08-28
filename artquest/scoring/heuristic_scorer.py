@@ -13,6 +13,7 @@ from PIL import Image, ImageFilter, ImageStat
 from .base import SCALE_MAX, empty_result
 
 NEUTRAL = (1 + SCALE_MAX) / 2
+SPAN = SCALE_MAX - 1  # maps a 0–1 signal onto [1, SCALE_MAX]
 
 
 def _clamp(x: float) -> float:
@@ -39,16 +40,16 @@ class HeuristicScorer:
             if ss > 0.15:
                 hue_bins.add(int(hh * 12))
         coverage = drawn / max(1, len(px))
-        color_richness = 1 + 9 * min(1.0, len(hue_bins) / 7)
+        color_richness = 1 + SPAN * min(1.0, len(hue_bins) / 7)
         lum = ImageStat.Stat(img.convert("L"))
-        color_contrast = 1 + 9 * min(1.0, lum.stddev[0] / 80)
+        color_contrast = 1 + SPAN * min(1.0, lum.stddev[0] / 80)
 
         # --- lines ---------------------------------------------------------
         edges = img.convert("L").filter(ImageFilter.FIND_EDGES)
         est = ImageStat.Stat(edges)
         edge_density = est.mean[0] / 255
-        line_texture = 1 + 9 * min(1.0, est.stddev[0] / 60)
-        line_combination = 1 + 9 * min(1.0, edge_density * 12)
+        line_texture = 1 + SPAN * min(1.0, est.stddev[0] / 60)
+        line_combination = 1 + SPAN * min(1.0, edge_density * 12)
 
         # --- layout: how evenly the drawing occupies a 3x3 grid ------------
         cells = []
@@ -59,7 +60,7 @@ class HeuristicScorer:
                 cells.append(sum(1 for v in crop.getdata() if v < 245) / max(1, crop.size[0] * crop.size[1]))
         used = sum(1 for c in cells if c > 0.03)
         centre_weight = cells[4] / max(1e-6, sum(cells))
-        picture_organization = 1 + 9 * min(1.0, 0.6 * used / 9 + 0.4 * (1 - abs(centre_weight - 0.2) * 2))
+        picture_organization = 1 + SPAN * min(1.0, 0.6 * used / 9 + 0.4 * (1 - abs(centre_weight - 0.2) * 2))
 
         res = empty_result(self.name)
         res["dims"] = {
