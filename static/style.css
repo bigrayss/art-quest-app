@@ -3,8 +3,12 @@
 body { margin:0; font-family: -apple-system, "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif;
   background:radial-gradient(1200px 600px at 15% -10%, #fdf0e4 0%, transparent 60%), radial-gradient(1000px 500px at 100% 0%, #eaf1fb 0%, transparent 55%), var(--bg);
   background-attachment:fixed; color:var(--ink); }
-.topbar { display:flex; align-items:center; gap:24px; padding:12px 22px; background:rgba(255,255,255,.82); backdrop-filter:saturate(1.4) blur(8px); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:5; box-shadow:0 1px 12px rgba(0,0,0,.03); }
+.topwrap { position:sticky; top:0; z-index:5; }
+.topbar { display:flex; align-items:center; justify-content:space-between; gap:24px; padding:12px 22px; background:rgba(255,255,255,.82); backdrop-filter:saturate(1.4) blur(8px); border-bottom:1px solid var(--line); box-shadow:0 1px 12px rgba(0,0,0,.03); }
 .brand { font-weight:800; font-size:19px; letter-spacing:-.01em; }
+/* 顶部探险路线 */
+.trailbar { background:linear-gradient(180deg,#fffdf9,#fbf7f0); border-bottom:1px solid var(--line); padding:2px 16px 0; }
+.trailbar svg { display:block; width:100%; max-width:1120px; margin:0 auto; height:auto; max-height:126px; }
 .brand .stage { font-weight:400; font-size:12px; color:var(--muted); margin-left:6px; }
 .steps { display:flex; gap:6px; flex:1; }
 .steps span { font-size:12px; padding:4px 10px; border-radius:999px; background:#f1ede6; color:var(--muted); }
@@ -16,12 +20,18 @@ main { max-width:1280px; margin:0 auto; padding:20px; }
 h1 { font-size:27px; margin:8px 0 6px; letter-spacing:-.01em; } h2 { font-size:18px; margin:18px 0 8px; }
 .muted { color:var(--muted); } .small { font-size:12px; }
 .quest-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px; margin:16px 0; }
-.quest-card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; cursor:pointer; transition:transform .1s, box-shadow .1s; }
-.quest-card:hover { transform:translateY(-2px); box-shadow:0 6px 18px rgba(0,0,0,.06); }
-.quest-card .type { font-size:11px; color:var(--accent-2); font-weight:600; letter-spacing:.04em; }
-.quest-card h3 { margin:6px 0; font-size:17px; }
-.quest-card p { margin:0; font-size:13px; color:var(--muted); line-height:1.5; }
-.quest-card.small { cursor:default; padding:12px; } .quest-card.small p { font-size:12px; }
+.quest-card { position:relative; overflow:hidden; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:20px 18px 16px; cursor:pointer; transition:transform .12s, box-shadow .18s, border-color .18s; }
+.quest-card::before { content:""; position:absolute; inset:0 0 auto 0; height:4px; background:linear-gradient(90deg, var(--qc,#e8632b), color-mix(in srgb, var(--qc,#e8632b) 45%, #fff)); }
+.quest-card:hover { transform:translateY(-3px); box-shadow:0 12px 28px color-mix(in srgb, var(--qc,#000) 20%, transparent); border-color:color-mix(in srgb, var(--qc,#000) 28%, var(--line)); }
+.qc-top { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+.qc-icon { font-size:24px; line-height:1; filter:drop-shadow(0 1px 2px rgba(0,0,0,.12)); }
+.quest-card .type { display:inline-block; font-size:11px; font-weight:700; letter-spacing:.03em; color:var(--qc,var(--accent-2)); background:color-mix(in srgb, var(--qc,#2b7de8) 12%, #fff); padding:3px 10px; border-radius:999px; }
+.quest-card h3 { margin:4px 0 6px; font-size:17px; }
+.quest-card p { margin:0; font-size:13px; color:var(--muted); line-height:1.55; }
+.qc-go { display:inline-block; margin-top:10px; font-size:13px; font-weight:700; color:var(--qc,var(--accent)); opacity:0; transform:translateX(-4px); transition:opacity .15s, transform .15s; }
+.quest-card:hover .qc-go { opacity:1; transform:translateX(0); }
+.quest-card.small { cursor:default; padding:12px; } .quest-card.small::before { display:none; } .quest-card.small p { font-size:12px; }
+.quest-card.small .type { background:#f1ede6; color:var(--muted); }
 .quest-prompt { font-size:16px; line-height:1.6; background:var(--card); border-left:4px solid var(--accent); padding:12px 14px; border-radius:8px; }
 .hint { color:var(--muted); font-size:14px; }
 label { display:block; margin:14px 0 6px; font-weight:600; font-size:14px; }
@@ -42,11 +52,11 @@ button:disabled { opacity:.5; cursor:not-allowed; }
 .draw-layout { display:grid; grid-template-columns:230px 1fr; gap:16px; }
 .toolbox { display:flex; flex-direction:column; gap:12px; }
 .intent-card { background:#fff8e8; border:1px solid #f1e2b8; border-radius:10px; padding:10px; font-size:12px; line-height:1.5; }
-.tool-group { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px; }
+.tool-group { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px; box-shadow:0 1px 3px rgba(0,0,0,.03); }
 .tool-group.row { display:flex; gap:6px; } .tool-group.row button { flex:1; padding:6px 4px; font-size:12px; }
 .tool-group .label { font-size:12px; color:var(--muted); margin-bottom:6px; }
 .tools { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
-.tools button.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+.tools button.active { background:linear-gradient(180deg,#f0743c,#e8632b); color:#fff; border-color:#d5551f; box-shadow:0 2px 8px rgba(232,99,43,.28); }
 .palette { display:grid; grid-template-columns:repeat(6,1fr); gap:5px; margin-bottom:6px; }
 .palette div { aspect-ratio:1; border-radius:6px; border:2px solid transparent; cursor:pointer; }
 .palette div.active { border-color:var(--ink); }
@@ -55,7 +65,7 @@ input[type=range] { width:100%; }
 .tool-group > button { width:100%; margin-top:6px; }
 .banner { margin-top:10px; background:#e8f1fd; border:1px solid #c6dcf7; border-radius:10px; padding:10px; font-size:13px; }
 .banner button { margin-top:8px; width:100%; }
-.canvas-wrap { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:10px; }
+.canvas-wrap { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:10px; box-shadow:0 6px 24px rgba(0,0,0,.06); }
 canvas { width:100%; height:auto; display:block; background:#fff; border-radius:8px; touch-action:none; cursor:crosshair; }
 /* result */
 .result-layout { display:grid; grid-template-columns:1.1fr 1fr; gap:20px; }
@@ -97,3 +107,47 @@ table.sessions th, table.sessions td { text-align:left; padding:8px 10px; border
 .spinner { width:36px; height:36px; border:4px solid #eee; border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
 @media (max-width: 900px) { .draw-layout, .result-layout { grid-template-columns:1fr; } }
+
+/* ===== 创作伙伴「彩点」 ===== */
+.sprite { width:56px; height:56px; display:block; }
+.sprite.lg { width:64px; height:64px; }
+.buddy-mini { display:flex; align-items:center; gap:10px; background:#fff8ee; border:1px solid #f1e2c8; border-radius:12px; padding:8px 10px; }
+.buddy-mini .sprite { width:48px; height:48px; flex:none; }
+.buddy-say { font-size:12px; line-height:1.5; color:#6b5b3e; }
+.buddy-card .buddy-head { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+.buddy-name { font-weight:800; font-size:15px; }
+/* ===== 过程徽章 ===== */
+.badges { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin:10px 0 4px; }
+.badge { background:#fff; border:1px solid var(--line); border-radius:16px; padding:16px 10px; text-align:center; position:relative; transition:transform .12s; }
+.badge.new { box-shadow:0 4px 14px rgba(232,99,43,.14); }
+.badge.new:hover { transform:translateY(-2px); }
+.badge .b-ico { font-size:32px; filter:drop-shadow(0 2px 4px rgba(0,0,0,.12)); }
+.badge .b-name { font-size:13px; font-weight:800; margin-top:6px; }
+.badge .b-desc { font-size:11px; color:var(--muted); margin-top:2px; line-height:1.4; }
+.badge.locked { background:#f6f3ee; border-style:dashed; }
+.badge.locked .b-ico { filter:grayscale(1); opacity:.4; }
+.badge.locked .b-name { color:#b8b2a8; }
+.badge.new::after { content:"NEW"; position:absolute; top:7px; right:7px; background:var(--accent); color:#fff; font-size:9px; font-weight:800; padding:2px 6px; border-radius:999px; }
+.badge.evo.new { border-color:#e6a6b2; }
+.badge.evo.locked { border-color:#e6a6b2; background:#fff7f8; }
+.badge.evo.locked .b-desc { color:#d9455f; font-weight:600; }
+@media (max-width:720px){ .badges { grid-template-columns:repeat(3,1fr); } }
+/* ===== 创作图鉴 ===== */
+.dex { display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin:6px 0 4px; }
+.dex-card { display:block; border-radius:14px; overflow:hidden; border:1px solid var(--line); background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.04); text-decoration:none; color:inherit; transition:transform .12s, box-shadow .15s; }
+.dex-card:hover { transform:translateY(-3px); box-shadow:0 10px 22px color-mix(in srgb, var(--qc,#000) 18%, transparent); }
+.dex-thumb { height:88px; background:#f4f0ea; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+.dex-thumb img { width:100%; height:100%; object-fit:cover; }
+.dex-cap { padding:7px 9px; }
+.dex-cap b { display:block; font-size:12px; }
+.dex-cap span { font-size:11px; color:var(--muted); }
+@media (max-width:900px){ .dex { grid-template-columns:repeat(3,1fr); } }
+/* ===== 能力值面板 ===== */
+.ability-head { font-size:14px; font-weight:700; margin-bottom:8px; }
+.ability-head .muted { font-weight:400; margin-left:6px; }
+.dim .sval .st { color:#e6a23c; letter-spacing:1px; font-size:13px; }
+.dim .sval .st u { color:#e3ddd0; text-decoration:none; }
+.dim .sval .wait { color:#b8b2a8; font-size:11px; font-weight:500; }
+.dim.ph .name span:first-child { color:#b0a89c; }
+.dim .delta { color:var(--ok); font-weight:700; font-size:11px; } .dim .delta.neg { color:#c0392b; }
+.rose-arw.up { fill:var(--ok); } .rose-arw.dn { fill:#c0392b; }
