@@ -7,13 +7,13 @@
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+<div class="topwrap">
 <header class="topbar">
-  <div class="brand">🎨 ArtQuest <span class="stage">Stage 1 · PC 原型</span></div>
-  <div class="steps" id="steps">
-    <span data-step="quest">1 任务</span><span data-step="intent">2 意图</span><span data-step="draw">3 创作</span><span data-step="result">4 反馈</span><span data-step="final">5 完成</span>
-  </div>
+  <div class="brand">🎨 ArtQuest <span class="stage">创作冒险</span></div>
   <div class="backend" id="backend-badge"></div>
 </header>
+<div class="trailbar"><svg id="trail" viewBox="0 0 1200 126" preserveAspectRatio="xMidYMid meet" aria-label="创作冒险进度"></svg></div>
+</div>
 
 <main>
 <!-- 1. Quest -->
@@ -21,7 +21,11 @@
   <h1>今天想挑战哪一个？</h1>
   <p class="muted">每个任务都没有标准答案。选一个让你有点想动笔的。</p>
   <div class="quest-grid" id="quest-grid"></div>
-  <p class="muted small"><a href="#" id="link-sessions">查看以前的作品记录</a></p>
+  <div id="collection-wrap" class="hidden">
+    <h2>🖼 我的创作图鉴 <span class="muted small" id="dex-progress"></span></h2>
+    <div class="dex" id="collection"></div>
+  </div>
+  <p class="muted small"><a href="#" id="link-sessions">查看全部作品记录（表格）</a></p>
 </section>
 
 <!-- 2. Intent -->
@@ -48,6 +52,10 @@
     <aside class="toolbox">
       <div class="quest-card small" id="draw-quest-card"></div>
       <div class="intent-card" id="draw-intent-card"></div>
+      <div class="buddy-mini">
+        <svg class="sprite" id="draw-sprite" viewBox="0 0 200 200"></svg>
+        <div class="buddy-say" id="draw-buddy-say">选个颜色，我就变成它！</div>
+      </div>
       <div class="tool-group">
         <div class="label">工具</div>
         <div class="tools" id="tools">
@@ -90,11 +98,12 @@
       <div class="scores" id="scores"></div>
       <p class="muted small" id="score-summary"></p>
     </div>
-    <div class="feedback-card">
-      <h2>教练的话</h2>
+    <div class="feedback-card buddy-card">
+      <div class="buddy-head"><svg class="sprite lg" id="fb-sprite" viewBox="0 0 200 200"></svg>
+        <div><div class="buddy-name">彩点 · 你的创作伙伴</div><div class="muted small">陪你想，不替你画</div></div></div>
       <div class="feedback-text" id="feedback-text"></div>
       <div class="actions column">
-        <button class="primary big" id="btn-revise">我想改一改 →</button>
+        <button class="primary big" id="btn-revise">✨ 去进化关，改一改 →</button>
         <button class="secondary" id="btn-skip-revise">不改了，就这样完成</button>
       </div>
     </div>
@@ -103,12 +112,18 @@
 
 <!-- 5. Final -->
 <section class="view hidden" id="view-final">
-  <h1>完成 🎉</h1>
+  <h1>宝藏到手 🏆</h1>
   <div class="compare">
     <figure><img id="final-before" class="artwork"><figcaption>修改前</figcaption></figure>
     <figure><img id="final-after" class="artwork"><figcaption>修改后</figcaption></figure>
   </div>
-  <div class="feedback-card"><div class="feedback-text" id="comparison-text"></div></div>
+  <div class="feedback-card buddy-card">
+    <div class="buddy-head"><svg class="sprite lg" id="cmp-sprite" viewBox="0 0 200 200"></svg>
+      <div><div class="buddy-name">彩点</div></div></div>
+    <div class="feedback-text" id="comparison-text"></div>
+  </div>
+  <h2>🏅 这次点亮的徽章 <span class="muted small" id="badges-count"></span></h2>
+  <div class="badges" id="badges"></div>
   <div class="scores" id="final-scores"></div>
   <p class="muted small" id="final-meta"></p>
   <div class="actions"><button class="primary" id="btn-again">再来一个任务</button></div>
