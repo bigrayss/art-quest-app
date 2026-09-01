@@ -133,6 +133,7 @@ class Questionnaire(BaseModel):
     enjoyment: Optional[int] = Field(None, ge=1, le=5)
     hardest_part: str = ""
     free_text: str = ""
+    t_ms: int = Field(0, description="会话计时，保证事件在统一时间线上有精确位置")
 
 
 class FeedbackIn(BaseModel):

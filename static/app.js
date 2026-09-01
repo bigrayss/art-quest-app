@@ -395,6 +395,8 @@
     $("#revision-banner").classList.add("hidden"); $("#btn-submit").classList.remove("hidden"); $("#snap-info").textContent = "";
     state.buddyTick = 0; updateBuddy();
     startTimers(); show("draw");
+    // the canvas has a real size only once the view is visible
+    logEvent("CANVAS_GEOMETRY", canvasGeom());
   };
 
   $("#btn-submit").onclick = async () => {
@@ -452,7 +454,7 @@
     }));
   }
   async function sendSurvey(skip) {
-    const body = skip ? {} : { ...answers, hardest_part: $("#survey-hardest").value.trim() };
+    const body = skip ? { t_ms: elapsed() } : { ...answers, hardest_part: $("#survey-hardest").value.trim(), t_ms: elapsed() };
     try { await api(`/api/sessions/${state.sessionId}/questionnaire`, { method: "POST", body: JSON.stringify(body) }); }
     catch (e) { console.warn("questionnaire failed", e); }
     const f = state.pendingFinal; if (f) showFinal(f.session, f.beforeImg, f.afterImg, f.comparison);
@@ -467,6 +469,7 @@
     const pending = await flushLog();
     if (pending) console.warn(`${pending} 条记录尚未上传，已保留在本地队列`);
     state.pendingFinal = { session, beforeImg, afterImg, comparison };
+    state.revised = session.revised;   // the trail must show ✨进化关 correctly on the survey too
     if (state.condition.questionnaire) { renderSurvey(); show("survey"); return; }
     showFinal(session, beforeImg, afterImg, comparison);
   }

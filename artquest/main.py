@@ -252,8 +252,10 @@ def finalize(sid: str, body: Finalize):
 @app.post("/api/sessions/{sid}/questionnaire")
 def questionnaire(sid: str, body: Questionnaire):
     _session_or_404(sid)
-    rec = store.save_questionnaire(sid, body.model_dump())
-    store.add_server_event(sid, "QUESTIONNAIRE_SUBMITTED", 0, {k: v for k, v in rec.items() if isinstance(v, int)})
+    answers = body.model_dump()
+    rec = store.save_questionnaire(sid, {k: v for k, v in answers.items() if k != "t_ms"})
+    store.add_server_event(sid, "QUESTIONNAIRE_SUBMITTED", body.t_ms,
+                           {k: v for k, v in rec.items() if isinstance(v, int)})
     return {"ok": True, "questionnaire": rec}
 
 
