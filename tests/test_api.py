@@ -5,23 +5,13 @@ Run:  python3 -m unittest -v
 import base64
 import io
 import os
-import tempfile
 import unittest
 
-os.environ["ARTQUEST_SCORER"] = "heuristic"
-os.environ["ARTQUEST_FEEDBACK"] = "template"
-_TMP = tempfile.mkdtemp(prefix="artquest-test-")
-os.environ["ARTQUEST_DATA_DIR"] = _TMP
-
-import importlib  # noqa: E402
+from .env import TMP as _TMP  # sets the offline backends and the test data dir
 
 from fastapi.testclient import TestClient  # noqa: E402
 from PIL import Image, ImageDraw  # noqa: E402
 
-# unittest discovery may import artquest sub-packages (and thus config) before
-# the env vars above are set — reload so the test data dir is honoured.
-import artquest.config  # noqa: E402
-importlib.reload(artquest.config)
 from artquest.main import app  # noqa: E402
 
 
@@ -69,10 +59,10 @@ class StageOneLoop(unittest.TestCase):
         self.assertEqual(s["status"], "done")
         self.assertTrue(s["revised"])
         self.assertEqual(len(s["snapshots"]), 1)
-        self.assertTrue(any(e["type"] == "feedback_shown" for e in s["events"]))
+        self.assertTrue(any(e["type"] == "FEEDBACK_SHOWN" for e in s["events"]))
 
         d = os.path.join(_TMP, "sessions", sid)
-        for f in ("session.json", "before.png", "after.png", "snapshots/0001_45s.png"):
+        for f in ("metadata.json", "before.png", "after.png", "final.png", "events.jsonl", "snapshots/0001_45s.png"):
             self.assertTrue(os.path.exists(os.path.join(d, f)), f)
         self.assertEqual(self.c.get(f"/files/{sid}/before.png").status_code, 200)
 
