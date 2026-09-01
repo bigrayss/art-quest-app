@@ -8,7 +8,31 @@
   };
 
   const state = { cfg: null, quests: [], quest: null, emotion: null, sessionId: null, phase: "before",
-    startedAt: null, events: [], dirtySinceSnapshot: false, timers: [], before: null, color: "#e8632b", buddyTick: 0 };
+    startedAt: null, dirtySinceSnapshot: false, timers: [], before: null, color: "#e8632b", buddyTick: 0,
+    anonId: "", condition: {}, study: null, seqIdx: 0, lastActivity: 0, idle: false, timeUp: false, pendingFinal: null };
+
+  // ---------- research identity & environment ----------
+  // Two anonymous ids: one the device keeps by itself (so free play still lines
+  // up across tasks) and one a researcher hands out. Neither is a real name.
+  const params = new URLSearchParams(location.search);
+  function anonId() {
+    let id = localStorage.getItem("artquest.anon_id");
+    if (!id) {
+      id = "anon-" + (crypto.randomUUID ? crypto.randomUUID().slice(0, 12) : Math.random().toString(16).slice(2, 14));
+      localStorage.setItem("artquest.anon_id", id);
+    }
+    return id;
+  }
+  const savedPid = () => localStorage.getItem("artquest.participant_id") || "";
+  const setPid = (pid) => pid ? localStorage.setItem("artquest.participant_id", pid) : localStorage.removeItem("artquest.participant_id");
+  const deviceInfo = () => ({
+    ua: navigator.userAgent, platform: navigator.platform || "",
+    screen: [screen.width, screen.height], viewport: [innerWidth, innerHeight], dpr: devicePixelRatio || 1,
+    pointer_types: [matchMedia("(pointer:fine)").matches ? "fine" : "", matchMedia("(any-pointer:coarse)").matches ? "coarse" : ""].filter(Boolean),
+    timezone: (Intl.DateTimeFormat().resolvedOptions() || {}).timeZone || "", language: navigator.language || "",
+  });
+  const canvasGeom = () => { const r = canvas.getBoundingClientRect();
+    return { width: canvas.width, height: canvas.height, css_width: Math.round(r.width), css_height: Math.round(r.height) }; };
 
   // 每个任务的图标 + 主题色（首页卡片用）
   const QUEST_STYLE = {
@@ -84,13 +108,13 @@
   }
 
   // ---------- views ----------
-  const VIEWS = ["quest", "intent", "draw", "result", "final", "sessions"];
+  const VIEWS = ["quest", "intent", "draw", "result", "survey", "final", "sessions"];
   function show(name) {
     VIEWS.forEach(v => $(`#view-${v}`).classList.toggle("hidden", v !== name));
     const trailbar = document.querySelector(".trailbar");
     if (trailbar) trailbar.classList.toggle("hidden", name === "sessions");
     if (name !== "sessions") {
-      const stage = name === "draw" ? (state.phase === "after" ? "evolve" : "draw") : name;
+      const stage = name === "draw" ? (state.phase === "after" ? "evolve" : "draw") : name === "survey" ? "final" : name;
       renderTrail(stage);
     }
     window.scrollTo(0, 0);
@@ -105,7 +129,7 @@
     marker: { size: 6, alpha: 0.35, cap: "square", pressure: 0 },
     eraser: { size: 6, alpha: 1, cap: "round", pressure: 0, color: "#ffffff" },
   };
-  let tool = "pencil", color = "#222222", size = 4, drawing = false, last = null;
+  let tool = "pencil", color = "#222222", size = 4, drawing = false, last = null, strokeCount = 0, curStroke = null;
   const undoStack = [], redoStack = [], MAX_UNDO = 40;
 
   function resetCanvas() { ctx.globalAlpha = 1; ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height); undoStack.length = redoStack.length = 0; }
@@ -120,33 +144,63 @@
     ctx.lineWidth = Math.max(0.5, w); ctx.lineCap = t.cap; ctx.lineJoin = "round";
     ctx.strokeStyle = t.color || color; ctx.globalAlpha = t.alpha;
   }
+  // -- stroke recording: the core process datum. Raw points only —
+  //    speed / length / hesitation / rhythm are derived offline, never here.
+  const R = (v, n) => { const f = Math.pow(10, n); return Number.isFinite(v) ? Math.round(v * f) / f : 0; };
+  function samplePoint(e, t0) {
+    const q = pos(e);
+    return [R(q.x, 1), R(q.y, 1), Math.round(elapsed() - t0), R(e.pressure || 0, 3), Math.round(e.tiltX || 0), Math.round(e.tiltY || 0)];
+  }
+  function beginStroke(e) {
+    const t0 = elapsed();
+    curStroke = { t0, tool, color: TOOLS[tool].color || color, size, opacity: TOOLS[tool].alpha,
+      erase: tool === "eraser", pointer_type: e.pointerType || "", points: [samplePoint(e, t0)] };
+  }
+  function finishStroke() {
+    if (!curStroke) return;
+    const s = curStroke; curStroke = null;
+    const id = "s" + String(++strokeCount).padStart(5, "0"), last_pt = s.points[s.points.length - 1];
+    ArtLog.stroke({ stroke_id: id, phase: state.phase, t_start_ms: Math.round(s.t0), t_end_ms: Math.round(s.t0 + last_pt[2]),
+      tool: s.tool, color: s.color, size: s.size, opacity: s.opacity, erase: s.erase,
+      pointer_type: s.pointer_type, points: s.points });
+    // the same stroke also lands in the unified event timeline, cross-referenced by id
+    logEvent(s.erase ? "ERASE" : "STROKE", { stroke_id: id, tool: s.tool, color: s.color, size: s.size, n: s.points.length, dur_ms: last_pt[2] });
+  }
   canvas.addEventListener("pointerdown", (e) => {
     if (e.button !== 0 && e.pointerType === "mouse") return;
-    canvas.setPointerCapture(e.pointerId); pushUndo(); drawing = true; last = pos(e);
+    if (state.timeUp) return;
+    canvas.setPointerCapture(e.pointerId); pushUndo(); drawing = true; last = pos(e); beginStroke(e);
     strokeStyle(last.p); ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(last.x + 0.01, last.y); ctx.stroke();
-    logEvent("stroke_start", { tool, color, size, pointer: e.pointerType });
+    markActive();
   });
   canvas.addEventListener("pointermove", (e) => {
     if (!drawing) return;
-    const p = pos(e); strokeStyle(p);
-    ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke(); last = p; state.dirtySinceSnapshot = true;
+    // coalesced events keep the full input rate of a pen (up to ~240 Hz)
+    const evs = (e.getCoalescedEvents && e.getCoalescedEvents()) || [];
+    (evs.length ? evs : [e]).forEach(ev => {
+      const p = pos(ev); strokeStyle(p.p);
+      ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke(); last = p;
+      if (curStroke) curStroke.points.push(samplePoint(ev, curStroke.t0));
+    });
+    state.dirtySinceSnapshot = true; markActive();
   });
-  const endStroke = () => { if (drawing) { drawing = false; ctx.globalAlpha = 1; } };
+  const endStroke = () => { if (drawing) { drawing = false; ctx.globalAlpha = 1; finishStroke(); } };
   canvas.addEventListener("pointerup", endStroke); canvas.addEventListener("pointercancel", endStroke); canvas.addEventListener("pointerleave", endStroke);
 
-  function undo() { if (!undoStack.length) return; redoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height)); ctx.putImageData(undoStack.pop(), 0, 0); logEvent("undo"); state.dirtySinceSnapshot = true; }
-  function redo() { if (!redoStack.length) return; undoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height)); ctx.putImageData(redoStack.pop(), 0, 0); logEvent("redo"); state.dirtySinceSnapshot = true; }
+  function undo() { if (!undoStack.length) return; redoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height)); ctx.putImageData(undoStack.pop(), 0, 0); logEvent("UNDO"); state.dirtySinceSnapshot = true; }
+  function redo() { if (!redoStack.length) return; undoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height)); ctx.putImageData(redoStack.pop(), 0, 0); logEvent("REDO"); state.dirtySinceSnapshot = true; }
   $("#btn-undo").onclick = undo; $("#btn-redo").onclick = redo;
-  $("#btn-clear").onclick = () => { if (confirm("确定清空整张画布？")) { pushUndo(); ctx.globalAlpha = 1; ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height); logEvent("clear"); state.dirtySinceSnapshot = true; } };
+  $("#btn-clear").onclick = () => { if (confirm("确定清空整张画布？")) { pushUndo(); ctx.globalAlpha = 1; ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height); logEvent("CLEAR"); state.dirtySinceSnapshot = true; } };
   document.addEventListener("keydown", (e) => {
     if ($("#view-draw").classList.contains("hidden")) return;
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") { e.preventDefault(); redo(); }
   });
   document.querySelectorAll("#tools button").forEach(b => b.onclick = () => {
-    tool = b.dataset.tool; document.querySelectorAll("#tools button").forEach(x => x.classList.toggle("active", x === b)); logEvent("tool", { tool });
+    if (b.disabled) return;
+    tool = b.dataset.tool; document.querySelectorAll("#tools button").forEach(x => x.classList.toggle("active", x === b)); logEvent("BRUSH_CHANGE", { tool });
   });
-  $("#size").oninput = (e) => { size = +e.target.value; $("#size-val").textContent = size; };
+  $("#size").oninput = (e) => { size = +e.target.value; $("#size-val").textContent = size; logEvent("SIZE_CHANGE", { size }); };
   const PALETTE = ["#222222", "#7a7a7a", "#ffffff", "#e63946", "#f4a261", "#ffd166", "#2a9d8f", "#4caf50", "#1d6fe0", "#7b4fd6", "#f28cb1", "#8d5524"];
   const pal = $("#palette");
   PALETTE.forEach(c => { const d = document.createElement("div"); d.style.background = c; d.title = c; d.onclick = () => setColor(c, d); pal.appendChild(d); });
@@ -157,20 +211,33 @@
     const say = $("#draw-buddy-say"); if (say) say.textContent = BUDDY_LINES[state.buddyTick % BUDDY_LINES.length];
     if (!$("#view-draw").classList.contains("hidden")) renderTrail(state.phase === "after" ? "evolve" : "draw");
   }
-  function setColor(c, el) { color = c; $("#color-custom").value = c; pal.querySelectorAll("div").forEach(x => x.classList.toggle("active", x === el)); if (tool === "eraser") document.querySelector('[data-tool="pencil"]').click(); logEvent("color", { color: c }); state.buddyTick++; updateBuddy(); }
+  function setColor(c, el) { color = c; $("#color-custom").value = c; pal.querySelectorAll("div").forEach(x => x.classList.toggle("active", x === el)); if (tool === "eraser") document.querySelector('[data-tool="pencil"]').click(); logEvent("COLOR_CHANGE", { color: c }); state.buddyTick++; updateBuddy(); }
   pal.firstChild.classList.add("active");
   $("#color-custom").oninput = (e) => setColor(e.target.value, null);
-  $("#btn-download").onclick = () => { const a = document.createElement("a"); a.download = `artquest-${state.sessionId || "draft"}.png`; a.href = canvas.toDataURL("image/png"); a.click(); logEvent("download"); };
+  $("#btn-download").onclick = () => { const a = document.createElement("a"); a.download = `artquest-${state.sessionId || "draft"}.png`; a.href = canvas.toDataURL("image/png"); a.click(); logEvent("DOWNLOAD"); };
 
   // ---------- process recording ----------
   const elapsed = () => state.startedAt ? Date.now() - state.startedAt : 0;
-  function logEvent(type, detail) { if (state.startedAt) state.events.push({ t_ms: elapsed(), type, detail: detail || null }); }
-  function takeEvents() { const ev = state.events; state.events = []; return ev; }
+  const IDLE_MS = 3000;   // no input for this long counts as a pause worth logging
+  /** One line of the append-only operation log; buffered locally, flushed in batches. */
+  function logEvent(type, payload) { if (state.sessionId) ArtLog.event(type, elapsed(), payload || null); markActive(); }
+  function markActive() {
+    const t = elapsed();
+    if (state.idle) { ArtLog.event("IDLE_END", t, { duration_ms: Math.round(t - state.lastActivity), phase: state.phase }); state.idle = false; }
+    state.lastActivity = t;
+  }
+  function checkIdle() {
+    if (!state.sessionId || state.idle) return;
+    const t = elapsed();
+    if (t - state.lastActivity >= IDLE_MS) { state.idle = true; ArtLog.event("IDLE_START", t, { since_ms: Math.round(state.lastActivity), phase: state.phase }); }
+  }
+  /** Push everything queued locally, then report what is still unsent. */
+  async function flushLog() { try { await ArtLog.flush(); } catch (e) { /* keep the queue */ } return await ArtLog.pending(); }
   async function snapshot() {
     if (!state.sessionId || !state.dirtySinceSnapshot) return;
     state.dirtySinceSnapshot = false;
     try {
-      await api(`/api/sessions/${state.sessionId}/snapshot`, { method: "POST", body: JSON.stringify({ image: canvas.toDataURL("image/png"), elapsed_ms: elapsed(), events: takeEvents() }) });
+      await api(`/api/sessions/${state.sessionId}/snapshot`, { method: "POST", body: JSON.stringify({ image: canvas.toDataURL("image/png"), elapsed_ms: elapsed() }) });
       $("#snap-info").textContent = `已记录 ${new Date().toLocaleTimeString()}`;
     } catch (e) { console.warn("snapshot failed", e); }
   }
@@ -178,6 +245,20 @@
     stopTimers();
     state.timers.push(setInterval(() => { const s = Math.floor(elapsed() / 1000); $("#timer").textContent = `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`; }, 500));
     state.timers.push(setInterval(snapshot, state.cfg.snapshot_interval_sec * 1000));
+    state.timers.push(setInterval(checkIdle, 1000));
+    state.timers.push(setInterval(tickTimeLimit, 1000));
+  }
+  function tickTimeLimit() {
+    const limit = state.condition.time_limit_sec;
+    if (!limit || state.timeUp) return;
+    const left = Math.max(0, limit - Math.floor(elapsed() / 1000));
+    $("#limit-info").textContent = `· 剩 ${String(Math.floor(left / 60)).padStart(2, "0")}:${String(left % 60).padStart(2, "0")}`;
+    $("#limit-info").classList.toggle("low", left <= 30);
+    if (left === 0) {
+      state.timeUp = true; logEvent("TIME_LIMIT_REACHED", { limit_sec: limit });
+      const btn = state.phase === "after" ? $("#btn-submit-after") : $("#btn-submit");
+      if (btn) btn.click();
+    }
   }
   function stopTimers() { state.timers.forEach(clearInterval); state.timers = []; }
 
@@ -201,19 +282,87 @@
       + (types.size >= total ? ' · <b style="color:#e8632b">🏅 创作者勋章达成！</b>' : "");
   }
 
+  // ---------- Study Mode ----------
+  // The game is never stripped away; Study Mode only *fixes and records* what
+  // would otherwise vary silently — task order, UI condition, reference, undo,
+  // time limit, self-report. The condition is frozen per session, never mid-way.
+  async function setupStudy() {
+    const urlPid = (params.get("pid") || "").trim();
+    if (urlPid) setPid(urlPid);
+    state.condition = { ...state.cfg.default_condition };
+    if (!(params.get("study") === "1" || state.cfg.study.active)) return;
+    try {
+      state.study = await api("/api/study/assign", { method: "POST",
+        body: JSON.stringify({ participant_id: savedPid(), anon_id: state.anonId, group: params.get("group") || "" }) });
+      state.condition = { ...state.condition, ...state.study.condition };
+      state.seqIdx = 0;
+    } catch (e) { console.warn("study assign failed", e); }
+    renderStudyBar();
+  }
+  function renderStudyBar() {
+    if (!state.study) return;
+    const bar = $("#studybar"); bar.classList.remove("hidden");
+    const pid = savedPid() || "（未分配代号）";
+    $("#study-info").textContent = `${state.study.study_id || "study"} · 被试 ${pid} · 条件 ${state.condition.ui}`;
+    $("#study-seq").textContent = (state.study.sequence || [])
+      .map((t, i) => `${i < state.seqIdx ? "✓" : i === state.seqIdx ? "▶" : "·"}${i + 1}`).join(" ");
+  }
+  $("#btn-study-exit").onclick = () => { setPid(""); location.href = location.pathname; };
+  /** Apply the frozen condition to the UI (gamification level, undo, reference). */
+  function applyCondition() {
+    const c = state.condition;
+    document.body.classList.toggle("quiet", c.ui === "quiet");
+    ["#btn-undo", "#btn-redo"].forEach(sel => { const b = $(sel); if (b) { b.disabled = !c.undo_allowed; b.classList.toggle("hidden", !c.undo_allowed); } });
+  }
+  /** Per-task condition: reference image, time limit, allowed tools. */
+  function applyTask(q) {
+    const ref = q.reference, allowRef = state.condition.reference_allowed && !!ref;
+    $("#refpanel").classList.toggle("hidden", !allowRef);
+    $("#ref-wrap").classList.add("hidden");
+    if (allowRef) { $("#ref-img").src = ref.file || `/static/refs/${ref.id}.png`; if (ref.mode === "always") toggleRef(true); }
+    state.timeUp = false; $("#limit-info").textContent = ""; $("#limit-info").classList.remove("low");
+    const allowed = q.allowed_tools;
+    document.querySelectorAll("#tools button").forEach(b => {
+      const ok = !allowed || allowed.indexOf(b.dataset.tool) >= 0;
+      b.disabled = !ok; b.classList.toggle("off", !ok);
+      if (!ok && b.classList.contains("active")) document.querySelector('[data-tool="pencil"]').click();
+    });
+  }
+  function toggleRef(open) {
+    const wrap = $("#ref-wrap"), willOpen = open !== undefined ? open : wrap.classList.contains("hidden");
+    wrap.classList.toggle("hidden", !willOpen);
+    $("#btn-ref-toggle").textContent = willOpen ? "🖼 收起参考图" : "🖼 看看参考图";
+    logEvent(willOpen ? "REFERENCE_OPEN" : "REFERENCE_CLOSE", { task_id: state.quest && state.quest.id });
+  }
+  $("#btn-ref-toggle").onclick = () => toggleRef();
+
   // ---------- flow ----------
+  function renderQuests() {
+    const grid = $("#quest-grid"); grid.innerHTML = "";
+    const seq = state.study && state.study.sequence ? state.study.sequence : null;
+    const byId = Object.fromEntries(state.quests.map(q => [q.id, q]));
+    const list = seq ? seq.map(id => byId[id]).filter(Boolean) : state.quests;
+    list.forEach((q, i) => {
+      const fb = QUEST_STYLE[q.id] || {};
+      const icon = q.icon || fb.icon || "🎨", col = q.color || fb.c || "#e8632b";
+      const locked = !!seq && i !== state.seqIdx;
+      const c = document.createElement("div");
+      c.className = "quest-card" + (locked ? " locked" : ""); c.style.setProperty("--qc", col);
+      c.innerHTML = `<div class="qc-top"><span class="qc-icon">${icon}</span><span class="type">${q.type}</span></div>`
+        + `<h3>${q.title}</h3><p>${q.prompt}</p>`
+        + `<span class="qc-go">${locked ? "稍后解锁" : seq ? `第 ${i + 1} 关 · 开始 →` : "开始创作 →"}</span>`;
+      if (!locked) c.onclick = () => chooseQuest(q);
+      grid.appendChild(c);
+    });
+  }
   async function init() {
     state.cfg = await api("/api/config"); state.quests = await api("/api/quests");
+    state.anonId = anonId();
     $("#backend-badge").textContent = `评分: ${state.cfg.scorer} · 反馈: ${state.cfg.feedback}` + (state.cfg.claude_available ? "" : " (离线模式)");
-    const grid = $("#quest-grid"); grid.innerHTML = "";
-    const FALLBACK = ["#e8632b", "#7b4fd6", "#2b7de8", "#2e9e5b", "#d9455f"];
-    state.quests.forEach((q, i) => {
-      const st = QUEST_STYLE[q.id] || { icon: "🎨", c: FALLBACK[i % FALLBACK.length] };
-      const c = document.createElement("div"); c.className = "quest-card"; c.style.setProperty("--qc", st.c);
-      c.innerHTML = `<div class="qc-top"><span class="qc-icon">${st.icon}</span><span class="type">${q.type}</span></div>`
-        + `<h3>${q.title}</h3><p>${q.prompt}</p><span class="qc-go">开始创作 →</span>`;
-      c.onclick = () => chooseQuest(q); grid.appendChild(c);
-    });
+    await setupStudy();
+    applyCondition();
+    $("#participant").value = savedPid();
+    renderQuests();
     const chips = $("#emotion-chips"); chips.innerHTML = "";
     state.cfg.emotions.forEach(em => { const b = document.createElement("button"); b.textContent = em; b.onclick = () => { state.emotion = em; chips.querySelectorAll("button").forEach(x => x.classList.toggle("active", x === b)); }; chips.appendChild(b); });
     await loadCollection();
@@ -226,9 +375,21 @@
   $("#btn-start-draw").onclick = async () => {
     if (!state.emotion) { alert("先选一个现在的心情吧"); return; }
     const intent = { emotion: state.emotion, text: $("#intent-text").value.trim() };
-    const r = await api("/api/sessions", { method: "POST", body: JSON.stringify({ quest_id: state.quest.id, intent, participant: $("#participant").value.trim() }) });
-    state.sessionId = r.session_id; state.phase = "before"; state.events = []; state.before = null; state.revised = null;
+    const pid = $("#participant").value.trim();
+    if (pid && pid !== savedPid()) setPid(pid);
+    const r = await api("/api/sessions", { method: "POST", body: JSON.stringify({
+      quest_id: state.quest.id, intent,
+      participant: { anon_id: state.anonId, participant_id: savedPid(), label: "" },
+      condition: state.condition, device: deviceInfo(), canvas: canvasGeom(),
+      study: state.study ? { active: !!state.study.active, study_id: state.study.study_id, group: state.study.group || "",
+        order_index: state.seqIdx, sequence_id: (state.study.sequence || []).join(">") } : {},
+    }) });
+    state.sessionId = r.session_id; state.phase = "before"; state.before = null; state.revised = null;
+    state.condition = { ...state.condition, ...(r.session.condition || {}) };  // the server froze it; mirror it back
     resetCanvas(); state.startedAt = Date.now(); state.dirtySinceSnapshot = false;
+    strokeCount = 0; state.lastActivity = 0; state.idle = false;
+    await ArtLog.start(state.sessionId);
+    applyTask(state.quest);
     $("#draw-quest-card").innerHTML = `<div class="type">${state.quest.type}</div><h3>${state.quest.title}</h3><p>${state.quest.prompt}</p>`;
     $("#draw-intent-card").innerHTML = `心情：<b>${intent.emotion}</b><br>我想表达：${intent.text || "（没写）"}`;
     $("#revision-banner").classList.add("hidden"); $("#btn-submit").classList.remove("hidden"); $("#snap-info").textContent = "";
@@ -241,7 +402,8 @@
     overlay("正在观察你的画……"); stopTimers();
     const image = canvas.toDataURL("image/png");
     try {
-      const r = await api(`/api/sessions/${state.sessionId}/submit`, { method: "POST", body: JSON.stringify({ image, elapsed_ms: elapsed(), phase: "before", events: takeEvents() }) });
+      const pending = await flushLog();
+      const r = await api(`/api/sessions/${state.sessionId}/submit`, { method: "POST", body: JSON.stringify({ image, elapsed_ms: elapsed(), phase: "before", pending }) });
       state.before = { image, scores: r.scores };
       $("#result-img").src = image; renderScores($("#scores"), r.scores, null); $("#score-summary").textContent = r.scores.summary || "";
       const fbSp = $("#fb-sprite"); if (fbSp) fbSp.innerHTML = spriteInner(buddyColor(), "happy");
@@ -250,23 +412,65 @@
     overlay(null);
   };
   $("#btn-revise").onclick = () => {
-    state.phase = "after"; logEvent("revision_start");
+    state.phase = "after"; logEvent("REVISION_START");
     $("#btn-submit").classList.add("hidden"); $("#revision-banner").classList.remove("hidden"); startTimers(); show("draw");
   };
   $("#btn-skip-revise").onclick = async () => {
     overlay("正在保存……");
-    const r = await api(`/api/sessions/${state.sessionId}/finalize`, { method: "POST", body: JSON.stringify({ elapsed_ms: elapsed(), events: takeEvents() }) });
-    showFinal(r.session, state.before.image, state.before.image, null); overlay(null);
+    const pending = await flushLog();
+    const r = await api(`/api/sessions/${state.sessionId}/finalize`, { method: "POST", body: JSON.stringify({ elapsed_ms: elapsed(), pending }) });
+    endSession(r.session, state.before.image, state.before.image, null); overlay(null);
   };
   $("#btn-submit-after").onclick = async () => {
     overlay("正在比较修改前后……"); stopTimers();
     const image = canvas.toDataURL("image/png");
     try {
-      const r = await api(`/api/sessions/${state.sessionId}/submit`, { method: "POST", body: JSON.stringify({ image, elapsed_ms: elapsed(), phase: "after", events: takeEvents() }) });
-      showFinal(r.session, state.before.image, image, r.comparison);
+      const pending = await flushLog();
+      const r = await api(`/api/sessions/${state.sessionId}/submit`, { method: "POST", body: JSON.stringify({ image, elapsed_ms: elapsed(), phase: "after", pending }) });
+      endSession(r.session, state.before.image, image, r.comparison);
     } catch (e) { alert("提交失败：" + e.message); startTimers(); }
     overlay(null);
   };
+  // ---------- self-report ----------
+  const SURVEY = [
+    { key: "difficulty", q: "这次画起来难不难？", lo: "很简单", hi: "很难" },
+    { key: "confidence", q: "你觉得自己画得怎么样？", lo: "还差点", hi: "挺满意" },
+    { key: "enjoyment", q: "画的过程开心吗？", lo: "一般", hi: "很开心" },
+  ];
+  const answers = {};
+  function renderSurvey() {
+    SURVEY.forEach(i => delete answers[i.key]);
+    $("#survey-hardest").value = "";
+    $("#survey").innerHTML = SURVEY.map(item => `<div class="sq" data-key="${item.key}">
+      <div class="sq-q">${item.q}</div>
+      <div class="sq-scale"><span class="muted small">${item.lo}</span>
+        ${[1, 2, 3, 4, 5].map(v => `<button data-v="${v}">${v}</button>`).join("")}
+        <span class="muted small">${item.hi}</span></div></div>`).join("");
+    $("#survey").querySelectorAll(".sq").forEach(row => row.querySelectorAll("button").forEach(b => b.onclick = () => {
+      answers[row.dataset.key] = +b.dataset.v;
+      row.querySelectorAll("button").forEach(x => x.classList.toggle("active", x === b));
+    }));
+  }
+  async function sendSurvey(skip) {
+    const body = skip ? {} : { ...answers, hardest_part: $("#survey-hardest").value.trim() };
+    try { await api(`/api/sessions/${state.sessionId}/questionnaire`, { method: "POST", body: JSON.stringify(body) }); }
+    catch (e) { console.warn("questionnaire failed", e); }
+    const f = state.pendingFinal; if (f) showFinal(f.session, f.beforeImg, f.afterImg, f.comparison);
+  }
+  $("#btn-survey-submit").onclick = () => sendSurvey(false);
+  $("#btn-survey-skip").onclick = () => sendSurvey(true);
+
+  /** Close out a session: push the local queue, then self-report (if the
+   *  condition asks for it) before the final screen. */
+  async function endSession(session, beforeImg, afterImg, comparison) {
+    stopTimers();
+    const pending = await flushLog();
+    if (pending) console.warn(`${pending} 条记录尚未上传，已保留在本地队列`);
+    state.pendingFinal = { session, beforeImg, afterImg, comparison };
+    if (state.condition.questionnaire) { renderSurvey(); show("survey"); return; }
+    showFinal(session, beforeImg, afterImg, comparison);
+  }
+
   function showFinal(session, beforeImg, afterImg, comparison) {
     state.revised = session.revised;
     $("#final-before").src = beforeImg; $("#final-after").src = afterImg;
@@ -281,11 +485,13 @@
   // ===== 过程徽章（只奖励过程，不奖励分数）=====
   const dimScore = (s, k) => ((s.after || s.before || {}).scores?.dims?.[k]?.score) ?? 0;
   const drawMs = (s) => (s.after?.elapsed_ms || s.before?.elapsed_ms || 0);
-  const distinctBy = (s, type, field) => new Set((s.events || []).filter(e => (e.type === type || e.type === "stroke_start")).map(e => e.detail && e.detail[field]).filter(Boolean)).size;
+  const distinctIn = (s, types, field) => new Set((s.events || [])
+    .filter(e => types.indexOf(e.type) >= 0)
+    .map(e => (e.payload || e.detail || {})[field]).filter(Boolean)).size;
   const BADGES = [
     { icon: "🌈", name: "冷暖对比", desc: "画面里冷色暖色都用上了", earned: s => dimScore(s, "color_contrast") >= 4 },
-    { icon: "🎨", name: "缤纷调色", desc: "用了 5 种以上颜色", earned: s => distinctBy(s, "color", "color") >= 5 },
-    { icon: "🖌", name: "工具全能", desc: "用了 3 种以上工具", earned: s => distinctBy(s, "tool", "tool") >= 3 },
+    { icon: "🎨", name: "缤纷调色", desc: "用了 5 种以上颜色", earned: s => distinctIn(s, ["COLOR_CHANGE", "STROKE"], "color") >= 5 },
+    { icon: "🖌", name: "工具全能", desc: "用了 3 种以上工具", earned: s => distinctIn(s, ["BRUSH_CHANGE", "STROKE", "ERASE"], "tool") >= 3 },
     { icon: "⏱️", name: "专注之心", desc: "专注创作超过 5 分钟", earned: s => drawMs(s) >= 300000 },
     { icon: "🔁", name: "进化大师", desc: "走完进化关，改了自己的作品", earned: s => s.revised === true, evo: true },
   ];
@@ -300,7 +506,17 @@
     const n = BADGES.filter(b => b.earned(session)).length;
     $("#badges-count").textContent = `点亮了 ${n}/${BADGES.length} 枚`;
   }
-  $("#btn-again").onclick = async () => { state.sessionId = null; state.startedAt = null; state.phase = "before"; $("#intent-text").value = ""; await loadCollection(); show("quest"); };
+  $("#btn-again").onclick = async () => {
+    await flushLog();
+    state.sessionId = null; state.startedAt = null; state.phase = "before"; state.pendingFinal = null;
+    $("#intent-text").value = "";
+    if (state.study && state.study.sequence) {   // advance to the next task in the assigned order
+      state.seqIdx = Math.min(state.seqIdx + 1, state.study.sequence.length - 1);
+      renderStudyBar();
+    }
+    renderQuests();
+    await loadCollection(); show("quest");
+  };
 
   // 9 维分为 4 个家族，扇形图按家族上色（配色经 dataviz 校验：CVD 全部通过）
   const FAMILIES = {
@@ -400,6 +616,13 @@
     show("sessions");
   };
   $("#btn-sessions-back").onclick = () => show("quest");
+  // recording indicator: what is still only on this device
+  ArtLog.onstatus(({ pending, online }) => {
+    const el = $("#recstat"); if (!el) return;
+    el.classList.toggle("warn", !online || pending > 0);
+    $("#recstat-text").textContent = !online ? `离线 · ${pending} 条待上传`
+      : pending ? `同步中 ${pending}` : state.sessionId ? "记录中" : "就绪";
+  });
   window.addEventListener("beforeunload", (e) => { if (state.sessionId && !$("#view-draw").classList.contains("hidden")) { e.preventDefault(); e.returnValue = ""; } });
 
   init().catch(e => alert("初始化失败：" + e.message));

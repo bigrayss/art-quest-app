@@ -151,3 +151,41 @@ table.sessions th, table.sessions td { text-align:left; padding:8px 10px; border
 .dim.ph .name span:first-child { color:#b0a89c; }
 .dim .delta { color:var(--ok); font-weight:700; font-size:11px; } .dim .delta.neg { color:#c0392b; }
 .rose-arw.up { fill:var(--ok); } .rose-arw.dn { fill:#c0392b; }
+
+/* ===== 研究数据层：记录指示器 / 实验模式 / 参考图 / 自评 ===== */
+.topright { display:flex; align-items:center; gap:14px; }
+.recstat { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); }
+.recstat i { width:8px; height:8px; border-radius:50%; background:#2e9e5b; box-shadow:0 0 0 3px rgba(46,158,91,.15); }
+.recstat.warn i { background:#e8632b; box-shadow:0 0 0 3px rgba(232,99,43,.16); animation:pulse 1.4s infinite; }
+@keyframes pulse { 50% { opacity:.35; } }
+
+.studybar { display:flex; align-items:center; gap:12px; padding:6px 22px; font-size:12px;
+  background:#26313d; color:#dbe4ee; border-bottom:1px solid #16202a; }
+.studybar .tag { font-weight:800; letter-spacing:.08em; background:#e8632b; color:#fff; padding:1px 7px; border-radius:4px; }
+.studybar .seq { font-family:ui-monospace, SFMono-Regular, Menlo, monospace; opacity:.8; letter-spacing:.06em; }
+.studybar .linkbtn { margin-left:auto; background:none; border:none; color:#9fb3c8; text-decoration:underline; cursor:pointer; font-size:12px; padding:0; }
+
+.refpanel { margin:10px 0; }
+.refpanel .ref-img { margin-top:8px; border:1px solid var(--line); border-radius:10px; overflow:hidden; background:#fff; }
+.refpanel .ref-img img { display:block; width:100%; }
+.timer .limit { color:var(--muted); font-variant-numeric:tabular-nums; }
+.timer .limit.low { color:#d9455f; font-weight:700; }
+#tools button.off, .toolbox button:disabled { opacity:.35; cursor:not-allowed; }
+.quest-card.locked { opacity:.45; cursor:default; filter:saturate(.4); }
+.quest-card.locked:hover { transform:none; box-shadow:none; }
+
+.survey { margin:14px 0 6px; }
+.sq { padding:12px 0; border-bottom:1px dashed var(--line); }
+.sq-q { font-weight:600; margin-bottom:8px; }
+.sq-scale { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.sq-scale button { width:44px; height:40px; border-radius:10px; border:1px solid var(--line); background:#fff; font-size:15px; cursor:pointer; }
+.sq-scale button:hover { border-color:#e8632b; }
+.sq-scale button.active { background:#e8632b; border-color:#e8632b; color:#fff; font-weight:700; }
+
+/* 安静条件（study condition ui=quiet）：收起游戏化外观，评估与记录不受影响 */
+body.quiet .trailbar,
+body.quiet .buddy-mini,
+body.quiet .buddy-head,
+body.quiet #badges,
+body.quiet #badges-head,
+body.quiet #collection-wrap { display:none; }
