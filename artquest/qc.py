@@ -33,6 +33,13 @@ def check(meta: Dict[str, Any], *, strokes: Dict[str, Any], events: int,
           replay: Optional[Dict[str, Any]] = None,
           condition_frozen: bool = True, reference_available: Optional[bool] = None,
           checksum: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    # An abandoned session is intentionally incomplete. Running the full battery
+    # on it would bury real failures under noise nobody will ever act on.
+    if meta.get("status") == "abandoned":
+        return {"ok": True, "failed": [], "abandoned": True,
+                "checks": [{"name": "abandoned", "ok": True,
+                            "detail": meta.get("abandoned_reason")}],
+                "counts": {"strokes": strokes.get("count", 0), "events": events}}
     times = meta.get("times") or {}
     duration = times.get("duration_ms") or 0
     n_strokes, n_points = strokes.get("count", 0), strokes.get("points", 0)
@@ -57,6 +64,11 @@ def check(meta: Dict[str, Any], *, strokes: Dict[str, Any], events: int,
         {"name": "reference_available", "ok": reference_available is not False,
          "detail": (meta.get("task") or {}).get("reference_id")},
         {"name": "log_checksum", "ok": bool(checksum), "detail": checksum},
+        # strokes were logged but the artwork is empty: everything was erased,
+        # or the export went wrong. Either way analysis needs to know.
+        {"name": "artwork_nonblank",
+         "ok": not (n_strokes > 0 and (replay or {}).get("final_ink") == 0),
+         "detail": (replay or {}).get("final_ink")},
         {"name": "final_image_saved", "ok": has_final_image, "detail": None},
         {"name": "times_monotonic",
          "ok": bool(times.get("created_at")) and (not times.get("ended_at") or times.get("ended_at") >= times.get("created_at")),

@@ -228,3 +228,57 @@ body.quiet #collection-wrap { display:none; }
 /* One artwork instead of an unchanged before/after pair. */
 .compare.single { grid-template-columns: minmax(0, 1fr); max-width: 760px; margin-inline: auto; }
 .compare figure.hidden { display: none; }
+
+/* Leaving a task partway: the child must be able to back out of a wrong choice
+   without losing work by accident, and without a stray session being left
+   half-open on the server. */
+.toolbox .back { align-self:flex-start; padding:4px 10px; font-size:13px; }
+button.ghost { background:transparent; border:1px solid var(--line); color:var(--muted); }
+button.ghost:hover { color:var(--ink); border-color:var(--muted); }
+button.ghost.danger:hover { color:#b03a2e; border-color:#b03a2e; }
+.modal { position:fixed; inset:0; z-index:50; display:flex; align-items:center; justify-content:center;
+  background:rgba(43,42,40,.45); }
+.modal.hidden { display:none; }
+.modal-card { background:var(--card); border-radius:16px; padding:22px 24px; max-width:420px; width:90%;
+  box-shadow:0 20px 60px rgba(0,0,0,.25); }
+.modal-card h3 { margin:0 0 6px; }
+.modal-card .actions.column { margin-top:16px; }
+
+/* Badges grouped by what they are about, earned ones first inside each group. */
+.badge-group { margin-top:14px; }
+.badge-group h4 { margin:0 0 8px; font-size:12px; font-weight:700; letter-spacing:.04em;
+  color:var(--muted); text-transform:none; }
+.badge-row { display:grid; grid-template-columns:repeat(auto-fill, minmax(132px, 1fr)); gap:10px; }
+
+/* 彩点's nine attributes. Two layers, visually distinct on purpose: a filled pip
+   is practice the child really did; an evaluation layer that no backend can
+   judge yet says so in words instead of drawing a bar over placeholder numbers. */
+.growth { display:grid; grid-template-columns:minmax(180px,220px) 1fr; gap:18px; align-items:start;
+  background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px 18px;
+  box-shadow:0 2px 10px rgba(0,0,0,.04); }
+.growth-buddy { text-align:center; }
+.sprite.big { width:120px; height:120px; }
+.growth-rings { font-size:13px; color:var(--muted); margin-top:2px; letter-spacing:.08em; }
+.growth-dims { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:10px 18px; }
+.gdim { font-size:13px; }
+.gdim .gtop { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+.gdim .gname { font-weight:600; }
+.gdim .gnext { color:var(--muted); font-size:11px; }
+.gpips { display:flex; gap:3px; margin-top:4px; }
+.gpips i { width:100%; height:7px; border-radius:4px; background:var(--line); }
+.gpips i.on { background:var(--gc,#e8632b); }
+.gdim .gsleep { color:var(--muted); font-size:11px; margin-top:3px; font-style:italic; }
+.gdim .gawake { color:var(--ok); font-size:11px; margin-top:3px; }
+@media (max-width:720px){ .growth { grid-template-columns:1fr; } }
+
+/* "What this mission trained" — the task's own rubric, said back to the child as
+   practice rather than as a verdict on the drawing. */
+.trained { background:var(--card); border:1px solid var(--line); border-radius:14px;
+  padding:12px 16px; margin-top:14px; }
+.trained h4 { margin:0 0 8px; font-size:13px; }
+.trained .tchips { display:flex; flex-wrap:wrap; gap:8px; }
+.trained .tchip { display:inline-flex; align-items:center; gap:6px; font-size:13px;
+  padding:5px 12px; border-radius:999px; border:1px solid var(--line);
+  background:color-mix(in srgb, var(--tc,#e8632b) 10%, #fff); }
+.trained .tchip i { width:8px; height:8px; border-radius:50%; background:var(--tc,#e8632b); }
+.trained .tnote { color:var(--muted); font-size:12px; margin-top:8px; }

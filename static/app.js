@@ -7,7 +7,7 @@
     return r.json();
   };
 
-  const state = { cfg: null, quests: [], families: [], quest: null, emotion: null, sessionId: null, phase: "before", feedback: null,
+  const state = { cfg: null, quests: [], families: [], allSessions: [], quest: null, emotion: null, sessionId: null, phase: "before", feedback: null,
     startedAt: null, dirtySinceSnapshot: false, timers: [], before: null, color: "#e8632b", buddyTick: 0,
     anonId: "", condition: {}, study: null, seqIdx: 0, lastActivity: 0, idle: false, timeUp: false, pendingFinal: null };
 
@@ -172,8 +172,25 @@
    *  exactly — replay is `initial canvas + strokes + events`, so if these two
    *  drew different fragments every such session would fail its QC replay check.
    *  Drawn before the undo stack exists, so it can never be undone away. */
+  // The task's printed figures live here too, so the eraser can lift the
+  // child's own marks off them without taking them away: in the paradigm M3
+  // borrows, the fragments are printed on the sheet and cannot be rubbed out.
+  // Erasing them would quietly void the manipulation for that session.
+  let stimulusCanvas = null, eraserPattern = null;
+  function buildStimulusLayer(stim) {
+    stimulusCanvas = document.createElement("canvas");
+    stimulusCanvas.width = canvas.width; stimulusCanvas.height = canvas.height;
+    const sctx = stimulusCanvas.getContext("2d");
+    sctx.fillStyle = "#fff"; sctx.fillRect(0, 0, canvas.width, canvas.height);
+    if (stim && stim.kind === "fragments") paintFragments(sctx, stim);
+    eraserPattern = ctx.createPattern(stimulusCanvas, "no-repeat");
+  }
   function drawStimulus(stim) {
+    buildStimulusLayer(stim);
     if (!stim || stim.kind !== "fragments") return;
+    paintFragments(ctx, stim);
+  }
+  function paintFragments(ctx, stim) {
     ctx.save();
     ctx.globalAlpha = 1; ctx.strokeStyle = stim.stroke || "#3a3a3a";
     ctx.fillStyle = stim.stroke || "#3a3a3a"; ctx.lineWidth = stim.width || 3;
@@ -209,7 +226,10 @@
     const t = TOOLS[tool];
     const w = size * t.size * (t.pressure ? (1 - t.pressure + t.pressure * 2 * p) : 1);
     ctx.lineWidth = Math.max(0.5, w); ctx.lineCap = t.cap; ctx.lineJoin = "round";
-    ctx.strokeStyle = t.color || color; ctx.globalAlpha = t.alpha;
+    // the eraser paints back the starting canvas, so it removes the child's
+    // marks and never the task's printed stimulus
+    ctx.strokeStyle = (tool === "eraser" && eraserPattern) ? eraserPattern : (t.color || color);
+    ctx.globalAlpha = t.alpha;
   }
   // -- stroke recording: the core process datum. Raw points only —
   //    speed / length / hesitation / rhythm are derived offline, never here.
@@ -492,6 +512,7 @@
   // ===== 首页：创作图鉴（收藏 + 集齐进度）=====
   async function loadCollection() {
     let rows = []; try { rows = await api("/api/sessions"); } catch (e) { return; }
+    state.allSessions = rows;          // cross-artwork badges and the growth view read this
     const done = rows.filter(r => r.status === "done");
     const wrap = $("#collection-wrap"), grid = $("#collection");
     if (!done.length) { wrap.classList.add("hidden"); return; }
@@ -507,6 +528,55 @@
     const types = new Set(done.map(r => r.quest_id)), total = state.quests.length;
     $("#dex-progress").innerHTML = `已解锁 ${types.size}/${total} 种任务`
       + (types.size >= total ? ' · <b style="color:#e8632b">🏅 创作者勋章达成！</b>' : "");
+  }
+
+  /** 彩点's nine attributes, grown from what the child actually practised.
+   *
+   *  Practice comes from the task library's rubric contract: doing a task built
+   *  to exercise a dimension grows it. That is real today and needs no model,
+   *  and it rewards breadth — the way to grow an attribute is to go and do the
+   *  missions that train it.
+   *
+   *  The evaluation layer stays dark until a backend can genuinely judge that
+   *  dimension. Four of the nine are placeholders offline; drawing a bar over
+   *  those would be a progress meter over numbers nobody produced. */
+  async function renderGrowth() {
+    const wrap = $("#growth-wrap");
+    if ((state.condition.growth_display || "full") === "none") { wrap.classList.add("hidden"); return; }
+    let g;
+    try { g = await api(`/api/participants/${encodeURIComponent(savedPid() || " ")}/growth`
+      + `?anon_id=${encodeURIComponent(state.anonId)}`); } catch (e) { return; }
+    if (!g || !g.n_tasks) { wrap.classList.add("hidden"); return; }
+    wrap.classList.remove("hidden");
+
+    const byKey = Object.fromEntries(state.cfg.dimensions.map(d => [d.key, d]));
+    const best = Object.entries(g.dims).sort((a, b) => b[1].practice - a[1].practice)[0];
+    const col = FAMILIES[DIM_FAMILY[best[0]]].color;
+    $("#growth-sprite").innerHTML = spriteInner(col, g.total_level >= 9 ? "happy" : "normal");
+    // one ring per three levels: a visible shape change, not a number
+    const rings = Math.min(5, Math.floor(g.total_level / 3));
+    $("#growth-rings").textContent = rings ? "✦".repeat(rings) : "·";
+    $("#growth-total").textContent = `${g.n_tasks} 幅作品 · 总成长 ${g.total_level}/${g.max_total}`;
+    $("#growth-say").textContent = best[1].practice
+      ? `我在「${byKey[best[0]].zh}」上长得最快！`
+      : "再画几幅，我就开始长啦～";
+
+    $("#growth-dims").innerHTML = CHART_ORDER.map(key => {
+      const d = byKey[key], v = g.dims[key];
+      if (!d || !v) return "";
+      const fam = FAMILIES[DIM_FAMILY[key]];
+      const pips = Array.from({ length: v.max_level }, (_, i) =>
+        `<i class="${i < v.level ? "on" : ""}"></i>`).join("");
+      const next = v.next_at !== null
+        ? `再练 ${Math.max(0, v.next_at - v.practice)} 次升级`
+        : "已满级";
+      const layer = v.awake
+        ? `<div class="gawake">评价层已唤醒 · ${v.score_n} 次评分</div>`
+        : `<div class="gsleep">评价层待唤醒（需要评分模型）</div>`;
+      return `<div class="gdim" style="--gc:${fam.color}">
+        <div class="gtop"><span class="gname">${d.zh}</span><span class="gnext">${next}</span></div>
+        <div class="gpips">${pips}</div>${layer}</div>`;
+    }).join("");
   }
 
   // ---------- Study Mode ----------
@@ -741,12 +811,61 @@
     const chips = $("#emotion-chips"); chips.innerHTML = "";
     state.cfg.emotions.forEach(em => { const b = document.createElement("button"); b.textContent = em; b.onclick = () => { state.emotion = em; chips.querySelectorAll("button").forEach(x => x.classList.toggle("active", x === b)); }; chips.appendChild(b); });
     await loadCollection();
+    await renderGrowth();
     show("quest");
   }
   function chooseQuest(q) {
     state.quest = q; $("#intent-quest-title").textContent = q.title; $("#intent-quest-prompt").textContent = q.prompt; $("#intent-quest-hint").textContent = "提示：" + q.hint; show("intent");
   }
   $("#btn-back-quest").onclick = () => show("quest");
+
+  // ---------- leaving a task partway ----------
+  // Picking the wrong mission used to be a trap: no way back, and the session
+  // stayed open on the server for ever as a zombie "drawing" row.
+  const leaveModal = $("#leave-modal");
+  function askToLeave() {
+    if (state.phase === "after") return;            // mid-revision: finish it
+    const n = visible.length;
+    $("#leave-body").textContent = n
+      ? `这张画上已经有 ${n} 笔了。要先把它保存下来吗？`
+      : "画布还是空的，可以直接换一个任务。";
+    $("#btn-leave-save").classList.toggle("hidden", !n);
+    leaveModal.classList.remove("hidden");
+  }
+  async function leaveTask(save) {
+    leaveModal.classList.add("hidden");
+    overlay(save ? "正在保存……" : "正在收尾……");
+    stopTimers();
+    try {
+      const pending = await flushLog();
+      if (save) {
+        // a real submission: it goes through the normal scoring + QC path
+        logEvent(EV.TASK_SUBMIT, { phase: "before", strokes: visible.length, via: "leave" });
+        await api(`/api/sessions/${state.sessionId}/submit`, { method: "POST",
+          body: JSON.stringify({ image: canvas.toDataURL("image/png"), elapsed_ms: elapsed(),
+                                 phase: "before", pending }) });
+        await api(`/api/sessions/${state.sessionId}/finalize`, { method: "POST",
+          body: JSON.stringify({ elapsed_ms: elapsed(), pending }) });
+      } else {
+        // the strokes are kept, the session is marked — changing your mind is
+        // process data, and a silently deleted session makes a task_id lie
+        await api(`/api/sessions/${state.sessionId}/abandon`, { method: "POST",
+          body: JSON.stringify({ elapsed_ms: elapsed(), reason: "wrong_task", pending }) });
+      }
+    } catch (e) { console.warn("leave failed", e); }
+    state.sessionId = null; state.feedback = null; state.phase = "before";
+    overlay(null);
+    await loadCollection();
+    await renderGrowth();
+    show("quest");
+  }
+  $("#btn-back-draw").onclick = askToLeave;
+  $("#btn-leave-keep").onclick = () => leaveModal.classList.add("hidden");
+  $("#btn-leave-save").onclick = () => leaveTask(true);
+  $("#btn-leave-drop").onclick = () => leaveTask(false);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !leaveModal.classList.contains("hidden")) leaveModal.classList.add("hidden");
+  });
   $("#btn-start-draw").onclick = async () => {
     if (!state.emotion) { alert("先选一个现在的心情吧"); return; }
     const intent = { emotion: state.emotion, text: $("#intent-text").value.trim() };
@@ -910,10 +1029,16 @@
     $("#comparison-text").textContent = quiet
       ? "画完啦！你的创作已经保存下来了。"
       : (comparison ? comparison.text : "这次没有走进化关～下次试试根据我的话改一小处，就能解锁 🔁 进化大师徽章！");
+    renderTrained(session);
     renderBadges(session);
+    // What the child is shown of their own growth is its own condition, separate
+    // from whether this artwork got feedback: a no-intervention arm can still
+    // let a child see their cumulative practice without being told about *this*
+    // drawing.
+    const showScores = (state.condition.growth_display || "full") === "full";
     const scores = $("#final-scores");
-    scores.classList.toggle("hidden", quiet);
-    if (!quiet) renderScores(scores, session.after.scores, session.before.scores);
+    scores.classList.toggle("hidden", !showScores);
+    if (showScores) renderScores(scores, session.after.scores, session.before.scores);
     $("#final-meta").textContent = `Session ${session.id} · 过程截图 ${session.snapshots.length} 张 · 事件 ${session.events.length} 条 · 数据在 data/sessions/${session.id}/`;
     show("final");
   }
@@ -929,28 +1054,123 @@
   const distinctIn = (s, types, field) => new Set((s.events || [])
     .filter(e => types.indexOf(evType(e)) >= 0)
     .map(e => (e.payload || e.detail || {})[field]).filter(Boolean)).size;
+  // Badges read the process log, never the artwork's quality. "You zoomed in to
+  // work on a detail" is something the child did; "your drawing is good" is a
+  // verdict, and this app does not hand children verdicts.
+  const WARM = ["#e63946", "#f4a261", "#ffd166", "#f28cb1", "#8d5524"];
+  const COOL = ["#2a9d8f", "#4caf50", "#1d6fe0", "#7b4fd6"];
+  const evOf = (s, types) => (s.events || []).filter(e => types.indexOf(evType(e)) >= 0);
+  const payloads = (s, types, field) => evOf(s, types)
+    .map(e => (e.payload || e.detail || {})[field]).filter(v => v !== undefined && v !== null);
+  const colorsUsed = (s) => new Set(payloads(s, ["COLOR_CHANGE", "STROKE_START", "STROKE_END"], "color"));
+  const toolsUsed = (s) => new Set(payloads(s, ["BRUSH_CHANGE", "STROKE_START", "STROKE_END", "ERASE"], "tool"));
+  const nStrokes = (s) => (s.counts || {}).strokes || 0;   // `strokeCount` is the live counter
+  const pauses = (s) => payloads(s, ["PAUSE_END"], "duration_ms").map(Number);
+  const longestPause = (s) => Math.max(0, ...pauses(s));
+  const zoomMax = (s) => Math.max(1, ...payloads(s, ["ZOOM"], "to").map(Number));
+  const refMs = (s) => payloads(s, ["REFERENCE_CLOSE"], "view_duration_ms")
+    .map(Number).reduce((a, b) => a + b, 0);
+  const hasWarmAndCool = (s) => {
+    const c = colorsUsed(s);
+    return WARM.some(x => c.has(x)) && COOL.some(x => c.has(x));
+  };
+  const doneRows = () => (state.allSessions || []).filter(r => r.status === "done");
+  const familyOf = (taskId) => (state.quests.find(q => q.id === taskId) || {}).family || "";
+
   const ALL_BADGES = [
-    { icon: "🌈", name: "冷暖对比", desc: "画面里冷色暖色都用上了", earned: s => dimScore(s, "color_contrast") >= 4 },
-    { icon: "🎨", name: "缤纷调色", desc: "用了 5 种以上颜色", earned: s => distinctIn(s, ["COLOR_CHANGE", "STROKE_START", "STROKE_END"], "color") >= 5 },
-    { icon: "🖌", name: "工具全能", desc: "用了 3 种以上工具", earned: s => distinctIn(s, ["BRUSH_CHANGE", "STROKE_START", "STROKE_END", "ERASE"], "tool") >= 3 },
-    { icon: "⏱️", name: "专注之心", desc: "专注创作超过 5 分钟", earned: s => drawMs(s) >= 300000 },
-    { icon: "🔁", name: "进化大师", desc: "走完进化关，改了自己的作品", earned: s => s.revised === true, evo: true },
+    // -- 颜色与工具 --
+    { g: "色彩与工具", icon: "🎨", name: "缤纷调色", desc: "用了 5 种以上颜色",
+      earned: s => colorsUsed(s).size >= 5 },
+    { g: "色彩与工具", icon: "🌗", name: "冷暖并用", desc: "暖色和冷色都用上了",
+      earned: s => hasWarmAndCool(s) },
+    { g: "色彩与工具", icon: "🖌", name: "工具全能", desc: "用了 3 种以上工具",
+      earned: s => toolsUsed(s).size >= 3 },
+    { g: "色彩与工具", icon: "✏️", name: "一支到底", desc: "只用一种工具画完 30 笔以上",
+      earned: s => toolsUsed(s).size === 1 && nStrokes(s) >= 30 },
+    // -- 过程与节奏 --
+    { g: "过程与节奏", icon: "⏱️", name: "专注之心", desc: "专注创作超过 5 分钟",
+      earned: s => drawMs(s) >= 300000 },
+    { g: "过程与节奏", icon: "💭", name: "深思熟虑", desc: "停下来想了 30 秒以上，然后继续",
+      earned: s => longestPause(s) >= 30000 && nStrokes(s) >= 5 },
+    { g: "过程与节奏", icon: "⚡", name: "一气呵成", desc: "20 笔以上，中间几乎没停",
+      earned: s => nStrokes(s) >= 20 && longestPause(s) < 10000 },
+    { g: "过程与节奏", icon: "🔁", name: "反复打磨", desc: "撤销 5 次以上，还在继续画",
+      earned: s => evOf(s, ["UNDO"]).length >= 5 && nStrokes(s) >= 10 },
+    { g: "过程与节奏", icon: "🧹", name: "推倒重来", desc: "清空过画布，然后重新画完",
+      earned: s => evOf(s, ["CLEAR"]).length >= 1 && nStrokes(s) >= 10 },
+    // -- 观察与细节 --
+    { g: "观察与细节", icon: "🔍", name: "细节猎人", desc: "放大到 3 倍以上作画",
+      earned: s => zoomMax(s) >= 3 },
+    { g: "观察与细节", icon: "🗺", name: "大局观", desc: "在整体和局部之间来回看了 5 次以上",
+      earned: s => evOf(s, ["ZOOM", "PAN"]).length >= 5 },
+    { g: "观察与细节", icon: "👀", name: "对照高手", desc: "参考图看了 3 次以上",
+      earned: s => evOf(s, ["REFERENCE_OPEN"]).length >= 3, needs: "reference" },
+    { g: "观察与细节", icon: "⏳", name: "看得仔细", desc: "参考图累计看了 30 秒以上",
+      earned: s => refMs(s) >= 30000, needs: "reference" },
+    // -- 探索与坚持（跨作品）--
+    { g: "探索与坚持", icon: "🧭", name: "探险家", desc: "玩过 3 个不同的任务家族",
+      earned: () => new Set(doneRows().map(r => familyOf(r.task_id)).filter(Boolean)).size >= 3 },
+    { g: "探索与坚持", icon: "📚", name: "小有收藏", desc: "完成 5 幅作品",
+      earned: () => doneRows().length >= 5 },
+    { g: "探索与坚持", icon: "🏅", name: "走遍全图", desc: "每个任务家族都完成过一次",
+      earned: () => {
+        const fams = new Set((state.families || []).map(f => f.id));
+        const done = new Set(doneRows().map(r => familyOf(r.task_id)).filter(Boolean));
+        return fams.size > 0 && [...fams].every(f => done.has(f));
+      } },
+    { g: "探索与坚持", icon: "✨", name: "进化大师", desc: "走完进化关，改了自己的作品",
+      earned: s => s.revised === true, evo: true },
   ];
+  /** The mission's own rubric, said back as practice rather than as a verdict.
+   *  "This one trained imagination, transformation and composition" is a fact
+   *  about the task; "you scored 3 on imagination" is a judgement of the child,
+   *  and the second one is what we are trying not to put in front of them. */
+  function renderTrained(session) {
+    const el = $("#trained"); if (!el) return;
+    if ((state.condition.growth_display || "full") === "none") { el.classList.add("hidden"); return; }
+    const rubric = (session.task || {}).rubric || {};
+    const primary = rubric.primary_dimensions || [];
+    const na = rubric.not_applicable_dimensions || [];
+    if (!primary.length) { el.classList.add("hidden"); return; }
+    el.classList.remove("hidden");
+    const byKey = Object.fromEntries(state.cfg.dimensions.map(d => [d.key, d]));
+    const chip = (k) => {
+      const fam = FAMILIES[DIM_FAMILY[k]];
+      return `<span class="tchip" style="--tc:${fam.color}"><i></i>${(byKey[k] || {}).zh || k}</span>`;
+    };
+    el.innerHTML = `<h4>🌱 这一关练的是</h4><div class="tchips">${primary.map(chip).join("")}</div>`
+      + `<div class="tnote">彩点在这几项上又长了一点。`
+      + (na.length ? `这一关用不上「${na.map(k => (byKey[k] || {}).zh || k).join("、")}」，所以不算在内。` : "")
+      + `</div>`;
+  }
+
   function renderBadges(session) {
     const el = $("#badges"); if (!el) return;
-    // With no feedback there is no 进化关, so the badge for it is unreachable —
-    // showing it greyed out tells the child they missed something that was
-    // never on offer.
+    // A badge the condition makes unreachable is not shown as "not earned":
+    // greying it out tells the child they missed something never on offer.
     const quiet = state.condition && state.condition.feedback_source !== "ai";
-    const BADGES = ALL_BADGES.filter(b => !(quiet && b.evo));
-    el.innerHTML = BADGES.map(b => {
-      const got = !!b.earned(session);
-      const hint = (!got && b.evo) ? "走完 ✨进化关 解锁" : b.desc;
-      return `<div class="badge${got ? " new" : " locked"}${b.evo ? " evo" : ""}">
-        <div class="b-ico">${b.icon}</div><div class="b-name">${b.name}</div><div class="b-desc">${hint}</div></div>`;
+    const hasRef = !!(state.quest && state.quest.reference) && state.condition.reference_allowed;
+    const pool = ALL_BADGES.filter(b => !(quiet && b.evo) && !(b.needs === "reference" && !hasRef));
+
+    const got = pool.filter(b => { try { return !!b.earned(session); } catch (e) { return false; } });
+    const gotSet = new Set(got);
+    const groups = [];
+    pool.forEach(b => {
+      let g = groups.find(x => x.name === b.g);
+      if (!g) groups.push(g = { name: b.g, items: [] });
+      g.items.push(b);
+    });
+    el.innerHTML = groups.map(g => {
+      // earned first inside each group, so the child sees what they got
+      const items = [...g.items].sort((a, b) => (gotSet.has(b) ? 1 : 0) - (gotSet.has(a) ? 1 : 0));
+      return `<div class="badge-group"><h4>${g.name}</h4><div class="badge-row">` + items.map(b => {
+        const on = gotSet.has(b);
+        return `<div class="badge${on ? " new" : " locked"}${b.evo ? " evo" : ""}" title="${b.desc}">
+          <div class="b-ico">${b.icon}</div><div class="b-name">${b.name}</div>
+          <div class="b-desc">${b.desc}</div></div>`;
+      }).join("") + "</div></div>";
     }).join("");
-    const n = BADGES.filter(b => b.earned(session)).length;
-    $("#badges-count").textContent = `点亮了 ${n}/${BADGES.length} 枚`;
+    $("#badges-count").textContent = `点亮了 ${got.length}/${pool.length} 枚`;
   }
   $("#btn-again").onclick = async () => {
     await flushLog();

@@ -278,6 +278,79 @@ def build(participant_id: str = "", anon_id: str = "", *, before: str = "") -> D
     return rep
 
 
+# How many tasks practising a dimension it takes to reach each level.
+GROWTH_THRESHOLDS = (0, 1, 3, 6, 10, 15)
+# Set by a backend that could not actually judge a dimension. A level built on
+# these would be a progress bar over placeholder numbers — the same mistake as
+# logging a mouse's constant pressure as a reading.
+PLACEHOLDER_NOTE = "需模型评分"
+
+
+def _level(practice: float) -> int:
+    lvl = 0
+    for i, need in enumerate(GROWTH_THRESHOLDS):
+        if practice >= need:
+            lvl = i
+    return lvl
+
+
+def growth(participant_id: str = "", anon_id: str = "") -> Dict[str, Any]:
+    """Per-dimension growth, in two layers that must not be confused.
+
+    **practice** — how many finished tasks were *built* to exercise this
+    dimension (`primary` counts 1, `secondary` counts a half, from the task's
+    rubric contract). Entirely real today, needs no model, and rewards breadth:
+    the way to grow an attribute is to go and do the tasks that train it.
+
+    **evaluation** — how the work was actually rated. Only counted when a
+    backend genuinely judged the dimension; the offline heuristic marks four of
+    the nine as "needs a model", and a level built on those placeholders would
+    be a progress bar over numbers nobody produced. Those come back `awake:
+    false` so the missing piece is visible instead of papered over.
+    """
+    metas = sessions_for(participant_id, anon_id)
+    practice: Dict[str, float] = {k: 0.0 for k in DIM_KEYS}
+    scored: Dict[str, List[float]] = {k: [] for k in DIM_KEYS}
+    by_dim_tasks: Dict[str, List[str]] = {k: [] for k in DIM_KEYS}
+
+    for m in metas:
+        task = m.get("task") or {}
+        rubric = task.get("rubric") or {}
+        for key in rubric.get("primary_dimensions") or []:
+            practice[key] = practice.get(key, 0) + 1.0
+            by_dim_tasks.setdefault(key, []).append(task.get("task_id") or m.get("quest_id"))
+        for key in rubric.get("secondary_dimensions") or []:
+            practice[key] = practice.get(key, 0) + 0.5
+        dims = ((m.get("after") or m.get("before") or {}).get("scores") or {}).get("dims") or {}
+        for key, entry in dims.items():
+            if not isinstance(entry, dict) or entry.get("na"):
+                continue
+            score, note = entry.get("score"), entry.get("note") or ""
+            if isinstance(score, (int, float)) and PLACEHOLDER_NOTE not in note:
+                scored.setdefault(key, []).append(float(score))
+
+    out = {}
+    for key in DIM_KEYS:
+        n = round(practice.get(key, 0.0), 1)
+        lvl = _level(n)
+        nxt = GROWTH_THRESHOLDS[lvl + 1] if lvl + 1 < len(GROWTH_THRESHOLDS) else None
+        values = scored.get(key) or []
+        out[key] = {
+            "practice": n, "level": lvl, "max_level": len(GROWTH_THRESHOLDS) - 1,
+            "next_at": nxt, "tasks": by_dim_tasks.get(key, [])[-3:],
+            # the evaluation layer is asleep until a backend can really judge it
+            "awake": bool(values),
+            "score_mean": round(sum(values) / len(values), 2) if values else None,
+            "score_n": len(values),
+        }
+    total = sum(v["level"] for v in out.values())
+    return {"participant": {"participant_id": participant_id, "anon_id": anon_id},
+            "n_tasks": len(metas), "dims": out,
+            "total_level": total, "max_total": len(DIM_KEYS) * (len(GROWTH_THRESHOLDS) - 1),
+            "awake_dims": sorted(k for k, v in out.items() if v["awake"]),
+            "asleep_dims": sorted(k for k, v in out.items() if not v["awake"])}
+
+
 def strongest_weakest(rep: Dict[str, Any], n: int = 2) -> Tuple[List[str], List[str]]:
     """Dimension keys the child scores highest / lowest on, best effort."""
     dims = rep.get("dims") or {}

@@ -20,7 +20,7 @@ from .quests import (EMOTIONS, QUESTS, QUESTS_BY_ID, condition_snapshot,
 from .reconstruct import check_final
 from .rubric import apply_contract, check_rating
 from .revision import attribute as attribute_revision
-from .schemas import (Annotation, CreateSession, DrawEvent, FeedbackIn, Finalize,
+from .schemas import (Abandon, Annotation, CreateSession, DrawEvent, FeedbackIn, Finalize,
                       HARDEST_PARTS, LogBatch, PROCESS_LABELS, Questionnaire, Rating,
                       Snapshot, StudyAssign, Stroke, Submit)
 from .scoring import DIMENSIONS, SCALE_MAX, get_scorer
@@ -390,6 +390,26 @@ def finalize(sid: str, body: Finalize):
     return {"session": store.load_full(sid), "qc": qc}
 
 
+@app.post("/api/sessions/{sid}/abandon")
+def abandon(sid: str, body: Abandon):
+    """The child backed out — wrong task, or they want to start over.
+
+    Everything drawn so far is kept: changing your mind two minutes in is real
+    process data, and deleting it would also mean a task_id could silently have
+    two different meanings. The session is *marked*, not removed, and
+    `status: abandoned` keeps it out of history, representations and QC noise.
+    """
+    meta = _session_or_404(sid)
+    if meta.get("status") == "done":
+        raise HTTPException(409, "session already finished")
+    _ingest(sid, body.events, body.strokes)
+    store.add_server_event(sid, ev.SESSION_ABANDONED, body.elapsed_ms,
+                           {"reason": body.reason, "strokes": (meta.get("counts") or {}).get("strokes", 0)})
+    store.update(sid, status="abandoned", abandoned_reason=body.reason)
+    store.mark_ended(sid, body.elapsed_ms)
+    return {"ok": True, "session_id": sid, "status": "abandoned"}
+
+
 @app.post("/api/sessions/{sid}/questionnaire")
 def questionnaire(sid: str, body: Questionnaire):
     _session_or_404(sid)
@@ -504,6 +524,13 @@ def participant_protocol(pid: str, anon_id: str = ""):
         "unplanned": [t for t in actual if planned and t not in planned],
         "repeats": sorted({t for t in actual if actual.count(t) > 1}),
     }
+
+
+@app.get("/api/participants/{pid}/growth")
+def participant_growth(pid: str, anon_id: str = ""):
+    """The nine attributes, in two layers: practice (real today) and evaluation
+    (asleep until a backend can actually judge that dimension)."""
+    return history_mod.growth(pid, anon_id)
 
 
 @app.get("/api/participants/{pid}/representation")
