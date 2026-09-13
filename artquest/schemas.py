@@ -1,7 +1,9 @@
 """Pydantic request/response models."""
 from typing import Any, Dict, List, Literal, Optional, Union
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from .scoring.base import DIM_KEYS, SCALE_MAX
 
 
 class Intent(BaseModel):
@@ -142,6 +144,45 @@ class Questionnaire(BaseModel):
     t_ms: int = Field(0, description="会话计时，保证事件在统一时间线上有精确位置")
 
 
+# Smaller than this and the numbers are fractions of the canvas, not pixels.
+MIN_REGION_PX = 2.0
+
+
+class TargetRegion(BaseModel):
+    """Where on the canvas a piece of feedback points.
+
+    In **canvas pixel space** — the same coordinates strokes are logged in — so
+    "did the child then work where the feedback pointed?" is a number the
+    analysis can compute, not a reading exercise. A free-form dict here would
+    let a future teacher tool put anything in the field and quietly break that.
+
+    coords: rect `[x, y, w, h]` · point `[x, y, radius]` · poly `[x1, y1, x2, y2, …]`
+    """
+    shape: Literal["rect", "point", "poly"] = "rect"
+    coords: List[float]
+    label: str = ""
+    space: Literal["canvas"] = "canvas"
+
+    @field_validator("coords")
+    @classmethod
+    def _shape_fits(cls, v, info):
+        shape = (info.data or {}).get("shape", "rect")
+        need = {"rect": 4, "point": 3}
+        if shape in need and len(v) != need[shape]:
+            raise ValueError(f"{shape} needs {need[shape]} coords, got {len(v)}")
+        if shape == "poly" and (len(v) < 6 or len(v) % 2):
+            raise ValueError("poly needs an even number of coords, at least 3 points")
+        # A sub-pixel region is not a small region, it is fractional coordinates
+        # that were never converted — the one mistake this field invites, and one
+        # that would otherwise silently produce a region no stroke can fall in.
+        if shape == "rect" and (v[2] < MIN_REGION_PX or v[3] < MIN_REGION_PX):
+            raise ValueError(f"rect is {v[2]}x{v[3]}; regions are in canvas pixels, "
+                             f"at least {MIN_REGION_PX}px a side (fractions of the canvas are not accepted)")
+        if shape == "point" and v[2] < MIN_REGION_PX:
+            raise ValueError(f"point radius {v[2]} is below {MIN_REGION_PX}px; regions are in canvas pixels")
+        return v
+
+
 class FeedbackIn(BaseModel):
     """A human (teacher/self) feedback entry, alongside the AI ones."""
     source: Literal["teacher", "self", "ai"] = "teacher"
@@ -149,7 +190,34 @@ class FeedbackIn(BaseModel):
     text: str
     t_ms: int = 0
     phase: Literal["before", "after"] = "before"
-    target_region: Optional[Dict[str, Any]] = None
+    target_region: Optional[TargetRegion] = None
+
+
+class Rating(BaseModel):
+    """Someone other than the child rating the artwork.
+
+    Append-only and carrying a `rater_id`, so two teachers rating the same
+    session is the normal case rather than an overwrite — inter-rater agreement
+    is something a dataset has to be able to report.
+    """
+    source: Literal["teacher", "expert", "peer"] = "teacher"
+    rater_id: str = Field("", description="伪匿名评分者编号，不要用真名")
+    phase: Literal["before", "after"] = "after"
+    overall: Optional[int] = Field(None, ge=1, le=SCALE_MAX)
+    dims: Dict[str, int] = Field({}, description="可选的 9 维打分，与模型同一量表")
+    note: str = ""
+    t_ms: int = 0
+
+    @field_validator("dims")
+    @classmethod
+    def _known_dims(cls, v):
+        bad = sorted(set(v) - set(DIM_KEYS))
+        if bad:
+            raise ValueError(f"unknown dimensions: {bad}")
+        out_of_range = {k: s for k, s in v.items() if not 1 <= s <= SCALE_MAX}
+        if out_of_range:
+            raise ValueError(f"scores must be 1–{SCALE_MAX}: {out_of_range}")
+        return v
 
 
 class StudyAssign(BaseModel):

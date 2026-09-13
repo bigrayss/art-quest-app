@@ -18,6 +18,8 @@ from typing import Any, Dict, List
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from artquest import config  # noqa: E402
 from artquest.reconstruct import read_jsonl  # noqa: E402
+from artquest.revision import attribute  # noqa: E402
+from artquest.scoring.base import DIM_KEYS  # noqa: E402
 
 SESSION_COLS = [
     "session_id", "created_at", "started_at", "ended_at", "duration_ms",
@@ -111,7 +113,7 @@ def _write(path: Path, cols: List[str], rows: List[Dict[str, Any]]) -> int:
 
 def export(out: Path, with_points: bool = False) -> Dict[str, int]:
     out.mkdir(parents=True, exist_ok=True)
-    sessions, strokes, events, feedback, quest, personal = [], [], [], [], [], []
+    sessions, strokes, events, feedback, quest, personal, ratings = [], [], [], [], [], [], []
     points_path = out / "points.csv"
     pf = points_path.open("w", newline="", encoding="utf-8") if with_points else None
     pw = csv.writer(pf) if pf else None
@@ -151,10 +153,29 @@ def export(out: Path, with_points: bool = False) -> Dict[str, int]:
             events.append({"session_id": sid, "seq": e.get("seq"), "src": e.get("src"), "ts": e.get("ts"),
                            "t_ms": e.get("t_ms"), "type": e.get("type"),
                            "payload": json.dumps(e.get("payload"), ensure_ascii=False) if e.get("payload") else ""})
+        # one row per feedback, carrying what the child did after seeing it:
+        # this is the unit of analysis for the feedback experiments
+        attributed = {r["feedback_id"]: r for r in attribute(d)["feedback"] if r.get("feedback_id")}
         for f in read_jsonl(d / "feedback.jsonl"):
+            a = attributed.get(f.get("feedback_id")) or {}
+            rev, before, after = a.get("revision") or {}, a.get("before") or {}, a.get("after") or {}
             feedback.append({"session_id": sid, **{k: f.get(k) for k in
                              ("feedback_id", "t_ms", "phase", "source", "feedback_type", "backend", "text", "shown_at")},
-                             "target_region": json.dumps(f.get("target_region"), ensure_ascii=False) if f.get("target_region") else ""})
+                             "target_region": json.dumps(f.get("target_region"), ensure_ascii=False) if f.get("target_region") else "",
+                             "has_region": a.get("has_region"),
+                             "revision_started": rev.get("started"), "revision_skipped": rev.get("skipped"),
+                             "revision_linked": rev.get("linked"), "latency_ms": rev.get("latency_ms"),
+                             "strokes_before": before.get("strokes"), "strokes_after": after.get("strokes"),
+                             "share_in_region_before": before.get("share_in_region"),
+                             "share_in_region_after": after.get("share_in_region"),
+                             "region_shift": a.get("region_shift")})
+
+        for r in read_jsonl(d / "ratings.jsonl"):
+            ratings.append({"session_id": sid, "rating_id": r.get("rating_id"),
+                            "source": r.get("source"), "rater_id": r.get("rater_id"),
+                            "phase": r.get("phase"), "overall": r.get("overall"),
+                            "note": r.get("note", ""), "ts": r.get("ts"),
+                            **{f"dim_{k}": v for k, v in (r.get("dims") or {}).items()}})
         q = d / "questionnaire.json"
         if q.exists():
             quest.append({"session_id": sid, **json.loads(q.read_text(encoding="utf-8"))})
@@ -168,7 +189,13 @@ def export(out: Path, with_points: bool = False) -> Dict[str, int]:
                                                 "pointer_type", "zoom", "n_points", "mean_pressure"], strokes),
         "events": _write(out / "events.csv", ["session_id", "seq", "src", "ts", "t_ms", "type", "payload"], events),
         "feedback": _write(out / "feedback.csv", ["session_id", "feedback_id", "t_ms", "phase", "source",
-                                                  "feedback_type", "backend", "text", "target_region", "shown_at"], feedback),
+                                                  "feedback_type", "backend", "text", "target_region", "shown_at",
+                                                  "has_region", "revision_started", "revision_skipped",
+                                                  "revision_linked", "latency_ms", "strokes_before", "strokes_after",
+                                                  "share_in_region_before", "share_in_region_after",
+                                                  "region_shift"], feedback),
+        "ratings": _write(out / "ratings.csv", ["session_id", "rating_id", "source", "rater_id", "phase",
+                                                "overall"] + [f"dim_{k}" for k in DIM_KEYS] + ["note", "ts"], ratings),
         "questionnaire": _write(out / "questionnaire.csv", ["session_id", "difficulty", "confidence", "enjoyment",
                                                             "hardest_part", "free_text", "at"], quest),
         "personalization": _write(out / "personalization.csv", PERSONALIZATION_COLS, personal),

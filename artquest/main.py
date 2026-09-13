@@ -15,8 +15,9 @@ from .personalize import MODES as HISTORY_MODES, get_personalizer
 from .qc import check as qc_check
 from .quests import EMOTIONS, QUESTS, QUESTS_BY_ID
 from .reconstruct import check_final
+from .revision import attribute as attribute_revision
 from .schemas import (CreateSession, DrawEvent, FeedbackIn, Finalize, LogBatch,
-                      Questionnaire, Snapshot, StudyAssign, Stroke, Submit)
+                      Questionnaire, Rating, Snapshot, StudyAssign, Stroke, Submit)
 from .scoring import DIMENSIONS, SCALE_MAX, get_scorer
 from .storage import SCHEMA_VERSION, SessionStore, decode_data_url, now_iso
 
@@ -254,6 +255,7 @@ def submit(sid: str, body: Submit):
         entry = store.add_feedback(sid, {"t_ms": body.elapsed_ms, "phase": "before", "source": "ai",
                                          "feedback_type": "formative", "backend": fb["backend"], "text": fb["text"]})
         fb["feedback_id"] = entry["feedback_id"]
+        fb["t_ms"] = body.elapsed_ms
         store.add_server_event(sid, "FEEDBACK_SHOWN", body.elapsed_ms,
                                {"feedback_id": entry["feedback_id"], "backend": fb["backend"], "phase": "before"})
         meta = store.update(sid, before=record, feedback=fb, status="feedback")
@@ -289,7 +291,11 @@ def finalize(sid: str, body: Finalize):
     if meta.get("after"):
         return {"session": meta}
     _ingest(sid, body.events, body.strokes)
-    store.add_server_event(sid, "REVISION_SKIPPED", body.elapsed_ms, None)
+    # declining to revise is an outcome of *that* feedback, not an absence of data
+    last_fb = meta.get("feedback") or {}
+    store.add_server_event(sid, "REVISION_SKIPPED", body.elapsed_ms, {
+        "feedback_id": last_fb.get("feedback_id"),
+        "latency_ms": body.elapsed_ms - (last_fb.get("t_ms") or 0) if last_fb.get("feedback_id") else None})
     png = store.read_image(sid, "before")
     store.save_phase_image(sid, "after", png)
     record = dict(meta["before"], file="after.png", elapsed_ms=body.elapsed_ms, at=now_iso())
@@ -315,12 +321,40 @@ def questionnaire(sid: str, body: Questionnaire):
 
 @app.post("/api/sessions/{sid}/feedback")
 def add_feedback(sid: str, body: FeedbackIn):
-    """Record a teacher's or the child's own feedback next to the AI's."""
+    """Record a teacher's or the child's own feedback next to the AI's.
+
+    `target_region` is in canvas pixel space, the same coordinates strokes use,
+    so `/revision` can answer whether the child then worked where it pointed.
+    """
     _session_or_404(sid)
     rec = store.add_feedback(sid, body.model_dump())
     store.add_server_event(sid, "FEEDBACK_SHOWN", body.t_ms,
-                           {"feedback_id": rec["feedback_id"], "source": body.source, "phase": body.phase})
+                           {"feedback_id": rec["feedback_id"], "source": body.source, "phase": body.phase,
+                            "has_region": bool(body.target_region)})
     return {"ok": True, "feedback": rec}
+
+
+@app.post("/api/sessions/{sid}/rating")
+def add_rating(sid: str, body: Rating):
+    """A teacher's / expert's rating of the artwork — a second rater, not the child."""
+    _session_or_404(sid)
+    rec = store.add_rating(sid, body.model_dump())
+    store.add_server_event(sid, "RATING_ADDED", body.t_ms,
+                           {"rating_id": rec["rating_id"], "source": body.source,
+                            "rater_id": body.rater_id, "overall": body.overall,
+                            "n_dims": len(body.dims)})
+    return {"ok": True, "rating": rec}
+
+
+@app.get("/api/sessions/{sid}/revision")
+def get_revision(sid: str):
+    """Feedback → what the child did next, in time and (when targeted) in space.
+
+    Derived from the logs on request, never stored: the relation improves when
+    the analysis does.
+    """
+    _session_or_404(sid)
+    return attribute_revision(store.dir(sid))
 
 
 @app.get("/api/sessions/{sid}/personalization")

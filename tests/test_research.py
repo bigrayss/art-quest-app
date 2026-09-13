@@ -160,13 +160,22 @@ class ResearchDataLayer(unittest.TestCase):
         self.assertEqual(fb[0]["phase"], "before")
         self.assertTrue(fb[0]["feedback_id"] and fb[0]["text"])
 
-        # a teacher can add their own next to the AI's
+        # a teacher can add their own next to the AI's, pointing at a region.
+        # canvas pixel space, not fractions: it has to be the same coordinates
+        # the strokes are in, or "did they work there?" is not computable
         self.c.post(f"/api/sessions/{sid}/feedback",
                     json={"source": "teacher", "text": "试试把主体画大一点", "t_ms": 61000,
-                          "target_region": {"x": 0.2, "y": 0.3, "w": 0.4, "h": 0.4}})
+                          "target_region": {"shape": "rect", "coords": [200, 200, 400, 300],
+                                            "label": "主体"}})
         fb = read_jsonl(SESSIONS / sid / "feedback.jsonl")
         self.assertEqual([f["source"] for f in fb], ["ai", "teacher"])
-        self.assertEqual(fb[1]["target_region"]["w"], 0.4)
+        self.assertEqual(fb[1]["target_region"]["coords"], [200, 200, 400, 300])
+
+        # a region the analysis could not use is refused at the door
+        bad = self.c.post(f"/api/sessions/{sid}/feedback",
+                          json={"source": "teacher", "text": "x", "t_ms": 62000,
+                                "target_region": {"shape": "rect", "coords": [0.2, 0.3]}})
+        self.assertEqual(bad.status_code, 422)
 
         # the event stream carries the anchor that splits before/after feedback
         events = read_jsonl(SESSIONS / sid / "events.jsonl")
