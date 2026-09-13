@@ -121,6 +121,24 @@
   }
   const overlay = (text) => { $("#overlay").classList.toggle("hidden", !text); if (text) $("#overlay-text").textContent = text; };
 
+  // ---------- event vocabulary ----------
+  // Mirrors artquest/events.py. One timeline, one clock: `t_ms` is milliseconds
+  // since the session started drawing, and nothing here keeps its own time.
+  const EV = {
+    STROKE_START: "STROKE_START", STROKE_END: "STROKE_END", ERASE: "ERASE",
+    UNDO: "UNDO", REDO: "REDO", CLEAR: "CLEAR",
+    BRUSH_CHANGE: "BRUSH_CHANGE", COLOR_CHANGE: "COLOR_CHANGE", SIZE_CHANGE: "SIZE_CHANGE",
+    ZOOM: "ZOOM", PAN: "PAN",
+    REFERENCE_SHOW: "REFERENCE_SHOW", REFERENCE_OPEN: "REFERENCE_OPEN",
+    REFERENCE_CLOSE: "REFERENCE_CLOSE", REFERENCE_ZOOM: "REFERENCE_ZOOM",
+    REFERENCE_PAN: "REFERENCE_PAN", REFERENCE_FOCUS: "REFERENCE_FOCUS",
+    CANVAS_FOCUS: "CANVAS_FOCUS",
+    PAUSE_START: "PAUSE_START", PAUSE_END: "PAUSE_END",
+    TIME_LIMIT_REACHED: "TIME_LIMIT_REACHED", CANVAS_GEOMETRY: "CANVAS_GEOMETRY",
+    FEEDBACK_DISMISS: "FEEDBACK_DISMISS", REVISION_START: "REVISION_START",
+    TASK_SUBMIT: "TASK_SUBMIT", DOWNLOAD: "DOWNLOAD",
+  };
+
   // ---------- canvas ----------
   const canvas = $("#canvas"), ctx = canvas.getContext("2d", { willReadFrequently: true });
   const TOOLS = {
@@ -190,25 +208,44 @@
   // -- stroke recording: the core process datum. Raw points only —
   //    speed / length / hesitation / rhythm are derived offline, never here.
   const R = (v, n) => { const f = Math.pow(10, n); return Number.isFinite(v) ? Math.round(v * f) / f : 0; };
+  /** Does this pointer actually measure pressure and tilt?
+   *  A mouse reports a constant pressure of 0.5 and no tilt. Logging that as a
+   *  reading would put a fabricated number in every point of every mouse-drawn
+   *  stroke, and offline analysis could not tell it from a real one — so an
+   *  unsupported channel is recorded as null, never as a plausible value. */
+  const hasPen = (e) => e.pointerType === "pen";
   function samplePoint(e, t0) {
-    const q = pos(e);
-    return [R(q.x, 1), R(q.y, 1), Math.round(elapsed() - t0), R(e.pressure || 0, 3), Math.round(e.tiltX || 0), Math.round(e.tiltY || 0)];
+    const q = pos(e), pen = hasPen(e);
+    return [R(q.x, 1), R(q.y, 1), Math.round(elapsed() - t0),
+            pen ? R(e.pressure, 3) : null,
+            pen ? Math.round(e.tiltX || 0) : null,
+            pen ? Math.round(e.tiltY || 0) : null];
   }
   function beginStroke(e) {
     const t0 = elapsed();
-    curStroke = { t0, tool, color: TOOLS[tool].color || color, size, opacity: TOOLS[tool].alpha,
-      erase: tool === "eraser", pointer_type: e.pointerType || "", zoom: view.z, points: [samplePoint(e, t0)] };
+    const id = "s" + String(++strokeCount).padStart(5, "0");
+    curStroke = { id, t0, tool, color: TOOLS[tool].color || color, size, opacity: TOOLS[tool].alpha,
+      erase: tool === "eraser", pointer_type: e.pointerType || "",
+      // the stroke says whether these channels were measured at all
+      pressure_supported: hasPen(e), tilt_supported: hasPen(e),
+      zoom: view.z, points: [samplePoint(e, t0)] };
+    // logged at pen-down, not at pen-up: planning latency and first-stroke
+    // region are about when the child *started*, not when they let go
+    logEvent(EV.STROKE_START, { stroke_id: id, tool: curStroke.tool, color: curStroke.color,
+      size, erase: curStroke.erase, pointer_type: curStroke.pointer_type, zoom: R(view.z, 3) });
   }
   function finishStroke() {
     if (!curStroke) return;
     const s = curStroke; curStroke = null;
-    const id = "s" + String(++strokeCount).padStart(5, "0"), last_pt = s.points[s.points.length - 1];
+    const id = s.id, last_pt = s.points[s.points.length - 1];
     ArtLog.stroke({ stroke_id: id, phase: state.phase, t_start_ms: Math.round(s.t0), t_end_ms: Math.round(s.t0 + last_pt[2]),
       tool: s.tool, color: s.color, size: s.size, opacity: s.opacity, erase: s.erase,
-      pointer_type: s.pointer_type, zoom: R(s.zoom, 3), points: s.points });
+      pointer_type: s.pointer_type, pressure_supported: s.pressure_supported,
+      tilt_supported: s.tilt_supported, zoom: R(s.zoom, 3), points: s.points });
     visible.push(id);
     // the same stroke also lands in the unified event timeline, cross-referenced by id
-    logEvent(s.erase ? "ERASE" : "STROKE", { stroke_id: id, tool: s.tool, color: s.color, size: s.size, n: s.points.length, dur_ms: last_pt[2] });
+    logEvent(s.erase ? EV.ERASE : EV.STROKE_END, { stroke_id: id, tool: s.tool, color: s.color,
+      size: s.size, n: s.points.length, dur_ms: last_pt[2] });
   }
   canvas.addEventListener("pointerdown", (e) => {
     if (wantsPan(e)) { e.preventDefault(); panStart(e); return; }
@@ -294,7 +331,7 @@
     clearTimeout(zoomTimer); zoomTimer = null;
     const g = zoomGesture; zoomGesture = null;
     if (!g) return;
-    logEvent("ZOOM", { from: R(g.from, 3), to: R(view.z, 3), source: g.source,
+    logEvent(EV.ZOOM, { from: R(g.from, 3), to: R(view.z, 3), source: g.source,
       at: [Math.round(view.tx), Math.round(view.ty)],
       dur_ms: Math.round(elapsed() - g.t0), steps: g.steps });
   }
@@ -318,7 +355,7 @@
     const g = panning; panning = null;
     viewport.classList.remove("panning"); applyView();
     if (!g || !g.points.length) return;     // a click that never moved is not a pan
-    logEvent("PAN", { from: g.from, to: [Math.round(view.tx), Math.round(view.ty)],
+    logEvent(EV.PAN, { from: g.from, to: [Math.round(view.tx), Math.round(view.ty)],
       zoom: R(view.z, 3), dur_ms: Math.round(elapsed() - g.t0), points: g.points });
   }
 
@@ -346,21 +383,21 @@
     redoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height)); redoDoc.push(visible.slice());
     ctx.putImageData(undoStack.pop(), 0, 0);
     const prev = visible; visible = undoDoc.pop() || [];
-    logEvent("UNDO", docDiff(prev, visible)); state.dirtySinceSnapshot = true;
+    logEvent(EV.UNDO, docDiff(prev, visible)); state.dirtySinceSnapshot = true;
   }
   function redo() {
     if (!redoStack.length) return;
     undoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height)); undoDoc.push(visible.slice());
     ctx.putImageData(redoStack.pop(), 0, 0);
     const prev = visible; visible = redoDoc.pop() || [];
-    logEvent("REDO", docDiff(prev, visible)); state.dirtySinceSnapshot = true;
+    logEvent(EV.REDO, docDiff(prev, visible)); state.dirtySinceSnapshot = true;
   }
   $("#btn-undo").onclick = undo; $("#btn-redo").onclick = redo;
   $("#btn-clear").onclick = () => {
     if (!confirm("确定清空整张画布？")) return;
     pushUndo(); ctx.globalAlpha = 1; ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
     const prev = visible; visible = [];
-    logEvent("CLEAR", docDiff(prev, visible)); state.dirtySinceSnapshot = true;
+    logEvent(EV.CLEAR, docDiff(prev, visible)); state.dirtySinceSnapshot = true;
   };
   document.addEventListener("keydown", (e) => {
     if (!drawViewOpen()) return;
@@ -378,9 +415,9 @@
   window.addEventListener("blur", () => { spaceDown = false; applyView(); });
   document.querySelectorAll("#tools button").forEach(b => b.onclick = () => {
     if (b.disabled) return;
-    tool = b.dataset.tool; document.querySelectorAll("#tools button").forEach(x => x.classList.toggle("active", x === b)); logEvent("BRUSH_CHANGE", { tool });
+    tool = b.dataset.tool; document.querySelectorAll("#tools button").forEach(x => x.classList.toggle("active", x === b)); logEvent(EV.BRUSH_CHANGE, { tool });
   });
-  $("#size").oninput = (e) => { size = +e.target.value; $("#size-val").textContent = size; logEvent("SIZE_CHANGE", { size }); };
+  $("#size").oninput = (e) => { size = +e.target.value; $("#size-val").textContent = size; logEvent(EV.SIZE_CHANGE, { size }); };
   const PALETTE = ["#222222", "#7a7a7a", "#ffffff", "#e63946", "#f4a261", "#ffd166", "#2a9d8f", "#4caf50", "#1d6fe0", "#7b4fd6", "#f28cb1", "#8d5524"];
   const pal = $("#palette");
   PALETTE.forEach(c => { const d = document.createElement("div"); d.style.background = c; d.title = c; d.onclick = () => setColor(c, d); pal.appendChild(d); });
@@ -391,10 +428,10 @@
     const say = $("#draw-buddy-say"); if (say) say.textContent = BUDDY_LINES[state.buddyTick % BUDDY_LINES.length];
     if (!$("#view-draw").classList.contains("hidden")) renderTrail(state.phase === "after" ? "evolve" : "draw");
   }
-  function setColor(c, el) { color = c; $("#color-custom").value = c; pal.querySelectorAll("div").forEach(x => x.classList.toggle("active", x === el)); if (tool === "eraser") document.querySelector('[data-tool="pencil"]').click(); logEvent("COLOR_CHANGE", { color: c }); state.buddyTick++; updateBuddy(); }
+  function setColor(c, el) { color = c; $("#color-custom").value = c; pal.querySelectorAll("div").forEach(x => x.classList.toggle("active", x === el)); if (tool === "eraser") document.querySelector('[data-tool="pencil"]').click(); logEvent(EV.COLOR_CHANGE, { color: c }); state.buddyTick++; updateBuddy(); }
   pal.firstChild.classList.add("active");
   $("#color-custom").oninput = (e) => setColor(e.target.value, null);
-  $("#btn-download").onclick = () => { const a = document.createElement("a"); a.download = `artquest-${state.sessionId || "draft"}.png`; a.href = canvas.toDataURL("image/png"); a.click(); logEvent("DOWNLOAD"); };
+  $("#btn-download").onclick = () => { const a = document.createElement("a"); a.download = `artquest-${state.sessionId || "draft"}.png`; a.href = canvas.toDataURL("image/png"); a.click(); logEvent(EV.DOWNLOAD); };
 
   // ---------- process recording ----------
   const elapsed = () => state.startedAt ? Date.now() - state.startedAt : 0;
@@ -403,13 +440,13 @@
   function logEvent(type, payload) { if (state.sessionId) ArtLog.event(type, elapsed(), payload || null); markActive(); }
   function markActive() {
     const t = elapsed();
-    if (state.idle) { ArtLog.event("IDLE_END", t, { duration_ms: Math.round(t - state.lastActivity), phase: state.phase }); state.idle = false; }
+    if (state.idle) { ArtLog.event(EV.PAUSE_END, t, { duration_ms: Math.round(t - state.lastActivity), phase: state.phase }); state.idle = false; }
     state.lastActivity = t;
   }
   function checkIdle() {
     if (!state.sessionId || state.idle) return;
     const t = elapsed();
-    if (t - state.lastActivity >= IDLE_MS) { state.idle = true; ArtLog.event("IDLE_START", t, { since_ms: Math.round(state.lastActivity), phase: state.phase }); }
+    if (t - state.lastActivity >= IDLE_MS) { state.idle = true; ArtLog.event(EV.PAUSE_START, t, { since_ms: Math.round(state.lastActivity), phase: state.phase }); }
   }
   /** Push everything queued locally, then report what is still unsent. */
   async function flushLog() {
@@ -521,7 +558,15 @@
     const ref = q.reference, allowRef = state.condition.reference_allowed && !!ref;
     $("#refpanel").classList.toggle("hidden", !allowRef);
     $("#ref-wrap").classList.add("hidden");
-    if (allowRef) { $("#ref-img").src = ref.file || `/static/refs/${ref.id}.png`; if (ref.mode === "always") toggleRef(true); }
+    refView.z = 1; refView.tx = refView.ty = 0; refViewedMs = 0; refOpenedAt = null; attention = "canvas";
+    if (allowRef) {
+      $("#ref-img").src = ref.file || `/static/refs/${ref.id}.png`;
+      applyRefView();
+      // presented by the task, as distinct from the child choosing to open it
+      logEvent(EV.REFERENCE_SHOW, { reference_id: ref.id, mode: ref.mode,
+        placeholder: !!(q.stimulus && q.stimulus.placeholder), task_id: q.id });
+      if (ref.mode === "always") toggleRef(true);
+    }
     state.timeUp = false; $("#limit-info").textContent = ""; $("#limit-info").classList.remove("low");
     const allowed = q.allowed_tools;
     document.querySelectorAll("#tools button").forEach(b => {
@@ -530,13 +575,100 @@
       if (!ok && b.classList.contains("active")) document.querySelector('[data-tool="pencil"]').click();
     });
   }
+  // ---------- reference interaction ----------
+  // Look → draw → check → correct only becomes visible if the reference records
+  // more than "it was open": how long, how far in, and when attention moved.
+  const refView = { z: 1, tx: 0, ty: 0 };
+  let refOpenedAt = null, refViewedMs = 0, refDrag = null, attention = "canvas";
+
+  function applyRefView() {
+    const vp = $("#ref-viewport"), img = $("#ref-img");
+    if (!vp || !img) return;
+    const w = vp.clientWidth, h = vp.clientHeight;
+    refView.tx = clamp(refView.tx, w - w * refView.z, 0);
+    refView.ty = clamp(refView.ty, h - h * refView.z, 0);
+    img.style.transform = `translate(${refView.tx}px, ${refView.ty}px) scale(${refView.z})`;
+    $("#ref-zoom").textContent = Math.round(refView.z * 100) + "%";
+  }
+  function refZoomAt(z, cx, cy, source) {
+    const prev = refView.z;
+    z = clamp(z, 1, 8);
+    if (Math.abs(z - prev) < 1e-4) return;
+    const lx = (cx - refView.tx) / prev, ly = (cy - refView.ty) / prev;
+    refView.z = z; refView.tx = cx - lx * z; refView.ty = cy - ly * z;
+    applyRefView();
+    logEvent(EV.REFERENCE_ZOOM, { reference_id: refId(), from: R(prev, 3), to: R(refView.z, 3),
+      source, at: [Math.round(refView.tx), Math.round(refView.ty)] });
+  }
+  const refId = () => ((state.quest && state.quest.reference) || {}).id || "";
+  function noteAttention(where) {
+    if (attention === where || !state.sessionId) return;
+    attention = where;
+    logEvent(where === "reference" ? EV.REFERENCE_FOCUS : EV.CANVAS_FOCUS,
+      { reference_id: refId(), zoom: R(refView.z, 3) });
+  }
+
   function toggleRef(open) {
     const wrap = $("#ref-wrap"), willOpen = open !== undefined ? open : wrap.classList.contains("hidden");
     wrap.classList.toggle("hidden", !willOpen);
     $("#btn-ref-toggle").textContent = willOpen ? "🖼 收起参考图" : "🖼 看看参考图";
-    logEvent(willOpen ? "REFERENCE_OPEN" : "REFERENCE_CLOSE", { task_id: state.quest && state.quest.id });
+    const now = elapsed();
+    if (willOpen) {
+      refOpenedAt = now;
+      logEvent(EV.REFERENCE_OPEN, { reference_id: refId(), task_id: state.quest && state.quest.id });
+      applyRefView();
+    } else {
+      const dur = refOpenedAt != null ? Math.round(now - refOpenedAt) : null;
+      if (dur != null) refViewedMs += dur;
+      refOpenedAt = null;
+      noteAttention("canvas");
+      logEvent(EV.REFERENCE_CLOSE, { reference_id: refId(), task_id: state.quest && state.quest.id,
+        view_duration_ms: dur, viewed_total_ms: refViewedMs, zoom: R(refView.z, 3) });
+    }
   }
   $("#btn-ref-toggle").onclick = () => toggleRef();
+
+  (function wireReference() {
+    const vp = $("#ref-viewport");
+    if (!vp) return;
+    vp.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const r = vp.getBoundingClientRect();
+      refZoomAt(refView.z * Math.pow(1.0015, -e.deltaY), e.clientX - r.left, e.clientY - r.top, "wheel");
+    }, { passive: false });
+    vp.addEventListener("pointerdown", (e) => {
+      vp.setPointerCapture(e.pointerId);
+      refDrag = { id: e.pointerId, x: e.clientX, y: e.clientY, t0: elapsed(),
+                  from: [Math.round(refView.tx), Math.round(refView.ty)], moved: false };
+      vp.classList.add("dragging");
+    });
+    vp.addEventListener("pointermove", (e) => {
+      if (!refDrag || e.pointerId !== refDrag.id) return;
+      refView.tx += e.clientX - refDrag.x; refView.ty += e.clientY - refDrag.y;
+      refDrag.x = e.clientX; refDrag.y = e.clientY; refDrag.moved = true;
+      applyRefView();
+    });
+    const endRefDrag = () => {
+      if (!refDrag) return;
+      const g = refDrag; refDrag = null; vp.classList.remove("dragging");
+      if (!g.moved) return;
+      logEvent(EV.REFERENCE_PAN, { reference_id: refId(), from: g.from,
+        to: [Math.round(refView.tx), Math.round(refView.ty)], zoom: R(refView.z, 3),
+        dur_ms: Math.round(elapsed() - g.t0) });
+    };
+    vp.addEventListener("pointerup", endRefDrag);
+    vp.addEventListener("pointercancel", endRefDrag);
+    vp.addEventListener("pointerenter", () => noteAttention("reference"));
+    canvas.addEventListener("pointerenter", () => noteAttention("canvas"));
+    const stepRef = (f, src) => { const r = vp.getBoundingClientRect(); refZoomAt(refView.z * f, r.width / 2, r.height / 2, src); };
+    $("#btn-ref-in").onclick = () => stepRef(1.25, "button");
+    $("#btn-ref-out").onclick = () => stepRef(1 / 1.25, "button");
+    $("#btn-ref-reset").onclick = () => {
+      const prev = refView.z;
+      refView.z = 1; refView.tx = refView.ty = 0; applyRefView();
+      if (prev !== 1) logEvent(EV.REFERENCE_ZOOM, { reference_id: refId(), from: R(prev, 3), to: 1, source: "button", at: [0, 0] });
+    };
+  })();
 
   // ---------- flow ----------
   /** Pick which parallel form of a family this child gets in free play.
@@ -637,12 +769,13 @@
     state.buddyTick = 0; updateBuddy();
     startTimers(); show("draw");
     // the canvas has a real size only once the view is visible
-    logEvent("CANVAS_GEOMETRY", canvasGeom());
+    logEvent(EV.CANVAS_GEOMETRY, canvasGeom());
   };
 
   $("#btn-submit").onclick = async () => {
     if (!undoStack.length && !state.dirtySinceSnapshot) { if (!confirm("画布好像还是空的，确定提交吗？")) return; }
     overlay("正在观察你的画……"); stopTimers();
+    logEvent(EV.TASK_SUBMIT, { phase: state.phase, strokes: visible.length });
     const image = canvas.toDataURL("image/png");
     try {
       const pending = await flushLog();
@@ -656,8 +789,16 @@
     } catch (e) { alert("提交失败：" + e.message); startTimers(); }
     overlay(null);
   };
+  /** Leaving the feedback screen — how long it was read is a process signal. */
+  function dismissFeedback(action) {
+    const fb = state.feedback || {};
+    if (!fb.id) return;
+    logEvent(EV.FEEDBACK_DISMISS, { feedback_id: fb.id, action,
+      read_ms: fb.shown_ms != null ? Math.round(elapsed() - fb.shown_ms) : null });
+  }
   $("#btn-revise").onclick = () => {
     const fb = state.feedback || {};
+    dismissFeedback("revise");
     state.phase = "after";
     // the link the feedback experiments need: this revision answers *that*
     // feedback, and the child sat with it this long before acting
@@ -666,6 +807,7 @@
     $("#btn-submit").classList.add("hidden"); $("#revision-banner").classList.remove("hidden"); startTimers(); show("draw");
   };
   $("#btn-skip-revise").onclick = async () => {
+    dismissFeedback("skip");
     overlay("正在保存……");
     const pending = await flushLog();
     const r = await api(`/api/sessions/${state.sessionId}/finalize`, { method: "POST", body: JSON.stringify({ elapsed_ms: elapsed(), pending }) });
@@ -691,6 +833,19 @@
   function renderSurvey() {
     SURVEY.forEach(i => delete answers[i.key]);
     $("#survey-hardest").value = "";
+    // a closed set makes the answer comparable across tasks and children; the
+    // text box stays beside it, because a list that fits nobody is worse
+    state.hardestChoice = null;
+    const chips = $("#survey-hardest-choices"); chips.innerHTML = "";
+    (state.cfg.hardest_parts || []).forEach(opt => {
+      const b = document.createElement("button");
+      b.textContent = opt.label;
+      b.onclick = () => {
+        state.hardestChoice = state.hardestChoice === opt.key ? null : opt.key;
+        chips.querySelectorAll("button").forEach(x => x.classList.toggle("active", x === b && state.hardestChoice));
+      };
+      chips.appendChild(b);
+    });
     $("#survey").innerHTML = SURVEY.map(item => `<div class="sq" data-key="${item.key}">
       <div class="sq-q">${item.q}</div>
       <div class="sq-scale"><span class="muted small">${item.lo}</span>
@@ -702,7 +857,9 @@
     }));
   }
   async function sendSurvey(skip) {
-    const body = skip ? { t_ms: elapsed() } : { ...answers, hardest_part: $("#survey-hardest").value.trim(), t_ms: elapsed() };
+    const body = skip ? { t_ms: elapsed() } : { ...answers,
+      hardest_part_choice: state.hardestChoice || null,
+      hardest_part: $("#survey-hardest").value.trim(), t_ms: elapsed() };
     try { await api(`/api/sessions/${state.sessionId}/questionnaire`, { method: "POST", body: JSON.stringify(body) }); }
     catch (e) { console.warn("questionnaire failed", e); }
     const f = state.pendingFinal; if (f) showFinal(f.session, f.beforeImg, f.afterImg, f.comparison);

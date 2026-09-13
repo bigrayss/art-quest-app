@@ -64,7 +64,15 @@
       <div class="historycard hidden" id="history-card"></div>
       <div class="refpanel hidden" id="refpanel">
         <button class="secondary" id="btn-ref-toggle">🖼 看看参考图</button>
-        <div class="ref-img hidden" id="ref-wrap"><img id="ref-img" alt="参考图"></div>
+        <div class="ref-img hidden" id="ref-wrap">
+          <div class="ref-viewport" id="ref-viewport"><img id="ref-img" alt="参考图"></div>
+          <div class="refbar">
+            <button id="btn-ref-out" title="缩小">➖</button>
+            <button id="btn-ref-reset" title="回到 100%"><span id="ref-zoom">100%</span></button>
+            <button id="btn-ref-in" title="放大">➕</button>
+            <span class="muted small">滚轮缩放 · 拖动移动</span>
+          </div>
+        </div>
       </div>
       <div class="buddy-mini">
         <svg class="sprite" id="draw-sprite" viewBox="0 0 200 200"></svg>
@@ -139,7 +147,8 @@
   <p class="muted">没有对错，凭感觉选就行。</p>
   <div class="survey" id="survey"></div>
   <label for="survey-hardest">这次哪里最难？（可不写）</label>
-  <input id="survey-hardest" type="text" placeholder="比如：房子的比例总是画不对">
+  <div class="chips" id="survey-hardest-choices"></div>
+  <input id="survey-hardest" type="text" placeholder="想补充的话可以写在这里（可不写）">
   <div class="actions">
     <button class="secondary" id="btn-survey-skip">跳过</button>
     <button class="primary" id="btn-survey-submit">交上去 →</button>

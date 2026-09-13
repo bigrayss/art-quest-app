@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional
 MIN_DURATION_MS = 5_000          # anything shorter is almost certainly a misfire
 MAX_DURATION_MS = 6 * 3600_000   # a browser tab left open overnight
 MIN_STROKES = 1
+MAX_STROKES = 5_000        # far past any plausible drawing; a runaway logger
 MIN_POINTS_PER_STROKE = 2.0      # a stroke with a single point cannot be replayed
 # Largest share of ink allowed to disagree between the artwork rebuilt from the
 # logs and the PNG the child actually saved (`reconstruct.compare`'s `rel`).
@@ -30,7 +31,8 @@ MAX_REPLAY_REL_DIFF = float(os.environ.get("ARTQUEST_MAX_REPLAY_DIFF", "0.30"))
 def check(meta: Dict[str, Any], *, strokes: Dict[str, Any], events: int,
           known_task: bool, has_final_image: bool, pending_uploads: int = 0,
           replay: Optional[Dict[str, Any]] = None,
-          condition_frozen: bool = True) -> Dict[str, Any]:
+          condition_frozen: bool = True, reference_available: Optional[bool] = None,
+          checksum: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     times = meta.get("times") or {}
     duration = times.get("duration_ms") or 0
     n_strokes, n_points = strokes.get("count", 0), strokes.get("points", 0)
@@ -47,6 +49,14 @@ def check(meta: Dict[str, Any], *, strokes: Dict[str, Any], events: int,
          "detail": (meta.get("task") or {}).get("stimulus_id")},
         {"name": "events_nonempty", "ok": events > 0, "detail": events},
         {"name": "strokes_nonempty", "ok": n_strokes >= MIN_STROKES, "detail": n_strokes},
+        {"name": "stroke_count_plausible", "ok": n_strokes <= MAX_STROKES, "detail": n_strokes},
+        {"name": "canvas_recorded",
+         "ok": bool((meta.get("canvas") or {}).get("width")) and bool((meta.get("canvas") or {}).get("height")),
+         "detail": meta.get("canvas")},
+        # a reference task whose stimulus never loaded measured something else
+        {"name": "reference_available", "ok": reference_available is not False,
+         "detail": (meta.get("task") or {}).get("reference_id")},
+        {"name": "log_checksum", "ok": bool(checksum), "detail": checksum},
         {"name": "final_image_saved", "ok": has_final_image, "detail": None},
         {"name": "times_monotonic",
          "ok": bool(times.get("created_at")) and (not times.get("ended_at") or times.get("ended_at") >= times.get("created_at")),

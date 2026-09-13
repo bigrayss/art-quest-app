@@ -59,7 +59,7 @@ class StageOneLoop(unittest.TestCase):
         self.assertEqual(s["status"], "done")
         self.assertTrue(s["revised"])
         self.assertEqual(len(s["snapshots"]), 1)
-        self.assertTrue(any(e["type"] == "FEEDBACK_SHOWN" for e in s["events"]))
+        self.assertTrue(any(e["type"] == "FEEDBACK_SHOW" for e in s["events"]))
 
         d = os.path.join(_TMP, "sessions", sid)
         for f in ("metadata.json", "before.png", "after.png", "final.png", "events.jsonl", "snapshots/0001_45s.png"):

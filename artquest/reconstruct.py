@@ -22,14 +22,15 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from PIL import Image, ImageDraw
 
+from . import events as ev
 from .logstore import read_json
 
 # Mirrors static/app.js TOOLS: {size multiplier, pressure sensitivity}
 TOOL_WIDTH = {"pencil": 1.0, "brush": 3.0, "marker": 6.0, "eraser": 6.0}
 TOOL_PRESSURE = {"pencil": 0.4, "brush": 1.0, "marker": 0.0, "eraser": 0.0}
 
-DRAW_TYPES = ("STROKE", "ERASE")
-TIMELINE_TYPES = DRAW_TYPES + ("UNDO", "REDO", "CLEAR")
+DRAW_TYPES = ev.DRAW_TYPES                      # STROKE_END / ERASE, old name folded in
+TIMELINE_TYPES = DRAW_TYPES + (ev.UNDO, ev.REDO, ev.CLEAR)
 
 DEFAULT_CANVAS = (1024, 704)
 # Width the replay and the saved artwork are both reduced to before comparing.
@@ -45,7 +46,7 @@ def _ops(events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     Every one of these is client-side and carries a monotonic `seq`; server-side
     records (feedback, session end) have none and are not canvas operations.
     """
-    ops = [e for e in events if e.get("type") in TIMELINE_TYPES]
+    ops = [e for e in events if ev.canonical(e.get("type")) in TIMELINE_TYPES]
     if ops and all(e.get("seq") is not None for e in ops):
         ops.sort(key=lambda e: int(e["seq"]))
     return ops
@@ -64,7 +65,7 @@ def visible_ids(events: List[Dict[str, Any]]) -> Optional[List[str]]:
     undone: List[List[str]] = []   # legacy fallback: what each UNDO took off
 
     for e in ops:
-        kind, p = e.get("type"), e.get("payload") or {}
+        kind, p = ev.canonical(e.get("type")), e.get("payload") or {}
         if kind in DRAW_TYPES:
             sid = p.get("stroke_id")
             if sid:
@@ -116,7 +117,7 @@ def audit_streams(events: List[Dict[str, Any]],
     referenced: set = set()
     for e in ops:
         p = e.get("payload") or {}
-        if e.get("type") in DRAW_TYPES:
+        if ev.canonical(e.get("type")) in DRAW_TYPES:
             if p.get("stroke_id"):
                 drawn.append(p["stroke_id"])
         else:
@@ -195,14 +196,24 @@ def _width(stroke: Dict[str, Any], pressure: float) -> float:
     return max(0.5, w)
 
 
+# A device that does not measure pressure logs `None`. The renderer still needs
+# a width, so it falls back to the neutral half — the *log* stays honest, the
+# picture does not pretend the fallback was a reading.
+NEUTRAL_PRESSURE = 0.5
+
+
+def _pressure(point: List[Any]) -> float:
+    v = point[3] if len(point) > 3 else None
+    return float(v) if isinstance(v, (int, float)) else NEUTRAL_PRESSURE
+
+
 def _paint(draw: ImageDraw.ImageDraw, stroke: Dict[str, Any],
-           pts: List[List[float]], color: str) -> None:
+           pts: List[List[Any]], color: str) -> None:
     for i in range(1, len(pts)):
-        p = pts[i][3] if len(pts[i]) > 3 else 0.5
         draw.line((pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1]),
-                  fill=color, width=int(round(_width(stroke, p))))
+                  fill=color, width=int(round(_width(stroke, _pressure(pts[i])))))
     if len(pts) == 1:  # a tap still leaves a dot
-        r = _width(stroke, pts[0][3] if len(pts[0]) > 3 else 0.5) / 2
+        r = _width(stroke, _pressure(pts[0])) / 2
         draw.ellipse((pts[0][0] - r, pts[0][1] - r, pts[0][0] + r, pts[0][1] + r), fill=color)
 
 
@@ -287,6 +298,40 @@ def canvas_size(meta: Dict[str, Any]) -> Tuple[int, int]:
     return (int(c.get("width") or DEFAULT_CANVAS[0]), int(c.get("height") or DEFAULT_CANVAS[1]))
 
 
+def boundaries(events: List[Dict[str, Any]],
+               strokes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Named cut points in the drawing: around each feedback and the revision.
+
+    Percentage key frames say how far along the child was; these say *where the
+    intervention was*. "What the artwork looked like when the feedback appeared"
+    and "what it looked like after" is the pair a feedback experiment compares,
+    and it cannot be recovered from 25/50/75 %.
+    """
+    ordered = sorted(strokes, key=lambda s: s.get("t_start_ms") or 0)
+
+    def upto(t_ms: Optional[int]) -> int:
+        if t_ms is None:
+            return len(ordered)
+        return sum(1 for s in ordered if (s.get("t_start_ms") or 0) < t_ms)
+
+    shown = sorted((e.get("t_ms") or 0) for e in events
+                   if ev.canonical(e.get("type")) == ev.FEEDBACK_SHOW)
+    revision = next((e.get("t_ms") or 0) for e in events
+                    if ev.canonical(e.get("type")) == ev.REVISION_START) \
+        if any(ev.canonical(e.get("type")) == ev.REVISION_START for e in events) else None
+
+    out: List[Dict[str, Any]] = []
+    for i, t in enumerate(shown):
+        suffix = "" if i == 0 else f"_{i + 1}"
+        nxt = shown[i + 1] if i + 1 < len(shown) else None
+        out.append({"name": f"before_feedback{suffix}", "t_ms": t, "n_strokes": upto(t)})
+        out.append({"name": f"after_feedback{suffix}", "t_ms": nxt, "n_strokes": upto(nxt)})
+    if revision is not None:
+        out.append({"name": "before_revision", "t_ms": revision, "n_strokes": upto(revision)})
+        out.append({"name": "after_revision", "t_ms": None, "n_strokes": len(ordered)})
+    return out
+
+
 def rebuild(session_dir: Path) -> Dict[str, Any]:
     """Reconstruct one session directory from its logs alone."""
     d = Path(session_dir)
@@ -298,6 +343,7 @@ def rebuild(session_dir: Path) -> Dict[str, Any]:
     # the frozen condition is what says whether the canvas started blank
     stimulus = ((read_json(d / "condition.json") or {}).get("stimulus")) or None
     return {"meta": meta, "size": size, "strokes": vis, "stimulus": stimulus,
+            "boundaries": boundaries(events, vis),
             "image": render(vis, size, stimulus=stimulus),
             "audit": audit_streams(events, strokes),
             "logged": len(strokes), "visible": len(vis),

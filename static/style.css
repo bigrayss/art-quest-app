@@ -213,3 +213,14 @@ body.quiet #collection-wrap { display:none; }
 .dim.na .name span:first-child { color: var(--muted); }
 .dim.na .wait { font-size: 12px; color: var(--muted); }
 .rose-label.na { fill: #bdb6ab; font-style: italic; }
+
+/* The reference gets its own viewport: how long a child looks, how far they
+   zoom in, and when attention moves between reference and canvas are all
+   process signals, and none of them exist if the image is a flat thumbnail. */
+.ref-viewport { position:relative; overflow:hidden; border-radius:8px; background:#fff;
+  border:1px solid var(--line); max-height:260px; cursor:grab; }
+.ref-viewport.dragging { cursor:grabbing; }
+.ref-viewport img { display:block; width:100%; height:auto; transform-origin:0 0; user-select:none; -webkit-user-drag:none; }
+.refbar { display:flex; align-items:center; gap:5px; margin-top:6px; flex-wrap:wrap; }
+.refbar button { padding:3px 8px; font-size:12px; }
+.refbar #btn-ref-reset { min-width:56px; font-variant-numeric:tabular-nums; }

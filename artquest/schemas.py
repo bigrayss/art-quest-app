@@ -82,7 +82,8 @@ class Stroke(BaseModel):
     """One stroke with its sampled points — the core process datum.
 
     `points` are `[x, y, dt_ms, pressure, tiltX, tiltY]` in canvas pixel space,
-    `dt_ms` relative to `t_start_ms`. Zoom and pan never enter these numbers —
+    `dt_ms` relative to `t_start_ms`; `pressure`/`tilt` are `null` when the
+    pointer does not measure them. Zoom and pan never enter these numbers —
     they are a view transform, so a stroke drawn at 4x lands in the same
     coordinate space as one drawn at 1x and replay stays exact. `zoom` records
     what the child could see while drawing it, which is a different question.
@@ -101,8 +102,12 @@ class Stroke(BaseModel):
     opacity: float = 1.0
     erase: bool = False
     pointer_type: str = ""
+    pressure_supported: bool = False
+    tilt_supported: bool = False
     zoom: float = 1.0
-    points: List[List[float]] = []
+    # `None` in a slot means the device does not measure that channel — a mouse
+    # reports a constant 0.5 pressure, which is not a reading
+    points: List[List[Optional[float]]] = []
 
 
 class LogBatch(BaseModel):
@@ -135,14 +140,44 @@ class Finalize(BaseModel):
     pending: int = 0
 
 
+# What a child can pick as "the hardest part". A fixed set makes the answer
+# comparable across tasks and children; free text stays available beside it,
+# because a closed list that fits nobody is worse than no answer.
+HARDEST_PARTS = [
+    ("idea", "想不出要画什么"),
+    ("shape", "形状画不准"),
+    ("proportion", "大小和比例"),
+    ("color", "颜色"),
+    ("layout", "画面怎么安排"),
+    ("line", "线条"),
+    ("time", "时间不够"),
+    ("none", "没有特别难的"),
+    ("other", "其他"),
+]
+HARDEST_PART_KEYS = [k for k, _ in HARDEST_PARTS]
+
+
 class Questionnaire(BaseModel):
-    """Light self-report: a little ground truth for the behavioural data."""
+    """Light self-report: a little ground truth for the behavioural data.
+
+    Two or three questions, at the end, never mid-task.
+    """
     difficulty: Optional[int] = Field(None, ge=1, le=5)
     confidence: Optional[int] = Field(None, ge=1, le=5)
     enjoyment: Optional[int] = Field(None, ge=1, le=5)
+    # the closed answer, comparable across tasks…
+    hardest_part_choice: Optional[str] = None
+    # …and the child's own words, which is also what older sessions stored here
     hardest_part: str = ""
     free_text: str = ""
     t_ms: int = Field(0, description="会话计时，保证事件在统一时间线上有精确位置")
+
+    @field_validator("hardest_part_choice")
+    @classmethod
+    def _known_choice(cls, v):
+        if v and v not in HARDEST_PART_KEYS:
+            raise ValueError(f"unknown hardest_part: {v!r}")
+        return v
 
 
 # Smaller than this and the numbers are fractions of the canvas, not pixels.
@@ -185,13 +220,47 @@ class TargetRegion(BaseModel):
 
 
 class FeedbackIn(BaseModel):
-    """A human (teacher/self) feedback entry, alongside the AI ones."""
+    """A feedback entry — teacher, the child's own, or a model's.
+
+    `trigger` / `model` / `prompt_version` are carried even when no AI is
+    running, so a later model-generated intervention drops into the same rows:
+    which event caused it, which model wrote it, and under which prompt.
+    """
     source: Literal["teacher", "self", "ai"] = "teacher"
     feedback_type: str = "text"
     text: str
     t_ms: int = 0
     phase: Literal["before", "after"] = "before"
     target_region: Optional[TargetRegion] = None
+    trigger: str = Field("", description="什么引发了这条反馈：submit / teacher / auto / …")
+    model: str = Field("", description="生成它的模型（人写的留空）")
+    prompt_version: str = Field("", description="生成它所用 prompt 的版本")
+
+
+PROCESS_LABELS = ("planning", "exploration", "revision", "organization", "turning_point")
+
+
+class Annotation(BaseModel):
+    """An expert marking a *span* of the replay, never a single stroke.
+
+    Stroke-by-stroke labelling is unaffordable and unreliable; what a rater can
+    actually see in a replay is a stretch of behaviour, so the unit is a span on
+    the same `t_ms` timeline everything else uses.
+    """
+    rater_id: str = Field("", description="伪匿名标注者编号，不要用真名")
+    label: Literal[PROCESS_LABELS] = "planning"
+    t_start_ms: int = Field(0, ge=0)
+    t_end_ms: int = Field(0, ge=0)
+    confidence: Optional[int] = Field(None, ge=1, le=5)
+    note: str = ""
+
+    @field_validator("t_end_ms")
+    @classmethod
+    def _ordered(cls, v, info):
+        start = (info.data or {}).get("t_start_ms", 0)
+        if v < start:
+            raise ValueError("t_end_ms must not precede t_start_ms")
+        return v
 
 
 class Rating(BaseModel):

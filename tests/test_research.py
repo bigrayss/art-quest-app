@@ -180,7 +180,7 @@ class ResearchDataLayer(unittest.TestCase):
 
         # the event stream carries the anchor that splits before/after feedback
         events = read_jsonl(SESSIONS / sid / "events.jsonl")
-        shown = [e for e in events if e["type"] == "FEEDBACK_SHOWN"]
+        shown = [e for e in events if e["type"] == "FEEDBACK_SHOW"]
         self.assertEqual(len(shown), 2)
         self.assertEqual(shown[0]["payload"]["feedback_id"], fb[0]["feedback_id"])
 
@@ -232,7 +232,7 @@ class ResearchDataLayer(unittest.TestCase):
         q = self.c.post(f"/api/sessions/{sid}/questionnaire",
                         json={"difficulty": 4, "confidence": 3, "enjoyment": 5, "hardest_part": "比例"}).json()
         self.assertEqual(q["questionnaire"]["difficulty"], 4)
-        self.assertTrue((SESSIONS / sid / "questionnaire.json").exists())
+        self.assertTrue((SESSIONS / sid / "self_report.json").exists())
         self.assertEqual(self.c.get(f"/api/sessions/{sid}").json()["questionnaire"]["hardest_part"], "比例")
         self.assertEqual(self.c.post(f"/api/sessions/{sid}/questionnaire", json={"difficulty": 9}).status_code, 422)
 

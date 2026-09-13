@@ -78,14 +78,18 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
     def _ids(self):
         return {r["id"] for r in self._get("/api/sessions")}
 
-    def _start(self, page, intent):
-        """Walk the real UI from the quest grid into a running session."""
+    def _start(self, page, intent, family=None):
+        """Walk the real UI from the mission map into a running session."""
         page.set_default_timeout(15000)
         page.goto(self.base)
         # `.quest-card` alone would resolve to the hidden card inside the draw
         # view before /api/quests lands, and a locator never re-queries
         page.wait_for_selector("#quest-grid .quest-card")
-        page.click("#quest-grid .quest-card")
+        if family:
+            titles = page.eval_on_selector_all("#quest-grid .quest-card h3", "e=>e.map(x=>x.textContent)")
+            page.eval_on_selector_all("#quest-grid .quest-card", f"(e)=>e[{titles.index(family)}].click()")
+        else:
+            page.click("#quest-grid .quest-card")
         page.click("#emotion-chips button")
         page.fill("#intent-text", intent)
         page.click("#btn-start-draw")
@@ -156,11 +160,28 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
         self.assertEqual(strokes[1]["zoom"], 8.0)
         self.assertEqual(strokes[2]["zoom"], 8.0)
 
+        # a mouse reports a constant 0.5 pressure and no tilt; that is not a
+        # measurement, so it must reach the log as null rather than as a number
+        for stroke in strokes:
+            self.assertEqual(stroke["pointer_type"], "mouse")
+            self.assertFalse(stroke["pressure_supported"])
+            self.assertFalse(stroke["tilt_supported"])
+            for pt in stroke["points"]:
+                self.assertIsNone(pt[3], "pressure was fabricated")
+                self.assertIsNone(pt[4], "tilt was fabricated")
+
         events = self._get(f"/api/sessions/{sid}")["events"]
         kinds = [e["type"] for e in events]
-        # one record per gesture, and a zoom gesture closes before the stroke it was made for
-        self.assertEqual([k for k in kinds if k in ("STROKE", "ZOOM", "PAN")],
-                         ["STROKE", "ZOOM", "STROKE", "PAN", "STROKE"])
+        # every stroke is bracketed, and a zoom gesture closes before the stroke
+        # it was made for — pen-down is when the child started, not when they let go
+        self.assertEqual([k for k in kinds if k in ("STROKE_START", "STROKE_END", "ZOOM", "PAN")],
+                         ["STROKE_START", "STROKE_END", "ZOOM",
+                          "STROKE_START", "STROKE_END", "PAN",
+                          "STROKE_START", "STROKE_END"])
+        starts = [e for e in events if e["type"] == "STROKE_START"]
+        ends = [e for e in events if e["type"] == "STROKE_END"]
+        self.assertEqual([e["payload"]["stroke_id"] for e in starts],
+                         [e["payload"]["stroke_id"] for e in ends])
         zoom_ev = next(e for e in events if e["type"] == "ZOOM")["payload"]
         self.assertEqual((zoom_ev["from"], zoom_ev["to"], zoom_ev["source"]), (1.0, 8.0, "wheel"))
         self.assertGreater(len(zoom_ev["steps"]), 1)          # the raw trace, not just the endpoint
@@ -222,6 +243,56 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
         detail = next(c for c in qc["checks"] if c["name"] == "replay_matches_final")["detail"]
         self.assertLess(detail["rel"], 0.30)
         self.assertEqual(next(c for c in qc["checks"] if c["name"] == "log_streams_agree")["detail"]["status"], "ok")
+
+
+    def test_looking_at_the_reference_is_recorded_as_behaviour(self):
+        """Look → draw → check → correct only exists if the reference records it."""
+        errors, before = [], self._ids()
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(channel="chrome")
+            page = browser.new_page(viewport={"width": 1500, "height": 1100})
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            self._start(page, "reference", family="博物馆修复师")
+            screen_of, drag, stroke_from = self._canvas_tools(page)
+
+            # M1's reference is `mode: always`, so the task presents it at the
+            # start — clicking the toggle here would close it, not open it
+            page.wait_for_selector("#ref-viewport", state="visible")
+            box = page.eval_on_selector("#ref-viewport",
+                                        "e=>{const b=e.getBoundingClientRect();return [b.left,b.top,b.width,b.height]}")
+            centre = (box[0] + box[2] / 2, box[1] + box[3] / 2)
+            page.mouse.move(*centre)                           # attention: reference
+            for _ in range(6):
+                page.mouse.wheel(0, -120)                      # zoom into the reference
+            page.wait_for_timeout(120)
+            zoom = page.eval_on_selector("#ref-zoom", "e=>e.textContent")
+            drag(centre, -40, -30)                             # pan it
+            stroke_from(300, 300, 80, 120)                     # attention: canvas
+            page.wait_for_timeout(200)
+            page.click("#btn-ref-toggle")                      # and close it again
+            page.evaluate("ArtLog.flush()")
+            page.wait_for_timeout(1500)
+            browser.close()
+
+        self.assertEqual(errors, [], "JS errors on the page")
+        sid = (self._ids() - before).pop()
+        events = self._get(f"/api/sessions/{sid}")["events"]
+        kinds = [e["type"] for e in events]
+        for want in ("REFERENCE_SHOW", "REFERENCE_OPEN", "REFERENCE_ZOOM",
+                     "REFERENCE_PAN", "REFERENCE_FOCUS", "CANVAS_FOCUS", "REFERENCE_CLOSE"):
+            self.assertIn(want, kinds, want)
+
+        self.assertNotEqual(zoom, "100%")
+        zoomed = next(e for e in events if e["type"] == "REFERENCE_ZOOM")["payload"]
+        self.assertGreater(zoomed["to"], zoomed["from"])
+        closed = next(e for e in events if e["type"] == "REFERENCE_CLOSE")["payload"]
+        # how long they looked, not merely that they did
+        self.assertGreater(closed["view_duration_ms"], 0)
+        self.assertTrue(closed["reference_id"])
+        shown = next(e for e in events if e["type"] == "REFERENCE_SHOW")["payload"]
+        self.assertTrue(shown["placeholder"], "a placeholder stimulus must say so")
+        # the switch back to the canvas is what makes look→draw→check countable
+        self.assertLess(kinds.index("REFERENCE_FOCUS"), kinds.index("CANVAS_FOCUS"))
 
 
 if __name__ == "__main__":
