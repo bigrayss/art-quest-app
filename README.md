@@ -19,14 +19,21 @@ cp .env.example .env          # 可选：填入 ANTHROPIC_API_KEY
 测试：
 
 ```bash
-python3 -m unittest -v
+./test.sh                     # 21 项，离线后端，不需要 API key
+```
+
+其中 `tests/test_browser.py` 会用系统的 Chrome 真跑一遍（缩放后坐标是否还准、含撤销的 session 能否重建）。
+没装 Playwright 或没有 Chrome 就自动跳过：
+
+```bash
+.venv/bin/pip install playwright   # 用系统 Chrome，不必 playwright install
 ```
 
 ## 已实现（对应指南 §02 / §08 开发顺序）
 
 | # | 指南要求 | 实现 |
 |---|---|---|
-| 1 | PC 画布 + 3–4 种基础工具 | 铅笔 / 笔刷（支持数位板压感）/ 马克笔（半透明）/ 橡皮，调色盘 + 自定义颜色，粗细，Undo / Redo（Ctrl+Z / Ctrl+Y），清空 |
+| 1 | PC 画布 + 3–4 种基础工具 | 铅笔 / 笔刷（支持数位板压感）/ 马克笔（半透明）/ 橡皮，调色盘 + 自定义颜色，粗细，Undo / Redo（Ctrl+Z / Ctrl+Y），清空，**缩放 / 平移**（滚轮、`+` `-` `0`、空格或中键拖动、✋ 移动） |
 | 2 | 保存最终作品 | 服务器保存 `before.png` / `after.png`；也可下载到本机 |
 | 3 | 记录创作过程 | **笔触级 stroke log（含 pressure / tilt）+ 统一 event log 为主数据**；每 45 s（`ARTQUEST_SNAPSHOT_INTERVAL`）一张画布快照作辅助 |
 | 4 | 3–5 个 Creative Quest | 5 个：情绪表达、想象、Transformation、Color/Composition、Story（`artquest/quests.py`） |
@@ -58,16 +65,43 @@ data/sessions/<id>/
 ```json
 {"seq": 12, "stroke_id": "s00012", "phase": "before", "t_start_ms": 48210, "t_end_ms": 48930,
  "tool": "brush", "color": "#e63946", "size": 6, "opacity": 0.9, "erase": false, "pointer_type": "pen",
- "points": [[x, y, dt_ms, pressure, tiltX, tiltY], ...]}
+ "zoom": 4.0, "points": [[x, y, dt_ms, pressure, tiltX, tiltY], ...]}
 ```
 
 `points` 用画布像素坐标（`metadata.canvas` 记录画布尺寸，保证可复现），`dt_ms` 相对 `t_start_ms`；
 `pointermove` 走 `getCoalescedEvents()`，数位板可拿到完整输入率（可达 ~240 Hz）。
 
+**缩放不进坐标。** 缩放 / 平移是画布元素上的一个 CSS transform，绘图上下文完全不知情；指针坐标经
+`getBoundingClientRect()` 换算，而它返回的正是变换后的盒子——所以 8 倍放大下画的笔，和 100% 下画的笔
+落在同一个坐标系里，replay、undo、快照全都不受影响。`zoom` 字段记的是**当时孩子能看到什么**，那是另一个问题
+（"什么时候放大去抠细节"本身就是过程信号）。这条不变式由 `tests/test_browser.py` 在真实 Chrome 里验证。
+
 事件类型：`SESSION_START` `STROKE` `ERASE` `UNDO` `REDO` `CLEAR` `BRUSH_CHANGE` `COLOR_CHANGE`
 `SIZE_CHANGE` `REFERENCE_OPEN` `REFERENCE_CLOSE` `IDLE_START` `IDLE_END` `TIME_LIMIT_REACHED`
 `FEEDBACK_SHOWN` `REVISION_START` `REVISION_SKIPPED` `QUESTIONNAIRE_SUBMITTED` `SESSION_END` `DOWNLOAD`。
 `FEEDBACK_SHOWN` 带 `feedback_id`，是切分「反馈前 / 反馈后」行为的锚点。
+
+`ZOOM` / `PAN` **一次手势一条记录**（和一笔 stroke 同构：原始轨迹放在记录里面，而不是刷屏成几百行）：
+
+```json
+{"seq": 41, "t_ms": 31200, "type": "ZOOM",
+ "payload": {"from": 1, "to": 4.3, "source": "wheel", "at": [-1820, -1290], "dur_ms": 534,
+             "steps": [[0, 1.2], [31, 1.44], ...]}}
+```
+
+`source` 区分 `wheel` / `button` / `key`；`PAN` 的 payload 是 `{from, to, zoom, dur_ms, points}`。
+一次缩放手势会在它所服务的那一笔开始之前结账，所以时间线上 `ZOOM` 永远排在对应 `STROKE` 前面。
+
+`STROKE` / `ERASE` 带 `stroke_id`，把事件流和笔画流对起来；**`UNDO` / `REDO` / `CLEAR` 带
+`{removed, restored, visible_n}`**，说明这一步把哪几笔拿下了画布、又把哪几笔放了回去：
+
+```json
+{"seq": 87, "t_ms": 52140, "type": "UNDO", "payload": {"removed": ["s00012"], "restored": [], "visible_n": 11}}
+```
+
+没有这个 payload，一段含撤销的日志是**无法回放**的——笔画流是 append-only 的，被撤销的笔永远留在
+`strokes.jsonl` 里，只有事件流知道它最后不在画上。撤销掉的笔本身也是过程信号（`strokes_removed`），
+所以只标记、不删除。
 
 ### 先本地保存，再上传
 
@@ -78,7 +112,14 @@ data/sessions/<id>/
 ### 数据质量检查
 
 session 结束时自动跑 `artquest/qc.py`，结果写进 `metadata.json.qc`：任务是否已知、事件/笔画是否为空、
-final 图是否落盘、时间是否单调、时长是否合理、每笔采样点是否够 replay、本地队列是否清空。
+final 图是否落盘、时间是否单调、时长是否合理、每笔采样点是否够 replay、本地队列是否清空，外加两项
+**日志与作品是否自洽**的检查：
+
+| 检查 | 判据 | 说明 |
+|---|---|---|
+| `log_streams_agree` | 精确，无阈值 | 事件流画过的每一笔都要在 `strokes.jsonl` 里，反之亦然；undo/redo/clear 引用的 id 必须真的画过。丢批次、id 重复、悬空引用都会以 id 列表的形式报出来。**这项是真正可信的把关。** |
+| `replay_matches_final` | `rel ≤ 0.30`（可用 `ARTQUEST_MAX_REPLAY_DIFF` 调） | 从日志重建的画和 `final.png` 的**含墨量差异**（96 px 灰度下 1−IoU）。用 `data/` 里浏览器真实画出的 session 标定：**正确**的重建也有 0.11–0.13 的底噪，因为 PIL 的线比 canvas 细（墨量约为作品的 78 %）。所以它只是粗筛——空白重建、画布尺寸错、整批笔画丢失能抓到，多画两笔抓不到。 |
+
 **只标记，不删数据。**
 
 ## 评分与反馈后端
@@ -121,6 +162,7 @@ final 图是否落盘、时间是否单调、时长是否合理、每笔采样�
 | `ui` | `full` / `quiet` | 游戏化程度（彩点、闯关路线、徽章、图鉴） |
 | `reference_allowed` | bool | 是否允许看参考图（开关时间进 event log） |
 | `undo_allowed` | bool | 是否允许撤销 |
+| `zoom_allowed` | bool | 是否允许缩放 / 平移画布（关掉时工具条隐藏、滚轮与空格失效） |
 | `questionnaire` | bool | 结束前是否做 1–5 自评 |
 | `feedback_source` | `ai` / `teacher` / `none` | 反馈来源 |
 | `time_limit_sec` | int / null | 时限，到点自动提交并记 `TIME_LIMIT_REACHED` |
@@ -146,11 +188,16 @@ final 图是否落盘、时间是否单调、时长是否合理、每笔采样�
 
 ```bash
 python3 tools/export_dataset.py --out export/ --points   # sessions/strokes/events/feedback/questionnaire(.csv)
-python3 tools/replay.py <session_id> --keyframes         # 从 stroke log 重建作品 + 10/25/50/75/100% 关键帧
+python3 tools/replay.py <session_id> --keyframes         # 从日志重建作品 + 10/25/50/75/100% 关键帧
 python3 tools/replay.py --all --check                    # 校验每个 session 都能从日志回放
 ```
 
-关键帧不入库，需要时由 stroke log 现算。
+重建走的是**事件时间线**而不是笔画列表（`artquest/reconstruct.py`）：按 `STROKE`/`ERASE` 上墨，按
+`UNDO`/`REDO`/`CLEAR` 增删，最后只画留在画布上的那些笔。渲染也按笔的 `opacity` 合成，马克笔的半透明
+叠加才对得上。旧 session 里 `UNDO`/`REDO`/`CLEAR` 没有 payload，退回线性撤销栈的语义（撤销弹掉最近一笔、
+清空去掉全部）——除了「跨清空的撤销」，其余历史都还原得准确。
+
+关键帧不入库，需要时由日志现算。
 
 ## API
 
@@ -179,6 +226,7 @@ artquest/            后端（FastAPI）
   storage.py         session 存储（metadata + 三条 append-only 流）
   logstore.py        JSONL append-only 写入与幂等去重
   qc.py              结束时的数据质量检查
+  reconstruct.py     从事件时间线重建作品（replay 与 QC 共用）
   scoring/           9 维评分接口与后端
   feedback/          AI 文字反馈
   llm.py             Anthropic SDK 封装
@@ -186,6 +234,7 @@ static/              前端（原生 HTML / Canvas / JS，无构建步骤）
   log.js             本地优先记录器（IndexedDB 缓冲 + 批量补传）
 tools/               export_dataset.py（导出 CSV）、replay.py（回放校验 + 关键帧）
 tests/               端到端测试 + 研究数据层测试（离线后端）
+  test_browser.py    真实 Chrome：缩放不改坐标、含撤销的 session 能重建（无浏览器则跳过）
 docs/                指南文档
 ```
 

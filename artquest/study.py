@@ -3,7 +3,8 @@
 The app is one product: children always play the same game. Study Mode does not
 strip the game away, it *fixes and records* the things that would otherwise vary
 silently — which tasks, in what order, under which UI condition, with or without
-a reference image, undo, a time limit, or the end-of-session self-report.
+a reference image, undo, canvas zoom, a time limit, or the end-of-session
+self-report.
 
 The gamification level is a recorded variable (`ui: full | quiet`), never an
 unlogged difference: even free play writes `condition` into the session
@@ -30,6 +31,7 @@ DEFAULT_CONDITION: Dict[str, Any] = {
     "ui": "full",              # full | quiet — gamification level
     "reference_allowed": True,
     "undo_allowed": True,
+    "zoom_allowed": True,      # zooming/panning the canvas at all
     "questionnaire": False,    # 1–5 self-report before the final screen
     "feedback_source": "ai",   # ai | teacher | none
     "time_limit_sec": None,    # overrides the task's own limit when set

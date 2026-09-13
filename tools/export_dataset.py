@@ -17,7 +17,7 @@ from typing import Any, Dict, List
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from artquest import config  # noqa: E402
-from tools.replay import read_jsonl  # noqa: E402
+from artquest.reconstruct import read_jsonl  # noqa: E402
 
 SESSION_COLS = [
     "session_id", "created_at", "started_at", "ended_at", "duration_ms",
@@ -95,6 +95,7 @@ def export(out: Path, with_points: bool = False) -> Dict[str, int]:
                 "duration_ms": (s.get("t_end_ms") or 0) - (s.get("t_start_ms") or 0),
                 "tool": s.get("tool"), "color": s.get("color"), "size": s.get("size"),
                 "opacity": s.get("opacity"), "erase": s.get("erase"), "pointer_type": s.get("pointer_type"),
+                "zoom": s.get("zoom", 1.0),   # what the child could see while drawing it
                 "n_points": len(pts),
                 "mean_pressure": round(sum((p[3] if len(p) > 3 else 0) for p in pts) / len(pts), 4) if pts else "",
             })
@@ -122,7 +123,7 @@ def export(out: Path, with_points: bool = False) -> Dict[str, int]:
         "sessions": _write(out / "sessions.csv", SESSION_COLS, sessions),
         "strokes": _write(out / "strokes.csv", ["session_id", "stroke_id", "seq", "phase", "t_start_ms", "t_end_ms",
                                                 "duration_ms", "tool", "color", "size", "opacity", "erase",
-                                                "pointer_type", "n_points", "mean_pressure"], strokes),
+                                                "pointer_type", "zoom", "n_points", "mean_pressure"], strokes),
         "events": _write(out / "events.csv", ["session_id", "seq", "src", "ts", "t_ms", "type", "payload"], events),
         "feedback": _write(out / "feedback.csv", ["session_id", "feedback_id", "t_ms", "phase", "source",
                                                   "feedback_type", "backend", "text", "target_region", "shown_at"], feedback),

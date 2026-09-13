@@ -12,6 +12,7 @@ from .config import SESSIONS_DIR, SNAPSHOT_INTERVAL_SEC, STATIC_DIR, claude_avai
 from .feedback import get_feedback_engine
 from .qc import check as qc_check
 from .quests import EMOTIONS, QUESTS, QUESTS_BY_ID
+from .reconstruct import check_final
 from .schemas import (CreateSession, DrawEvent, FeedbackIn, Finalize, LogBatch,
                       Questionnaire, Snapshot, StudyAssign, Stroke, Submit)
 from .scoring import DIMENSIONS, SCALE_MAX, get_scorer
@@ -46,6 +47,12 @@ def _ingest(sid: str, events: List[DrawEvent], strokes: List[Stroke]) -> Dict[st
 
 def _run_qc(sid: str, pending: int = 0) -> Dict[str, Any]:
     meta = store.load(sid)
+    try:
+        # rebuild the artwork from the logs and hold it against what was saved
+        replay = check_final(store.dir(sid))
+    except Exception:
+        log.exception("reconstruction failed for %s", sid)
+        replay = None
     result = qc_check(
         meta,
         strokes=store._strokes_summary(sid),
@@ -53,6 +60,7 @@ def _run_qc(sid: str, pending: int = 0) -> Dict[str, Any]:
         known_task=meta.get("quest_id") in QUESTS_BY_ID,
         has_final_image=(store.dir(sid) / "final.png").exists(),
         pending_uploads=pending,
+        replay=replay,
     )
     result["at"] = now_iso()
     store.update(sid, qc=result)
