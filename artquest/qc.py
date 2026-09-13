@@ -29,7 +29,8 @@ MAX_REPLAY_REL_DIFF = float(os.environ.get("ARTQUEST_MAX_REPLAY_DIFF", "0.30"))
 
 def check(meta: Dict[str, Any], *, strokes: Dict[str, Any], events: int,
           known_task: bool, has_final_image: bool, pending_uploads: int = 0,
-          replay: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+          replay: Optional[Dict[str, Any]] = None,
+          condition_frozen: bool = True) -> Dict[str, Any]:
     times = meta.get("times") or {}
     duration = times.get("duration_ms") or 0
     n_strokes, n_points = strokes.get("count", 0), strokes.get("points", 0)
@@ -37,6 +38,13 @@ def check(meta: Dict[str, Any], *, strokes: Dict[str, Any], events: int,
 
     checks: List[Dict[str, Any]] = [
         {"name": "task_known", "ok": known_task, "detail": meta.get("quest_id")},
+        # without the frozen definition, a task_id alone cannot recover what the
+        # child was actually shown once the library moves on
+        {"name": "condition_frozen", "ok": condition_frozen,
+         "detail": (meta.get("task") or {}).get("task_version")},
+        # not a failure of the session, a warning about the stimulus it used
+        {"name": "stimulus_ready", "ok": not (meta.get("task") or {}).get("stimulus_placeholder"),
+         "detail": (meta.get("task") or {}).get("stimulus_id")},
         {"name": "events_nonempty", "ok": events > 0, "detail": events},
         {"name": "strokes_nonempty", "ok": n_strokes >= MIN_STROKES, "detail": n_strokes},
         {"name": "final_image_saved", "ok": has_final_image, "detail": None},

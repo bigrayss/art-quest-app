@@ -37,7 +37,8 @@ def replay_session(sid: str, out_dir: Path = None, keyframes: bool = False) -> D
     if keyframes and strokes:
         for pct in KEYFRAME_PCTS:
             n = max(1, round(len(strokes) * pct / 100))
-            render(strokes, built["size"], n).save(out / f"keyframe_{pct:03d}.png")
+            render(strokes, built["size"], n, stimulus=built.get("stimulus")).save(
+                out / f"keyframe_{pct:03d}.png")
             frames.append(pct)
 
     report = {"session_id": sid, "canvas": list(built["size"]),

@@ -100,12 +100,25 @@ class SessionStore:
             "quest_id": quest["id"],
             "task": {
                 "task_id": quest["id"],
+                # a task is a measurement object: which family, which parallel
+                # form, in which prompt style, at which version of the library
+                "family": quest.get("family", ""),
+                "mission_family": quest.get("family_slug", ""),
+                "form_id": quest.get("form_id", ""),
+                "prompt_style": quest.get("prompt_style", ""),
+                "task_version": quest.get("version", ""),
                 "category": quest.get("category"),
                 "difficulty": quest.get("difficulty"),
                 "time_limit_sec": quest.get("time_limit_sec"),
                 "allowed_tools": quest.get("allowed_tools"),
+                "stimulus_id": quest.get("stimulus_id", ""),
+                "stimulus_kind": (quest.get("stimulus") or {}).get("kind", "none"),
+                "stimulus_placeholder": bool(quest.get("stimulus_placeholder")),
                 "reference_id": (quest.get("reference") or {}).get("id"),
                 "focus_dims": quest.get("focus_dims", []),
+                "applicable_dims": quest.get("applicable_dims", []),
+                "rubric": quest.get("rubric"),
+                "process_targets": quest.get("process_targets", []),
                 "order_index": (study or {}).get("order_index"),
                 "sequence_id": (study or {}).get("sequence_id", ""),
             },
@@ -147,11 +160,26 @@ class SessionStore:
             meta["strokes_summary"] = self._strokes_summary(sid)
             meta["feedback_log"] = self.log(sid, "feedback").read()
             meta["ratings"] = self.log(sid, "ratings").read()
+            meta["condition_snapshot"] = self.condition_snapshot(sid)
             meta["personalization"] = self.personalization(sid)
         meta.setdefault("events", [])
         return meta
 
     # -- personalisation ---------------------------------------------------
+    # -- the condition the child actually saw -------------------------------
+    def save_condition(self, sid: str, snapshot: Dict[str, Any]) -> Dict[str, Any]:
+        """Freeze the complete task definition into `condition.json`.
+
+        `tasks.json` gets edited and the library grows; a task_id alone is not
+        enough to recover what was on screen. Without this, a later reader
+        resolves the id against a definition the child never saw.
+        """
+        write_json(self.dir(sid) / "condition.json", snapshot)
+        return snapshot
+
+    def condition_snapshot(self, sid: str) -> Optional[Dict[str, Any]]:
+        return read_json(self.dir(sid) / "condition.json")
+
     def personalization(self, sid: str) -> Optional[Dict[str, Any]]:
         return read_json(self.dir(sid) / "personalization.json")
 

@@ -13,8 +13,10 @@ from .config import SESSIONS_DIR, SNAPSHOT_INTERVAL_SEC, STATIC_DIR, claude_avai
 from .feedback import get_feedback_engine
 from .personalize import MODES as HISTORY_MODES, get_personalizer
 from .qc import check as qc_check
-from .quests import EMOTIONS, QUESTS, QUESTS_BY_ID
+from .quests import (EMOTIONS, QUESTS, QUESTS_BY_ID, condition_snapshot,
+                     families as task_families)
 from .reconstruct import check_final
+from .rubric import apply_contract, check_rating
 from .revision import attribute as attribute_revision
 from .schemas import (CreateSession, DrawEvent, FeedbackIn, Finalize, LogBatch,
                       Questionnaire, Rating, Snapshot, StudyAssign, Stroke, Submit)
@@ -64,6 +66,7 @@ def _run_qc(sid: str, pending: int = 0) -> Dict[str, Any]:
         has_final_image=(store.dir(sid) / "final.png").exists(),
         pending_uploads=pending,
         replay=replay,
+        condition_frozen=(store.dir(sid) / "condition.json").exists(),
     )
     result["at"] = now_iso()
     store.update(sid, qc=result)
@@ -95,6 +98,12 @@ def config():
         "history_modes": list(HISTORY_MODES),
         "study": {"active": st["active"], "study_id": st["study_id"], "order": st["order"]},
     }
+
+
+@app.get("/api/families")
+def get_families():
+    """Mission families — what the child picks from; a form is assigned below."""
+    return task_families()
 
 
 @app.get("/api/quests")
@@ -180,6 +189,17 @@ def create_session(body: CreateSession):
         device=body.device.model_dump(), study=st, canvas=body.canvas.model_dump(),
     )
     store.mark_started(meta["id"])
+    # what this child actually saw, frozen before anything else happens
+    store.save_condition(meta["id"], condition_snapshot(
+        quest, app_version=__version__, condition=condition,
+        protocol={"study_id": st.get("study_id", ""), "group": st.get("group", ""),
+                  "protocol_id": st.get("protocol_id", ""),
+                  "sequence_id": st.get("sequence_id", "")},
+        task_order=st.get("order_index")))
+    store.add_server_event(meta["id"], "TASK_SHOW", 0, {
+        "task_id": quest["id"], "family": quest.get("family", ""),
+        "form_id": quest.get("form_id", ""), "prompt_style": quest.get("prompt_style", ""),
+        "task_version": quest.get("version", "")})
     store.add_server_event(meta["id"], "SESSION_START", 0, {
         "task_id": quest["id"], "condition": condition, "study_id": st.get("study_id", "")})
     personalization = _personalize(meta["id"], quest, meta)
@@ -227,6 +247,8 @@ def _score_and_save(sid: str, phase: str, png: bytes, elapsed_ms: int) -> Dict[s
     except Exception as e:  # scoring must never lose the artwork
         log.exception("scoring failed")
         scores = {"backend": "error", "scale": [1, SCALE_MAX], "dims": {}, "summary": f"评分失败：{e}"}
+    # N/A is not a low score: a dimension this task cannot elicit carries no number
+    scores = apply_contract(scores, quest.get("rubric"))
     return {"file": f"{phase}.png", "elapsed_ms": elapsed_ms, "at": now_iso(), "scores": scores}
 
 
@@ -337,8 +359,12 @@ def add_feedback(sid: str, body: FeedbackIn):
 @app.post("/api/sessions/{sid}/rating")
 def add_rating(sid: str, body: Rating):
     """A teacher's / expert's rating of the artwork — a second rater, not the child."""
-    _session_or_404(sid)
-    rec = store.add_rating(sid, body.model_dump())
+    meta = _session_or_404(sid)
+    rubric = (meta.get("task") or {}).get("rubric")
+    bad = check_rating(body.dims, rubric)
+    if bad:
+        raise HTTPException(422, f"这个任务无法考察这些维度，不能打分：{bad}")
+    rec = store.add_rating(sid, dict(body.model_dump(), rubric_version=(rubric or {}).get("version")))
     store.add_server_event(sid, "RATING_ADDED", body.t_ms,
                            {"rating_id": rec["rating_id"], "source": body.source,
                             "rater_id": body.rater_id, "overall": body.overall,
@@ -374,6 +400,29 @@ def participant_history(pid: str, anon_id: str = "", before: str = ""):
     metas = history_mod.sessions_for(pid, anon_id, before=before)
     return {"participant_id": pid, "anon_id": anon_id, "n_tasks": len(metas),
             "tasks": [history_mod.task_record(m) for m in metas]}
+
+
+@app.get("/api/participants/{pid}/protocol")
+def participant_protocol(pid: str, anon_id: str = ""):
+    """Planned order vs what actually happened.
+
+    Task order is a confound, so it is checked rather than assumed: a run that
+    drifted from its plan (a skipped task, a repeat, a different form) shows up
+    here instead of quietly entering the analysis.
+    """
+    roster = study_mod.roster_entry(pid)
+    planned = list(roster.get("planned_order") or [])
+    done = history_mod.sessions_for(pid, anon_id)
+    actual = [m.get("quest_id") for m in done]
+    return {
+        "participant_id": pid, "protocol_id": roster.get("protocol_id", ""),
+        "planned_order": planned, "actual_order": actual,
+        "completed": len(actual), "planned": len(planned),
+        "followed_plan": actual == planned[:len(actual)],
+        "missing": [t for t in planned if t not in actual],
+        "unplanned": [t for t in actual if planned and t not in planned],
+        "repeats": sorted({t for t in actual if actual.count(t) > 1}),
+    }
 
 
 @app.get("/api/participants/{pid}/representation")
