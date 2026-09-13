@@ -19,7 +19,7 @@ cp .env.example .env          # 可选：填入 ANTHROPIC_API_KEY
 测试：
 
 ```bash
-./test.sh                     # 21 项，离线后端，不需要 API key
+./test.sh                     # 29 项，离线后端，不需要 API key
 ```
 
 其中 `tests/test_browser.py` 会用系统的 Chrome 真跑一遍（缩放后坐标是否还准、含撤销的 session 能否重建）。
@@ -56,6 +56,7 @@ data/sessions/<id>/
   strokes.jsonl       append-only 逐笔记录 + 采样点（见下）
   feedback.jsonl      每一条反馈：{feedback_id, source, feedback_type, text, target_region, shown_at}
   questionnaire.json  1–5 轻量自评（难度 / 满意度 / 开心程度 / 最难的地方）
+  personalization.json 画之前冻结的表示、给孩子看了什么、预测了什么，以及事后的 outcome / error
   before.png / after.png / final.png
   snapshots/0001_45s.png ...   （辅助，关键帧可由 stroke log 动态重建）
 ```
@@ -163,6 +164,7 @@ final 图是否落盘、时间是否单调、时长是否合理、每笔采样�
 | `reference_allowed` | bool | 是否允许看参考图（开关时间进 event log） |
 | `undo_allowed` | bool | 是否允许撤销 |
 | `zoom_allowed` | bool | 是否允许缩放 / 平移画布（关掉时工具条隐藏、滚轮与空格失效） |
+| `history_mode` | `none` / `history` / `personalized` | 个性化臂：不看历史 / 看自己的历史 / 模型读表示 |
 | `questionnaire` | bool | 结束前是否做 1–5 自评 |
 | `feedback_source` | `ai` / `teacher` / `none` | 反馈来源 |
 | `time_limit_sec` | int / null | 时限，到点自动提交并记 `TIME_LIMIT_REACHED` |
@@ -183,6 +185,48 @@ final 图是否落盘、时间是否单调、时长是否合理、每笔采样�
 
 身份是两个匿名 id 并存：设备自动生成的 `anon_id`（日常自由玩也能跨任务对齐）+ 研究员分配的
 `participant_id`。
+
+## 个性化：历史 → 用户表示 → 新任务 → 预测
+
+```
+User → 多个任务 → 细粒度过程日志 → 用户行为历史 → 新任务 → 预测 / 个性化
+```
+
+`artquest/history.py` 是中间那根箭头：把一位被试**已完成**的 session 变成一份紧凑的
+**用户表示**（User Representation），供个性化器消费。两条规则让它站得住：
+
+1. **永远现算，不做唯一副本。** 表示每次从日志重建，所以改进构建逻辑会**追溯地**改善所有被试，
+   没有任何 session 被旧摘要卡住。
+2. **做决定那一刻看到的东西，本身是数据。** 一个 session 真的用了表示，那份快照就冻进
+   `personalization.json`。以后重算会得到不一样（更好）的答案——那样就没人能复现当初的决定了。
+   `GET /api/participants/{pid}/representation?before=<ISO>` 能重建任意历史时刻的输入。
+
+它读**事件流**而不是笔画流：每条 `STROKE`/`ERASE` 事件已经带了 tool/color/size/点数，
+所以一位被试的完整历史只花几个小文件，而不是几十 MB 的坐标。
+
+**身份**：有研究员代号时以代号为准，`anon_id` 只在没有代号时兜底。实验室一台设备给二十个孩子用，
+device id 是同一个——"任一 id 匹配"会把二十个孩子并成一个不存在的被试。
+
+### 三臂（`artquest/personalize/`，与 `scoring/`、`feedback/` 同一套可插拔模式）
+
+| `history_mode` | 后端 | 孩子看到 | 系统预测依据 |
+|---|---|---|---|
+| `none` | `no_history` | 什么都不显示 | 总体先验（量表中点）——另外两臂要打败的基线 |
+| `history` | `own_history` | 1–3 条关于自己过往的短句 | 过往自评 + 任务难度差，全部可追溯到表示里的某个数 |
+| `personalized` | `claude` | 模型生成的引导 | 模型读表示（输入与模板臂相同，隔离出"模型"这个变量） |
+
+臂决定**两件互不干扰的事**：给孩子看什么（被研究的干预），和系统预测什么（**每一臂都记**，
+所以预测准确率可比）。**请求了 `personalized` 但没有模型时，由模板臂代跑并如实记录**
+（`requested_mode` ≠ `backend`、`available: false`）——静默降级会悄悄毁掉整个对比。
+
+### 预测 → 自评，闭环
+
+预测的目标是孩子**做完任务后的自评**（每个 session 本来就会产出的标签）：画之前写下预测，
+交自评时打分，`personalization.json` 里落 `outcome` 与 `error`。三个条件因此是一次**评估**
+而不是演示。`export/personalization.csv` 就是那张对比表
+（`requested_mode / backend / n_prior_tasks / pred_* / actual_* / abs_err_*`）。
+
+接入真正的个性化模型：在 `artquest/personalize/` 里实现 `prepare()` 并在 `get_personalizer()` 注册。
 
 ## 导出与回放
 
@@ -215,6 +259,9 @@ python3 tools/replay.py --all --check                    # 校验每个 session 
 | POST | `/api/sessions/{id}/feedback` | 记录老师 / 自评反馈（与 AI 反馈同结构） |
 | POST | `/api/sessions/{id}/qc` | 重跑数据质量检查 |
 | GET | `/api/sessions`, `/api/sessions/{id}`, `/api/sessions/{id}/strokes` | 浏览记录 / 原始笔画 |
+| GET | `/api/sessions/{id}/personalization` | 画之前系统知道什么、决定了什么（冻结） |
+| GET | `/api/participants/{pid}/history` | 该被试已完成的任务（表示的输入） |
+| GET | `/api/participants/{pid}/representation` | 用户表示，**每次从日志现算**；`?before=` 复现历史输入 |
 | GET | `/files/{id}/...` | 图片文件 |
 
 ## 目录
@@ -226,6 +273,8 @@ artquest/            后端（FastAPI）
   storage.py         session 存储（metadata + 三条 append-only 流）
   logstore.py        JSONL append-only 写入与幂等去重
   qc.py              结束时的数据质量检查
+  history.py         行为历史 → 用户表示（纯函数，不落库）
+  personalize/       三臂：none / history / personalized（可插拔）
   reconstruct.py     从事件时间线重建作品（replay 与 QC 共用）
   scoring/           9 维评分接口与后端
   feedback/          AI 文字反馈
@@ -234,6 +283,7 @@ static/              前端（原生 HTML / Canvas / JS，无构建步骤）
   log.js             本地优先记录器（IndexedDB 缓冲 + 批量补传）
 tools/               export_dataset.py（导出 CSV）、replay.py（回放校验 + 关键帧）
 tests/               端到端测试 + 研究数据层测试（离线后端）
+  test_personalization.py  历史 → 表示 → 三臂 → 预测打分 → 导出
   test_browser.py    真实 Chrome：缩放不改坐标、含撤销的 session 能重建（无浏览器则跳过）
 docs/                指南文档
 ```

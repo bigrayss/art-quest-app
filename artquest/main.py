@@ -7,9 +7,11 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__
+from . import history as history_mod
 from . import study as study_mod
 from .config import SESSIONS_DIR, SNAPSHOT_INTERVAL_SEC, STATIC_DIR, claude_available
 from .feedback import get_feedback_engine
+from .personalize import MODES as HISTORY_MODES, get_personalizer
 from .qc import check as qc_check
 from .quests import EMOTIONS, QUESTS, QUESTS_BY_ID
 from .reconstruct import check_final
@@ -89,6 +91,7 @@ def config():
         "scale_max": SCALE_MAX,
         "emotions": EMOTIONS,
         "default_condition": study_mod.DEFAULT_CONDITION,
+        "history_modes": list(HISTORY_MODES),
         "study": {"active": st["active"], "study_id": st["study_id"], "order": st["order"]},
     }
 
@@ -131,6 +134,36 @@ def get_strokes(sid: str):
     return store.log(sid, "strokes").read()
 
 
+def _personalize(sid: str, quest: Dict[str, Any], meta: Dict[str, Any]) -> Dict[str, Any]:
+    """Build this child's representation and let the arm decide, before they draw.
+
+    The representation is rebuilt from the logs every time (so it always
+    reflects the current builder) but the copy used here is frozen into the
+    session — `history.build(before=...)` with this session's timestamp
+    reproduces the same input later.
+    """
+    cond = meta.get("condition") or {}
+    mode = cond.get("history_mode", "none")
+    who = meta.get("participant") or {}
+    rep = None
+    if mode != "none":
+        try:
+            rep = history_mod.build(who.get("participant_id", ""), who.get("anon_id", ""),
+                                    before=meta.get("created_at") or "")
+        except Exception:
+            log.exception("representation build failed for %s", sid)
+    try:
+        decision = get_personalizer(mode).prepare(quest, rep)
+    except Exception as e:                      # an arm must never lose the session
+        log.exception("personalizer failed")
+        decision = {"requested_mode": mode, "backend": "error", "available": False,
+                    "note": str(e), "history_used": {}, "shown": [], "prediction": {}}
+    # the whole representation goes in: a decision is only reproducible next to
+    # the state it was made from
+    decision["representation"] = rep
+    return store.save_personalization(sid, decision)
+
+
 @app.post("/api/sessions", status_code=201)
 def create_session(body: CreateSession):
     quest = QUESTS_BY_ID.get(body.task())
@@ -148,7 +181,17 @@ def create_session(body: CreateSession):
     store.mark_started(meta["id"])
     store.add_server_event(meta["id"], "SESSION_START", 0, {
         "task_id": quest["id"], "condition": condition, "study_id": st.get("study_id", "")})
-    return {"session_id": meta["id"], "session": meta}
+    personalization = _personalize(meta["id"], quest, meta)
+    if personalization.get("shown"):
+        store.add_server_event(meta["id"], "HISTORY_SHOWN", 0, {
+            "backend": personalization.get("backend"),
+            "requested_mode": personalization.get("requested_mode"),
+            "n_lines": len(personalization["shown"]),
+            "n_prior_tasks": (personalization.get("history_used") or {}).get("n_tasks", 0)})
+    return {"session_id": meta["id"], "session": store.load(meta["id"]),
+            # the client only needs what to show; the representation stays server-side
+            "personalization": {k: personalization.get(k) for k in
+                                ("requested_mode", "backend", "available", "shown", "history_used")}}
 
 
 @app.post("/api/sessions/{sid}/log")
@@ -264,7 +307,10 @@ def questionnaire(sid: str, body: Questionnaire):
     rec = store.save_questionnaire(sid, {k: v for k, v in answers.items() if k != "t_ms"})
     store.add_server_event(sid, "QUESTIONNAIRE_SUBMITTED", body.t_ms,
                            {k: v for k, v in rec.items() if isinstance(v, int)})
-    return {"ok": True, "questionnaire": rec}
+    # the self-report is the label the pre-task prediction was written against
+    scored = store.record_prediction_outcome(sid, rec)
+    return {"ok": True, "questionnaire": rec,
+            "prediction_error": (scored or {}).get("error")}
 
 
 @app.post("/api/sessions/{sid}/feedback")
@@ -275,6 +321,34 @@ def add_feedback(sid: str, body: FeedbackIn):
     store.add_server_event(sid, "FEEDBACK_SHOWN", body.t_ms,
                            {"feedback_id": rec["feedback_id"], "source": body.source, "phase": body.phase})
     return {"ok": True, "feedback": rec}
+
+
+@app.get("/api/sessions/{sid}/personalization")
+def get_personalization(sid: str):
+    """Exactly what the system knew and decided before this child drew."""
+    _session_or_404(sid)
+    rec = store.personalization(sid)
+    if rec is None:
+        raise HTTPException(404, "no personalization recorded for this session")
+    return rec
+
+
+# -- participants: behavioural history → user representation ------------------
+@app.get("/api/participants/{pid}/history")
+def participant_history(pid: str, anon_id: str = "", before: str = ""):
+    """A participant's finished tasks, compacted — the input to a representation."""
+    metas = history_mod.sessions_for(pid, anon_id, before=before)
+    return {"participant_id": pid, "anon_id": anon_id, "n_tasks": len(metas),
+            "tasks": [history_mod.task_record(m) for m in metas]}
+
+
+@app.get("/api/participants/{pid}/representation")
+def participant_representation(pid: str, anon_id: str = "", before: str = ""):
+    """Rebuilt from the logs on every call — never a stored summary.
+
+    `before` (ISO timestamp) reproduces the input a past decision had.
+    """
+    return history_mod.build(pid, anon_id, before=before)
 
 
 @app.post("/api/sessions/{sid}/qc")

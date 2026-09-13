@@ -464,6 +464,21 @@
       .map((t, i) => `${i < state.seqIdx ? "✓" : i === state.seqIdx ? "▶" : "·"}${i + 1}`).join(" ");
   }
   $("#btn-study-exit").onclick = () => { setPid(""); location.href = location.pathname; };
+  /** What the personalisation arm chose to tell this child about their own past.
+   *  The control arm (history_mode "none") returns nothing and nothing renders,
+   *  so the three arms differ in what the child actually sees — which is the
+   *  point of comparing them. What was shown is frozen server-side in
+   *  personalization.json, alongside the representation it was derived from. */
+  function renderHistory(p) {
+    const card = $("#history-card"), lines = (p && p.shown) || [];
+    card.classList.toggle("hidden", !lines.length);
+    if (!lines.length) return;
+    card.innerHTML = "<h4>🧭 你的创作轨迹</h4>"
+      + lines.map(l => `<p>${escapeHtml(l.text || "")}</p>`).join("");
+  }
+  const escapeHtml = (t) => String(t).replace(/[&<>"']/g, c =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
   /** Apply the frozen condition to the UI (gamification level, undo, reference). */
   function applyCondition() {
     const c = state.condition;
@@ -543,6 +558,7 @@
         order_index: state.seqIdx, sequence_id: (state.study.sequence || []).join(">") } : {},
     }) });
     state.sessionId = r.session_id; state.phase = "before"; state.before = null; state.revised = null;
+    renderHistory(r.personalization);
     state.condition = { ...state.condition, ...(r.session.condition || {}) };  // the server froze it; mirror it back
     resetCanvas(); state.startedAt = Date.now(); state.dirtySinceSnapshot = false;
     strokeCount = 0; state.lastActivity = 0; state.idle = false;

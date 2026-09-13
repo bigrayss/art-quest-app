@@ -25,10 +25,48 @@ SESSION_COLS = [
     "time_limit_sec", "allowed_tools", "reference_id", "order_index", "sequence_id",
     "study_active", "study_id", "group", "cond_ui", "cond_reference_allowed",
     "cond_undo_allowed", "cond_questionnaire", "cond_feedback_source",
+    "cond_zoom_allowed", "cond_history_mode",
     "emotion", "intent_text", "status", "revised",
     "n_strokes", "n_points", "n_events", "n_snapshots",
     "qc_ok", "qc_failed", "app_version", "schema_version", "canvas_w", "canvas_h", "device_platform",
 ]
+
+
+# One row per session: the personalisation arm, what it predicted before the
+# child drew, and what the child then reported. This is the table the
+# No History / User History / Personalized Model comparison is read off.
+PERSONALIZATION_COLS = [
+    "session_id", "participant_id", "task_id", "task_difficulty",
+    "requested_mode", "backend", "available", "cold_start", "n_prior_tasks",
+    "pred_difficulty", "pred_confidence", "actual_difficulty", "actual_confidence",
+    "err_difficulty", "err_confidence", "abs_err_difficulty", "abs_err_confidence",
+    "weakest_dims", "basis", "n_shown", "builder", "frozen_at",
+]
+
+
+def _flat_personalization(m: Dict[str, Any], rec: Dict[str, Any]) -> Dict[str, Any]:
+    p = m.get("participant") or {}
+    if isinstance(p, str):
+        p = {"participant_id": p}
+    used, pred = rec.get("history_used") or {}, rec.get("prediction") or {}
+    out = rec.get("outcome") or {}
+    err = rec.get("error") or {}
+    row = {
+        "session_id": m.get("id"), "participant_id": p.get("participant_id", ""),
+        "task_id": m.get("quest_id"), "task_difficulty": (m.get("task") or {}).get("difficulty"),
+        "requested_mode": rec.get("requested_mode"), "backend": rec.get("backend"),
+        "available": rec.get("available"), "cold_start": used.get("cold_start"),
+        "n_prior_tasks": used.get("n_tasks"),
+        "weakest_dims": "|".join(pred.get("weakest_dims") or []),
+        "basis": pred.get("basis", ""), "n_shown": len(rec.get("shown") or []),
+        "builder": used.get("builder") or "", "frozen_at": rec.get("frozen_at", ""),
+    }
+    for key in ("difficulty", "confidence"):
+        row[f"pred_{key}"] = pred.get(key)
+        row[f"actual_{key}"] = out.get(key)
+        row[f"err_{key}"] = err.get(key)
+        row[f"abs_err_{key}"] = abs(err[key]) if isinstance(err.get(key), (int, float)) else ""
+    return row
 
 
 def _flat_session(m: Dict[str, Any]) -> Dict[str, Any]:
@@ -51,6 +89,7 @@ def _flat_session(m: Dict[str, Any]) -> Dict[str, Any]:
         "cond_ui": c.get("ui"), "cond_reference_allowed": c.get("reference_allowed"),
         "cond_undo_allowed": c.get("undo_allowed"), "cond_questionnaire": c.get("questionnaire"),
         "cond_feedback_source": c.get("feedback_source"),
+        "cond_zoom_allowed": c.get("zoom_allowed"), "cond_history_mode": c.get("history_mode"),
         "emotion": intent.get("emotion", ""), "intent_text": intent.get("text", ""),
         "status": m.get("status"), "revised": m.get("revised"),
         "n_strokes": counts.get("strokes", 0), "n_points": counts.get("points", 0),
@@ -72,7 +111,7 @@ def _write(path: Path, cols: List[str], rows: List[Dict[str, Any]]) -> int:
 
 def export(out: Path, with_points: bool = False) -> Dict[str, int]:
     out.mkdir(parents=True, exist_ok=True)
-    sessions, strokes, events, feedback, quest = [], [], [], [], []
+    sessions, strokes, events, feedback, quest, personal = [], [], [], [], [], []
     points_path = out / "points.csv"
     pf = points_path.open("w", newline="", encoding="utf-8") if with_points else None
     pw = csv.writer(pf) if pf else None
@@ -86,6 +125,9 @@ def export(out: Path, with_points: bool = False) -> Dict[str, int]:
         m = json.loads(meta_p.read_text(encoding="utf-8"))
         sid = m.get("id") or d.name
         sessions.append(_flat_session(m))
+        pz = d / "personalization.json"
+        if pz.exists():
+            personal.append(_flat_personalization(m, json.loads(pz.read_text(encoding="utf-8"))))
 
         for s in read_jsonl(d / "strokes.jsonl"):
             pts = s.get("points") or []
@@ -129,6 +171,7 @@ def export(out: Path, with_points: bool = False) -> Dict[str, int]:
                                                   "feedback_type", "backend", "text", "target_region", "shown_at"], feedback),
         "questionnaire": _write(out / "questionnaire.csv", ["session_id", "difficulty", "confidence", "enjoyment",
                                                             "hardest_part", "free_text", "at"], quest),
+        "personalization": _write(out / "personalization.csv", PERSONALIZATION_COLS, personal),
     }
     return counts
 

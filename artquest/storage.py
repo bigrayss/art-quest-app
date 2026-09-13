@@ -22,7 +22,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from . import __version__
-from .config import SESSIONS_DIR
+from . import config          # read through the module: the data dir is env-driven
+                             # and tests reload it, so binding the value at import
+                             # time would freeze the production path
 from .logstore import JsonlLog, read_json, write_json
 
 SCHEMA_VERSION = 2
@@ -31,7 +33,15 @@ _STREAMS = ("events", "strokes", "feedback")
 
 
 def now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    """UTC, to the millisecond.
+
+    Seconds are not enough: two sessions started in the same second cannot be
+    ordered, and the history window (`history.build(before=...)`, which has to
+    reproduce exactly what a past decision could see) would silently drop the
+    earlier one. Still sorts lexicographically against older second-resolution
+    stamps, so existing sessions stay comparable.
+    """
+    return datetime.now(timezone.utc).isoformat(timespec="milliseconds")
 
 
 def now_ms() -> int:
@@ -46,8 +56,8 @@ def decode_data_url(data_url: str) -> bytes:
 
 
 class SessionStore:
-    def __init__(self, root: Path = SESSIONS_DIR):
-        self.root = Path(root)
+    def __init__(self, root: Optional[Path] = None):
+        self.root = Path(root or config.SESSIONS_DIR)
         self.root.mkdir(parents=True, exist_ok=True)
 
     # -- paths -------------------------------------------------------------
@@ -136,8 +146,50 @@ class SessionStore:
             meta["events"] = self.log(sid, "events").read()
             meta["strokes_summary"] = self._strokes_summary(sid)
             meta["feedback_log"] = self.log(sid, "feedback").read()
+            meta["personalization"] = self.personalization(sid)
         meta.setdefault("events", [])
         return meta
+
+    # -- personalisation ---------------------------------------------------
+    def personalization(self, sid: str) -> Optional[Dict[str, Any]]:
+        return read_json(self.dir(sid) / "personalization.json")
+
+    def save_personalization(self, sid: str, record: Dict[str, Any]) -> Dict[str, Any]:
+        """Freeze what the system knew and decided *before* the child drew.
+
+        Kept in its own file rather than recomputed later on purpose: the
+        representation builder will improve, and a decision has to stay
+        reproducible against the input it actually had.
+        """
+        record = dict(record, frozen_at=now_iso())
+        write_json(self.dir(sid) / "personalization.json", record)
+        meta = self.load(sid)
+        meta["history_mode"] = record.get("requested_mode", "none")
+        meta["personalization_backend"] = record.get("backend")
+        self._write(sid, meta)
+        return record
+
+    def record_prediction_outcome(self, sid: str, answers: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Score the prediction written down at task start against the self-report.
+
+        This is what turns three conditions into an evaluation: every arm wrote
+        a number before the child drew, and here is the answer.
+        """
+        rec = self.personalization(sid)
+        if not rec:
+            return None
+        pred = rec.get("prediction") or {}
+        outcome, error = {}, {}
+        for key in ("difficulty", "confidence"):
+            actual, guess = answers.get(key), pred.get(key)
+            if isinstance(actual, (int, float)) and isinstance(guess, (int, float)):
+                outcome[key] = actual
+                error[key] = round(guess - actual, 3)
+        rec["outcome"] = outcome
+        rec["error"] = error
+        rec["scored_at"] = now_iso()
+        write_json(self.dir(sid) / "personalization.json", rec)
+        return rec
 
     def _write(self, sid: str, meta: Dict[str, Any]) -> None:
         write_json(self.dir(sid) / "metadata.json", meta)
