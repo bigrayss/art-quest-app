@@ -20,7 +20,7 @@ every history except undo *across* a clear, which the old log cannot express.
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageChops, ImageColor, ImageDraw
 
 from . import events as ev
 from .logstore import read_json
@@ -28,6 +28,10 @@ from .logstore import read_json
 # Mirrors static/app.js TOOLS: {size multiplier, pressure sensitivity}
 TOOL_WIDTH = {"pencil": 1.0, "brush": 3.0, "marker": 6.0, "eraser": 6.0}
 TOOL_PRESSURE = {"pencil": 0.4, "brush": 1.0, "marker": 0.0, "eraser": 0.0}
+# Also mirrors static/app.js TOOLS. At 4 px a pencil's caps and joins are a
+# rounding error; a 24 px marker's are most of its silhouette, which is why
+# marker-heavy sessions used to miss the replay check on geometry alone.
+TOOL_CAP = {"pencil": "round", "brush": "round", "marker": "square", "eraser": "round"}
 
 DRAW_TYPES = ev.DRAW_TYPES                      # STROKE_END / ERASE, old name folded in
 TIMELINE_TYPES = DRAW_TYPES + (ev.UNDO, ev.REDO, ev.CLEAR)
@@ -207,36 +211,126 @@ def _pressure(point: List[Any]) -> float:
     return float(v) if isinstance(v, (int, float)) else NEUTRAL_PRESSURE
 
 
+def _extend(pts: List[List[Any]], w: float) -> Tuple[List[float], List[float]]:
+    """A square cap juts half a width past each end; a round one does not."""
+    (ax, ay), (bx, by) = (pts[0][0], pts[0][1]), (pts[1][0], pts[1][1])
+    dx, dy = ax - bx, ay - by
+    n = (dx * dx + dy * dy) ** 0.5 or 1.0
+    head = [ax + dx / n * w / 2, ay + dy / n * w / 2]
+    (cx, cy), (dx2, dy2) = (pts[-1][0], pts[-1][1]), (pts[-2][0], pts[-2][1])
+    ex, ey = cx - dx2, cy - dy2
+    m = (ex * ex + ey * ey) ** 0.5 or 1.0
+    tail = [cx + ex / m * w / 2, cy + ey / m * w / 2]
+    return head, tail
+
+
+def _segments(stroke: Dict[str, Any], pts: List[List[Any]]):
+    """Segments and joint circles, the way a canvas actually lays a stroke down."""
+    cap = TOOL_CAP.get(stroke.get("tool", "pencil"), "round")
+    path = [list(p) for p in pts]
+    if len(path) > 1 and cap == "square":
+        w0 = max(1.0, _width(stroke, _pressure(path[1])))
+        head, tail = _extend(path, w0)
+        path = [head] + path + [tail]
+    segs, joints = [], []
+    for i in range(1, len(path)):
+        w = max(1, int(round(_width(stroke, _pressure(path[i])))))
+        segs.append((path[i - 1][0], path[i - 1][1], path[i][0], path[i][1], w))
+        # round joins: without them a wide stroke is notched at every turn
+        if w > 3:
+            joints.append((path[i][0], path[i][1], w / 2.0))
+    if segs and segs[0][4] > 3:
+        joints.append((path[0][0], path[0][1], segs[0][4] / 2.0))
+    return segs, joints
+
+
 def _paint(draw: ImageDraw.ImageDraw, stroke: Dict[str, Any],
            pts: List[List[Any]], color: str) -> None:
-    for i in range(1, len(pts)):
-        draw.line((pts[i - 1][0], pts[i - 1][1], pts[i][0], pts[i][1]),
-                  fill=color, width=int(round(_width(stroke, _pressure(pts[i])))))
     if len(pts) == 1:  # a tap still leaves a dot
         r = _width(stroke, _pressure(pts[0])) / 2
         draw.ellipse((pts[0][0] - r, pts[0][1] - r, pts[0][0] + r, pts[0][1] + r), fill=color)
+        return
+    segs, joints = _segments(stroke, pts)
+    for x0, y0, x1, y1, w in segs:
+        draw.line((x0, y0, x1, y1), fill=color, width=w)
+    for cx, cy, r in joints:
+        draw.ellipse((cx - r, cy - r, cx + r, cy + r), fill=color)
+
+
+def _translucent_alpha(stroke: Dict[str, Any], pts: List[List[Any]],
+                       size: Tuple[int, int], alpha: float) -> Image.Image:
+    """The alpha map a translucent stroke actually leaves on a canvas.
+
+    The browser sets `globalAlpha` and strokes each segment separately, so
+    overlapping segments *within one stroke* darken each other — a marker drawn
+    as a dense polyline is far darker than one pass of its colour. Painting the
+    whole stroke once and compositing once misses that, which is what pushed
+    marker-heavy sessions past the QC replay threshold.
+
+    Composited exactly instead: a transmittance buffer multiplied by (1-alpha)
+    wherever a segment lands gives `1-(1-alpha)^k` for k overlaps, which is what
+    k separate composites produce. Per-segment work stays cheap by touching only
+    each segment's bounding box.
+    """
+    W, H = size
+    keep = int(round((1.0 - alpha) * 255))
+    trans = Image.new("L", size, 255)
+
+    def stamp(shape):
+        x0, y0, x1, y1, w, kind = shape
+        pad = int(w) // 2 + 2
+        bx0, by0 = max(0, int(min(x0, x1)) - pad), max(0, int(min(y0, y1)) - pad)
+        bx1, by1 = min(W, int(max(x0, x1)) + pad + 1), min(H, int(max(y0, y1)) + pad + 1)
+        if bx1 <= bx0 or by1 <= by0:
+            return
+        box = (bx0, by0, bx1, by1)
+        tile = Image.new("L", (bx1 - bx0, by1 - by0), 255)
+        d = ImageDraw.Draw(tile)
+        if kind == "line":
+            d.line((x0 - bx0, y0 - by0, x1 - bx0, y1 - by0), fill=keep, width=int(w))
+        else:
+            r = w / 2.0
+            d.ellipse((x0 - r - bx0, y0 - r - by0, x0 + r - bx0, y0 + r - by0), fill=keep)
+        trans.paste(ImageChops.multiply(trans.crop(box), tile), box)
+
+    if len(pts) == 1:
+        w = _width(stroke, _pressure(pts[0]))
+        stamp((pts[0][0], pts[0][1], pts[0][0], pts[0][1], w, "dot"))
+        return ImageChops.invert(trans)
+    segs, joints = _segments(stroke, pts)
+    for x0, y0, x1, y1, w in segs:
+        stamp((x0, y0, x1, y1, w, "line"))
+    for cx, cy, r in joints:
+        stamp((cx, cy, cx, cy, r * 2, "dot"))
+    return ImageChops.invert(trans)
 
 
 def render(strokes: List[Dict[str, Any]], size: Tuple[int, int], upto: int = -1,
            stimulus: Optional[Dict[str, Any]] = None) -> Image.Image:
     """Paint the given strokes onto the task's initial canvas."""
-    img = Image.new("RGBA", size, (255, 255, 255, 255))
-    draw_stimulus(img, stimulus)
+    # The starting canvas, kept: the eraser lifts the child's marks back to it
+    # rather than to white, mirroring static/app.js — otherwise a session that
+    # erased over a printed fragment would replay with the fragment gone.
+    base = Image.new("RGBA", size, (255, 255, 255, 255))
+    draw_stimulus(base, stimulus)
+    img = base.copy()
     n = len(strokes) if upto < 0 else max(0, min(upto, len(strokes)))
     for s in strokes[:n]:
         pts = s.get("points") or []
         if not pts:
             continue
-        erase = bool(s.get("erase"))
-        color = "#ffffff" if erase else (s.get("color") or "#222222")
-        alpha = 1.0 if erase else float(s.get("opacity") or 1.0)
+        if s.get("erase"):
+            img.paste(base, (0, 0), _translucent_alpha(s, pts, size, 1.0))
+            continue
+        color = s.get("color") or "#222222"
+        alpha = float(s.get("opacity") or 1.0)
         if alpha >= 0.99:
             _paint(ImageDraw.Draw(img), s, pts, color)
         else:
-            # translucent tools (marker, brush) let the canvas show through
-            layer = Image.new("RGBA", size, (0, 0, 0, 0))
-            _paint(ImageDraw.Draw(layer), s, pts, color)
-            layer.putalpha(layer.getchannel("A").point(lambda v: int(v * alpha)))
+            # translucent tools (marker, brush) let the canvas show through, and
+            # overlap with themselves the way the canvas composites them
+            layer = Image.new("RGBA", size, ImageColor.getrgb(color) + (0,))
+            layer.putalpha(_translucent_alpha(s, pts, size, alpha))
             img = Image.alpha_composite(img, layer)
     return img.convert("RGB")
 

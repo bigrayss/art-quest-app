@@ -35,6 +35,7 @@ DEFAULT_CONDITION: Dict[str, Any] = {
     "questionnaire": False,    # 1–5 self-report before the final screen
     "feedback_source": "ai",   # ai | teacher | none
     "history_mode": "none",    # none | history | personalized — the personalisation arm
+    "growth_display": "full",  # none | badges | full — what the child sees of their own growth
     "time_limit_sec": None,    # overrides the task's own limit when set
 }
 

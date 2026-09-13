@@ -157,6 +157,15 @@ HARDEST_PARTS = [
 HARDEST_PART_KEYS = [k for k, _ in HARDEST_PARTS]
 
 
+class Abandon(BaseModel):
+    """Backing out of a task before submitting it."""
+    elapsed_ms: int = 0
+    reason: Literal["wrong_task", "restart", "other"] = "wrong_task"
+    events: List[DrawEvent] = []
+    strokes: List[Stroke] = []
+    pending: int = 0
+
+
 class Questionnaire(BaseModel):
     """Light self-report: a little ground truth for the behavioural data.
 
