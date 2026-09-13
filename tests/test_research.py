@@ -18,7 +18,8 @@ from fastapi.testclient import TestClient  # noqa: E402
 from artquest import study as study_mod  # noqa: E402
 from artquest.main import app  # noqa: E402
 from tools.export_dataset import export  # noqa: E402
-from tools.replay import read_jsonl, render, replay_session  # noqa: E402
+from artquest.reconstruct import compare, read_jsonl, render  # noqa: E402
+from tools.replay import replay_session  # noqa: E402
 
 SESSIONS = Path(_TMP) / "sessions"
 
@@ -38,9 +39,26 @@ def _strokes(n=4, seq0=0):
 
 
 def _events(n=5, seq0=0):
-    types = ["STROKE", "COLOR_CHANGE", "UNDO", "IDLE_START", "REFERENCE_OPEN"]
+    """Non-drawing events — safe to mix with any stroke log."""
+    types = ["COLOR_CHANGE", "SIZE_CHANGE", "IDLE_START", "REFERENCE_OPEN", "BRUSH_CHANGE"]
     return [{"seq": seq0 + i + 1, "t_ms": 500 * (i + 1), "type": types[i % len(types)],
              "payload": {"color": "#e63946", "tool": "brush"}} for i in range(n)]
+
+
+def _timeline(strokes, ops=()):
+    """The timeline a client really produces: one STROKE per stroke, then `ops`.
+
+    `ops` are extra `(type, payload)` pairs appended after the drawing, e.g.
+    `("UNDO", {"removed": ["s00004"], "restored": [], "visible_n": 3})`.
+    """
+    out = [{"seq": i + 1, "t_ms": 500 * (i + 1), "type": "STROKE",
+            "payload": {"stroke_id": s["stroke_id"], "tool": s["tool"],
+                        "color": s["color"], "size": s["size"], "n": len(s["points"])}}
+           for i, s in enumerate(strokes)]
+    for j, (kind, payload) in enumerate(ops):
+        out.append({"seq": len(strokes) + j + 1, "t_ms": 500 * (len(strokes) + j + 1),
+                    "type": kind, "payload": payload})
+    return out
 
 
 def _png_of(strokes, size=(1024, 704)):
@@ -193,7 +211,7 @@ class ResearchDataLayer(unittest.TestCase):
     def test_full_session_passes_qc_and_stores_self_report(self):
         sid = self._create()
         strokes = _strokes(6)
-        self.c.post(f"/api/sessions/{sid}/log", json={"events": _events(6), "strokes": strokes})
+        self.c.post(f"/api/sessions/{sid}/log", json={"events": _timeline(strokes), "strokes": strokes})
         img = _png_of(strokes)
         self.c.post(f"/api/sessions/{sid}/submit", json={"image": img, "elapsed_ms": 60000, "phase": "before"})
         r = self.c.post(f"/api/sessions/{sid}/submit",
@@ -221,22 +239,88 @@ class ResearchDataLayer(unittest.TestCase):
     def test_session_replays_from_the_stroke_log_alone(self):
         sid = self._create()
         strokes = _strokes(8)
-        self.c.post(f"/api/sessions/{sid}/log", json={"strokes": strokes, "events": _events(3)})
+        self.c.post(f"/api/sessions/{sid}/log", json={"strokes": strokes, "events": _timeline(strokes)})
         img = _png_of(strokes)
         self.c.post(f"/api/sessions/{sid}/submit", json={"image": img, "elapsed_ms": 90000, "phase": "before"})
         self.c.post(f"/api/sessions/{sid}/finalize", json={"elapsed_ms": 95000})
 
         rep = replay_session(sid, keyframes=True)
-        self.assertEqual(rep["strokes"], 8)
+        self.assertEqual((rep["strokes_logged"], rep["strokes_visible"]), (8, 8))
+        self.assertEqual(rep["streams"]["status"], "ok")
         self.assertEqual(rep["points"], 96)
         self.assertTrue(rep["replayable"], rep)
         self.assertEqual(rep["keyframes"], [10, 25, 50, 75, 100])
         for pct in (10, 50, 100):                                # key frames are generated, never stored
             self.assertTrue((SESSIONS / sid / "replay" / f"keyframe_{pct:03d}.png").exists())
 
+    def _finished(self, strokes, ops, visible):
+        """Run a whole session whose canvas ends up showing `visible`."""
+        sid = self._create()
+        # every stroke stays in the log, including the ones taken back off the canvas
+        self.c.post(f"/api/sessions/{sid}/log",
+                    json={"strokes": strokes, "events": _timeline(strokes, ops)})
+        img = _png_of(visible)
+        self.c.post(f"/api/sessions/{sid}/submit",
+                    json={"image": img, "elapsed_ms": 60000, "phase": "before"})
+        qc = self.c.post(f"/api/sessions/{sid}/finalize", json={"elapsed_ms": 65000}).json()["qc"]
+        return sid, qc
+
+    def test_undone_strokes_are_not_painted_back(self):
+        """The stroke log keeps them for ever; the artwork must not show them."""
+        strokes = _strokes(5)
+        ops = [("UNDO", {"removed": ["s00005"], "restored": [], "visible_n": 4}),
+               ("UNDO", {"removed": ["s00004"], "restored": [], "visible_n": 3})]
+        sid, qc = self._finished(strokes, ops, strokes[:3])
+
+        self.assertTrue(qc["ok"], qc["failed"])
+        self.assertEqual((qc["counts"]["strokes"], qc["counts"]["strokes_visible"]), (5, 3))
+        self.assertEqual(qc["counts"]["strokes_removed"], 2)
+        rep = replay_session(sid)
+        self.assertEqual(rep["strokes_visible"], 3)
+        self.assertTrue(rep["replayable"], rep)
+        self.assertLess(rep["rel"], 0.02)                        # rebuilt == what was saved
+
+        # This is the regression guard, not the QC threshold: replaying the raw
+        # stroke list paints the two undone strokes back and no longer matches.
+        # A fifth of the ink disagrees — real, but well under MAX_REPLAY_REL_DIFF,
+        # which is why the trustworthy runtime check is `log_streams_agree`.
+        naive = compare(render(strokes, (1024, 704)), render(strokes[:3], (1024, 704)))
+        self.assertGreater(naive["rel"], 0.1)
+
+    def test_clear_then_undo_restores_the_whole_canvas(self):
+        strokes = _strokes(4)
+        ids = [s["stroke_id"] for s in strokes]
+        ops = [("CLEAR", {"removed": ids, "restored": [], "visible_n": 0}),
+               ("UNDO", {"removed": [], "restored": ids, "visible_n": 4})]
+        _, qc = self._finished(strokes, ops, strokes)
+        self.assertTrue(qc["ok"], qc["failed"])
+        self.assertEqual(qc["counts"]["strokes_visible"], 4)
+
+    def test_a_log_without_undo_payloads_still_replays(self):
+        """Sessions recorded before undo carried ids fall back to a linear stack."""
+        strokes = _strokes(4)
+        _, qc = self._finished(strokes, [("UNDO", None)], strokes[:3])
+        self.assertTrue(qc["ok"], qc["failed"])
+        self.assertEqual(qc["counts"]["strokes_visible"], 3)
+
+    def test_qc_flags_logs_that_disagree_with_each_other(self):
+        """A stroke that never reached the timeline is a lost batch, not a style."""
+        strokes = _strokes(4)
+        sid = self._create()
+        self.c.post(f"/api/sessions/{sid}/log",
+                    json={"strokes": strokes, "events": _timeline(strokes[:2])})
+        self.c.post(f"/api/sessions/{sid}/submit",
+                    json={"image": _png_of(strokes), "elapsed_ms": 60000, "phase": "before"})
+        qc = self.c.post(f"/api/sessions/{sid}/finalize", json={"elapsed_ms": 65000}).json()["qc"]
+
+        self.assertIn("log_streams_agree", qc["failed"])
+        streams = next(c for c in qc["checks"] if c["name"] == "log_streams_agree")["detail"]
+        self.assertEqual(streams["orphan_strokes"], ["s00003", "s00004"])
+        self.assertFalse(replay_session(sid)["replayable"])
+
     def test_export_produces_flat_tables(self):
         sid = self._create()
-        self.c.post(f"/api/sessions/{sid}/log", json={"strokes": _strokes(3), "events": _events(4)})
+        self.c.post(f"/api/sessions/{sid}/log", json={"strokes": _strokes(3), "events": _timeline(_strokes(3))})
         self.c.post(f"/api/sessions/{sid}/submit",
                     json={"image": _png_of(_strokes(3)), "elapsed_ms": 30000, "phase": "before"})
         out = Path(tempfile.mkdtemp(prefix="artquest-export-"))

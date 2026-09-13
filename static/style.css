@@ -66,7 +66,19 @@ input[type=range] { width:100%; }
 .banner { margin-top:10px; background:#e8f1fd; border:1px solid #c6dcf7; border-radius:10px; padding:10px; font-size:13px; }
 .banner button { margin-top:8px; width:100%; }
 .canvas-wrap { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:10px; box-shadow:0 6px 24px rgba(0,0,0,.06); }
-canvas { width:100%; height:auto; display:block; background:#fff; border-radius:8px; touch-action:none; cursor:crosshair; }
+/* Zoom/pan is a CSS transform on the canvas element, never a change to the
+   drawing context: pointer coordinates are mapped through getBoundingClientRect(),
+   which already reports the transformed box, so stroke points stay in canvas
+   pixel space at every zoom level and the logs replay unchanged. */
+.canvas-viewport { position:relative; overflow:hidden; border-radius:8px; background:#fff; }
+canvas { width:100%; height:auto; display:block; background:#fff; border-radius:8px; touch-action:none; cursor:crosshair; transform-origin:0 0; }
+.canvas-viewport.grab canvas { cursor:grab; }
+.canvas-viewport.panning canvas { cursor:grabbing; }
+.zoombar { display:flex; align-items:center; gap:6px; margin-top:8px; flex-wrap:wrap; }
+.zoombar button { padding:5px 10px; font-size:13px; }
+.zoombar #btn-zoom-reset { min-width:62px; font-variant-numeric:tabular-nums; }
+.zoombar #btn-hand.active { background:var(--accent, #e8632b); color:#fff; border-color:transparent; }
+.zoombar.hidden { display:none; }
 /* result */
 .result-layout { display:grid; grid-template-columns:1.1fr 1fr; gap:20px; }
 .artwork { width:100%; border:1px solid var(--line); border-radius:12px; background:#fff; }

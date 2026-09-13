@@ -79,8 +79,13 @@ class Stroke(BaseModel):
     """One stroke with its sampled points — the core process datum.
 
     `points` are `[x, y, dt_ms, pressure, tiltX, tiltY]` in canvas pixel space,
-    `dt_ms` relative to `t_start_ms`. Raw only: no speed/length/hesitation is
-    computed here, that belongs in offline analysis.
+    `dt_ms` relative to `t_start_ms`. Zoom and pan never enter these numbers —
+    they are a view transform, so a stroke drawn at 4x lands in the same
+    coordinate space as one drawn at 1x and replay stays exact. `zoom` records
+    what the child could see while drawing it, which is a different question.
+
+    Raw only: no speed/length/hesitation is computed here, that belongs in
+    offline analysis.
     """
     seq: int
     stroke_id: str = ""
@@ -93,6 +98,7 @@ class Stroke(BaseModel):
     opacity: float = 1.0
     erase: bool = False
     pointer_type: str = ""
+    zoom: float = 1.0
     points: List[List[float]] = []
 
 

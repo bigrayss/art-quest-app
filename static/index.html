@@ -99,7 +99,16 @@
         <div id="revision-banner" class="hidden banner">✍️ 修改阶段：改动一小处就可以。<button id="btn-submit-after" class="primary">修改完成</button></div>
       </div>
     </aside>
-    <div class="canvas-wrap"><canvas id="canvas" width="1024" height="704"></canvas></div>
+    <div class="canvas-wrap">
+      <div class="canvas-viewport" id="viewport"><canvas id="canvas" width="1024" height="704"></canvas></div>
+      <div class="zoombar" id="zoombar">
+        <button id="btn-hand" title="移动画布（也可按住空格拖动）">✋ 移动</button>
+        <button id="btn-zoom-out" title="缩小">➖</button>
+        <button id="btn-zoom-reset" title="回到 100%"><span id="zoom-level">100%</span></button>
+        <button id="btn-zoom-in" title="放大">➕</button>
+        <span class="muted small">滚轮缩放 · 空格或中键拖动</span>
+      </div>
+    </div>
   </div>
 </section>
 

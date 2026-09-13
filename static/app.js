@@ -131,13 +131,28 @@
   };
   let tool = "pencil", color = "#222222", size = 4, drawing = false, last = null, strokeCount = 0, curStroke = null;
   const undoStack = [], redoStack = [], MAX_UNDO = 40;
+  // The document behind the pixels: which strokes are currently on the canvas.
+  // `undoDoc` / `redoDoc` stay index-aligned with the pixel stacks, so every
+  // undo/redo/clear can say *which strokes* it took off and put back — without
+  // that, a log with an undo in it cannot be replayed.
+  let visible = [];
+  const undoDoc = [], redoDoc = [];
+  /** What changed between two document states, in painting order. */
+  function docDiff(prev, next) {
+    const before = new Set(prev), after = new Set(next);
+    return { removed: prev.filter(id => !after.has(id)), restored: next.filter(id => !before.has(id)), visible_n: next.length };
+  }
 
-  function resetCanvas() { ctx.globalAlpha = 1; ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height); undoStack.length = redoStack.length = 0; }
+  function resetCanvas() { ctx.globalAlpha = 1; ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height); undoStack.length = redoStack.length = 0; visible = []; undoDoc.length = redoDoc.length = 0; }
   function pos(e) {
     const r = canvas.getBoundingClientRect();
     return { x: (e.clientX - r.left) * canvas.width / r.width, y: (e.clientY - r.top) * canvas.height / r.height, p: e.pressure || 0.5 };
   }
-  function pushUndo() { undoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height)); if (undoStack.length > MAX_UNDO) undoStack.shift(); redoStack.length = 0; }
+  function pushUndo() {
+    undoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height)); undoDoc.push(visible.slice());
+    if (undoStack.length > MAX_UNDO) { undoStack.shift(); undoDoc.shift(); }
+    redoStack.length = redoDoc.length = 0;
+  }
   function strokeStyle(p) {
     const t = TOOLS[tool];
     const w = size * t.size * (t.pressure ? (1 - t.pressure + t.pressure * 2 * p) : 1);
@@ -154,7 +169,7 @@
   function beginStroke(e) {
     const t0 = elapsed();
     curStroke = { t0, tool, color: TOOLS[tool].color || color, size, opacity: TOOLS[tool].alpha,
-      erase: tool === "eraser", pointer_type: e.pointerType || "", points: [samplePoint(e, t0)] };
+      erase: tool === "eraser", pointer_type: e.pointerType || "", zoom: view.z, points: [samplePoint(e, t0)] };
   }
   function finishStroke() {
     if (!curStroke) return;
@@ -162,18 +177,22 @@
     const id = "s" + String(++strokeCount).padStart(5, "0"), last_pt = s.points[s.points.length - 1];
     ArtLog.stroke({ stroke_id: id, phase: state.phase, t_start_ms: Math.round(s.t0), t_end_ms: Math.round(s.t0 + last_pt[2]),
       tool: s.tool, color: s.color, size: s.size, opacity: s.opacity, erase: s.erase,
-      pointer_type: s.pointer_type, points: s.points });
+      pointer_type: s.pointer_type, zoom: R(s.zoom, 3), points: s.points });
+    visible.push(id);
     // the same stroke also lands in the unified event timeline, cross-referenced by id
     logEvent(s.erase ? "ERASE" : "STROKE", { stroke_id: id, tool: s.tool, color: s.color, size: s.size, n: s.points.length, dur_ms: last_pt[2] });
   }
   canvas.addEventListener("pointerdown", (e) => {
+    if (wantsPan(e)) { e.preventDefault(); panStart(e); return; }
     if (e.button !== 0 && e.pointerType === "mouse") return;
     if (state.timeUp) return;
+    flushZoom();   // a zoom gesture closes before the stroke it was made for
     canvas.setPointerCapture(e.pointerId); pushUndo(); drawing = true; last = pos(e); beginStroke(e);
     strokeStyle(last.p); ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(last.x + 0.01, last.y); ctx.stroke();
     markActive();
   });
   canvas.addEventListener("pointermove", (e) => {
+    if (panning) return panMove(e);
     if (!drawing) return;
     // coalesced events keep the full input rate of a pen (up to ~240 Hz)
     const evs = (e.getCoalescedEvents && e.getCoalescedEvents()) || [];
@@ -184,18 +203,151 @@
     });
     state.dirtySinceSnapshot = true; markActive();
   });
-  const endStroke = () => { if (drawing) { drawing = false; ctx.globalAlpha = 1; finishStroke(); } };
+  const endStroke = () => { if (panning) return panEnd(); if (drawing) { drawing = false; ctx.globalAlpha = 1; finishStroke(); } };
   canvas.addEventListener("pointerup", endStroke); canvas.addEventListener("pointercancel", endStroke); canvas.addEventListener("pointerleave", endStroke);
 
-  function undo() { if (!undoStack.length) return; redoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height)); ctx.putImageData(undoStack.pop(), 0, 0); logEvent("UNDO"); state.dirtySinceSnapshot = true; }
-  function redo() { if (!redoStack.length) return; undoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height)); ctx.putImageData(redoStack.pop(), 0, 0); logEvent("REDO"); state.dirtySinceSnapshot = true; }
+  // ---------- view: zoom / pan ----------
+  // A *view* transform, never a drawing transform. The canvas element is scaled
+  // and translated with CSS; the drawing context never learns about it. Pointer
+  // coordinates go through getBoundingClientRect(), which already reports the
+  // transformed box, so `pos()` keeps returning canvas pixels at every zoom
+  // level — stroke data, undo, snapshots and replay are all untouched by zoom.
+  // What zoom *does* change is what the child could see, so each stroke records
+  // the zoom it was drawn at and each gesture lands in the event log.
+  const viewport = $("#viewport");
+  const MIN_ZOOM = 1, MAX_ZOOM = 8, ZOOM_STEP = 1.25;
+  const ZOOM_SETTLE_MS = 300;   // a burst of wheel ticks is one gesture
+  const MAX_GESTURE_STEPS = 80;
+  const view = { z: 1, tx: 0, ty: 0 };
+  let handMode = false, spaceDown = false, panning = null, zoomGesture = null, zoomTimer = null;
+
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const zoomAllowed = () => state.condition.zoom_allowed !== false;
+  const drawViewOpen = () => !$("#view-draw").classList.contains("hidden");
+  const wantsPan = (e) => zoomAllowed() && (handMode || spaceDown || e.button === 1);
+
+  function applyView() {
+    const w = viewport.clientWidth, h = viewport.clientHeight;
+    // the artwork always covers the viewport — no drifting off into empty space
+    view.tx = clamp(view.tx, w - w * view.z, 0);
+    view.ty = clamp(view.ty, h - h * view.z, 0);
+    canvas.style.transform = `translate(${view.tx}px, ${view.ty}px) scale(${view.z})`;
+    $("#zoom-level").textContent = Math.round(view.z * 100) + "%";
+    viewport.classList.toggle("grab", !panning && (handMode || spaceDown) && zoomAllowed());
+  }
+
+  /** Zoom about a point in viewport coordinates, keeping that point still. */
+  function zoomAt(z, cx, cy, source) {
+    const prev = view.z;
+    z = clamp(z, MIN_ZOOM, MAX_ZOOM);
+    if (Math.abs(z - prev) < 1e-4) return;
+    const lx = (cx - view.tx) / prev, ly = (cy - view.ty) / prev;
+    view.z = z; view.tx = cx - lx * z; view.ty = cy - ly * z;
+    applyView(); noteZoom(prev, source);
+  }
+
+  function resetView(source) {
+    const prev = view.z, moved = view.z !== 1 || view.tx || view.ty;
+    view.z = 1; view.tx = view.ty = 0; applyView();
+    if (moved && source) noteZoom(prev, source);
+  }
+
+  // A gesture is logged as one record with its raw steps inside — the same
+  // shape as a stroke, so the log keeps the trace without a flood of rows.
+  function noteZoom(from, source) {
+    const t = elapsed();
+    if (!zoomGesture) zoomGesture = { t0: t, from, source, steps: [] };
+    if (zoomGesture.steps.length < MAX_GESTURE_STEPS)
+      zoomGesture.steps.push([Math.round(t - zoomGesture.t0), R(view.z, 3)]);
+    clearTimeout(zoomTimer); zoomTimer = setTimeout(flushZoom, ZOOM_SETTLE_MS);
+    markActive();
+  }
+  function flushZoom() {
+    clearTimeout(zoomTimer); zoomTimer = null;
+    const g = zoomGesture; zoomGesture = null;
+    if (!g) return;
+    logEvent("ZOOM", { from: R(g.from, 3), to: R(view.z, 3), source: g.source,
+      at: [Math.round(view.tx), Math.round(view.ty)],
+      dur_ms: Math.round(elapsed() - g.t0), steps: g.steps });
+  }
+
+  function panStart(e) {
+    canvas.setPointerCapture(e.pointerId);
+    panning = { id: e.pointerId, x: e.clientX, y: e.clientY, t0: elapsed(),
+                from: [Math.round(view.tx), Math.round(view.ty)], points: [] };
+    viewport.classList.add("panning"); viewport.classList.remove("grab");
+  }
+  function panMove(e) {
+    if (e.pointerId !== panning.id) return;
+    view.tx += e.clientX - panning.x; view.ty += e.clientY - panning.y;
+    panning.x = e.clientX; panning.y = e.clientY;
+    applyView();
+    if (panning.points.length < MAX_GESTURE_STEPS)
+      panning.points.push([Math.round(elapsed() - panning.t0), Math.round(view.tx), Math.round(view.ty)]);
+    markActive();
+  }
+  function panEnd() {
+    const g = panning; panning = null;
+    viewport.classList.remove("panning"); applyView();
+    if (!g || !g.points.length) return;     // a click that never moved is not a pan
+    logEvent("PAN", { from: g.from, to: [Math.round(view.tx), Math.round(view.ty)],
+      zoom: R(view.z, 3), dur_ms: Math.round(elapsed() - g.t0), points: g.points });
+  }
+
+  viewport.addEventListener("wheel", (e) => {
+    if (!zoomAllowed()) return;
+    e.preventDefault();
+    const r = viewport.getBoundingClientRect();
+    zoomAt(view.z * Math.pow(1.0015, -e.deltaY), e.clientX - r.left, e.clientY - r.top, "wheel");
+  }, { passive: false });
+
+  const stepZoom = (f, source) => {
+    const r = viewport.getBoundingClientRect();
+    zoomAt(view.z * f, r.width / 2, r.height / 2, source);
+  };
+  $("#btn-zoom-in").onclick = () => stepZoom(ZOOM_STEP, "button");
+  $("#btn-zoom-out").onclick = () => stepZoom(1 / ZOOM_STEP, "button");
+  $("#btn-zoom-reset").onclick = () => resetView("button");
+  $("#btn-hand").onclick = () => {
+    handMode = !handMode;
+    $("#btn-hand").classList.toggle("active", handMode); applyView();
+  };
+
+  function undo() {
+    if (!undoStack.length) return;
+    redoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height)); redoDoc.push(visible.slice());
+    ctx.putImageData(undoStack.pop(), 0, 0);
+    const prev = visible; visible = undoDoc.pop() || [];
+    logEvent("UNDO", docDiff(prev, visible)); state.dirtySinceSnapshot = true;
+  }
+  function redo() {
+    if (!redoStack.length) return;
+    undoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height)); undoDoc.push(visible.slice());
+    ctx.putImageData(redoStack.pop(), 0, 0);
+    const prev = visible; visible = redoDoc.pop() || [];
+    logEvent("REDO", docDiff(prev, visible)); state.dirtySinceSnapshot = true;
+  }
   $("#btn-undo").onclick = undo; $("#btn-redo").onclick = redo;
-  $("#btn-clear").onclick = () => { if (confirm("确定清空整张画布？")) { pushUndo(); ctx.globalAlpha = 1; ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height); logEvent("CLEAR"); state.dirtySinceSnapshot = true; } };
+  $("#btn-clear").onclick = () => {
+    if (!confirm("确定清空整张画布？")) return;
+    pushUndo(); ctx.globalAlpha = 1; ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const prev = visible; visible = [];
+    logEvent("CLEAR", docDiff(prev, visible)); state.dirtySinceSnapshot = true;
+  };
   document.addEventListener("keydown", (e) => {
-    if ($("#view-draw").classList.contains("hidden")) return;
+    if (!drawViewOpen()) return;
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") { e.preventDefault(); redo(); }
+    if (!zoomAllowed()) return;
+    if (e.code === "Space" && !spaceDown) { spaceDown = true; e.preventDefault(); applyView(); }
+    if (e.key === "+" || e.key === "=") { e.preventDefault(); stepZoom(ZOOM_STEP, "key"); }
+    if (e.key === "-" || e.key === "_") { e.preventDefault(); stepZoom(1 / ZOOM_STEP, "key"); }
+    if (e.key === "0") { e.preventDefault(); resetView("key"); }
   });
+  document.addEventListener("keyup", (e) => {
+    if (e.code === "Space" && spaceDown) { spaceDown = false; applyView(); }
+  });
+  window.addEventListener("blur", () => { spaceDown = false; applyView(); });
   document.querySelectorAll("#tools button").forEach(b => b.onclick = () => {
     if (b.disabled) return;
     tool = b.dataset.tool; document.querySelectorAll("#tools button").forEach(x => x.classList.toggle("active", x === b)); logEvent("BRUSH_CHANGE", { tool });
@@ -232,7 +384,11 @@
     if (t - state.lastActivity >= IDLE_MS) { state.idle = true; ArtLog.event("IDLE_START", t, { since_ms: Math.round(state.lastActivity), phase: state.phase }); }
   }
   /** Push everything queued locally, then report what is still unsent. */
-  async function flushLog() { try { await ArtLog.flush(); } catch (e) { /* keep the queue */ } return await ArtLog.pending(); }
+  async function flushLog() {
+    flushZoom();   // close any open gesture before anything leaves the client
+    try { await ArtLog.flush(); } catch (e) { /* keep the queue */ }
+    return await ArtLog.pending();
+  }
   async function snapshot() {
     if (!state.sessionId || !state.dirtySinceSnapshot) return;
     state.dirtySinceSnapshot = false;
@@ -313,6 +469,8 @@
     const c = state.condition;
     document.body.classList.toggle("quiet", c.ui === "quiet");
     ["#btn-undo", "#btn-redo"].forEach(sel => { const b = $(sel); if (b) { b.disabled = !c.undo_allowed; b.classList.toggle("hidden", !c.undo_allowed); } });
+    $("#zoombar").classList.toggle("hidden", !zoomAllowed());
+    if (!zoomAllowed()) { handMode = false; $("#btn-hand").classList.remove("active"); resetView(null); }
   }
   /** Per-task condition: reference image, time limit, allowed tools. */
   function applyTask(q) {
@@ -388,6 +546,8 @@
     state.condition = { ...state.condition, ...(r.session.condition || {}) };  // the server froze it; mirror it back
     resetCanvas(); state.startedAt = Date.now(); state.dirtySinceSnapshot = false;
     strokeCount = 0; state.lastActivity = 0; state.idle = false;
+    handMode = false; $("#btn-hand").classList.remove("active");
+    resetView(null); applyCondition();   // a fresh canvas starts at 100 %, pen in hand
     await ArtLog.start(state.sessionId);
     applyTask(state.quest);
     $("#draw-quest-card").innerHTML = `<div class="type">${state.quest.type}</div><h3>${state.quest.title}</h3><p>${state.quest.prompt}</p>`;
