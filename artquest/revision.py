@@ -18,6 +18,7 @@ representation, so improving it improves every past session.
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
+from . import events as ev
 from .reconstruct import read_jsonl, visible_ids
 
 # A feedback with no region can still be attributed in time, just not in space.
@@ -89,13 +90,13 @@ def attribute(session_dir: Path) -> Dict[str, Any]:
 
     starts = {}   # feedback_id -> REVISION_START / REVISION_SKIPPED event
     for e in events:
-        if e.get("type") in ("REVISION_START", "REVISION_SKIPPED"):
+        if ev.canonical(e.get("type")) in (ev.REVISION_START, ev.REVISION_SKIPPED):
             fid = (e.get("payload") or {}).get("feedback_id") or ""
             starts.setdefault(fid, e)
 
     shown = {}    # feedback_id -> the moment it was actually put on screen
     for e in events:
-        if e.get("type") == "FEEDBACK_SHOWN":
+        if ev.canonical(e.get("type")) == ev.FEEDBACK_SHOW:
             fid = (e.get("payload") or {}).get("feedback_id")
             if fid:
                 shown[fid] = e.get("t_ms") or 0
@@ -110,18 +111,18 @@ def attribute(session_dir: Path) -> Dict[str, Any]:
         region = fb.get("target_region")
         before, after = _window(strokes, region, None, at), _window(strokes, region, at, nxt)
 
-        ev = starts.get(fid) or starts.get("")
+        evt = starts.get(fid) or starts.get("")
         rec = {
             "feedback_id": fid,
             "source": fb.get("source"), "feedback_type": fb.get("feedback_type"),
             "phase": fb.get("phase"), "shown_at_ms": at,
             "has_region": bool(region), "region": region,
             "revision": {
-                "started": bool(ev and ev.get("type") == "REVISION_START"),
-                "skipped": bool(ev and ev.get("type") == "REVISION_SKIPPED"),
+                "started": bool(evt and ev.canonical(evt.get("type")) == ev.REVISION_START),
+                "skipped": bool(evt and ev.canonical(evt.get("type")) == ev.REVISION_SKIPPED),
                 # how long the child sat with the feedback before acting on it
-                "latency_ms": ((ev.get("t_ms") or 0) - at) if ev else None,
-                "linked": bool(ev and (ev.get("payload") or {}).get("feedback_id") == fid),
+                "latency_ms": ((evt.get("t_ms") or 0) - at) if evt else None,
+                "linked": bool(evt and (evt.get("payload") or {}).get("feedback_id") == fid),
             },
             "before": before, "after": after,
         }

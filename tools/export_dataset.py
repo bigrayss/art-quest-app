@@ -29,6 +29,11 @@ TASK_COLS = ["task_id", "family", "mission_family", "form_id", "version", "promp
              "process_targets", "research_goal"]
 
 
+def _mean_pressure(points):
+    vals = [p[3] for p in points if len(p) > 3 and isinstance(p[3], (int, float))]
+    return round(sum(vals) / len(vals), 4) if vals else ""
+
+
 def _flat_task(t):
     r = t.get("rubric") or {}
     return {"task_id": t["task_id"], "family": t.get("family", ""),
@@ -154,6 +159,7 @@ def _write(path: Path, cols: List[str], rows: List[Dict[str, Any]]) -> int:
 def export(out: Path, with_points: bool = False) -> Dict[str, int]:
     out.mkdir(parents=True, exist_ok=True)
     sessions, strokes, events, feedback, quest, personal, ratings = [], [], [], [], [], [], []
+    annotations = []
     points_path = out / "points.csv"
     pf = points_path.open("w", newline="", encoding="utf-8") if with_points else None
     pw = csv.writer(pf) if pf else None
@@ -181,7 +187,10 @@ def export(out: Path, with_points: bool = False) -> Dict[str, int]:
                 "opacity": s.get("opacity"), "erase": s.get("erase"), "pointer_type": s.get("pointer_type"),
                 "zoom": s.get("zoom", 1.0),   # what the child could see while drawing it
                 "n_points": len(pts),
-                "mean_pressure": round(sum((p[3] if len(p) > 3 else 0) for p in pts) / len(pts), 4) if pts else "",
+                "pressure_supported": s.get("pressure_supported"),
+                # only over points that actually measured it; blank when the
+                # device never did, rather than a mean of fabricated values
+                "mean_pressure": _mean_pressure(pts),
             })
             if pw:
                 for i, p in enumerate(pts):
@@ -202,6 +211,8 @@ def export(out: Path, with_points: bool = False) -> Dict[str, int]:
             feedback.append({"session_id": sid, **{k: f.get(k) for k in
                              ("feedback_id", "t_ms", "phase", "source", "feedback_type", "backend", "text", "shown_at")},
                              "target_region": json.dumps(f.get("target_region"), ensure_ascii=False) if f.get("target_region") else "",
+                             "trigger": f.get("trigger", ""), "model": f.get("model", ""),
+                             "prompt_version": f.get("prompt_version", ""),
                              "has_region": a.get("has_region"),
                              "revision_started": rev.get("started"), "revision_skipped": rev.get("skipped"),
                              "revision_linked": rev.get("linked"), "latency_ms": rev.get("latency_ms"),
@@ -210,14 +221,23 @@ def export(out: Path, with_points: bool = False) -> Dict[str, int]:
                              "share_in_region_after": after.get("share_in_region"),
                              "region_shift": a.get("region_shift")})
 
+        for a in read_jsonl(d / "annotations.jsonl"):
+            annotations.append({"session_id": sid, "annotation_id": a.get("annotation_id"),
+                                "rater_id": a.get("rater_id"), "label": a.get("label"),
+                                "t_start_ms": a.get("t_start_ms"), "t_end_ms": a.get("t_end_ms"),
+                                "duration_ms": (a.get("t_end_ms") or 0) - (a.get("t_start_ms") or 0),
+                                "confidence": a.get("confidence"), "note": a.get("note", ""),
+                                "ts": a.get("ts")})
+
         for r in read_jsonl(d / "ratings.jsonl"):
             ratings.append({"session_id": sid, "rating_id": r.get("rating_id"),
                             "source": r.get("source"), "rater_id": r.get("rater_id"),
                             "phase": r.get("phase"), "overall": r.get("overall"),
                             "note": r.get("note", ""), "ts": r.get("ts"),
                             **{f"dim_{k}": v for k, v in (r.get("dims") or {}).items()}})
-        q = d / "questionnaire.json"
-        if q.exists():
+        # `self_report.json` now; the older name stays readable
+        q = next((d / n for n in ("self_report.json", "questionnaire.json") if (d / n).exists()), None)
+        if q is not None:
             quest.append({"session_id": sid, **json.loads(q.read_text(encoding="utf-8"))})
 
     if pf:
@@ -226,10 +246,12 @@ def export(out: Path, with_points: bool = False) -> Dict[str, int]:
         "sessions": _write(out / "sessions.csv", SESSION_COLS, sessions),
         "strokes": _write(out / "strokes.csv", ["session_id", "stroke_id", "seq", "phase", "t_start_ms", "t_end_ms",
                                                 "duration_ms", "tool", "color", "size", "opacity", "erase",
-                                                "pointer_type", "zoom", "n_points", "mean_pressure"], strokes),
+                                                "pointer_type", "pressure_supported", "zoom",
+                                                "n_points", "mean_pressure"], strokes),
         "events": _write(out / "events.csv", ["session_id", "seq", "src", "ts", "t_ms", "type", "payload"], events),
         "feedback": _write(out / "feedback.csv", ["session_id", "feedback_id", "t_ms", "phase", "source",
-                                                  "feedback_type", "backend", "text", "target_region", "shown_at",
+                                                  "feedback_type", "backend", "trigger", "model",
+                                                  "prompt_version", "text", "target_region", "shown_at",
                                                   "has_region", "revision_started", "revision_skipped",
                                                   "revision_linked", "latency_ms", "strokes_before", "strokes_after",
                                                   "share_in_region_before", "share_in_region_after",
@@ -237,7 +259,11 @@ def export(out: Path, with_points: bool = False) -> Dict[str, int]:
         "ratings": _write(out / "ratings.csv", ["session_id", "rating_id", "source", "rater_id", "phase",
                                                 "overall"] + [f"dim_{k}" for k in DIM_KEYS] + ["note", "ts"], ratings),
         "questionnaire": _write(out / "questionnaire.csv", ["session_id", "difficulty", "confidence", "enjoyment",
-                                                            "hardest_part", "free_text", "at"], quest),
+                                                            "hardest_part_choice", "hardest_part",
+                                                            "free_text", "at"], quest),
+        "annotations": _write(out / "annotations.csv", ["session_id", "annotation_id", "rater_id", "label",
+                                                        "t_start_ms", "t_end_ms", "duration_ms",
+                                                        "confidence", "note", "ts"], annotations),
         "personalization": _write(out / "personalization.csv", PERSONALIZATION_COLS, personal),
         # the dataset ships its own measurement objects: without the task
         # definitions the session rows are ids nobody can resolve

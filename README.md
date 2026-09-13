@@ -19,7 +19,7 @@ cp .env.example .env          # 可选：填入 ANTHROPIC_API_KEY
 测试：
 
 ```bash
-./test.sh                     # 52 项，离线后端，不需要 API key
+./test.sh                     # 64 项，离线后端，不需要 API key
 ```
 
 其中 `tests/test_browser.py` 会用系统的 Chrome 真跑一遍（缩放后坐标是否还准、含撤销的 session 能否重建）。
@@ -57,7 +57,10 @@ data/sessions/<id>/
   strokes.jsonl       append-only 逐笔记录 + 采样点（见下）
   feedback.jsonl      每一条反馈：{feedback_id, source, feedback_type, text, target_region, shown_at}
   ratings.jsonl       教师 / 专家评分，append-only 带 rater_id（支持多评分者）
-  questionnaire.json  1–5 轻量自评（难度 / 满意度 / 开心程度 / 最难的地方）
+  self_report.json    1–5 轻量自评（难度 / 满意度 / 开心程度 / 最难的地方，含封闭选项）
+  quality.json        数据质量检查结果，与它所判断的数据并排
+  annotations.jsonl   专家过程标注：时间轴上的区间，不是逐笔
+  reference/          孩子当时看到的那张刺激图的副本（static/refs 里的会被替换）
   personalization.json 画之前冻结的表示、给孩子看了什么、预测了什么，以及事后的 outcome / error
   before.png / after.png / final.png
   snapshots/0001_45s.png ...   （辅助，关键帧可由 stroke log 动态重建）
@@ -74,15 +77,50 @@ data/sessions/<id>/
 `points` 用画布像素坐标（`metadata.canvas` 记录画布尺寸，保证可复现），`dt_ms` 相对 `t_start_ms`；
 `pointermove` 走 `getCoalescedEvents()`，数位板可拿到完整输入率（可达 ~240 Hz）。
 
+**没测到的通道存 `null`，不伪造。** 鼠标恒定返回 `pressure = 0.5` 且没有 tilt——把它当读数记下来，
+鼠标画的每一笔的每一个点都会带上一个编造的数字，离线分析分不出它和真实读数的区别。
+所以 `pressure_supported` / `tilt_supported` 随笔记录，不支持时那三个槽位是 `null`。
+渲染器仍然需要一个宽度，就退回中性的 0.5——**日志保持诚实，图像不假装这个退化值是读数**；
+导出的 `mean_pressure` 只对真正测到的点求均值，全没测到就留空。
+
 **缩放不进坐标。** 缩放 / 平移是画布元素上的一个 CSS transform，绘图上下文完全不知情；指针坐标经
 `getBoundingClientRect()` 换算，而它返回的正是变换后的盒子——所以 8 倍放大下画的笔，和 100% 下画的笔
 落在同一个坐标系里，replay、undo、快照全都不受影响。`zoom` 字段记的是**当时孩子能看到什么**，那是另一个问题
 （"什么时候放大去抠细节"本身就是过程信号）。这条不变式由 `tests/test_browser.py` 在真实 Chrome 里验证。
 
-事件类型：`SESSION_START` `STROKE` `ERASE` `UNDO` `REDO` `CLEAR` `BRUSH_CHANGE` `COLOR_CHANGE`
-`SIZE_CHANGE` `REFERENCE_OPEN` `REFERENCE_CLOSE` `IDLE_START` `IDLE_END` `TIME_LIMIT_REACHED`
-`FEEDBACK_SHOWN` `REVISION_START` `REVISION_SKIPPED` `QUESTIONNAIRE_SUBMITTED` `SESSION_END` `DOWNLOAD`。
-`FEEDBACK_SHOWN` 带 `feedback_id`，是切分「反馈前 / 反馈后」行为的锚点。
+### 统一事件时间轴（`artquest/events.py` 是唯一权威）
+
+**一条时间轴，一个时钟。** `t_ms` 就是那个时间戳——从开始画算起的毫秒；墙钟时间由
+`metadata.times.started_at_ms + t_ms` 还原，所以没有任何事件自带墙钟，也就没有两个模块
+对"现在几点"产生分歧的余地。服务端事件（反馈展示、会话结束）用引发它的那次请求里的客户端时钟，
+落进同一条流。
+
+```
+SESSION_START  TASK_SHOW  CANVAS_GEOMETRY  TASK_SUBMIT  SESSION_END
+STROKE_START  STROKE_END  ERASE  UNDO  REDO  CLEAR
+BRUSH_CHANGE  COLOR_CHANGE  SIZE_CHANGE  ZOOM  PAN
+REFERENCE_SHOW  REFERENCE_OPEN  REFERENCE_CLOSE  REFERENCE_ZOOM  REFERENCE_PAN
+REFERENCE_FOCUS  CANVAS_FOCUS
+PAUSE_START  PAUSE_END  TIME_LIMIT_REACHED
+FEEDBACK_SHOW  FEEDBACK_DISMISS  REVISION_START  REVISION_SKIPPED
+HISTORY_SHOWN  RATING_ADDED  QUESTIONNAIRE_SUBMITTED  DOWNLOAD
+```
+
+`STROKE_START` 在落笔时记，不等抬笔——planning latency 和 first-stroke region 问的是
+孩子**什么时候开始**，不是什么时候松手。`FEEDBACK_SHOW` 带 `feedback_id`，是切分
+「反馈前 / 反馈后」行为的锚点；`FEEDBACK_DISMISS` 带 `read_ms`，反馈被看了多久本身是信号。
+
+统一词表时有几个名字变了。直接改名会让已经采到的 session 变成孤儿，所以
+`events.canonical()` 把旧名折叠到新名，**所有读取方都走它**——旧日志一个字节不动，
+读取方不再需要关心：
+
+| 旧名 | 现名 |
+|---|---|
+| `STROKE` | `STROKE_END` |
+| `IDLE_START` / `IDLE_END` | `PAUSE_START` / `PAUSE_END` |
+| `FEEDBACK_SHOWN` | `FEEDBACK_SHOW` |
+
+`events.unknown_types()` 能查出"某个模块自己发明了一个名字"。
 
 `ZOOM` / `PAN` **一次手势一条记录**（和一笔 stroke 同构：原始轨迹放在记录里面，而不是刷屏成几百行）：
 
@@ -287,6 +325,32 @@ rubric 不合法的任务会被**拒绝加载**并记日志，其余任务照常
 身份是两个匿名 id 并存：设备自动生成的 `anon_id`（日常自由玩也能跨任务对齐）+ 研究员分配的
 `participant_id`。
 
+## Reference 交互：look → draw → check → correct
+
+有参考图的任务，参考图自己也有视口——能缩放、能拖动。因为"看了多久、放大到多细、
+注意力什么时候在两边之间来回"都是过程信号，而如果参考图只是一张扁平缩略图，这些**根本不存在**。
+
+| 事件 | 记什么 |
+|---|---|
+| `REFERENCE_SHOW` | 任务把它**呈现**出来（与孩子主动打开是两回事），带 `placeholder` 标记 |
+| `REFERENCE_OPEN` / `REFERENCE_CLOSE` | 孩子开/关；关闭时带 `view_duration_ms` 与 `viewed_total_ms` |
+| `REFERENCE_ZOOM` / `REFERENCE_PAN` | 参考图自身的缩放与平移 |
+| `REFERENCE_FOCUS` / `CANVAS_FOCUS` | 注意力在参考图与画布之间切换——`canvas_to_reference` / `reference_to_canvas` 两个计数由此得来 |
+
+## Session 生命周期：对孩子完成 ≠ 对数据完成
+
+```
+recording → completed_local → pending_upload → uploaded → server_verified
+```
+
+`status` 说的是**孩子**走到哪了，`lifecycle` 说的是**数据**走到哪了。一幅画完了但最后一批
+日志没上传成功，对孩子是完成，对数据不是。`server_verified` 只有在
+`log_streams_agree` + `replay_matches_final` + `uploads_flushed` 三项都过时才会置上，
+而且**只进不退**——一个迟到的重复批次不能把已验证的 session 降级。
+
+`quality.json` 与数据并排存放；`log_checksum` 记下两条主日志的内容哈希，
+以后的损坏或半截重传能被发现，而不是被静默分析。
+
 ## 反馈 → 修改：不只记下反馈，还要能回答"他改了吗、改在哪"
 
 采集清单要求的是 `feedback content + timestamp + source + target region + subsequent revision`。
@@ -381,7 +445,8 @@ device id 是同一个——"任一 id 匹配"会把二十个孩子并成一个�
 
 ```bash
 python3 tools/export_dataset.py --out export/ --points   # sessions/strokes/events/feedback/questionnaire(.csv)
-python3 tools/replay.py <session_id> --keyframes         # 从日志重建作品 + 10/25/50/75/100% 关键帧
+python3 tools/replay.py <session_id> --keyframes         # 重建 + 10/25/50/75/100% 与语义关键帧
+python3 tools/withdraw.py P007                          # 被试撤回（dry run；--confirm 才真删）
 python3 tools/replay.py --all --check                    # 校验每个 session 都能从日志回放
 ```
 
@@ -390,7 +455,19 @@ python3 tools/replay.py --all --check                    # 校验每个 session 
 叠加才对得上。旧 session 里 `UNDO`/`REDO`/`CLEAR` 没有 payload，退回线性撤销栈的语义（撤销弹掉最近一笔、
 清空去掉全部）——除了「跨清空的撤销」，其余历史都还原得准确。
 
-关键帧不入库，需要时由日志现算。
+除了百分比关键帧，还会在**语义边界**上切：`before_feedback` / `after_feedback` /
+`before_revision` / `after_revision`。"反馈落下时这幅画长什么样、之后又长什么样"
+是反馈实验要比的那一对，而 25/50/75% 说不出来。关键帧不入库，需要时由日志现算。
+
+## 儿童研究：身份隔离、同意与撤回
+
+见 `docs/ETHICS.md`。要点：真实身份隔离在另一套系统，研究数据里只有匿名代号；
+监护人同意 + 儿童本人同意 + **作品公开许可单独勾选**；敏感内容发布前必须逐张看过。
+
+**撤回是整个项目里唯一"真删"的地方**——别处的原则是「只标记，不删数据」，但同意可以被收回，
+那时数据必须真的消失而不是被标成可忽略。`tools/withdraw.py` 默认 dry run，
+`--confirm` 才执行；名册里代号被标为撤回但**序号保留占位**，否则后来的被试会继承他的任务顺序，
+在分析里悄悄变成他。回执只记「删了几个、哪些 id、什么时候」，不留任何内容。
 
 ## API
 
@@ -408,6 +485,7 @@ python3 tools/replay.py --all --check                    # 校验每个 session 
 | POST | `/api/sessions/{id}/questionnaire` | 1–5 自评 |
 | POST | `/api/sessions/{id}/feedback` | 记录老师 / 自评反馈（与 AI 反馈同结构，可带 `target_region`） |
 | POST | `/api/sessions/{id}/rating` | 教师 / 专家评分（append-only，多评分者） |
+| POST · GET | `/api/sessions/{id}/annotation` | 专家过程标注（planning / exploration / revision / organization / turning_point） |
 | GET | `/api/sessions/{id}/revision` | 反馈 → 其后的修改：时间上与（有区域时）空间上的归因 |
 | POST | `/api/sessions/{id}/qc` | 重跑数据质量检查 |
 | GET | `/api/sessions`, `/api/sessions/{id}`, `/api/sessions/{id}/strokes` | 浏览记录 / 原始笔画 |
@@ -427,6 +505,7 @@ artquest/            后端（FastAPI）
   study.py           Study Mode：条件、被试名册、平衡拉丁方顺序
   storage.py         session 存储（metadata + 三条 append-only 流）
   logstore.py        JSONL append-only 写入与幂等去重
+  events.py          统一事件词表 + 旧名折叠（所有读取方的唯一权威）
   qc.py              结束时的数据质量检查
   revision.py        反馈 → 其后修改的归因（纯函数，不落库）
   history.py         行为历史 → 用户表示（纯函数，不落库）
@@ -442,7 +521,9 @@ tests/               端到端测试 + 研究数据层测试（离线后端）
   test_personalization.py  历史 → 表示 → 三臂 → 预测打分 → 导出
   test_feedback_revision.py 区域坐标约束、反馈→修改归因、多评分者
   test_task_library.py 任务库、rubric contract、condition 冻结、protocol 平衡
-  test_browser.py    真实 Chrome：缩放不改坐标、含撤销的 session 能重建（无浏览器则跳过）
+  test_process_layer.py 事件词表、null 压感、生命周期、语义关键帧、过程标注、撤回
+  test_browser.py    真实 Chrome：缩放不改坐标、含撤销的 session 能重建、参考图交互、
+                     鼠标压感确实是 null（无浏览器则跳过）
 docs/                指南文档
 ```
 

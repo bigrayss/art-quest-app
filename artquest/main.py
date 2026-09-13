@@ -1,15 +1,17 @@
 """FastAPI application: serves the drawing UI and the session / research API."""
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__
+from . import events as ev
 from . import history as history_mod
 from . import study as study_mod
-from .config import SESSIONS_DIR, SNAPSHOT_INTERVAL_SEC, STATIC_DIR, claude_available
+from .config import (CLAUDE_MODEL, SESSIONS_DIR, SNAPSHOT_INTERVAL_SEC, STATIC_DIR,
+                     claude_available)
 from .feedback import get_feedback_engine
 from .personalize import MODES as HISTORY_MODES, get_personalizer
 from .qc import check as qc_check
@@ -18,12 +20,17 @@ from .quests import (EMOTIONS, QUESTS, QUESTS_BY_ID, condition_snapshot,
 from .reconstruct import check_final
 from .rubric import apply_contract, check_rating
 from .revision import attribute as attribute_revision
-from .schemas import (CreateSession, DrawEvent, FeedbackIn, Finalize, LogBatch,
-                      Questionnaire, Rating, Snapshot, StudyAssign, Stroke, Submit)
+from .schemas import (Annotation, CreateSession, DrawEvent, FeedbackIn, Finalize,
+                      HARDEST_PARTS, LogBatch, PROCESS_LABELS, Questionnaire, Rating,
+                      Snapshot, StudyAssign, Stroke, Submit)
 from .scoring import DIMENSIONS, SCALE_MAX, get_scorer
 from .storage import SCHEMA_VERSION, SessionStore, decode_data_url, now_iso
 
 log = logging.getLogger("artquest")
+
+# Bumped whenever the feedback prompts change, so text generated under different
+# instructions is never pooled in analysis.
+PROMPT_VERSION = "feedback/1"
 
 app = FastAPI(title="ArtQuest", version=__version__)
 store = SessionStore()
@@ -50,6 +57,13 @@ def _ingest(sid: str, events: List[DrawEvent], strokes: List[Stroke]) -> Dict[st
     return out
 
 
+def _reference_available(sid: str, meta: Dict[str, Any]) -> Optional[bool]:
+    """None when the task had no reference; False when it had one and it is gone."""
+    if (meta.get("task") or {}).get("stimulus_kind") != "reference":
+        return None
+    return bool((meta.get("task") or {}).get("reference_file"))
+
+
 def _run_qc(sid: str, pending: int = 0) -> Dict[str, Any]:
     meta = store.load(sid)
     try:
@@ -67,9 +81,17 @@ def _run_qc(sid: str, pending: int = 0) -> Dict[str, Any]:
         pending_uploads=pending,
         replay=replay,
         condition_frozen=(store.dir(sid) / "condition.json").exists(),
+        reference_available=_reference_available(sid, meta),
+        checksum=store.log_checksum(sid),
     )
     result["at"] = now_iso()
     store.update(sid, qc=result)
+    store.save_quality(sid, result)          # beside the data it judges
+    # `server_verified` means the logs agree with each other and with the artwork,
+    # and nothing is still queued on the client — not merely "the child finished"
+    verified = {"log_streams_agree", "replay_matches_final", "uploads_flushed"}
+    if not (verified & set(result["failed"])):
+        store.set_lifecycle(sid, "server_verified")
     if not result["ok"]:
         log.warning("session %s failed QC: %s", sid, result["failed"])
     return result
@@ -96,6 +118,8 @@ def config():
         "emotions": EMOTIONS,
         "default_condition": study_mod.DEFAULT_CONDITION,
         "history_modes": list(HISTORY_MODES),
+        "hardest_parts": [{"key": k, "label": v} for k, v in HARDEST_PARTS],
+        "process_labels": list(PROCESS_LABELS),
         "study": {"active": st["active"], "study_id": st["study_id"], "order": st["order"]},
     }
 
@@ -196,7 +220,10 @@ def create_session(body: CreateSession):
                   "protocol_id": st.get("protocol_id", ""),
                   "sequence_id": st.get("sequence_id", "")},
         task_order=st.get("order_index")))
-    store.add_server_event(meta["id"], "TASK_SHOW", 0, {
+    ref_file = store.copy_reference(meta["id"], quest)
+    if ref_file:
+        store.update(meta["id"], task=dict(meta["task"], reference_file=ref_file))
+    store.add_server_event(meta["id"], ev.TASK_SHOW, 0, {
         "task_id": quest["id"], "family": quest.get("family", ""),
         "form_id": quest.get("form_id", ""), "prompt_style": quest.get("prompt_style", ""),
         "task_version": quest.get("version", "")})
@@ -223,7 +250,10 @@ def ingest_log(sid: str, body: LogBatch):
     batch after a dropped connection cannot duplicate rows.
     """
     _session_or_404(sid)
-    return {"ok": True, "streams": _ingest(sid, body.events, body.strokes)}
+    out = _ingest(sid, body.events, body.strokes)
+    if body.pending == 0:
+        store.set_lifecycle(sid, "uploaded")
+    return {"ok": True, "streams": out}
 
 
 @app.post("/api/sessions/{sid}/snapshot")
@@ -274,11 +304,15 @@ def submit(sid: str, body: Submit):
             fb = {"backend": "error", "text": f"反馈生成失败：{e}"}
         fb["at"] = now_iso()
         # structured record + the anchor that splits "before feedback" from "after"
-        entry = store.add_feedback(sid, {"t_ms": body.elapsed_ms, "phase": "before", "source": "ai",
-                                         "feedback_type": "formative", "backend": fb["backend"], "text": fb["text"]})
+        entry = store.add_feedback(sid, {
+            "t_ms": body.elapsed_ms, "phase": "before", "source": "ai",
+            "feedback_type": "formative", "backend": fb["backend"], "text": fb["text"],
+            # provenance, so a later model-generated intervention is comparable
+            "trigger": "submit", "model": CLAUDE_MODEL if fb["backend"] == "claude" else "",
+            "prompt_version": PROMPT_VERSION})
         fb["feedback_id"] = entry["feedback_id"]
         fb["t_ms"] = body.elapsed_ms
-        store.add_server_event(sid, "FEEDBACK_SHOWN", body.elapsed_ms,
+        store.add_server_event(sid, ev.FEEDBACK_SHOW, body.elapsed_ms,
                                {"feedback_id": entry["feedback_id"], "backend": fb["backend"], "phase": "before"})
         meta = store.update(sid, before=record, feedback=fb, status="feedback")
         return {"phase": "before", "scores": record["scores"], "feedback": fb, "session": meta}
@@ -300,8 +334,12 @@ def submit(sid: str, body: Submit):
     store.add_server_event(sid, "SESSION_END", body.elapsed_ms, {"revised": True})
     store.update(sid, after=record, comparison=cmp, revised=True, status="done")
     store.mark_ended(sid, body.elapsed_ms)
+    store.set_lifecycle(sid, "pending_upload" if body.pending else "completed_local")
+    if not body.pending:
+        store.set_lifecycle(sid, "uploaded")
     qc = _run_qc(sid, body.pending)
-    return {"phase": "after", "scores": record["scores"], "comparison": cmp, "session": store.load_full(sid), "qc": qc}
+    return {"phase": "after", "scores": record["scores"], "comparison": cmp,
+            "session": store.load_full(sid), "qc": qc}
 
 
 @app.post("/api/sessions/{sid}/finalize")
@@ -324,6 +362,9 @@ def finalize(sid: str, body: Finalize):
     store.add_server_event(sid, "SESSION_END", body.elapsed_ms, {"revised": False})
     store.update(sid, after=record, revised=False, status="done")
     store.mark_ended(sid, body.elapsed_ms)
+    store.set_lifecycle(sid, "pending_upload" if body.pending else "completed_local")
+    if not body.pending:
+        store.set_lifecycle(sid, "uploaded")
     qc = _run_qc(sid, body.pending)
     return {"session": store.load_full(sid), "qc": qc}
 
@@ -350,7 +391,7 @@ def add_feedback(sid: str, body: FeedbackIn):
     """
     _session_or_404(sid)
     rec = store.add_feedback(sid, body.model_dump())
-    store.add_server_event(sid, "FEEDBACK_SHOWN", body.t_ms,
+    store.add_server_event(sid, ev.FEEDBACK_SHOW, body.t_ms,
                            {"feedback_id": rec["feedback_id"], "source": body.source, "phase": body.phase,
                             "has_region": bool(body.target_region)})
     return {"ok": True, "feedback": rec}
@@ -381,6 +422,25 @@ def get_revision(sid: str):
     """
     _session_or_404(sid)
     return attribute_revision(store.dir(sid))
+
+
+@app.post("/api/sessions/{sid}/annotation")
+def add_annotation(sid: str, body: Annotation):
+    """An expert labelling a stretch of the replay (planning / revision / …)."""
+    meta = _session_or_404(sid)
+    duration = (meta.get("times") or {}).get("duration_ms")
+    if duration and body.t_start_ms > duration:
+        raise HTTPException(422, f"span starts after the session ended ({duration} ms)")
+    rec = store.add_annotation(sid, body.model_dump())
+    return {"ok": True, "annotation": rec}
+
+
+@app.get("/api/sessions/{sid}/annotation")
+def get_annotations(sid: str):
+    """Expert process labels, plus the replay boundaries they were drawn against."""
+    _session_or_404(sid)
+    return {"session_id": sid, "labels": list(PROCESS_LABELS),
+            "annotations": store.log(sid, "annotations").read()}
 
 
 @app.get("/api/sessions/{sid}/personalization")

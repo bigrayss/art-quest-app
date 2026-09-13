@@ -28,21 +28,31 @@ def replay_session(sid: str, out_dir: Path = None, keyframes: bool = False) -> D
     d = config.SESSIONS_DIR / sid
     if not (d / "metadata.json").exists():
         raise FileNotFoundError(2, "no such file", str(d / "metadata.json"))
+    if not (d / "strokes.jsonl").exists():
+        # a schema-1 session: it predates the stroke log, so there is nothing to
+        # replay. Not a failure — reporting it as one would bury real ones.
+        return {"session_id": sid, "skipped": "no stroke log (schema 1)", "replayable": None}
     built = rebuild(d)
     out = out_dir or (d / "replay")
     out.mkdir(parents=True, exist_ok=True)
     built["image"].save(out / "replay.png")
 
-    strokes, frames = built["strokes"], []
+    strokes, frames, marks = built["strokes"], [], []
     if keyframes and strokes:
         for pct in KEYFRAME_PCTS:
             n = max(1, round(len(strokes) * pct / 100))
             render(strokes, built["size"], n, stimulus=built.get("stimulus")).save(
                 out / f"keyframe_{pct:03d}.png")
             frames.append(pct)
+        # …and at the moments that matter, not only at round percentages
+        for b in built.get("boundaries") or []:
+            render(strokes, built["size"], b["n_strokes"], stimulus=built.get("stimulus")).save(
+                out / f"keyframe_{b['name']}.png")
+            marks.append(b["name"])
 
     report = {"session_id": sid, "canvas": list(built["size"]),
-              "points": built["points"], "keyframes": frames}
+              "points": built["points"], "keyframes": frames, "marks": marks,
+              "boundaries": built.get("boundaries") or []}
     report.update(check_final(d, built))
     rel, streams = report.get("rel"), report.get("streams") or {}
     report["replayable"] = (bool(strokes)
@@ -71,7 +81,7 @@ def main() -> int:
         except FileNotFoundError as e:
             print(f"{sid}: missing {e.filename}"); bad += 1; continue
         print(json.dumps(rep, ensure_ascii=False))
-        bad += 0 if rep["replayable"] else 1
+        bad += 1 if rep["replayable"] is False else 0
     if a.check and bad:
         print(f"{bad} session(s) not replayable", file=sys.stderr)
         return 1

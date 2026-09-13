@@ -15,7 +15,9 @@ Client records carry a monotonic `seq` per stream; appends drop anything at or
 below the stored high-water mark, so an offline client can safely re-send.
 """
 import base64
+import hashlib
 import re
+import shutil
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -28,8 +30,13 @@ from . import config          # read through the module: the data dir is env-dri
 from .logstore import JsonlLog, read_json, write_json
 
 SCHEMA_VERSION = 2
+
+# Where a session is in its journey from the child's screen to a verified row.
+# Separate from `status` (which says where the *child* is): a finished drawing
+# whose last batch never uploaded is done for the child and not done for the data.
+LIFECYCLE = ("recording", "completed_local", "pending_upload", "uploaded", "server_verified")
 _DATAURL_RE = re.compile(r"^data:image/(png|jpeg);base64,(.+)$", re.DOTALL)
-_STREAMS = ("events", "strokes", "feedback", "ratings")
+_STREAMS = ("events", "strokes", "feedback", "ratings", "annotations")
 
 
 def now_iso() -> str:
@@ -139,12 +146,42 @@ class SessionStore:
             "comparison": None,
             "revised": None,
             "questionnaire": None,
+            "lifecycle": "recording",
             "streams": {s: {"last_seq": 0, "count": 0} for s in _STREAMS},
             "counts": {"strokes": 0, "points": 0, "events": 0, "snapshots": 0},
             "qc": None,
         }
         self._write(sid, meta)
         return meta
+
+    # -- lifecycle ---------------------------------------------------------
+    def set_lifecycle(self, sid: str, state: str) -> Dict[str, Any]:
+        """Advance the upload lifecycle. Never moves backwards.
+
+        A session that reached `uploaded` cannot be demoted by a late duplicate
+        batch, and `server_verified` is only ever set by QC.
+        """
+        meta = self.load(sid)
+        cur = meta.get("lifecycle", "recording")
+        if state in LIFECYCLE and LIFECYCLE.index(state) > LIFECYCLE.index(cur):
+            meta["lifecycle"] = state
+            meta.setdefault("lifecycle_at", {})[state] = now_iso()
+            self._write(sid, meta)
+        return meta
+
+    def log_checksum(self, sid: str) -> Dict[str, Any]:
+        """Content hash of the two primary logs.
+
+        Recorded when a session is verified, so later corruption or a partial
+        re-upload is detectable rather than silently analysed.
+        """
+        out: Dict[str, Any] = {}
+        for stream in ("events", "strokes"):
+            path = self.dir(sid) / f"{stream}.jsonl"
+            if path.exists():
+                data = path.read_bytes()
+                out[stream] = {"sha256": hashlib.sha256(data).hexdigest()[:32], "bytes": len(data)}
+        return out
 
     def load(self, sid: str) -> Dict[str, Any]:
         meta = read_json(self._meta_path(sid))
@@ -160,7 +197,10 @@ class SessionStore:
             meta["strokes_summary"] = self._strokes_summary(sid)
             meta["feedback_log"] = self.log(sid, "feedback").read()
             meta["ratings"] = self.log(sid, "ratings").read()
+            meta["annotations"] = self.log(sid, "annotations").read()
             meta["condition_snapshot"] = self.condition_snapshot(sid)
+            meta.setdefault("questionnaire", None)
+            meta["questionnaire"] = meta["questionnaire"] or self.self_report(sid)
             meta["personalization"] = self.personalization(sid)
         meta.setdefault("events", [])
         return meta
@@ -309,6 +349,19 @@ class SessionStore:
         self._write(sid, meta)
         return rec
 
+    def add_annotation(self, sid: str, record: Dict[str, Any]) -> Dict[str, Any]:
+        """Append one expert span. Append-only and rater-tagged, like ratings."""
+        meta = self.load(sid)
+        state = meta.setdefault("streams", {}).setdefault("annotations", {"last_seq": 0, "count": 0})
+        rec = dict(record)
+        rec.update({"annotation_id": f"an_{uuid.uuid4().hex[:8]}", "seq": None,
+                    "src": "server", "ts": now_iso(), "session_id": sid})
+        self.log(sid, "annotations").append([rec])
+        state["count"] = int(state.get("count", 0)) + 1
+        meta.setdefault("counts", {})["annotations"] = state["count"]
+        self._write(sid, meta)
+        return rec
+
     def _strokes_summary(self, sid: str) -> Dict[str, Any]:
         log = self.log(sid, "strokes")
         rows = log.read()
@@ -365,8 +418,38 @@ class SessionStore:
         self._write(sid, meta)
         return meta
 
+    def self_report(self, sid: str) -> Optional[Dict[str, Any]]:
+        """The child's own answers — `self_report.json`, or the older name."""
+        d = self.dir(sid)
+        return read_json(d / "self_report.json") or read_json(d / "questionnaire.json")
+
+    def save_quality(self, sid: str, result: Dict[str, Any]) -> Dict[str, Any]:
+        """`quality.json` beside the data it judges, not only inside metadata."""
+        write_json(self.dir(sid) / "quality.json", result)
+        return result
+
+    def copy_reference(self, sid: str, quest: Dict[str, Any]) -> Optional[str]:
+        """Keep the stimulus the child saw inside the session directory.
+
+        The file in `static/refs/` will be replaced when a real stimulus lands;
+        a session that points at a path is not self-contained, and the artwork
+        would end up next to an image nobody showed this child.
+        """
+        ref = quest.get("reference") or {}
+        url = (ref.get("file") or "").lstrip("/")
+        if not url:
+            return None
+        src = config.BASE_DIR / url
+        if not src.exists():
+            return None
+        dest_dir = self.dir(sid) / "reference"
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        dest = dest_dir / src.name
+        shutil.copyfile(src, dest)
+        return f"reference/{src.name}"
+
     def save_questionnaire(self, sid: str, answers: Dict[str, Any]) -> Dict[str, Any]:
         rec = dict(answers, session_id=sid, at=now_iso())
-        write_json(self.dir(sid) / "questionnaire.json", rec)
+        write_json(self.dir(sid) / "self_report.json", rec)
         self.update(sid, questionnaire=rec)
         return rec

@@ -28,6 +28,7 @@ import statistics
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from . import config
+from . import events as ev
 from .logstore import read_json
 from .reconstruct import read_jsonl, visible_ids
 from .scoring.base import DIM_KEYS
@@ -98,37 +99,50 @@ def _process_from_events(sid: str) -> Dict[str, Any]:
     tools: Dict[str, int] = {}
     colors: Dict[str, int] = {}
     counts = {"stroke": 0, "erase": 0, "undo": 0, "redo": 0, "clear": 0,
-              "zoom": 0, "pan": 0, "reference_open": 0}
+              "zoom": 0, "pan": 0, "reference_open": 0, "reference_zoom": 0,
+              "to_reference": 0, "to_canvas": 0}
     pauses: List[int] = []
-    ref_ms, ref_open_at = 0, None
+    ref_ms, ref_open_at, ref_zoom_max = 0, None, 1.0
     zoom_max, zoomed_strokes, at_zoom = 1.0, 0, 1.0
 
     for e in events:
-        kind, p = e.get("type"), e.get("payload") or {}
-        if kind == "STROKE" or kind == "ERASE":
-            counts["stroke" if kind == "STROKE" else "erase"] += 1
+        kind, p = ev.canonical(e.get("type")), e.get("payload") or {}
+        if kind in (ev.STROKE_END, ev.ERASE):
+            counts["stroke" if kind == ev.STROKE_END else "erase"] += 1
             if p.get("tool"):
                 tools[p["tool"]] = tools.get(p["tool"], 0) + 1
             if p.get("color"):
                 colors[p["color"]] = colors.get(p["color"], 0) + 1
             if at_zoom > 1.0:
                 zoomed_strokes += 1
-        elif kind in ("UNDO", "REDO", "CLEAR"):
+        elif kind in (ev.UNDO, ev.REDO, ev.CLEAR):
             counts[kind.lower()] += 1
-        elif kind == "ZOOM":
+        elif kind == ev.ZOOM:
             counts["zoom"] += 1
             at_zoom = float(p.get("to") or 1.0)
             zoom_max = max(zoom_max, at_zoom)
-        elif kind == "PAN":
+        elif kind == ev.PAN:
             counts["pan"] += 1
-        elif kind == "IDLE_END":
+        elif kind == ev.PAUSE_END:
             pauses.append(int(p.get("duration_ms") or 0))
-        elif kind == "REFERENCE_OPEN":
+        elif kind == ev.REFERENCE_OPEN:
             counts["reference_open"] += 1
             ref_open_at = e.get("t_ms") or 0
-        elif kind == "REFERENCE_CLOSE" and ref_open_at is not None:
-            ref_ms += max(0, (e.get("t_ms") or 0) - ref_open_at)
+        elif kind == ev.REFERENCE_CLOSE:
+            # prefer the client's own measurement; fall back to the timeline
+            dur = p.get("view_duration_ms")
+            if isinstance(dur, (int, float)):
+                ref_ms += int(dur)
+            elif ref_open_at is not None:
+                ref_ms += max(0, (e.get("t_ms") or 0) - ref_open_at)
             ref_open_at = None
+        elif kind == ev.REFERENCE_ZOOM:
+            counts["reference_zoom"] += 1
+            ref_zoom_max = max(ref_zoom_max, float(p.get("to") or 1.0))
+        elif kind == ev.REFERENCE_FOCUS:
+            counts["to_reference"] += 1
+        elif kind == ev.CANVAS_FOCUS:
+            counts["to_canvas"] += 1
 
     drawn = counts["stroke"] + counts["erase"]
     visible = visible_ids(events)
@@ -144,6 +158,9 @@ def _process_from_events(sid: str) -> Dict[str, Any]:
         "zoom_gestures": counts["zoom"], "pan_gestures": counts["pan"],
         "zoom_max": round(zoom_max, 2), "strokes_while_zoomed": zoomed_strokes,
         "reference_opens": counts["reference_open"], "reference_ms": ref_ms,
+        "reference_zooms": counts["reference_zoom"], "reference_zoom_max": round(ref_zoom_max, 2),
+        # look → draw → check → correct shows up as switching, not as "it was open"
+        "canvas_to_reference": counts["to_reference"], "reference_to_canvas": counts["to_canvas"],
     }
 
 
