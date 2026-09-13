@@ -224,3 +224,7 @@ body.quiet #collection-wrap { display:none; }
 .refbar { display:flex; align-items:center; gap:5px; margin-top:6px; flex-wrap:wrap; }
 .refbar button { padding:3px 8px; font-size:12px; }
 .refbar #btn-ref-reset { min-width:56px; font-variant-numeric:tabular-nums; }
+
+/* One artwork instead of an unchanged before/after pair. */
+.compare.single { grid-template-columns: minmax(0, 1fr); max-width: 760px; margin-inline: auto; }
+.compare figure.hidden { display: none; }

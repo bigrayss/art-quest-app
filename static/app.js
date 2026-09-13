@@ -61,7 +61,7 @@
   const buddyColor = () => state.color || "#e8632b";
 
   // ===== 顶部探险路线（藏宝图闯关） =====
-  const STAGES = [
+  const ALL_STAGES = [
     { key: "quest",  name: "出发", icon: "🎒" },
     { key: "intent", name: "心愿", icon: "💭" },
     { key: "draw",   name: "创作", icon: "🎨" },
@@ -71,8 +71,14 @@
   ];
   function renderTrail(currentKey) {
     const el = document.getElementById("trail"); if (!el) return;
+    // The map must not promise stations this condition never visits: with no
+    // feedback there is no 支招 and no 进化, and a child staring at two locked
+    // stops they can never reach is being told they failed at something.
+    const quiet = state.condition && state.condition.feedback_source !== "ai";
+    const STAGES = ALL_STAGES.filter(s => !(quiet && (s.key === "result" || s.key === "evolve")));
     const order = STAGES.map(s => s.key), idx = order.indexOf(currentKey);
-    const xs = STAGES.map((_, i) => 80 + i * 208);           // 80,288,…,1120
+    const span = STAGES.length > 1 ? 1040 / (STAGES.length - 1) : 0;
+    const xs = STAGES.map((_, i) => 80 + i * span);
     const ys = STAGES.map((_, i) => (i % 2 === 0 ? 58 : 78)); // gentle zigzag
     const status = STAGES.map((s, i) => {
       if (currentKey === "final") {
@@ -781,6 +787,14 @@
       const pending = await flushLog();
       const r = await api(`/api/sessions/${state.sessionId}/submit`, { method: "POST", body: JSON.stringify({ image, elapsed_ms: elapsed(), phase: "before", pending }) });
       state.before = { image, scores: r.scores };
+      if (!r.feedback) {
+        // the frozen condition says this session carries no feedback, so there
+        // is nothing to read and nothing to revise in response to
+        const done = await api(`/api/sessions/${state.sessionId}/finalize`,
+          { method: "POST", body: JSON.stringify({ elapsed_ms: elapsed(), pending }) });
+        overlay(null);
+        return endSession(done.session, image, image, null);
+      }
       $("#result-img").src = image; renderScores($("#scores"), r.scores, null); $("#score-summary").textContent = r.scores.summary || "";
       const fbSp = $("#fb-sprite"); if (fbSp) fbSp.innerHTML = spriteInner(buddyColor(), "happy");
       // remember which feedback this is, so the revision can be attributed to it
@@ -882,10 +896,24 @@
   function showFinal(session, beforeImg, afterImg, comparison) {
     state.revised = session.revised;
     $("#final-before").src = beforeImg; $("#final-after").src = afterImg;
+    // no revision happened, so "before / after" would be the same image twice
+    const noRevision = state.condition && state.condition.feedback_source !== "ai";
+    $("#final-before").closest("figure").classList.toggle("hidden", noRevision);
+    document.querySelector("#view-final .compare")?.classList.toggle("single", noRevision);
+    const cap = $("#final-after").nextElementSibling;
+    if (cap) cap.textContent = noRevision ? "你的作品" : "修改后";
     const cmpSp = $("#cmp-sprite"); if (cmpSp) cmpSp.innerHTML = spriteInner(buddyColor(), session.revised ? "happy" : "normal");
-    $("#comparison-text").textContent = comparison ? comparison.text : "这次没有走进化关～下次试试根据我的话改一小处，就能解锁 🔁 进化大师徽章！";
+    // In a no-feedback condition the child is shown their work and their
+    // badges, but no evaluation: assessment keeps running server-side, it just
+    // stops being an intervention this session.
+    const quiet = state.condition.feedback_source !== "ai";
+    $("#comparison-text").textContent = quiet
+      ? "画完啦！你的创作已经保存下来了。"
+      : (comparison ? comparison.text : "这次没有走进化关～下次试试根据我的话改一小处，就能解锁 🔁 进化大师徽章！");
     renderBadges(session);
-    renderScores($("#final-scores"), session.after.scores, session.before.scores);
+    const scores = $("#final-scores");
+    scores.classList.toggle("hidden", quiet);
+    if (!quiet) renderScores(scores, session.after.scores, session.before.scores);
     $("#final-meta").textContent = `Session ${session.id} · 过程截图 ${session.snapshots.length} 张 · 事件 ${session.events.length} 条 · 数据在 data/sessions/${session.id}/`;
     show("final");
   }
@@ -893,18 +921,28 @@
   // ===== 过程徽章（只奖励过程，不奖励分数）=====
   const dimScore = (s, k) => ((s.after || s.before || {}).scores?.dims?.[k]?.score) ?? 0;
   const drawMs = (s) => (s.after?.elapsed_ms || s.before?.elapsed_ms || 0);
+  // Mirrors artquest/events.canonical(): a session recorded under the old
+  // vocabulary must still light the same badges.
+  const EV_ALIAS = { STROKE: "STROKE_END", IDLE_START: "PAUSE_START",
+                     IDLE_END: "PAUSE_END", FEEDBACK_SHOWN: "FEEDBACK_SHOW" };
+  const evType = (e) => EV_ALIAS[e.type] || e.type;
   const distinctIn = (s, types, field) => new Set((s.events || [])
-    .filter(e => types.indexOf(e.type) >= 0)
+    .filter(e => types.indexOf(evType(e)) >= 0)
     .map(e => (e.payload || e.detail || {})[field]).filter(Boolean)).size;
-  const BADGES = [
+  const ALL_BADGES = [
     { icon: "🌈", name: "冷暖对比", desc: "画面里冷色暖色都用上了", earned: s => dimScore(s, "color_contrast") >= 4 },
-    { icon: "🎨", name: "缤纷调色", desc: "用了 5 种以上颜色", earned: s => distinctIn(s, ["COLOR_CHANGE", "STROKE"], "color") >= 5 },
-    { icon: "🖌", name: "工具全能", desc: "用了 3 种以上工具", earned: s => distinctIn(s, ["BRUSH_CHANGE", "STROKE", "ERASE"], "tool") >= 3 },
+    { icon: "🎨", name: "缤纷调色", desc: "用了 5 种以上颜色", earned: s => distinctIn(s, ["COLOR_CHANGE", "STROKE_START", "STROKE_END"], "color") >= 5 },
+    { icon: "🖌", name: "工具全能", desc: "用了 3 种以上工具", earned: s => distinctIn(s, ["BRUSH_CHANGE", "STROKE_START", "STROKE_END", "ERASE"], "tool") >= 3 },
     { icon: "⏱️", name: "专注之心", desc: "专注创作超过 5 分钟", earned: s => drawMs(s) >= 300000 },
     { icon: "🔁", name: "进化大师", desc: "走完进化关，改了自己的作品", earned: s => s.revised === true, evo: true },
   ];
   function renderBadges(session) {
     const el = $("#badges"); if (!el) return;
+    // With no feedback there is no 进化关, so the badge for it is unreachable —
+    // showing it greyed out tells the child they missed something that was
+    // never on offer.
+    const quiet = state.condition && state.condition.feedback_source !== "ai";
+    const BADGES = ALL_BADGES.filter(b => !(quiet && b.evo));
     el.innerHTML = BADGES.map(b => {
       const got = !!b.earned(session);
       const hint = (!got && b.evo) ? "走完 ✨进化关 解锁" : b.desc;
