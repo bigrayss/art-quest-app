@@ -1,0 +1,24 @@
+{
+  "placeholders": [
+    "m1_scene_a",
+    "m1_scene_b",
+    "m1_scene_c",
+    "m1_scene_d",
+    "m2_scene_a",
+    "m2_scene_b",
+    "m2_scene_c",
+    "m2_scene_d",
+    "m4_backpack",
+    "m4_chair",
+    "m4_clock",
+    "m4_shoe",
+    "m4_teapot",
+    "m4_umbrella",
+    "m6_scene_a",
+    "m6_scene_b",
+    "m6_scene_c",
+    "m6_scene_d",
+    "m6_scene_e"
+  ],
+  "note": "stimulus_ids still served by a generated placeholder. Remove an id here once a real stimulus image replaces it."
+}

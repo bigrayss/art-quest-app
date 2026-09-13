@@ -93,7 +93,8 @@ class ResearchDataLayer(unittest.TestCase):
         self.assertEqual(m["schema_version"], 2)
         self.assertEqual(m["participant"], {"anon_id": "anon-abc123", "participant_id": "P007", "label": ""})
         self.assertEqual(m["task"]["task_id"], "imagine_animal")
-        self.assertEqual(m["task"]["category"], "imagination")
+        self.assertEqual(m["task"]["category"], "open_creation")   # = the family slug
+        self.assertEqual(m["task"]["family"], "M0")                # the original open quests
         self.assertEqual(m["task"]["order_index"], 2)
         self.assertEqual(m["condition"]["ui"], "quiet")          # frozen at creation
         self.assertTrue(m["condition"]["questionnaire"])

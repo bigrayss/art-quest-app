@@ -208,3 +208,8 @@ body.quiet .buddy-head,
 body.quiet #badges,
 body.quiet #badges-head,
 body.quiet #collection-wrap { display:none; }
+
+/* A dimension the task cannot elicit: greyed and spelled out, never a low bar. */
+.dim.na .name span:first-child { color: var(--muted); }
+.dim.na .wait { font-size: 12px; color: var(--muted); }
+.rose-label.na { fill: #bdb6ab; font-style: italic; }

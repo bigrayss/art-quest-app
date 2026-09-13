@@ -19,11 +19,41 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from artquest import config  # noqa: E402
 from artquest.reconstruct import read_jsonl  # noqa: E402
 from artquest.revision import attribute  # noqa: E402
+from artquest.quests import QUESTS  # noqa: E402
 from artquest.scoring.base import DIM_KEYS  # noqa: E402
+
+TASK_COLS = ["task_id", "family", "mission_family", "form_id", "version", "prompt_style",
+             "title", "instruction", "category", "difficulty", "time_limit_sec",
+             "allowed_tools", "stimulus_kind", "stimulus_id", "stimulus_placeholder",
+             "primary_dims", "secondary_dims", "exploratory_dims", "na_dims",
+             "process_targets", "research_goal"]
+
+
+def _flat_task(t):
+    r = t.get("rubric") or {}
+    return {"task_id": t["task_id"], "family": t.get("family", ""),
+            "mission_family": t.get("family_slug", ""), "form_id": t.get("form_id", ""),
+            "version": t.get("version", ""), "prompt_style": t.get("prompt_style", ""),
+            "title": t.get("title", ""), "instruction": t.get("instruction", ""),
+            "category": t.get("category", ""), "difficulty": t.get("difficulty"),
+            "time_limit_sec": t.get("time_limit_sec"),
+            "allowed_tools": "|".join(t.get("allowed_tools") or []),
+            "stimulus_kind": (t.get("stimulus") or {}).get("kind", "none"),
+            "stimulus_id": t.get("stimulus_id", ""),
+            "stimulus_placeholder": bool(t.get("stimulus_placeholder")),
+            "primary_dims": "|".join(r.get("primary_dimensions") or []),
+            "secondary_dims": "|".join(r.get("secondary_dimensions") or []),
+            "exploratory_dims": "|".join(r.get("exploratory_dimensions") or []),
+            "na_dims": "|".join(r.get("not_applicable_dimensions") or []),
+            "process_targets": "|".join(t.get("process_targets") or []),
+            "research_goal": t.get("research_goal", "")}
 
 SESSION_COLS = [
     "session_id", "created_at", "started_at", "ended_at", "duration_ms",
     "anon_id", "participant_id", "task_id", "task_category", "difficulty",
+    "family", "mission_family", "form_id", "prompt_style", "task_version",
+    "stimulus_id", "stimulus_kind", "stimulus_placeholder",
+    "primary_dims", "secondary_dims", "na_dims",
     "time_limit_sec", "allowed_tools", "reference_id", "order_index", "sequence_id",
     "study_active", "study_id", "group", "cond_ui", "cond_reference_allowed",
     "cond_undo_allowed", "cond_questionnaire", "cond_feedback_source",
@@ -83,6 +113,16 @@ def _flat_session(m: Dict[str, Any]) -> Dict[str, Any]:
         "duration_ms": times.get("duration_ms"),
         "anon_id": p.get("anon_id", ""), "participant_id": p.get("participant_id", ""),
         "task_id": m.get("quest_id"), "task_category": t.get("category"), "difficulty": t.get("difficulty"),
+        "family": t.get("family", ""), "mission_family": t.get("mission_family", ""),
+        "form_id": t.get("form_id", ""), "prompt_style": t.get("prompt_style", ""),
+        "task_version": t.get("task_version", ""),
+        "stimulus_id": t.get("stimulus_id", ""), "stimulus_kind": t.get("stimulus_kind", ""),
+        "stimulus_placeholder": t.get("stimulus_placeholder"),
+        # the rubric contract travels with the row: a reader must be able to tell
+        # a dimension this task could not test from one it tested badly
+        "primary_dims": "|".join((t.get("rubric") or {}).get("primary_dimensions") or []),
+        "secondary_dims": "|".join((t.get("rubric") or {}).get("secondary_dimensions") or []),
+        "na_dims": "|".join((t.get("rubric") or {}).get("not_applicable_dimensions") or []),
         "time_limit_sec": t.get("time_limit_sec"),
         "allowed_tools": "|".join(t.get("allowed_tools") or []) if t.get("allowed_tools") else "",
         "reference_id": t.get("reference_id") or "", "order_index": t.get("order_index"),
@@ -199,6 +239,9 @@ def export(out: Path, with_points: bool = False) -> Dict[str, int]:
         "questionnaire": _write(out / "questionnaire.csv", ["session_id", "difficulty", "confidence", "enjoyment",
                                                             "hardest_part", "free_text", "at"], quest),
         "personalization": _write(out / "personalization.csv", PERSONALIZATION_COLS, personal),
+        # the dataset ships its own measurement objects: without the task
+        # definitions the session rows are ids nobody can resolve
+        "tasks": _write(out / "tasks.csv", TASK_COLS, [_flat_task(t) for t in QUESTS]),
     }
     return counts
 

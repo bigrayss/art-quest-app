@@ -7,7 +7,7 @@
     return r.json();
   };
 
-  const state = { cfg: null, quests: [], quest: null, emotion: null, sessionId: null, phase: "before", feedback: null,
+  const state = { cfg: null, quests: [], families: [], quest: null, emotion: null, sessionId: null, phase: "before", feedback: null,
     startedAt: null, dirtySinceSnapshot: false, timers: [], before: null, color: "#e8632b", buddyTick: 0,
     anonId: "", condition: {}, study: null, seqIdx: 0, lastActivity: 0, idle: false, timeUp: false, pendingFinal: null };
 
@@ -144,6 +144,34 @@
   }
 
   function resetCanvas() { ctx.globalAlpha = 1; ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height); undoStack.length = redoStack.length = 0; visible = []; undoDoc.length = redoDoc.length = 0; }
+  /** The task's starting canvas. Mirrors artquest/reconstruct.draw_stimulus()
+   *  exactly — replay is `initial canvas + strokes + events`, so if these two
+   *  drew different fragments every such session would fail its QC replay check.
+   *  Drawn before the undo stack exists, so it can never be undone away. */
+  function drawStimulus(stim) {
+    if (!stim || stim.kind !== "fragments") return;
+    ctx.save();
+    ctx.globalAlpha = 1; ctx.strokeStyle = stim.stroke || "#3a3a3a";
+    ctx.fillStyle = stim.stroke || "#3a3a3a"; ctx.lineWidth = stim.width || 3;
+    ctx.lineCap = "round"; ctx.lineJoin = "round";
+    const R = Math.PI / 180;
+    (stim.items || []).forEach(it => {
+      ctx.beginPath();
+      if (it.type === "dot") { ctx.arc(it.x, it.y, it.r, 0, Math.PI * 2); ctx.fill(); return; }
+      if (it.type === "line") { ctx.moveTo(it.x1, it.y1); ctx.lineTo(it.x2, it.y2); }
+      else if (it.type === "arc") { ctx.arc(it.cx, it.cy, it.r, it.a0 * R, it.a1 * R); }
+      else if (it.type === "corner") { ctx.moveTo(it.x, it.y); ctx.lineTo(it.x, it.y + it.h); ctx.lineTo(it.x + it.w, it.y + it.h); }
+      else if (it.type === "curve") { ctx.moveTo(it.x1, it.y1); ctx.quadraticCurveTo(it.cx, it.cy, it.x2, it.y2); }
+      else if (it.type === "rect_open") {
+        const g = it.gap || "top", x = it.x, y = it.y, w = it.w, h = it.h;
+        const side = { top: [x, y, x + w, y], right: [x + w, y, x + w, y + h],
+                       bottom: [x, y + h, x + w, y + h], left: [x, y, x, y + h] };
+        Object.keys(side).forEach(k => { if (k !== g) { const p = side[k]; ctx.moveTo(p[0], p[1]); ctx.lineTo(p[2], p[3]); } });
+      }
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
   function pos(e) {
     const r = canvas.getBoundingClientRect();
     return { x: (e.clientX - r.left) * canvas.width / r.width, y: (e.clientY - r.top) * canvas.height / r.height, p: e.pressure || 0.5 };
@@ -489,6 +517,7 @@
   }
   /** Per-task condition: reference image, time limit, allowed tools. */
   function applyTask(q) {
+    drawStimulus(q.stimulus);
     const ref = q.reference, allowRef = state.condition.reference_allowed && !!ref;
     $("#refpanel").classList.toggle("hidden", !allowRef);
     $("#ref-wrap").classList.add("hidden");
@@ -510,26 +539,61 @@
   $("#btn-ref-toggle").onclick = () => toggleRef();
 
   // ---------- flow ----------
+  /** Pick which parallel form of a family this child gets in free play.
+   *  In Study Mode the protocol has already chosen; here it is just variety. */
+  function randomForm(familyId) {
+    const forms = state.quests.filter(q => q.family === familyId);
+    return forms.length ? forms[Math.floor(Math.random() * forms.length)] : null;
+  }
+
   function renderQuests() {
     const grid = $("#quest-grid"); grid.innerHTML = "";
     const seq = state.study && state.study.sequence ? state.study.sequence : null;
     const byId = Object.fromEntries(state.quests.map(q => [q.id, q]));
-    const list = seq ? seq.map(id => byId[id]).filter(Boolean) : state.quests;
-    list.forEach((q, i) => {
-      const fb = QUEST_STYLE[q.id] || {};
-      const icon = q.icon || fb.icon || "🎨", col = q.color || fb.c || "#e8632b";
-      const locked = !!seq && i !== state.seqIdx;
-      const c = document.createElement("div");
-      c.className = "quest-card" + (locked ? " locked" : ""); c.style.setProperty("--qc", col);
-      c.innerHTML = `<div class="qc-top"><span class="qc-icon">${icon}</span><span class="type">${q.type}</span></div>`
-        + `<h3>${q.title}</h3><p>${q.prompt}</p>`
-        + `<span class="qc-go">${locked ? "稍后解锁" : seq ? `第 ${i + 1} 关 · 开始 →` : "开始创作 →"}</span>`;
-      if (!locked) c.onclick = () => chooseQuest(q);
-      grid.appendChild(c);
+
+    // Study Mode: the protocol names exact forms, in order. Free play: the child
+    // picks a *mission family* — 75 forms is a task library, not a treasure map,
+    // and which parallel form they get is not a choice the child should make.
+    const cards = seq
+      ? seq.map(id => byId[id]).filter(Boolean).map((q, i) => ({
+          key: q.id, icon: q.icon, color: q.color, kind: q.type, title: q.title,
+          body: q.prompt, locked: i !== state.seqIdx,
+          go: i !== state.seqIdx ? "稍后解锁" : `第 ${i + 1} 关 · 开始 →`, task: q }))
+      : (state.families || []).filter(f => f.n_forms).map(f => ({
+          key: f.id, icon: f.icon, color: f.color, kind: f.name,
+          title: f.name, body: familyBlurb(f), locked: false,
+          go: "开始创作 →", family: f.id }));
+
+    cards.forEach(c => {
+      const el = document.createElement("div");
+      el.className = "quest-card" + (c.locked ? " locked" : "");
+      el.style.setProperty("--qc", c.color || "#e8632b");
+      el.innerHTML = `<div class="qc-top"><span class="qc-icon">${c.icon || "🎨"}</span><span class="type">${c.kind}</span></div>`
+        + `<h3>${c.title}</h3><p>${c.body}</p><span class="qc-go">${c.go}</span>`;
+      if (!c.locked) el.onclick = () => {
+        const q = c.task || randomForm(c.family);
+        if (q) chooseQuest(q);
+      };
+      grid.appendChild(el);
     });
   }
+  /** One child-facing line per family — never the research goal. */
+  const FAMILY_BLURB = {
+    M0: "自己决定画什么，没有标准答案。",
+    M1: "一幅画损坏了，把重要的东西重新画回来。",
+    M2: "把看到的场景准确记录下来，让别人也能看懂。",
+    M3: "画布上只剩几个碎片，把它们变成一整幅画。",
+    M4: "把一个普通的东西改造成完全不同的用途。",
+    M5: "把两个毫不相干的东西融合成一个新东西。",
+    M6: "用颜色让整个地方换一种感觉。",
+    M7: "先只用线条，再让线条长成一幅作品。",
+    M8: "这个世界的规则和我们不一样，画出这里的生活。",
+    M9: "一个故事的开头，接下来由你来画。",
+  };
+  const familyBlurb = (f) => FAMILY_BLURB[f.id] || "";
   async function init() {
     state.cfg = await api("/api/config"); state.quests = await api("/api/quests");
+    state.families = await api("/api/families");
     state.anonId = anonId();
     $("#backend-badge").textContent = `评分: ${state.cfg.scorer} · 反馈: ${state.cfg.feedback}` + (state.cfg.claude_available ? "" : " (离线模式)");
     await setupStudy();
@@ -746,6 +810,16 @@
     let sectors = "", marks = "", labels = "";
     CHART_ORDER.forEach((key, i) => {
       const d = dimsByKey[key], sc = scores.dims[key]; if (!d || !sc) return;
+      // N/A gets a hollow slot, never a short petal: a small sector would read
+      // as a low score for something this task never tested
+      if (isNA(sc)) {
+        const a0n = -90 + i * SLOT + PAD, a1n = -90 + (i + 1) * SLOT - PAD, midn = (a0n + a1n) / 2;
+        const [nx, ny] = polar(cx, cy, LABEL_R, midn);
+        const anch = Math.cos(midn * Math.PI / 180) > 0.25 ? "start" : Math.cos(midn * Math.PI / 180) < -0.25 ? "end" : "middle";
+        sectors += `<path d="${sectorPath(cx, cy, R, a0n, a1n)}" fill="none" stroke="#e6e0d6" stroke-width="1" stroke-dasharray="3 3"><title>${d.zh}：这个任务不考察</title></path>`;
+        labels += `<text x="${fmt(nx)}" y="${fmt(ny)}" text-anchor="${anch}" class="rose-label na">${d.zh}</text>`;
+        return;
+      }
       const fam = FAMILIES[DIM_FAMILY[key]];
       const a0 = -90 + i * SLOT + PAD, a1 = -90 + (i + 1) * SLOT - PAD, mid = (a0 + a1) / 2;
       const r = rOf(sc.score), isFocus = focus.has(key), ph = isPlaceholder(sc);
@@ -777,12 +851,19 @@
   }
 
   const isPlaceholder = (s) => /需模型评分/.test(s.note || "");
+  /** N/A is not a low score — the task could not elicit this dimension at all. */
+  const isNA = (s) => !!(s && (s.na || s.score === null || s.score === undefined));
   function stars(v) { const n = Math.round(Math.max(1, Math.min(state.cfg.scale_max, v))); return `${"★".repeat(n)}<u>${"☆".repeat(state.cfg.scale_max - n)}</u>`; }
 
   function renderScores(el, scores, baseline) {
     const focus = new Set(state.quest ? state.quest.focus_dims : []);
     const notes = state.cfg.dimensions.map(d => {
       const s = scores.dims[d.key]; if (!s) return "";
+      if (isNA(s)) {
+        const fam0 = FAMILIES[DIM_FAMILY[d.key]];
+        return `<div class="dim na"><div class="name"><span><i class="dot" style="background:#d8d2c8"></i>${d.zh}</span>`
+          + `<span class="sval"><span class="wait">这个任务不考察</span></span></div></div>`;
+      }
       const ph = isPlaceholder(s);
       const b = baseline && baseline.dims[d.key], delta = b ? s.score - b.score : null;
       const arrow = (!ph && delta !== null && Math.abs(delta) >= 0.05)

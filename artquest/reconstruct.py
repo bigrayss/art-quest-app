@@ -144,6 +144,49 @@ def audit_streams(events: List[Dict[str, Any]],
     return out
 
 
+# -- the initial canvas ------------------------------------------------------
+# Replay is `initial canvas + stroke stream + events`. For a family like M3 the
+# initial canvas is not blank: incomplete figures are printed on it, and the
+# child draws over them. They are stored as vector primitives in canvas space
+# (not a bitmap) so this renderer and `static/app.js` produce the identical
+# starting image — otherwise every fragment session would fail `replay_matches_final`.
+def draw_stimulus(img: Image.Image, stimulus: Optional[Dict[str, Any]]) -> Image.Image:
+    if not stimulus or stimulus.get("kind") != "fragments":
+        return img
+    d = ImageDraw.Draw(img)
+    color, w = stimulus.get("stroke", "#3a3a3a"), int(stimulus.get("width", 3))
+    for it in stimulus.get("items") or []:
+        kind = it.get("type")
+        if kind == "dot":
+            r = it["r"]
+            d.ellipse((it["x"] - r, it["y"] - r, it["x"] + r, it["y"] + r), fill=color)
+        elif kind == "line":
+            d.line((it["x1"], it["y1"], it["x2"], it["y2"]), fill=color, width=w)
+        elif kind == "arc":
+            cx, cy, r = it["cx"], it["cy"], it["r"]
+            d.arc((cx - r, cy - r, cx + r, cy + r), it["a0"], it["a1"], fill=color, width=w)
+        elif kind == "corner":
+            x, y, ww, hh = it["x"], it["y"], it["w"], it["h"]
+            d.line((x, y, x, y + hh), fill=color, width=w)
+            d.line((x, y + hh, x + ww, y + hh), fill=color, width=w)
+        elif kind == "curve":
+            pts = []
+            for i in range(33):                     # quadratic bezier, sampled
+                t = i / 32.0
+                u = 1 - t
+                pts.append((u * u * it["x1"] + 2 * u * t * it["cx"] + t * t * it["x2"],
+                            u * u * it["y1"] + 2 * u * t * it["cy"] + t * t * it["y2"]))
+            d.line(pts, fill=color, width=w, joint="curve")
+        elif kind == "rect_open":
+            x, y, ww, hh, gap = it["x"], it["y"], it["w"], it["h"], it.get("gap", "top")
+            sides = {"top": (x, y, x + ww, y), "right": (x + ww, y, x + ww, y + hh),
+                     "bottom": (x, y + hh, x + ww, y + hh), "left": (x, y, x, y + hh)}
+            for name, seg in sides.items():
+                if name != gap:
+                    d.line(seg, fill=color, width=w)
+    return img
+
+
 # -- rendering -------------------------------------------------------------
 def _width(stroke: Dict[str, Any], pressure: float) -> float:
     tool = stroke.get("tool", "pencil")
@@ -163,9 +206,11 @@ def _paint(draw: ImageDraw.ImageDraw, stroke: Dict[str, Any],
         draw.ellipse((pts[0][0] - r, pts[0][1] - r, pts[0][0] + r, pts[0][1] + r), fill=color)
 
 
-def render(strokes: List[Dict[str, Any]], size: Tuple[int, int], upto: int = -1) -> Image.Image:
-    """Paint the given strokes onto a white canvas of `size`."""
+def render(strokes: List[Dict[str, Any]], size: Tuple[int, int], upto: int = -1,
+           stimulus: Optional[Dict[str, Any]] = None) -> Image.Image:
+    """Paint the given strokes onto the task's initial canvas."""
     img = Image.new("RGBA", size, (255, 255, 255, 255))
+    draw_stimulus(img, stimulus)
     n = len(strokes) if upto < 0 else max(0, min(upto, len(strokes)))
     for s in strokes[:n]:
         pts = s.get("points") or []
@@ -250,8 +295,10 @@ def rebuild(session_dir: Path) -> Dict[str, Any]:
     events = read_jsonl(d / "events.jsonl")
     vis = visible_strokes(events, strokes)
     size = canvas_size(meta)
-    return {"meta": meta, "size": size, "strokes": vis,
-            "image": render(vis, size),
+    # the frozen condition is what says whether the canvas started blank
+    stimulus = ((read_json(d / "condition.json") or {}).get("stimulus")) or None
+    return {"meta": meta, "size": size, "strokes": vis, "stimulus": stimulus,
+            "image": render(vis, size, stimulus=stimulus),
             "audit": audit_streams(events, strokes),
             "logged": len(strokes), "visible": len(vis),
             "points": sum(len(s.get("points") or []) for s in vis)}

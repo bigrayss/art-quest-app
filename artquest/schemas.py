@@ -40,6 +40,7 @@ class Canvas(BaseModel):
 class StudyContext(BaseModel):
     active: bool = False
     study_id: str = ""
+    protocol_id: str = ""
     group: str = ""
     order_index: Optional[int] = None
     sequence_id: str = ""

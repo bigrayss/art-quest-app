@@ -19,7 +19,7 @@ cp .env.example .env          # 可选：填入 ANTHROPIC_API_KEY
 测试：
 
 ```bash
-./test.sh                     # 36 项，离线后端，不需要 API key
+./test.sh                     # 52 项，离线后端，不需要 API key
 ```
 
 其中 `tests/test_browser.py` 会用系统的 Chrome 真跑一遍（缩放后坐标是否还准、含撤销的 session 能否重建）。
@@ -52,6 +52,7 @@ cp .env.example .env          # 可选：填入 ANTHROPIC_API_KEY
 ```
 data/sessions/<id>/
   metadata.json       身份、任务、条件、设备、时间、计数、QC 结果
+  condition.json      **孩子当时实际看到的完整任务定义**（tasks.json 会变，task_id 不足以还原）
   events.jsonl        append-only 操作日志：{seq, src, ts, t_ms, type, payload}
   strokes.jsonl       append-only 逐笔记录 + 采样点（见下）
   feedback.jsonl      每一条反馈：{feedback_id, source, feedback_type, text, target_region, shown_at}
@@ -137,6 +138,104 @@ final 图是否落盘、时间是否单调、时长是否合理、每笔采样�
 
 `heuristic` 后端只对色彩 / 线条 / 画面组织有信号，写实、变形、想象、转化四个语义维度返回中间值并标注“需模型评分”。
 
+## Creative Mission Task Library：任务是一个「测量对象」
+
+最关键的设计变化：**任务不再只是给孩子看的一段 prompt**。库里的每一行同时知道六件事——
+它想诱发什么行为、对应哪些 9D 属性、**哪些维度它根本无法考察**、属于哪个 parallel form、
+在什么条件下执行、孩子看到的是哪种叙事。
+
+后台是 experimental condition，孩子看到的是 **Creative Mission**。孩子不该觉得
+"现在在测你的 imagination"，而该觉得"我要解决一个有趣的问题"——所以每个家族都有叙事化的 prompt bank。
+
+| 家族 | 孩子看到 | 研究目标 | Primary 9D |
+|---|---|---|---|
+| M0 自由创作 | 自己决定画什么 | 开放创作基线（每个研究字段取宽松值） | 无（全部 exploratory） |
+| M1 博物馆修复师 | 修复一幅损坏的画 | visual organization、global/local strategy、reference-based reconstruction | Realism · Picture Org · Line Comb |
+| M2 探险家速写 | 准确记录一个场景 | observation + spatial reasoning + reference strategy | Realism · Picture Org |
+| M3 失落的碎片 | 把碎片变成一整幅画 | incomplete-figure creativity（TCT-DP / TTCT 范式，刺激自制） | Imagination · Transformation · Picture Org |
+| M4 变异物体实验室 | 把普通物体改造成别的用途 | deformation + transformation + imagination | Deformation · Transformation · Imagination |
+| M5 融合发明家 | 融合两个不相干的概念 | conceptual integration（与 M4 是不同 construct） | Transformation · Deformation · Imagination |
+| M6 情绪世界 | 用颜色换一种感觉 | 让 color richness / contrast 真正 observable | Color Richness · Color Contrast |
+| M7 线条冒险 | 先只画线，再长成作品 | line combination / texture，两阶段 | Line Comb · Line Texture · Transformation · Imagination |
+| M8 不可能世界 | 规则不同的世界里的生活 | 最接近 authentic creation，但由 world-rule generator 约束 | Imagination · Transformation · Picture Org |
+| M9 故事挑战 | 一个故事的开头 | ecological validity：受控任务里的模式在真实创作里还在吗 | Imagination · Picture Org |
+
+**parallel form 与生成器**：M4 由 `base object × environment × function` 三张卡组合，
+每个组合再配 `minimal / story / challenge` 三种 prompt style（style 是被记录的变量，不是随手写法）；
+M5 是概念对，M7 是抽象概念，M8 抽 2–3 条 world rule。当前库共 **75 个 form**。
+
+**task_id 是后面每张表的外键**，所以稳定、自解释、纯 ASCII：
+
+```
+M4_UMB_UW_TRA_story     M4 · 雨伞 · 海底 · 交通工具 · story 叙事
+M3_C                    M3 · 第 C 个 prompt
+M6_A_dangerous          M6 · 情绪开关 · dangerous
+```
+
+原来 5 个开放任务作为 **M0** 家族原样保留（id 不变）——已经采到的 session 必须继续可解释。
+
+孩子在藏宝图上看到的是 **10 个家族**，不是 75 张卡；具体 form 由 protocol 分配（Study Mode）
+或随机（自由玩）——"拿到哪个 parallel form"不是孩子该做的选择。
+
+### Rubric Contract：N/A ≠ 低分
+
+每个任务对九个维度逐一声明角色，而不是简单存一个 `target_dimensions`：
+
+| 角色 | 含义 |
+|---|---|
+| `primary` | 任务就是为诱发它而建的，是这个任务真正测的东西 |
+| `secondary` | 这里能稳定观察到，但不是任务的目的 |
+| `exploratory` | 收了，但没有强先验：看，别下结论。**任务没提到的维度自动归这里** |
+| `not_applicable` | 任务根本无法诱发它，**必须给出理由** |
+
+> **N/A 不是低分。**
+
+M1 只给铅笔，画面里不会出现颜色选择。把「色彩丰富」记成 1 分，是在说"这孩子用色很差"——
+一个这个任务从没测过的论断；而这个 1 会平均进他的能力画像、进模型的训练数据、进跨任务比较。
+所以类型层面强制：
+
+- N/A 维度的分数是 `None` 加一句理由，**后端就算评了也会被抹掉**（`rubric.apply_contract`）；
+- Claude 评分器**只被问可评维度**（强迫回答和真实低分无法区分）；
+- 教师给 N/A 维度打分会被 **422 拒绝**；
+- 前端玫瑰图上 N/A 是**虚线空槽 + 灰色标签**，不是一片短花瓣。
+
+沉默不等于 N/A：任务没提到的维度归 exploratory，否则手滑漏掉一个维度就等于悄悄不测了。
+未知维度、一个维度身兼两角、N/A 没写理由——三者都会让任务**在加载时被拒绝**，
+而不是产生一批事后没人能解释的数据。
+
+### 初始画布不一定是白的
+
+M3 的碎片是**画布空间里的矢量图元**（不是位图），`artquest/reconstruct.py:draw_stimulus` 与
+`static/app.js:drawStimulus` 是同一套实现的两端。因为 replay 是
+`初始画布 + stroke 流 + 事件`——两端画得不一样的话，每个碎片 session 都会栽在 `replay_matches_final` 上。
+（实测浏览器与 PIL 的重建 `rel = 0.133`，正好是栅格化底噪。）
+
+### 刺激图目前是占位图
+
+`static/refs/` 下 19 张参考图是**生成的占位图**，上面明确写着 PLACEHOLDER。
+`static/refs/manifest.json` 列出还没换成真图的 `stimulus_id`；QC 的 `stimulus_ready`
+会把用了占位图的 session 标出来。**试点数据不是无效数据——标记，不阻拦。**
+换上真图后把 id 从 manifest 里删掉即可。
+
+## Protocol：75 个 form → 每个孩子一条短而平衡的路线
+
+```json
+{"protocol": {"protocol_id": "pilot1",
+  "required_families": ["M1", "M3", "M4", "M6", "M9"],
+  "anchor_task": "M1_A", "heldout_task": "M9_A",
+  "randomization_rule": "latin", "prompt_style_rule": "balanced"}}
+```
+
+- 每个家族一个 slot，被试之间轮转拿到不同的 parallel form；
+- `anchor_task` / `heldout_task` **取代**该家族的轮转位，而不是叠加上去（否则该家族被测两次、路线凭空多一站）；
+- 拉丁方**只作用在自由位**上——把五个一起排完再把 anchor 强行拉到第一、heldout 拉到最后，
+  会把刚算好的平衡毁掉（实测中间三位从 4/4/4 变成 6/2/4）；
+- `prompt_style_rule: balanced` 让 prompt style 在被试间轮转，而不是和任务绑死。
+
+**planned vs actual**：第一次算出的 `planned_order` 冻进名册；
+`GET /api/participants/{pid}/protocol` 给出 planned / actual / `followed_plan` / `missing` /
+`unplanned` / `repeats`。任务顺序是潜在混淆，要**事后可查**，不是假定。
+
 ## 任务系统 = 游戏关卡（一张表，两种读法）
 
 孩子看到的「关卡」和研究者读到的「task」是同一行数据（`task_id == quest.id`）。开放创作任务取的是每个
@@ -144,7 +243,8 @@ final 图是否落盘、时间是否单调、时长是否合理、每笔采样�
 这是合法的条件取值，不是缺字段。约束更紧的题就是同一张表里字段更紧的几行，因此 user effect 与 task effect
 天然可分，不需要第二套任务系统。
 
-研究者不改代码就能加题：把一个 JSON 列表放到 `$ARTQUEST_DATA_DIR/tasks.json`，按 `id` 合并覆盖内置任务。
+研究者不改代码就能加题：把一个 JSON 列表放到 `$ARTQUEST_DATA_DIR/tasks.json`，按 `task_id` 合并覆盖内置任务。
+rubric 不合法的任务会被**拒绝加载**并记日志，其余任务照常工作。
 
 ```json
 [{"id": "shape_basic", "type": "观察", "title": "照着画：三个基本形状",
@@ -297,7 +397,8 @@ python3 tools/replay.py --all --check                    # 校验每个 session 
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | GET | `/api/config` | 后端、维度定义、快照间隔、默认条件 |
-| GET | `/api/quests` | 任务列表（含研究元数据） |
+| GET | `/api/families` | 10 个 mission 家族（孩子在地图上看到的） |
+| GET | `/api/quests` | 全部 75 个 form（含 rubric contract 与研究元数据） |
 | GET | `/api/study` · POST `/api/study/assign` | 实验配置；登记被试并返回其平衡顺序与条件 |
 | POST | `/api/sessions` | 创建 session（任务、意图、身份、条件、设备、画布、study 上下文） |
 | POST | `/api/sessions/{id}/log` | **批量摄取 stroke / event（幂等，可重发）** |
@@ -311,6 +412,7 @@ python3 tools/replay.py --all --check                    # 校验每个 session 
 | POST | `/api/sessions/{id}/qc` | 重跑数据质量检查 |
 | GET | `/api/sessions`, `/api/sessions/{id}`, `/api/sessions/{id}/strokes` | 浏览记录 / 原始笔画 |
 | GET | `/api/sessions/{id}/personalization` | 画之前系统知道什么、决定了什么（冻结） |
+| GET | `/api/participants/{pid}/protocol` | planned vs actual 任务顺序、偏离与重复 |
 | GET | `/api/participants/{pid}/history` | 该被试已完成的任务（表示的输入） |
 | GET | `/api/participants/{pid}/representation` | 用户表示，**每次从日志现算**；`?before=` 复现历史输入 |
 | GET | `/files/{id}/...` | 图片文件 |
@@ -319,7 +421,9 @@ python3 tools/replay.py --all --check                    # 校验每个 session 
 
 ```
 artquest/            后端（FastAPI）
-  quests.py          任务表（游戏关卡 = 研究 task，含研究元数据 + tasks.json 合并）
+  missions.py        Creative Mission 库：M0–M9、prompt bank、卡片生成器、碎片刺激
+  rubric.py          每任务的 9D rubric contract（N/A ≠ 低分，类型强制）
+  quests.py          任务表（游戏关卡 = 研究 task）+ condition snapshot + tasks.json 合并
   study.py           Study Mode：条件、被试名册、平衡拉丁方顺序
   storage.py         session 存储（metadata + 三条 append-only 流）
   logstore.py        JSONL append-only 写入与幂等去重
@@ -337,6 +441,7 @@ tools/               export_dataset.py（导出 CSV）、replay.py（回放校�
 tests/               端到端测试 + 研究数据层测试（离线后端）
   test_personalization.py  历史 → 表示 → 三臂 → 预测打分 → 导出
   test_feedback_revision.py 区域坐标约束、反馈→修改归因、多评分者
+  test_task_library.py 任务库、rubric contract、condition 冻结、protocol 平衡
   test_browser.py    真实 Chrome：缩放不改坐标、含撤销的 session 能重建（无浏览器则跳过）
 docs/                指南文档
 ```
