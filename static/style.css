@@ -79,6 +79,13 @@ canvas { width:100%; height:auto; display:block; background:#fff; border-radius:
 .zoombar #btn-zoom-reset { min-width:62px; font-variant-numeric:tabular-nums; }
 .zoombar #btn-hand.active { background:var(--accent, #e8632b); color:#fff; border-color:transparent; }
 .zoombar.hidden { display:none; }
+/* What the personalisation arm decided to show this child. Shown only when the
+   frozen `history_mode` is not "none" — the control arm renders nothing. */
+.historycard { background:color-mix(in srgb, var(--accent-2) 7%, #fff); border:1px solid color-mix(in srgb, var(--accent-2) 22%, #fff);
+  border-radius:12px; padding:10px 12px; font-size:13px; line-height:1.7; }
+.historycard h4 { margin:0 0 4px; font-size:12px; font-weight:700; color:var(--accent-2); letter-spacing:.03em; }
+.historycard p { margin:0 0 2px; }
+.historycard.hidden { display:none; }
 /* result */
 .result-layout { display:grid; grid-template-columns:1.1fr 1fr; gap:20px; }
 .artwork { width:100%; border:1px solid var(--line); border-radius:12px; background:#fff; }

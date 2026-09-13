@@ -34,6 +34,7 @@ DEFAULT_CONDITION: Dict[str, Any] = {
     "zoom_allowed": True,      # zooming/panning the canvas at all
     "questionnaire": False,    # 1–5 self-report before the final screen
     "feedback_source": "ai",   # ai | teacher | none
+    "history_mode": "none",    # none | history | personalized — the personalisation arm
     "time_limit_sec": None,    # overrides the task's own limit when set
 }
 
