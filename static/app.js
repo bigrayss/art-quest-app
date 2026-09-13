@@ -7,7 +7,7 @@
     return r.json();
   };
 
-  const state = { cfg: null, quests: [], quest: null, emotion: null, sessionId: null, phase: "before",
+  const state = { cfg: null, quests: [], quest: null, emotion: null, sessionId: null, phase: "before", feedback: null,
     startedAt: null, dirtySinceSnapshot: false, timers: [], before: null, color: "#e8632b", buddyTick: 0,
     anonId: "", condition: {}, study: null, seqIdx: 0, lastActivity: 0, idle: false, timeUp: false, pendingFinal: null };
 
@@ -558,6 +558,7 @@
         order_index: state.seqIdx, sequence_id: (state.study.sequence || []).join(">") } : {},
     }) });
     state.sessionId = r.session_id; state.phase = "before"; state.before = null; state.revised = null;
+    state.feedback = null;
     renderHistory(r.personalization);
     state.condition = { ...state.condition, ...(r.session.condition || {}) };  // the server froze it; mirror it back
     resetCanvas(); state.startedAt = Date.now(); state.dirtySinceSnapshot = false;
@@ -585,12 +586,19 @@
       state.before = { image, scores: r.scores };
       $("#result-img").src = image; renderScores($("#scores"), r.scores, null); $("#score-summary").textContent = r.scores.summary || "";
       const fbSp = $("#fb-sprite"); if (fbSp) fbSp.innerHTML = spriteInner(buddyColor(), "happy");
+      // remember which feedback this is, so the revision can be attributed to it
+      state.feedback = { id: r.feedback.feedback_id || "", shown_ms: elapsed() };
       $("#feedback-text").textContent = r.feedback.text; show("result");
     } catch (e) { alert("提交失败：" + e.message); startTimers(); }
     overlay(null);
   };
   $("#btn-revise").onclick = () => {
-    state.phase = "after"; logEvent("REVISION_START");
+    const fb = state.feedback || {};
+    state.phase = "after";
+    // the link the feedback experiments need: this revision answers *that*
+    // feedback, and the child sat with it this long before acting
+    logEvent("REVISION_START", { feedback_id: fb.id || null,
+      latency_ms: fb.shown_ms != null ? Math.round(elapsed() - fb.shown_ms) : null });
     $("#btn-submit").classList.add("hidden"); $("#revision-banner").classList.remove("hidden"); startTimers(); show("draw");
   };
   $("#btn-skip-revise").onclick = async () => {

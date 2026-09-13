@@ -29,7 +29,7 @@ from .logstore import JsonlLog, read_json, write_json
 
 SCHEMA_VERSION = 2
 _DATAURL_RE = re.compile(r"^data:image/(png|jpeg);base64,(.+)$", re.DOTALL)
-_STREAMS = ("events", "strokes", "feedback")
+_STREAMS = ("events", "strokes", "feedback", "ratings")
 
 
 def now_iso() -> str:
@@ -146,6 +146,7 @@ class SessionStore:
             meta["events"] = self.log(sid, "events").read()
             meta["strokes_summary"] = self._strokes_summary(sid)
             meta["feedback_log"] = self.log(sid, "feedback").read()
+            meta["ratings"] = self.log(sid, "ratings").read()
             meta["personalization"] = self.personalization(sid)
         meta.setdefault("events", [])
         return meta
@@ -261,6 +262,22 @@ class SessionStore:
         }
         self.log(sid, "feedback").append([rec])
         state["count"] = int(state.get("count", 0)) + 1
+        self._write(sid, meta)
+        return rec
+
+    def add_rating(self, sid: str, record: Dict[str, Any]) -> Dict[str, Any]:
+        """Append a human rating. Append-only and rater-tagged on purpose:
+        two teachers rating the same artwork is the normal case, and
+        inter-rater agreement is something a dataset has to be able to report.
+        """
+        meta = self.load(sid)
+        state = meta.setdefault("streams", {}).setdefault("ratings", {"last_seq": 0, "count": 0})
+        rec = dict(record)
+        rec.update({"rating_id": f"rt_{uuid.uuid4().hex[:8]}", "seq": None, "src": "server",
+                    "ts": now_iso(), "session_id": sid})
+        self.log(sid, "ratings").append([rec])
+        state["count"] = int(state.get("count", 0)) + 1
+        meta.setdefault("counts", {})["ratings"] = state["count"]
         self._write(sid, meta)
         return rec
 

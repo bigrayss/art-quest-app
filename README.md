@@ -19,7 +19,7 @@ cp .env.example .env          # 可选：填入 ANTHROPIC_API_KEY
 测试：
 
 ```bash
-./test.sh                     # 29 项，离线后端，不需要 API key
+./test.sh                     # 36 项，离线后端，不需要 API key
 ```
 
 其中 `tests/test_browser.py` 会用系统的 Chrome 真跑一遍（缩放后坐标是否还准、含撤销的 session 能否重建）。
@@ -55,6 +55,7 @@ data/sessions/<id>/
   events.jsonl        append-only 操作日志：{seq, src, ts, t_ms, type, payload}
   strokes.jsonl       append-only 逐笔记录 + 采样点（见下）
   feedback.jsonl      每一条反馈：{feedback_id, source, feedback_type, text, target_region, shown_at}
+  ratings.jsonl       教师 / 专家评分，append-only 带 rater_id（支持多评分者）
   questionnaire.json  1–5 轻量自评（难度 / 满意度 / 开心程度 / 最难的地方）
   personalization.json 画之前冻结的表示、给孩子看了什么、预测了什么，以及事后的 outcome / error
   before.png / after.png / final.png
@@ -186,6 +187,54 @@ final 图是否落盘、时间是否单调、时长是否合理、每笔采样�
 身份是两个匿名 id 并存：设备自动生成的 `anon_id`（日常自由玩也能跨任务对齐）+ 研究员分配的
 `participant_id`。
 
+## 反馈 → 修改：不只记下反馈，还要能回答"他改了吗、改在哪"
+
+采集清单要求的是 `feedback content + timestamp + source + target region + subsequent revision`。
+前四项是有人写下来的字段；**第五项不是字段**——它只作为"某条反馈"与"其后那些笔"之间的关系存在，
+而且只有当区域和笔画在**同一个坐标系**里时才算得出来。
+
+| 记录 | 在哪 |
+|---|---|
+| content / timestamp / source / type | `feedback.jsonl`，每条一个 `feedback_id` |
+| target region | 同上，`target_region`，**画布像素坐标**（`rect` / `point` / `poly`） |
+| shown at | `FEEDBACK_SHOWN` 事件，切分「反馈前 / 反馈后」的锚点 |
+| subsequent revision | `REVISION_START` / `REVISION_SKIPPED` 带 `feedback_id` + `latency_ms` |
+| 关系本身 | `GET /api/sessions/{id}/revision`（`artquest/revision.py`，现算不落库） |
+
+`target_region` 是**受约束的类型**，不是自由字典：小于 2px 的矩形会被拒，因为那不是"很小的区域"，
+而是**没换算的归一化坐标**——这个字段最容易被这样误用，而一旦写进去，所有分析都会静默地得到
+一个没有任何笔能落进去的区域。
+
+### 归因给出什么
+
+值得要的数不是"他之后画了没有"（流程本来就请他改），而是**他有没有比之前更多地在反馈指向的地方动笔**。
+所以每条反馈配两个窗口——显示之前的全部，和显示之后到下一条反馈之间——以及各自落在目标区域内的墨量占比：
+
+```json
+{"feedback_id": "fb_73ea", "source": "teacher", "has_region": true,
+ "revision": {"started": true, "linked": true, "latency_ms": 4000, "skipped": false},
+ "before": {"strokes": 4, "points": 40, "share_in_region": 0.0},
+ "after":  {"strokes": 4, "points": 40, "share_in_region": 0.75},
+ "region_shift": 0.75}
+```
+
+三种结果不会塌成一种：**照着改**（`region_shift > 0`）、**改了但没改那儿**（`0.0`）、
+**什么都没留下**（`null`，占比是 0/0 未定义）。被画上又立刻撤销的笔不算作回应——归因只看留在画上的笔。
+
+### 教师 / 专家评分
+
+`POST /api/sessions/{id}/rating` → `ratings.jsonl`，**append-only 且带 `rater_id`**：同一张画由两位老师
+分别打分是常态而不是覆盖，评分者一致性是数据集必须报得出来的东西。可给 `overall`（1–5），
+也可给 9 维中的任意几维（同一量表，与模型分数可比）。
+
+`export/feedback.csv` 每条反馈一行，直接带上 `revision_started / revision_linked / latency_ms /
+share_in_region_before / share_in_region_after / region_shift`——就是反馈实验的分析单元。
+`export/ratings.csv` 每条评分一行。
+
+**目前只有教师能给出区域**（AI 反馈引擎还不产出 `target_region`）。接口已经通了：等 Level 2「圈选标记」
+的视觉反馈接上，把区域填进同一个字段即可，下游一行不用改。修改轮次目前是一轮，但数据模型不假设这一点——
+归因是按 `feedback_id` 逐条算的，多轮反馈直接成立。
+
 ## 个性化：历史 → 用户表示 → 新任务 → 预测
 
 ```
@@ -256,7 +305,9 @@ python3 tools/replay.py --all --check                    # 校验每个 session 
 | POST | `/api/sessions/{id}/submit` | phase=before：评分 + 反馈；phase=after：评分 + 前后对比 + QC |
 | POST | `/api/sessions/{id}/finalize` | 不修改，直接完成 + QC |
 | POST | `/api/sessions/{id}/questionnaire` | 1–5 自评 |
-| POST | `/api/sessions/{id}/feedback` | 记录老师 / 自评反馈（与 AI 反馈同结构） |
+| POST | `/api/sessions/{id}/feedback` | 记录老师 / 自评反馈（与 AI 反馈同结构，可带 `target_region`） |
+| POST | `/api/sessions/{id}/rating` | 教师 / 专家评分（append-only，多评分者） |
+| GET | `/api/sessions/{id}/revision` | 反馈 → 其后的修改：时间上与（有区域时）空间上的归因 |
 | POST | `/api/sessions/{id}/qc` | 重跑数据质量检查 |
 | GET | `/api/sessions`, `/api/sessions/{id}`, `/api/sessions/{id}/strokes` | 浏览记录 / 原始笔画 |
 | GET | `/api/sessions/{id}/personalization` | 画之前系统知道什么、决定了什么（冻结） |
@@ -273,6 +324,7 @@ artquest/            后端（FastAPI）
   storage.py         session 存储（metadata + 三条 append-only 流）
   logstore.py        JSONL append-only 写入与幂等去重
   qc.py              结束时的数据质量检查
+  revision.py        反馈 → 其后修改的归因（纯函数，不落库）
   history.py         行为历史 → 用户表示（纯函数，不落库）
   personalize/       三臂：none / history / personalized（可插拔）
   reconstruct.py     从事件时间线重建作品（replay 与 QC 共用）
@@ -284,6 +336,7 @@ static/              前端（原生 HTML / Canvas / JS，无构建步骤）
 tools/               export_dataset.py（导出 CSV）、replay.py（回放校验 + 关键帧）
 tests/               端到端测试 + 研究数据层测试（离线后端）
   test_personalization.py  历史 → 表示 → 三臂 → 预测打分 → 导出
+  test_feedback_revision.py 区域坐标约束、反馈→修改归因、多评分者
   test_browser.py    真实 Chrome：缩放不改坐标、含撤销的 session 能重建（无浏览器则跳过）
 docs/                指南文档
 ```
@@ -291,5 +344,5 @@ docs/                指南文档
 ## 下一步（Stage 2 候选，先放进指南 §06 的归类表）
 
 - 过程节点的 9 维比较、Growth 视图
-- AI 图文反馈（Level 2：圈选标记；Level 3：2–3 个视觉方向）
+- AI 图文反馈（Level 2：圈选标记 → 填进已有的 `target_region`；Level 3：2–3 个视觉方向）
 - Intent 扩展为情绪 + 目标 + 描述 / 语音
