@@ -116,7 +116,10 @@ def config():
         "dimensions": DIMENSIONS,
         "scale_max": SCALE_MAX,
         "emotions": EMOTIONS,
-        "default_condition": study_mod.DEFAULT_CONDITION,
+        # the *resolved* default (study.json applies even outside Study Mode),
+        # not the hardcoded one — otherwise the client believes a condition the
+        # server is not running
+        "default_condition": study_mod.resolve_condition(),
         "history_modes": list(HISTORY_MODES),
         "hardest_parts": [{"key": k, "label": v} for k, v in HARDEST_PARTS],
         "process_labels": list(PROCESS_LABELS),
@@ -297,6 +300,18 @@ def submit(sid: str, body: Submit):
         if meta.get("before"):
             raise HTTPException(409, "before already submitted")
         record = _score_and_save(sid, "before", png, body.elapsed_ms)
+
+        # `feedback_source` is a frozen condition, so it has to actually decide
+        # something. It was declared and never enforced, which is the worst of
+        # both: the metadata claims "no feedback" while the child gets some.
+        source = (meta.get("condition") or {}).get("feedback_source", "ai")
+        if source != "ai":
+            # scores are still computed and stored — assessment continues, the
+            # child is simply not shown an intervention this session
+            meta = store.update(sid, before=record, feedback=None, status="submitted")
+            return {"phase": "before", "scores": record["scores"], "feedback": None,
+                    "feedback_source": source, "session": meta}
+
         try:
             fb = engine.feedback(png, quest, intent, record["scores"])
         except Exception as e:
@@ -315,7 +330,8 @@ def submit(sid: str, body: Submit):
         store.add_server_event(sid, ev.FEEDBACK_SHOW, body.elapsed_ms,
                                {"feedback_id": entry["feedback_id"], "backend": fb["backend"], "phase": "before"})
         meta = store.update(sid, before=record, feedback=fb, status="feedback")
-        return {"phase": "before", "scores": record["scores"], "feedback": fb, "session": meta}
+        return {"phase": "before", "scores": record["scores"], "feedback": fb,
+                "feedback_source": source, "session": meta}
 
     # phase == "after"
     if not meta.get("before"):
@@ -323,14 +339,19 @@ def submit(sid: str, body: Submit):
     if meta.get("after"):
         raise HTTPException(409, "after already submitted")
     record = _score_and_save(sid, "after", png, body.elapsed_ms)
-    before_png = store.read_image(sid, "before")
-    try:
-        cmp = engine.compare(before_png, png, meta["before"]["scores"], record["scores"], quest, intent)
-    except Exception as e:
-        log.exception("compare failed")
-        cmp = {"backend": "error", "text": f"对比生成失败：{e}"}
-    store.add_feedback(sid, {"t_ms": body.elapsed_ms, "phase": "after", "source": "ai",
-                             "feedback_type": "comparison", "backend": cmp["backend"], "text": cmp["text"]})
+    source = (meta.get("condition") or {}).get("feedback_source", "ai")
+    cmp = None
+    if source == "ai":
+        before_png = store.read_image(sid, "before")
+        try:
+            cmp = engine.compare(before_png, png, meta["before"]["scores"], record["scores"], quest, intent)
+        except Exception as e:
+            log.exception("compare failed")
+            cmp = {"backend": "error", "text": f"对比生成失败：{e}"}
+        store.add_feedback(sid, {"t_ms": body.elapsed_ms, "phase": "after", "source": "ai",
+                                 "feedback_type": "comparison", "backend": cmp["backend"],
+                                 "text": cmp["text"], "trigger": "submit",
+                                 "prompt_version": PROMPT_VERSION})
     store.add_server_event(sid, "SESSION_END", body.elapsed_ms, {"revised": True})
     store.update(sid, after=record, comparison=cmp, revised=True, status="done")
     store.mark_ended(sid, body.elapsed_ms)
