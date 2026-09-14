@@ -2,39 +2,73 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ArtQuest · 创意绘画</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>ArtQuest · 创作冒险</title>
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-<div class="topwrap">
-<header class="topbar">
-  <div class="brand"><span class="mark"><i data-icon="palette" data-size="21"></i></span>ArtQuest <span class="stage">创作冒险</span></div>
-  <div class="topright">
+<div class="app">
+
+<!-- 底部 tab（手机）／左侧导航栏（桌面）。做任务时整个收起来，只剩画画。 -->
+<nav class="tabbar" id="tabbar">
+  <div class="rail-brand"><span class="mark"><i data-icon="palette" data-size="20"></i></span><b>ArtQuest</b></div>
+  <button class="tab active" data-tab="map"><i data-icon="map" data-size="24"></i><span>地图</span></button>
+  <button class="tab" data-tab="dex"><i data-icon="grid" data-size="24"></i><span>图鉴</span></button>
+  <button class="tab" data-tab="buddy"><i data-icon="sprout" data-size="24"></i><span>彩点</span></button>
+  <button class="tab" data-tab="me"><i data-icon="books" data-size="24"></i><span>我的</span></button>
+</nav>
+
+<div class="screen">
+<header class="appbar">
+  <button class="iconbtn hidden" id="btn-back-quest" title="换个任务"><i data-icon="arrowLeft" data-size="20"></i></button>
+  <button class="iconbtn hidden" id="btn-back-draw" title="换个任务"><i data-icon="arrowLeft" data-size="20"></i></button>
+  <div class="appbar-main">
+    <div class="appbar-title" id="appbar-title">创作冒险</div>
+    <!-- 做一幅画的六步：一条细进度条，彩点走在最前面 -->
+    <div class="flow hidden" id="flow">
+      <div class="flow-track"><div class="flow-fill" id="flow-fill"></div></div>
+      <svg class="flow-sprite" id="flow-sprite" viewBox="0 0 200 200"></svg>
+      <span class="flow-step" id="flow-step"></span>
+    </div>
+  </div>
+  <div class="appbar-right">
     <div class="recstat" id="recstat" title="过程数据先存本地，再同步到服务器"><i></i><span id="recstat-text">就绪</span></div>
-    <div class="backend" id="backend-badge"></div>
   </div>
 </header>
+
 <div class="studybar hidden" id="studybar">
   <span class="tag">STUDY</span>
   <span id="study-info"></span>
   <span class="seq" id="study-seq"></span>
   <button class="linkbtn" id="btn-study-exit">退出实验模式</button>
 </div>
-<div class="trailbar"><svg id="trail" viewBox="0 0 1200 142" preserveAspectRatio="xMidYMid meet" aria-label="创作冒险进度"></svg></div>
-</div>
 
 <main>
-<!-- 1. Quest -->
+<!-- ===== tab 1：地图 ===== -->
 <section class="view" id="view-quest">
-  <h1>今天想挑战哪一个？</h1>
-  <p class="muted">每个任务都没有标准答案。选一个让你有点想动笔的。</p>
-  <div class="quest-grid" id="quest-grid"></div>
+  <div class="unit">
+    <div class="unit-l"><b>今天想挑战哪一个？</b><span>没有标准答案，选一个想画的</span></div>
+    <span class="unit-r" id="map-progress"></span>
+  </div>
+  <div class="map" id="quest-grid"><svg class="map-path" id="map-path" aria-hidden="true"></svg></div>
+</section>
+
+<!-- ===== tab 2：图鉴 ===== -->
+<section class="view hidden" id="view-dex">
+  <div id="collection-wrap" class="hidden">
+    <h2><i data-icon="grid" data-size="18"></i>我的创作图鉴 <span class="muted small" id="dex-progress"></span></h2>
+    <div class="dex" id="collection"></div>
+  </div>
   <div id="wall-wrap" class="hidden">
     <h2><i data-icon="pin" data-size="18"></i>老师选出来的 <span class="muted small">每一张都是有人特意挑出来给大家看的</span></h2>
     <div class="peer-grid" id="wall-grid"></div>
   </div>
+  <p class="empty" id="dex-empty">画完第一幅，这里就会有第一张收藏。</p>
+</section>
 
+<!-- ===== tab 3：彩点 ===== -->
+<section class="view hidden" id="view-buddy">
   <div id="growth-wrap" class="hidden">
     <h2><i data-icon="sprout" data-size="18"></i>彩点的成长 <span class="muted small" id="growth-total"></span></h2>
     <div class="growth">
@@ -46,37 +80,54 @@
       <div class="growth-dims" id="growth-dims"></div>
     </div>
   </div>
-
-  <div id="collection-wrap" class="hidden">
-    <h2><i data-icon="grid" data-size="18"></i>我的创作图鉴 <span class="muted small" id="dex-progress"></span></h2>
-    <div class="dex" id="collection"></div>
-  </div>
-  <p class="muted small"><a href="#" id="link-sessions">查看全部作品记录（表格）</a></p>
+  <h2><i data-icon="medal" data-size="18"></i>徽章墙 <span class="muted small" id="badge-wall-count"></span></h2>
+  <div class="badges" id="badge-wall"></div>
 </section>
 
-<!-- 2. Intent -->
+<!-- ===== tab 4：我的 ===== -->
+<section class="view hidden" id="view-sessions">
+  <h2><i data-icon="books" data-size="18"></i>作品记录</h2>
+  <div class="tablewrap">
+    <table class="sessions" id="sessions-table"><thead><tr><th>时间</th><th>任务</th><th>代号</th><th>状态</th><th>修改</th><th>文件</th></tr></thead><tbody></tbody></table>
+  </div>
+  <h2>这台机器上的设置</h2>
+  <div class="infolist">
+    <div class="info"><span>评分 / 反馈后端</span><b id="backend-badge"></b></div>
+    <div class="info"><span>本机代号</span><b id="anon-badge"></b></div>
+  </div>
+  <div class="actions"><button class="secondary" id="btn-sessions-back"><i data-icon="arrowLeft" data-size="17"></i>回地图</button></div>
+</section>
+
+<!-- ===== 流程 1：心愿 ===== -->
 <section class="view hidden" id="view-intent">
   <h1 id="intent-quest-title"></h1>
   <p class="quest-prompt" id="intent-quest-prompt"></p>
   <p class="hint" id="intent-quest-hint"></p>
-  <h2>开始画之前</h2>
   <label>你现在的心情是？</label>
   <div class="chips" id="emotion-chips"></div>
   <label for="intent-text">用一句话说说，你想在这幅画里表达什么？</label>
   <textarea id="intent-text" rows="2" placeholder="比如：我想画一个很安静、只有一盏灯的房间……"></textarea>
   <label for="participant">代号（可选，不要写真名）</label>
   <input id="participant" type="text" placeholder="例如 P03">
-  <div class="actions">
-    <button class="secondary" id="btn-back-quest"><i data-icon="arrowLeft" data-size="17"></i>换个任务</button>
-    <button class="primary" id="btn-start-draw">开始创作<i data-icon="arrowRight" data-size="17"></i></button>
+  <div class="actions sticky">
+    <button class="primary big grow" id="btn-start-draw">开始创作<i data-icon="arrowRight" data-size="17"></i></button>
   </div>
 </section>
 
-<!-- 3. Draw -->
+<!-- ===== 流程 2：创作 ===== -->
 <section class="view hidden" id="view-draw">
   <div class="draw-layout">
+    <div class="canvas-wrap">
+      <div class="canvas-viewport" id="viewport"><canvas id="canvas" width="1024" height="704"></canvas></div>
+      <div class="zoombar" id="zoombar">
+        <button id="btn-hand" title="移动画布（也可按住空格拖动）"><i data-icon="hand" data-size="17"></i><span class="lbl">移动</span></button>
+        <button id="btn-zoom-out" title="缩小"><i data-icon="zoomOut" data-size="17"></i></button>
+        <button id="btn-zoom-reset" title="回到 100%"><span id="zoom-level">100%</span></button>
+        <button id="btn-zoom-in" title="放大"><i data-icon="zoomIn" data-size="17"></i></button>
+        <span class="muted small hint-desktop">滚轮缩放 · 空格或中键拖动</span>
+      </div>
+    </div>
     <aside class="toolbox">
-      <button class="ghost back" id="btn-back-draw"><i data-icon="arrowLeft" data-size="16"></i>换个任务</button>
       <div class="quest-card small" id="draw-quest-card"></div>
       <div class="intent-card" id="draw-intent-card"></div>
       <div class="historycard hidden" id="history-card"></div>
@@ -88,7 +139,7 @@
             <button id="btn-ref-out" title="缩小"><i data-icon="zoomOut" data-size="16"></i></button>
             <button id="btn-ref-reset" title="回到 100%"><span id="ref-zoom">100%</span></button>
             <button id="btn-ref-in" title="放大"><i data-icon="zoomIn" data-size="16"></i></button>
-            <span class="muted small">滚轮缩放 · 拖动移动</span>
+            <span class="muted small hint-desktop">滚轮缩放 · 拖动移动</span>
           </div>
         </div>
       </div>
@@ -122,24 +173,16 @@
       <div class="tool-group">
         <div class="timer"><i data-icon="clock" data-size="16"></i><span id="timer">00:00</span> <span class="limit" id="limit-info"></span> <span class="muted small" id="snap-info"></span></div>
         <button id="btn-download" class="secondary"><i data-icon="download" data-size="17"></i>保存到本机</button>
-        <button id="btn-submit" class="go big">画好了，听听反馈</button>
-        <div id="revision-banner" class="hidden banner">修改阶段：改动一小处就可以。<button id="btn-submit-after" class="go">修改完成</button></div>
       </div>
     </aside>
-    <div class="canvas-wrap">
-      <div class="canvas-viewport" id="viewport"><canvas id="canvas" width="1024" height="704"></canvas></div>
-      <div class="zoombar" id="zoombar">
-        <button id="btn-hand" title="移动画布（也可按住空格拖动）"><i data-icon="hand" data-size="17"></i>移动</button>
-        <button id="btn-zoom-out" title="缩小"><i data-icon="zoomOut" data-size="17"></i></button>
-        <button id="btn-zoom-reset" title="回到 100%"><span id="zoom-level">100%</span></button>
-        <button id="btn-zoom-in" title="放大"><i data-icon="zoomIn" data-size="17"></i></button>
-        <span class="muted small">滚轮缩放 · 空格或中键拖动</span>
-      </div>
-    </div>
+  </div>
+  <div class="actions sticky">
+    <button id="btn-submit" class="go big grow">画好了，听听反馈</button>
+    <div id="revision-banner" class="hidden banner">修改阶段：改动一小处就可以。<button id="btn-submit-after" class="go">修改完成</button></div>
   </div>
 </section>
 
-<!-- 4. Result / feedback -->
+<!-- ===== 流程 3：反馈 ===== -->
 <section class="view hidden" id="view-result">
   <div class="result-layout">
     <div>
@@ -159,20 +202,7 @@
   </div>
 </section>
 
-<!-- Leaving a task partway -->
-<div class="modal hidden" id="leave-modal">
-  <div class="modal-card">
-    <h3 id="leave-title">要离开这个任务吗？</h3>
-    <p class="muted" id="leave-body"></p>
-    <div class="actions column">
-      <button class="primary" id="btn-leave-keep">继续画</button>
-      <button class="secondary" id="btn-leave-save">保存这张，然后换任务</button>
-      <button class="ghost danger" id="btn-leave-drop">不保存，换任务</button>
-    </div>
-  </div>
-</div>
-
-<!-- 4.5 Self-report (only when the condition asks for it) -->
+<!-- ===== 流程 3.5：自评（条件要求时才出现） ===== -->
 <section class="view hidden" id="view-survey">
   <h1>画完啦，随手答几个小问题</h1>
   <p class="muted">没有对错，凭感觉选就行。</p>
@@ -180,13 +210,13 @@
   <label for="survey-hardest">这次哪里最难？（可不写）</label>
   <div class="chips" id="survey-hardest-choices"></div>
   <input id="survey-hardest" type="text" placeholder="想补充的话可以写在这里（可不写）">
-  <div class="actions">
+  <div class="actions sticky">
     <button class="secondary" id="btn-survey-skip">跳过</button>
-    <button class="primary" id="btn-survey-submit">交上去<i data-icon="arrowRight" data-size="17"></i></button>
+    <button class="primary grow" id="btn-survey-submit">交上去<i data-icon="arrowRight" data-size="17"></i></button>
   </div>
 </section>
 
-<!-- 5. Final -->
+<!-- ===== 流程 4：结算 ===== -->
 <section class="view hidden" id="view-final">
   <h1>宝藏到手 <i data-icon="trophy" data-size="26"></i></h1>
   <div class="compare">
@@ -207,18 +237,26 @@
   <div class="badges" id="badges"></div>
   <div class="scores" id="final-scores"></div>
   <p class="muted small" id="final-meta"></p>
-  <div class="actions"><button class="primary" id="btn-again">再来一个任务</button></div>
+  <div class="actions sticky"><button class="primary big grow" id="btn-again">再来一个任务</button></div>
 </section>
+</main>
+</div><!-- /.screen -->
+</div><!-- /.app -->
 
-<!-- Sessions list -->
-<section class="view hidden" id="view-sessions">
-  <h1>作品记录</h1>
-  <table class="sessions" id="sessions-table"><thead><tr><th>时间</th><th>任务</th><th>代号</th><th>状态</th><th>修改</th><th>文件</th></tr></thead><tbody></tbody></table>
-  <div class="actions"><button class="secondary" id="btn-sessions-back"><i data-icon="arrowLeft" data-size="17"></i>返回</button></div>
-</section>
+<!-- 中途离开一个任务 -->
+<div class="modal hidden" id="leave-modal">
+  <div class="modal-card">
+    <h3 id="leave-title">要离开这个任务吗？</h3>
+    <p class="muted" id="leave-body"></p>
+    <div class="actions column">
+      <button class="primary" id="btn-leave-keep">继续画</button>
+      <button class="secondary" id="btn-leave-save">保存这张，然后换任务</button>
+      <button class="ghost danger" id="btn-leave-drop">不保存，换任务</button>
+    </div>
+  </div>
+</div>
 
 <div id="overlay" class="hidden"><div class="spinner"></div><div id="overlay-text">正在观察你的画……</div></div>
-</main>
 <script src="/static/log.js"></script>
 <script src="/static/app.js"></script>
 </body>

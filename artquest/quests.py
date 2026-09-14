@@ -39,7 +39,7 @@ TASK_DEFAULTS: Dict[str, Any] = {
     "condition": {},
     "process_targets": [],
     "research_goal": "",
-    "hint": "", "icon": "🎨", "color": "#ff9600", "enabled": True,
+    "hint": "", "icon": "🎨", "color": "#f79433", "enabled": True,
 }
 
 CUSTOM_TASKS_PATH = DATA_DIR / "tasks.json"
