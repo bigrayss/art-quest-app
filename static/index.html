@@ -30,6 +30,11 @@
   <h1>今天想挑战哪一个？</h1>
   <p class="muted">每个任务都没有标准答案。选一个让你有点想动笔的。</p>
   <div class="quest-grid" id="quest-grid"></div>
+  <div id="wall-wrap" class="hidden">
+    <h2>📌 老师选出来的 <span class="muted small">每一张都是有人特意挑出来给大家看的</span></h2>
+    <div class="peer-grid" id="wall-grid"></div>
+  </div>
+
   <div id="growth-wrap" class="hidden">
     <h2>🌱 彩点的成长 <span class="muted small" id="growth-total"></span></h2>
     <div class="growth">
@@ -194,6 +199,10 @@
     <div class="feedback-text" id="comparison-text"></div>
   </div>
   <div class="trained" id="trained"></div>
+  <div class="peers hidden" id="peers">
+    <h2>👀 别人是怎么解这道题的 <span class="muted small" id="peers-note"></span></h2>
+    <div class="peer-grid" id="peer-grid"></div>
+  </div>
   <h2 id="badges-head">🏅 这次点亮的徽章 <span class="muted small" id="badges-count"></span></h2>
   <div class="badges" id="badges"></div>
   <div class="scores" id="final-scores"></div>

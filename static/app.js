@@ -7,7 +7,7 @@
     return r.json();
   };
 
-  const state = { cfg: null, quests: [], families: [], allSessions: [], quest: null, emotion: null, sessionId: null, phase: "before", feedback: null,
+  const state = { cfg: null, quests: [], families: [], allSessions: [], rarity: null, quest: null, emotion: null, sessionId: null, phase: "before", feedback: null,
     startedAt: null, dirtySinceSnapshot: false, timers: [], before: null, color: "#e8632b", buddyTick: 0,
     anonId: "", condition: {}, study: null, seqIdx: 0, lastActivity: 0, idle: false, timeUp: false, pendingFinal: null };
 
@@ -812,6 +812,7 @@
     state.cfg.emotions.forEach(em => { const b = document.createElement("button"); b.textContent = em; b.onclick = () => { state.emotion = em; chips.querySelectorAll("button").forEach(x => x.classList.toggle("active", x === b)); }; chips.appendChild(b); });
     await loadCollection();
     await renderGrowth();
+    await renderWall();
     show("quest");
   }
   function chooseQuest(q) {
@@ -857,6 +858,7 @@
     overlay(null);
     await loadCollection();
     await renderGrowth();
+    await renderWall();
     show("quest");
   }
   $("#btn-back-draw").onclick = askToLeave;
@@ -1031,6 +1033,8 @@
       : (comparison ? comparison.text : "这次没有走进化关～下次试试根据我的话改一小处，就能解锁 🔁 进化大师徽章！");
     renderTrained(session);
     renderBadges(session);
+    reportBadges(session).then(() => renderBadges(session));   // rarity needs this session counted
+    renderPeers(session);
     // What the child is shown of their own growth is its own condition, separate
     // from whether this artwork got feedback: a no-intervention arm can still
     // let a child see their cumulative practice without being told about *this*
@@ -1121,6 +1125,82 @@
     { g: "探索与坚持", icon: "✨", name: "进化大师", desc: "走完进化关，改了自己的作品",
       earned: s => s.revised === true, evo: true },
   ];
+  const BADGE_RULES_VERSION = "badges/1";
+
+  /** Tell the server what this session lit, so rarity can be counted.
+   *  Stored with the rule-set version: tightening a rule later must not take a
+   *  badge off a child who already had it. */
+  async function reportBadges(session) {
+    const pool = badgePool(session);
+    const earned = pool.filter(b => { try { return !!b.earned(session); } catch (e) { return false; } });
+    try {
+      await api(`/api/sessions/${session.id}/badges`, { method: "POST", body: JSON.stringify({
+        earned: earned.map(b => b.name), offered: pool.map(b => b.name),
+        version: BADGE_RULES_VERSION }) });
+      state.rarity = await api("/api/achievements");
+    } catch (e) { /* a badge is not worth failing a session over */ }
+  }
+
+  /** The server-wide wall: work a teacher chose to show, across every task.
+   *  Curation is the only form of "best" this app has, because it is a human
+   *  decision with a name attached — a classroom wall, not a ranking function.
+   *  Still consent-gated, and only on the home screen when the condition says
+   *  `always`; under `after_submit` seeing other work before drawing would
+   *  steer what the child draws and void the task condition. */
+  async function renderWall() {
+    const el = $("#wall-wrap");
+    if ((state.condition.gallery_display || "none") !== "always") { el.classList.add("hidden"); return; }
+    let data;
+    try { data = await api("/api/gallery/featured?k=8"); } catch (e) { el.classList.add("hidden"); return; }
+    const cards = (data && data.examples) || [];
+    if (!cards.length) { el.classList.add("hidden"); return; }
+    el.classList.remove("hidden");
+    $("#wall-grid").innerHTML = cards.map(c => {
+      const a = c.approach || {};
+      const title = (state.quests.find(q => q.id === c.task_id) || {}).title || c.task_id;
+      return `<div class="peer">
+        <img src="${c.image}" alt="精选作品" loading="lazy">
+        <div class="p-why">${escapeHtml(title)}</div>
+        <div class="p-how">${a.strokes} 笔 · ${a.colors || 1} 种颜色 · ${a.minutes} 分钟</div>
+        ${c.why ? `<div class="p-how">「${escapeHtml(c.why)}」</div>` : ""}
+        <div class="p-pin">📌 老师选的</div></div>`;
+    }).join("");
+  }
+
+  /** Other people's *approaches* to the same task — chosen for how much they
+   *  differ from this child's, never for being better. Only after they have
+   *  submitted their own, so it cannot steer what they drew, and only where
+   *  the frozen condition allows it. */
+  async function renderPeers(session) {
+    const el = $("#peers");
+    if ((state.condition.gallery_display || "none") !== "after_submit") { el.classList.add("hidden"); return; }
+    let data;
+    try {
+      data = await api(`/api/gallery/task/${encodeURIComponent(session.quest_id)}?exclude=${session.id}&k=3`);
+    } catch (e) { el.classList.add("hidden"); return; }
+    let cards = (data && data.examples) || [];
+    try {
+      const pinned = await api(`/api/gallery/featured?task_id=${encodeURIComponent(session.quest_id)}&k=2`);
+      // a pinned drawing may also be one of the diverse picks — show it once,
+      // with the teacher's note rather than the process contrast
+      const seen = new Set((pinned.examples || []).map(c => c.session_id));
+      cards = (pinned.examples || []).concat(cards.filter(c => !seen.has(c.session_id))).slice(0, 4);
+    } catch (e) { /* featured is optional */ }
+    if (!cards.length) { el.classList.add("hidden"); return; }
+    el.classList.remove("hidden");
+    $("#peers-note").textContent = "看看就好，没有哪一张是标准答案";
+    $("#peer-grid").innerHTML = cards.map(c => {
+      const a = c.approach || {};
+      const how = [`${a.strokes} 笔`, `${a.colors || 1} 种颜色`, `${a.minutes} 分钟`,
+                   a.zoomed ? "放大过" : null].filter(Boolean).join(" · ");
+      return `<div class="peer">
+        <img src="${c.image}" alt="别人的作品" loading="lazy">
+        <div class="p-why">${escapeHtml(c.why || "另一种做法")}</div>
+        <div class="p-how">${how}</div>
+        ${c.featured_by ? `<div class="p-pin">📌 老师选的</div>` : ""}</div>`;
+    }).join("");
+  }
+
   /** The mission's own rubric, said back as practice rather than as a verdict.
    *  "This one trained imagination, transformation and composition" is a fact
    *  about the task; "you scored 3 on imagination" is a judgement of the child,
@@ -1144,13 +1224,19 @@
       + `</div>`;
   }
 
+  /** Badges this condition can actually offer. One definition, used by both the
+   *  display and the rarity report, so the two can never disagree. */
+  function badgePool() {
+    const quiet = state.condition && state.condition.feedback_source !== "ai";
+    const hasRef = !!(state.quest && state.quest.reference) && state.condition.reference_allowed;
+    return ALL_BADGES.filter(b => !(quiet && b.evo) && !(b.needs === "reference" && !hasRef));
+  }
+
   function renderBadges(session) {
     const el = $("#badges"); if (!el) return;
     // A badge the condition makes unreachable is not shown as "not earned":
     // greying it out tells the child they missed something never on offer.
-    const quiet = state.condition && state.condition.feedback_source !== "ai";
-    const hasRef = !!(state.quest && state.quest.reference) && state.condition.reference_allowed;
-    const pool = ALL_BADGES.filter(b => !(quiet && b.evo) && !(b.needs === "reference" && !hasRef));
+    const pool = badgePool();
 
     const got = pool.filter(b => { try { return !!b.earned(session); } catch (e) { return false; } });
     const gotSet = new Set(got);
@@ -1165,9 +1251,16 @@
       const items = [...g.items].sort((a, b) => (gotSet.has(b) ? 1 : 0) - (gotSet.has(a) ? 1 : 0));
       return `<div class="badge-group"><h4>${g.name}</h4><div class="badge-row">` + items.map(b => {
         const on = gotSet.has(b);
-        return `<div class="badge${on ? " new" : " locked"}${b.evo ? " evo" : ""}" title="${b.desc}">
+        // Rarity is about the badge, not about you: "8 % of people have lit this"
+        // gives the collecting feeling without comparing anyone's drawing.
+        const st = ((state.rarity || {}).badges || {})[b.name];
+        const pct = st && st.rarity !== null ? Math.round(st.rarity * 100) : null;
+        const rare = on && pct !== null && pct <= 15;
+        const line = pct === null ? ""
+          : `<div class="rarity">${pct <= 0 ? "还没有人点亮过" : `${pct}% 的人点亮过`}</div>`;
+        return `<div class="badge${on ? " new" : " locked"}${b.evo ? " evo" : ""}${rare ? " rare" : ""}" title="${b.desc}">
           <div class="b-ico">${b.icon}</div><div class="b-name">${b.name}</div>
-          <div class="b-desc">${b.desc}</div></div>`;
+          <div class="b-desc">${b.desc}</div>${on ? line : ""}</div>`;
       }).join("") + "</div></div>";
     }).join("");
     $("#badges-count").textContent = `点亮了 ${got.length}/${pool.length} 枚`;

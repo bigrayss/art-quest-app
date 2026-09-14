@@ -36,6 +36,12 @@ DEFAULT_CONDITION: Dict[str, Any] = {
     "feedback_source": "ai",   # ai | teacher | none
     "history_mode": "none",    # none | history | personalized — the personalisation arm
     "growth_display": "full",  # none | badges | full — what the child sees of their own growth
+    # Seeing other people's work is an influence on what a child draws, so it is
+    # off by default and only ever reachable *after* they submit their own.
+    "gallery_display": "none",     # none | after_submit | always
+    # Publishing a minor's artwork to other users. Never defaulted to true, never
+    # inferred: it mirrors the consent form, frozen per session.
+    "share_consent": False,
     "time_limit_sec": None,    # overrides the task's own limit when set
 }
 
