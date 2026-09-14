@@ -51,12 +51,18 @@
       : `<path d="M88,122 Q100,132 112,122" fill="none" stroke="${dark}" stroke-width="4" stroke-linecap="round"/>`;
     const p = expr === "wow" ? 6 : 7;
     const blob = "M100,26 C138,24 172,52 176,94 C179,128 160,150 150,166 C120,190 80,190 52,168 C40,150 21,128 24,94 C28,52 62,28 100,26 Z";
-    return `<ellipse cx="100" cy="184" rx="44" ry="8" fill="rgba(0,0,0,.07)"/>`
+    // Parts are grouped and classed so CSS can move them: the body breathes,
+    // the shadow answers it, and the eyes blink on their own offset. All of it
+    // is switched off under prefers-reduced-motion.
+    return `<ellipse class="cd-shadow" cx="100" cy="184" rx="44" ry="8" fill="rgba(0,0,0,.07)"/>`
+      + `<g class="cd-body">`
       + `<path d="${blob}" fill="${color}" stroke="rgba(0,0,0,.12)" stroke-width="2"/>`
+      + `<path d="M150,150 q14,10 8,26 q-12,4 -14,-10" fill="${color}"/>`
+      + `<g class="cd-eyes">`
       + `<ellipse cx="84" cy="92" rx="15" ry="17" fill="#fff"/><ellipse cx="116" cy="92" rx="15" ry="17" fill="#fff"/>`
       + `<circle cx="86" cy="95" r="${p}" fill="${dark}"/><circle cx="114" cy="95" r="${p}" fill="${dark}"/>`
-      + `<circle cx="84" cy="86" r="3" fill="#fff"/><circle cx="115" cy="86" r="3" fill="#fff"/>${mouth}`
-      + `<path d="M150,150 q14,10 8,26 q-12,4 -14,-10" fill="${color}"/>`;
+      + `<circle cx="84" cy="86" r="3" fill="#fff"/><circle cx="115" cy="86" r="3" fill="#fff"/>`
+      + `</g>${mouth}</g>`;
   }
   const buddyColor = () => state.color || "#e8632b";
 
@@ -126,6 +132,42 @@
     window.scrollTo(0, 0);
   }
   const overlay = (text) => { $("#overlay").classList.toggle("hidden", !text); if (text) $("#overlay-text").textContent = text; };
+
+  // ---------- mission glyphs ----------
+  // Line glyphs instead of emoji: emoji render differently on every platform,
+  // carry someone else's visual language, and several of the families had no
+  // emoji that meant the right thing. These are drawn in the family's own
+  // colour via currentColor, so the map reads as one set.
+  const GLYPHS = {
+    // palette: choose anything
+    M0: '<path d="M12 3.4c-4.8 0-8.6 3.6-8.6 8 0 3.3 2.4 5.3 5 5.3 1.4 0 2.1.8 2.1 1.8 0 1.3 1 2.3 2.3 2.3 4.3 0 7.8-3.7 7.8-8.2 0-5.2-4-9.2-8.6-9.2Z"/><circle cx="8.2" cy="10.2" r="1.15" fill="currentColor" stroke="none"/><circle cx="12" cy="7.6" r="1.15" fill="currentColor" stroke="none"/><circle cx="15.8" cy="10.2" r="1.15" fill="currentColor" stroke="none"/>',
+    // a framed picture with a crack through it
+    M1: '<rect x="3.6" y="4.6" width="16.8" height="14.8" rx="1.6"/><path d="M9.2 19.4 11 13.2 8.6 11.4 12.6 4.6"/>',
+    // a field pad: horizon, peaks, sun
+    M2: '<rect x="4" y="4.6" width="16" height="14.8" rx="1.6"/><path d="M6.4 15.6 10 11.2l2.4 2.9 2-2.4 3.2 4.4"/><circle cx="15.4" cy="8.2" r="1.5"/>',
+    // pieces that do not yet join up
+    M3: '<path d="M4.4 11.2V5.1a.8.8 0 0 1 .8-.8h6.1"/><path d="M19.6 12.8v6.1a.8.8 0 0 1-.8.8h-6.1"/><path d="M15.4 5.6 19.3 9.5"/><circle cx="8.6" cy="15.4" r="1.25" fill="currentColor" stroke="none"/>',
+    // a flask: something being changed into something else
+    M4: '<path d="M10 3.6v5.6L5.6 17.8A2 2 0 0 0 7.4 20.8h9.2a2 2 0 0 0 1.8-3L14 9.2V3.6"/><path d="M8.6 3.6h6.8"/><circle cx="12" cy="16.4" r="1.15" fill="currentColor" stroke="none"/>',
+    // two things becoming one
+    M5: '<circle cx="9.4" cy="12" r="5.6"/><circle cx="14.6" cy="12" r="5.6"/>',
+    // one place, two moods
+    M6: '<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16Z" fill="currentColor" stroke="none"/>',
+    // a line going somewhere
+    M7: '<path d="M3.4 15.8c3.2-6.4 5.2 4 8.2-1.2s4.2 2.2 9-5.2"/>',
+    // a world with different rules
+    M8: '<path d="M12 20.2a8.2 8.2 0 1 0-8.2-8.2 6 6 0 0 0 6 6 4 4 0 0 0 4-4 2.4 2.4 0 0 0-2.4-2.4"/>',
+    // a door you have not opened
+    M9: '<path d="M5.2 20.4V4.6l8.6-2v20.4l-8.6-2.6Z"/><path d="M13.8 5.2h5v13.6h-5"/><circle cx="11.4" cy="12.2" r=".9" fill="currentColor" stroke="none"/>',
+  };
+  /** A family glyph at `size` px, in that family's colour. */
+  function glyph(familyId, color, size) {
+    const g = GLYPHS[familyId];
+    if (!g) return "";
+    return `<svg class="glyph" viewBox="0 0 24 24" width="${size}" height="${size}" `
+      + `fill="none" stroke="${color || "currentColor"}" stroke-width="1.7" `
+      + `stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${g}</svg>`;
+  }
 
   // ---------- event vocabulary ----------
   // Mirrors artquest/events.py. One timeline, one clock: `t_ms` is milliseconds
@@ -776,7 +818,9 @@
       const el = document.createElement("div");
       el.className = "quest-card" + (c.locked ? " locked" : "");
       el.style.setProperty("--qc", c.color || "#e8632b");
-      el.innerHTML = `<div class="qc-top"><span class="qc-icon">${c.icon || "🎨"}</span><span class="type">${c.kind}</span></div>`
+      const fam = c.family || (c.task && c.task.family) || "";
+      const mark = glyph(fam, c.color || "#e8632b", 26) || `<span class="qc-icon">${c.icon || "🎨"}</span>`;
+      el.innerHTML = `<div class="qc-top">${mark}<span class="type">${c.kind}</span></div>`
         + `<h3>${c.title}</h3><p>${c.body}</p><span class="qc-go">${c.go}</span>`;
       if (!c.locked) el.onclick = () => {
         const q = c.task || randomForm(c.family);
@@ -1264,6 +1308,12 @@
       }).join("") + "</div></div>";
     }).join("");
     $("#badges-count").textContent = `点亮了 ${got.length}/${pool.length} 枚`;
+    if (got.length) {
+      // one beat of delight, then back to breathing
+      document.querySelectorAll("#view-final .sprite").forEach(el => {
+        el.classList.remove("cheer"); void el.offsetWidth; el.classList.add("cheer");
+      });
+    }
   }
   $("#btn-again").onclick = async () => {
     await flushLog();

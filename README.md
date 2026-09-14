@@ -483,6 +483,35 @@ device id 是同一个——"任一 id 匹配"会把二十个孩子并成一个�
 
 接入真正的个性化模型：在 `artquest/personalize/` 里实现 `prepare()` 并在 `get_personalizer()` 注册。
 
+## 和已有速写数据集对齐
+
+我们自己的落盘格式在**过程维度上是超集**，收集时这样是对的；但**一个别人读不了的格式，别人就不会用**。
+所以原始日志保持原样，另出一个转换器：
+
+```bash
+python3 tools/export_sketches.py --out sketches/ --format all
+```
+
+| 格式 | 是什么 | 丢了什么 |
+|---|---|---|
+| `differsketching` | DifferSketching（SIGGRAPH Asia 2022）的 schema，字段逐个对照作者仓库里的样例 JSON 核过 | 逐点时间戳（只剩 `s_time`/`e_time`）、倾角、颜色、工具、缩放、参考图、停顿、每次撤销具体删了哪几笔 |
+| `quickdraw` | Google QuickDraw 的 ndjson，`drawing: [[[x…],[y…],[t…]], …]` | 压感、倾角、颜色、笔宽、工具、以及全部交互过程 |
+| `svg` | 纯矢量，什么都打得开 | 全部时间信息与过程 |
+
+**和 DifferSketching 的对照**（他们的字段 = 我们的字段）：
+
+```
+strokes[].path / pressure  平行数组       ←  我们的 points 里交错的 [x,y,dt,pressure,tiltX,tiltY]
+strokes[].use_pressure                    ←  pressure_supported（这一条我们各自独立得出了同一个结论）
+strokes[].s_time / e_time  epoch 毫秒     ←  started_at + t_start_ms / t_end_ms
+strokes[].width                           ←  size
+undo_count / rm_stroke_count  只有总数     ←  我们有完整撤销时间线 + strokes_removed
+（他们没有）                                ←  逐点 dt_ms、倾角、颜色、工具、缩放、参考图交互、停顿
+```
+
+每个转换出来的文件都带一个 `artquest` 块，写明**这个格式没能装下什么**，免得以后有人把转换视图
+当成完整记录。`sketches/README.txt` 也会重复一遍这句话。
+
 ## 导出与回放
 
 ```bash
@@ -563,7 +592,8 @@ artquest/            后端（FastAPI）
   llm.py             Anthropic SDK 封装
 static/              前端（原生 HTML / Canvas / JS，无构建步骤）
   log.js             本地优先记录器（IndexedDB 缓冲 + 批量补传）
-tools/               export_dataset.py（导出 CSV）、replay.py（回放校验 + 关键帧）
+tools/               export_dataset.py（CSV）、export_sketches.py（对齐已有速写数据集）
+                     replay.py（回放校验 + 关键帧）、withdraw.py（被试撤回）
 tests/               端到端测试 + 研究数据层测试（离线后端）
   test_personalization.py  历史 → 表示 → 三臂 → 预测打分 → 导出
   test_feedback_revision.py 区域坐标约束、反馈→修改归因、多评分者
