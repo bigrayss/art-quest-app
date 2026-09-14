@@ -292,6 +292,24 @@ rubric 不合法的任务会被**拒绝加载**并记日志，其余任务照常
   "focus_dims": ["realism", "line_texture"], "icon": "🔺", "color": "#2b7de8"}]
 ```
 
+## 界面：一套自己的视觉系统（形式参考多邻国）
+
+形式上借多邻国那套「一眼就知道能按」的语言，内容仍然是我们自己的：
+
+| 规则 | 怎么做的 |
+| --- | --- |
+| **每个能按的东西都有厚度** | 按钮、卡片、关卡圆钮都有 4px 下沿（`box-shadow: 0 4px 0 深色`），按下去 `translateY(4px)` 真的陷进去 |
+| **扁平高饱和** | 没有渐变、没有投影拟物。主色橙 `#ff9600`，完成绿 `#58cc02`，次要蓝 `#1cb0f6`，进化紫 `#ce82ff`，提醒红 `#ff4b4b` |
+| **圆润的粗体字** | 拉丁字母用自托管的 Nunito（`static/fonts/`，SIL OFL 1.1，可变字重一个文件），中文落到 Noto Sans CJK；正文 600，标题与按钮 800 |
+| **不用 emoji** | 全部图标是 `app.js` 里的 `ICONS`（约 35 枚，24×24、2.2 粗描边、`currentColor`）。emoji 在每个系统上长得都不一样，也带着别人的视觉语言 |
+| **十个任务家族各有一块颜色** | 家族色写在 `missions.py`，首页卡片是「彩色圆角砖 + 白图标」，图鉴、扇形图、chip 都跟着它走 |
+
+闯关路线（`renderTrail`）是横向的自家藏宝图，不是多邻国的竖直路径：大圆钮带下沿、走过的路变绿、
+盖一颗星、当前关轻轻跳，彩点站在当前关上方。没走的「✨进化关」是一圈虚线——**路过，不是打叉**。
+
+约束没有变：徽章只读过程，`ui=quiet` 依然把整套游戏化外观收起（`body.quiet`），
+孩子面前不出现分数或排名。
+
 ## Study Mode
 
 不是「关掉游戏」，而是**固定并记录**那些本来会悄悄变化的东西。任何 session（包括自由玩）都会把
@@ -591,6 +609,9 @@ artquest/            后端（FastAPI）
   feedback/          AI 文字反馈
   llm.py             Anthropic SDK 封装
 static/              前端（原生 HTML / Canvas / JS，无构建步骤）
+  app.js             全部界面逻辑 + 图标集 ICONS + 闯关路线 renderTrail
+  style.css          视觉系统（配色 / 下沿按钮 / 卡片 / 徽章）
+  fonts/             Nunito 可变字重子集（SIL OFL 1.1），拉丁字母用
   log.js             本地优先记录器（IndexedDB 缓冲 + 批量补传）
 tools/               export_dataset.py（CSV）、export_sketches.py（对齐已有速写数据集）
                      replay.py（回放校验 + 关键帧）、withdraw.py（被试撤回）

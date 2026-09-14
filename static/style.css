@@ -1,205 +1,400 @@
-:root { --bg:#f7f2ea; --card:#fff; --ink:#2b2a28; --muted:#7a766f; --line:#e6e0d6; --accent:#e8632b; --accent-2:#2b7de8; --ok:#2e9e5b; }
+/* ArtQuest 视觉系统
+ * 参考多邻国（Duolingo）的界面语言，但不照抄它的内容：
+ *   - 扁平高饱和色块，没有渐变、没有拟物质感
+ *   - 每个可按的东西都有 4px 的「下沿」，按下去真的会陷下去
+ *   - 圆润的粗体字 + 大圆角 + 2px 描边卡片
+ *   - 图标全部是同一套线性图标（app.js 的 ICONS），不用 emoji
+ * 教育原则不变：不摆分数、不排名，热闹只出现在「过程」上。
+ */
+
+/* Nunito（SIL OFL 1.1）：拉丁字母的圆体，中文自动落到 Noto Sans CJK。
+   可变字重，一个文件覆盖 400–900。 */
+@font-face {
+  font-family: "Nunito";
+  src: url("/static/fonts/nunito-latin.woff2") format("woff2");
+  font-weight: 200 1000;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+                 U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193,
+                 U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+:root {
+  /* 调色板：扁平、饱和、互相之间对比够 */
+  --green:#58cc02;  --green-d:#48a802;  --green-l:#d7ffb8;
+  --blue:#1cb0f6;   --blue-d:#1a94d2;   --blue-l:#ddf4ff;
+  --orange:#ff9600; --orange-d:#e08100; --orange-l:#ffefd9;
+  --red:#ff4b4b;    --red-d:#e03d3d;    --red-l:#ffe0e0;
+  --yellow:#ffc800; --yellow-d:#e0ae00; --yellow-l:#fff5d2;
+  --purple:#ce82ff; --purple-d:#b163e8; --purple-l:#f6e9ff;
+
+  --accent:var(--orange); --accent-d:var(--orange-d); --accent-l:var(--orange-l);
+  --accent-2:var(--blue); --ok:var(--green);
+
+  --ink:#3c3c3c; --muted:#afafaf; --muted-2:#777;
+  --line:#e5e5e5; --line-d:#d8d8d8;
+  --bg:#fff; --soft:#f7f7f7; --card:#fff;
+  --r:16px; --r-lg:22px; --edge:4px;
+
+  --font: "Nunito", -apple-system, "PingFang SC", "Noto Sans CJK SC",
+          "Microsoft YaHei", system-ui, sans-serif;
+}
 * { box-sizing: border-box; }
-body { margin:0; font-family: -apple-system, "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif;
-  background:radial-gradient(1200px 600px at 15% -10%, #fdf0e4 0%, transparent 60%), radial-gradient(1000px 500px at 100% 0%, #eaf1fb 0%, transparent 55%), var(--bg);
-  background-attachment:fixed; color:var(--ink); }
-.topwrap { position:sticky; top:0; z-index:5; }
-.topbar { display:flex; align-items:center; justify-content:space-between; gap:24px; padding:12px 22px; background:rgba(255,255,255,.82); backdrop-filter:saturate(1.4) blur(8px); border-bottom:1px solid var(--line); box-shadow:0 1px 12px rgba(0,0,0,.03); }
-.brand { font-weight:800; font-size:19px; letter-spacing:-.01em; }
-/* 顶部探险路线 */
-.trailbar { background:linear-gradient(180deg,#fffdf9,#fbf7f0); border-bottom:1px solid var(--line); padding:2px 16px 0; }
-.trailbar svg { display:block; width:100%; max-width:1120px; margin:0 auto; height:auto; max-height:126px; }
-.brand .stage { font-weight:400; font-size:12px; color:var(--muted); margin-left:6px; }
-.steps { display:flex; gap:6px; flex:1; }
-.steps span { font-size:12px; padding:4px 10px; border-radius:999px; background:#f1ede6; color:var(--muted); }
-.steps span.active { background:var(--accent); color:#fff; }
-.steps span.done { background:#dfeee5; color:var(--ok); }
-.backend { font-size:12px; color:var(--muted); }
-main { max-width:1280px; margin:0 auto; padding:20px; }
+body { margin:0; font-family:var(--font); background:var(--bg); color:var(--ink);
+  font-weight:600; -webkit-font-smoothing:antialiased; }
+
+/* ===== 顶栏 ===== */
+.topwrap { position:sticky; top:0; z-index:5; background:var(--bg); }
+.topbar { display:flex; align-items:center; justify-content:space-between; gap:24px;
+  padding:10px 22px; border-bottom:2px solid var(--line); }
+.brand { display:flex; align-items:center; gap:9px; font-weight:800; font-size:20px; letter-spacing:-.01em; }
+.brand .mark { display:flex; align-items:center; justify-content:center; width:34px; height:34px;
+  border-radius:11px; background:var(--accent); color:#fff; flex:none; }
+.brand .stage { font-weight:700; font-size:12px; color:var(--muted); margin-left:2px; }
+.topright { display:flex; align-items:center; gap:10px; }
+/* 顶栏右侧的小胶囊：状态看一眼就懂，不抢戏 */
+.recstat, .backend { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:800;
+  color:var(--muted-2); background:var(--soft); border-radius:999px; padding:5px 12px; }
+.recstat i { width:9px; height:9px; border-radius:50%; background:var(--green); }
+.recstat.warn { background:var(--orange-l); color:var(--orange-d); }
+.recstat.warn i { background:var(--orange); animation:pulse 1.4s infinite; }
+@keyframes pulse { 50% { opacity:.3; } }
+
+/* ===== 顶部探险路线 ===== */
+.trailbar { background:var(--bg); border-bottom:2px solid var(--line); padding:6px 16px 2px; }
+.trailbar svg { display:block; width:100%; max-width:1120px; margin:0 auto; height:auto; max-height:152px; }
+.trail-label { font-size:13px; font-weight:800; font-family:var(--font); }
+.trail-icon { color:#fff; }
+
+main { max-width:1280px; margin:0 auto; padding:22px 20px 48px; }
 .view.hidden, .hidden { display:none !important; }
-h1 { font-size:27px; margin:8px 0 6px; letter-spacing:-.01em; } h2 { font-size:18px; margin:18px 0 8px; }
-.muted { color:var(--muted); } .small { font-size:12px; }
-.quest-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px; margin:16px 0; }
-.quest-card { position:relative; overflow:hidden; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:20px 18px 16px; cursor:pointer; transition:transform .12s, box-shadow .18s, border-color .18s; }
-.quest-card::before { content:""; position:absolute; inset:0 0 auto 0; height:4px; background:linear-gradient(90deg, var(--qc,#e8632b), color-mix(in srgb, var(--qc,#e8632b) 45%, #fff)); }
-.quest-card:hover { transform:translateY(-3px); box-shadow:0 12px 28px color-mix(in srgb, var(--qc,#000) 20%, transparent); border-color:color-mix(in srgb, var(--qc,#000) 28%, var(--line)); }
-.qc-top { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
-.qc-icon { font-size:24px; line-height:1; filter:drop-shadow(0 1px 2px rgba(0,0,0,.12)); }
-.quest-card .type { display:inline-block; font-size:11px; font-weight:700; letter-spacing:.03em; color:var(--qc,var(--accent-2)); background:color-mix(in srgb, var(--qc,#2b7de8) 12%, #fff); padding:3px 10px; border-radius:999px; }
-.quest-card h3 { margin:4px 0 6px; font-size:17px; }
-.quest-card p { margin:0; font-size:13px; color:var(--muted); line-height:1.55; }
-.qc-go { display:inline-block; margin-top:10px; font-size:13px; font-weight:700; color:var(--qc,var(--accent)); opacity:0; transform:translateX(-4px); transition:opacity .15s, transform .15s; }
-.quest-card:hover .qc-go { opacity:1; transform:translateX(0); }
-.quest-card.small { cursor:default; padding:12px; } .quest-card.small::before { display:none; } .quest-card.small p { font-size:12px; }
-.quest-card.small .type { background:#f1ede6; color:var(--muted); }
-.quest-prompt { font-size:16px; line-height:1.6; background:var(--card); border-left:4px solid var(--accent); padding:12px 14px; border-radius:8px; }
-.hint { color:var(--muted); font-size:14px; }
-label { display:block; margin:14px 0 6px; font-weight:600; font-size:14px; }
-textarea, input[type=text] { width:100%; max-width:640px; padding:10px; border:1px solid var(--line); border-radius:10px; font:inherit; background:var(--card); }
-.chips { display:flex; flex-wrap:wrap; gap:8px; }
-.chips button { border:1px solid var(--line); background:var(--card); border-radius:999px; padding:6px 14px; cursor:pointer; font:inherit; }
-.chips button.active { background:var(--accent); border-color:var(--accent); color:#fff; }
-.actions { display:flex; gap:10px; margin-top:20px; } .actions.column { flex-direction:column; }
-button { font:inherit; cursor:pointer; border-radius:10px; border:1px solid var(--line); background:var(--card); padding:8px 14px; transition:transform .08s, box-shadow .12s, filter .12s; }
-button:hover { transform:translateY(-1px); }
-button:active { transform:translateY(0); }
-button.primary { background:linear-gradient(180deg,#f0743c,#e8632b); color:#fff; border-color:#d5551f; font-weight:600; box-shadow:0 4px 14px rgba(232,99,43,.28); }
-button.primary:hover { box-shadow:0 6px 18px rgba(232,99,43,.36); filter:brightness(1.03); }
-button.secondary { background:#f1ede6; }
-button.big { padding:12px 18px; font-size:16px; border-radius:12px; }
-button:disabled { opacity:.5; cursor:not-allowed; }
-/* draw */
-.draw-layout { display:grid; grid-template-columns:230px 1fr; gap:16px; }
+h1 { font-size:28px; font-weight:800; margin:6px 0 6px; letter-spacing:-.02em; }
+h2 { font-size:19px; font-weight:800; margin:26px 0 10px; display:flex; align-items:center; gap:8px; }
+h2 .muted { font-weight:700; }
+.muted { color:var(--muted-2); font-weight:600; }
+.small { font-size:12px; }
+
+/* ===== 按钮：多邻国式「下沿」 —— 按下去真的会陷进去 ===== */
+button { font:inherit; font-weight:800; cursor:pointer; color:var(--ink); background:var(--card);
+  border:2px solid var(--line); border-radius:var(--r); padding:9px 16px;
+  box-shadow:0 var(--edge) 0 var(--line-d);
+  transition:background .12s, border-color .12s, filter .12s; }
+button:hover { background:var(--soft); }
+button:active { transform:translateY(var(--edge)); box-shadow:none; }
+button.primary { background:var(--accent); border-color:var(--accent); color:#fff;
+  box-shadow:0 var(--edge) 0 var(--accent-d); }
+button.primary:hover { filter:brightness(1.05); background:var(--accent); }
+button.go { background:var(--green); border-color:var(--green); color:#fff;
+  box-shadow:0 var(--edge) 0 var(--green-d); }
+button.go:hover { filter:brightness(1.05); background:var(--green); }
+button.secondary { background:var(--card); color:var(--blue-d); border-color:var(--line); }
+button.secondary:hover { background:var(--blue-l); }
+button.big { padding:13px 20px; font-size:16px; border-radius:var(--r); }
+button.ghost { background:transparent; border-color:transparent; box-shadow:none; color:var(--muted-2); }
+button.ghost:hover { background:var(--soft); color:var(--ink); }
+button.ghost:active { transform:none; }
+button.ghost.danger:hover { color:var(--red); background:var(--red-l); }
+button:disabled { opacity:.45; cursor:not-allowed; box-shadow:0 var(--edge) 0 var(--line-d); }
+button:disabled:active { transform:none; }
+/* 图标 + 文字的按钮统一对齐 */
+button .ico, .brand .ico, h2 .ico, .badge .ico, .qc-top .ico, .tchip .ico { flex:none; }
+button { display:inline-flex; align-items:center; justify-content:center; gap:7px; }
+
+/* ===== 任务卡（闯关入口） ===== */
+.quest-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(272px,1fr)); gap:16px; margin:18px 0; }
+.quest-card { position:relative; background:var(--card); border:2px solid var(--line); border-radius:var(--r-lg);
+  padding:18px; cursor:pointer; box-shadow:0 var(--edge) 0 var(--line-d);
+  transition:border-color .14s, box-shadow .14s, transform .1s; }
+.quest-card:hover { border-color:var(--qc,var(--accent)); box-shadow:0 var(--edge) 0 var(--qc,var(--accent)); }
+.quest-card:active { transform:translateY(var(--edge)); box-shadow:none; }
+.qc-top { display:flex; align-items:center; gap:11px; margin-bottom:10px; }
+/* 图标住在自己那块彩色圆角砖里，一眼能认出是哪一类任务 */
+.qc-tile { display:flex; align-items:center; justify-content:center; width:46px; height:46px; flex:none;
+  border-radius:14px; background:var(--qc,var(--accent)); color:#fff;
+  box-shadow:0 3px 0 var(--qc-edge, var(--accent-d)); }
+.qc-icon { font-size:24px; line-height:1; }
+.quest-card .type { display:inline-block; font-size:11px; font-weight:800; letter-spacing:.04em;
+  color:var(--qc,var(--accent-2)); }
+.quest-card h3 { margin:2px 0 6px; font-size:17px; font-weight:800; }
+.quest-card p { margin:0; font-size:13px; color:var(--muted-2); line-height:1.6; font-weight:600; }
+.qc-go { display:inline-flex; align-items:center; gap:4px; margin-top:12px; font-size:13px; font-weight:800;
+  color:var(--qc,var(--accent)); }
+.quest-card.small { cursor:default; padding:12px 14px; box-shadow:none; }
+.quest-card.small:hover { border-color:var(--line); }
+.quest-card.small:active { transform:none; }
+.quest-card.small p { font-size:12px; }
+.quest-card.small .type { color:var(--muted); }
+.quest-card.locked { opacity:.5; cursor:default; }
+.quest-card.locked:hover { border-color:var(--line); box-shadow:0 var(--edge) 0 var(--line-d); }
+.quest-card.locked:active { transform:none; box-shadow:0 var(--edge) 0 var(--line-d); }
+
+.quest-prompt { font-size:16px; line-height:1.7; background:var(--soft); border-radius:var(--r);
+  padding:14px 16px; font-weight:700; }
+.hint { color:var(--muted-2); font-size:14px; }
+label { display:block; margin:16px 0 6px; font-weight:800; font-size:14px; }
+textarea, input[type=text] { width:100%; max-width:640px; padding:12px 14px; border:2px solid var(--line);
+  border-radius:var(--r); font:inherit; font-weight:600; background:var(--card); color:var(--ink); }
+textarea:focus, input[type=text]:focus { outline:none; border-color:var(--blue); }
+textarea::placeholder, input::placeholder { color:var(--muted); font-weight:600; }
+
+/* 选择型胶囊（心情等）：和按钮同一套「下沿」逻辑 */
+.chips { display:flex; flex-wrap:wrap; gap:9px; }
+.chips button { border-radius:var(--r); padding:8px 16px; }
+.chips button.active { background:var(--blue-l); border-color:var(--blue); color:var(--blue-d);
+  box-shadow:0 var(--edge) 0 var(--blue); }
+.actions { display:flex; gap:12px; margin-top:22px; } .actions.column { flex-direction:column; }
+
+/* ===== 画画界面 ===== */
+.draw-layout { display:grid; grid-template-columns:242px 1fr; gap:18px; }
 .toolbox { display:flex; flex-direction:column; gap:12px; }
-.intent-card { background:#fff8e8; border:1px solid #f1e2b8; border-radius:10px; padding:10px; font-size:12px; line-height:1.5; }
-.tool-group { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px; box-shadow:0 1px 3px rgba(0,0,0,.03); }
-.tool-group.row { display:flex; gap:6px; } .tool-group.row button { flex:1; padding:6px 4px; font-size:12px; }
-.tool-group .label { font-size:12px; color:var(--muted); margin-bottom:6px; }
-.tools { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
-.tools button.active { background:linear-gradient(180deg,#f0743c,#e8632b); color:#fff; border-color:#d5551f; box-shadow:0 2px 8px rgba(232,99,43,.28); }
-.palette { display:grid; grid-template-columns:repeat(6,1fr); gap:5px; margin-bottom:6px; }
-.palette div { aspect-ratio:1; border-radius:6px; border:2px solid transparent; cursor:pointer; }
+.toolbox .back { align-self:flex-start; padding:5px 10px; font-size:13px; }
+.intent-card { background:var(--yellow-l); border-radius:var(--r); padding:11px 13px; font-size:12px; line-height:1.6; }
+.tool-group { background:var(--card); border:2px solid var(--line); border-radius:var(--r); padding:11px; }
+.tool-group.row { display:flex; gap:7px; } .tool-group.row button { flex:1; padding:7px 4px; font-size:12px; gap:4px; }
+.tool-group .label { font-size:11px; font-weight:800; color:var(--muted); letter-spacing:.04em; margin-bottom:8px; }
+.tools { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+.tools button { flex-direction:column; gap:3px; padding:9px 4px; font-size:12px; }
+.tools button.active { background:var(--accent); border-color:var(--accent); color:#fff;
+  box-shadow:0 var(--edge) 0 var(--accent-d); }
+.palette { display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin-bottom:8px; }
+.palette div { aspect-ratio:1; border-radius:9px; border:3px solid transparent; cursor:pointer;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.06); }
 .palette div.active { border-color:var(--ink); }
-input[type=range] { width:100%; }
-.timer { font-size:14px; margin-bottom:8px; }
-.tool-group > button { width:100%; margin-top:6px; }
-.banner { margin-top:10px; background:#e8f1fd; border:1px solid #c6dcf7; border-radius:10px; padding:10px; font-size:13px; }
-.banner button { margin-top:8px; width:100%; }
-.canvas-wrap { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:10px; box-shadow:0 6px 24px rgba(0,0,0,.06); }
+input[type=color] { width:100%; height:34px; padding:2px; border:2px solid var(--line); border-radius:10px; background:var(--card); cursor:pointer; }
+/* 粗细滑杆：粗轨道 + 大圆钮 */
+input[type=range] { width:100%; appearance:none; height:14px; border-radius:999px; background:var(--line); }
+input[type=range]::-webkit-slider-thumb { appearance:none; width:26px; height:26px; border-radius:50%;
+  background:var(--accent); border:3px solid #fff; box-shadow:0 2px 0 var(--accent-d); cursor:pointer; }
+input[type=range]::-moz-range-thumb { width:22px; height:22px; border-radius:50%; background:var(--accent);
+  border:3px solid #fff; cursor:pointer; }
+.timer { display:flex; align-items:center; gap:6px; font-size:14px; font-weight:800; margin-bottom:10px; }
+.tool-group > button { width:100%; margin-top:8px; }
+.banner { margin-top:12px; background:var(--purple-l); border-radius:var(--r); padding:12px; font-size:13px; font-weight:700; }
+.banner button { margin-top:10px; width:100%; }
+.canvas-wrap { background:var(--card); border:2px solid var(--line); border-radius:var(--r-lg); padding:12px; }
 /* Zoom/pan is a CSS transform on the canvas element, never a change to the
    drawing context: pointer coordinates are mapped through getBoundingClientRect(),
    which already reports the transformed box, so stroke points stay in canvas
    pixel space at every zoom level and the logs replay unchanged. */
-.canvas-viewport { position:relative; overflow:hidden; border-radius:8px; background:#fff; }
-canvas { width:100%; height:auto; display:block; background:#fff; border-radius:8px; touch-action:none; cursor:crosshair; transform-origin:0 0; }
+.canvas-viewport { position:relative; overflow:hidden; border-radius:12px; background:#fff; }
+canvas { width:100%; height:auto; display:block; background:#fff; border-radius:12px; touch-action:none;
+  cursor:crosshair; transform-origin:0 0; }
 .canvas-viewport.grab canvas { cursor:grab; }
 .canvas-viewport.panning canvas { cursor:grabbing; }
-.zoombar { display:flex; align-items:center; gap:6px; margin-top:8px; flex-wrap:wrap; }
-.zoombar button { padding:5px 10px; font-size:13px; }
-.zoombar #btn-zoom-reset { min-width:62px; font-variant-numeric:tabular-nums; }
-.zoombar #btn-hand.active { background:var(--accent, #e8632b); color:#fff; border-color:transparent; }
+.zoombar { display:flex; align-items:center; gap:7px; margin-top:10px; flex-wrap:wrap; }
+.zoombar button { padding:6px 11px; font-size:13px; }
+.zoombar #btn-zoom-reset { min-width:66px; font-variant-numeric:tabular-nums; }
+.zoombar #btn-hand.active { background:var(--blue); border-color:var(--blue); color:#fff;
+  box-shadow:0 var(--edge) 0 var(--blue-d); }
 .zoombar.hidden { display:none; }
+#tools button.off, .toolbox button:disabled { opacity:.35; cursor:not-allowed; }
+
 /* What the personalisation arm decided to show this child. Shown only when the
    frozen `history_mode` is not "none" — the control arm renders nothing. */
-.historycard { background:color-mix(in srgb, var(--accent-2) 7%, #fff); border:1px solid color-mix(in srgb, var(--accent-2) 22%, #fff);
-  border-radius:12px; padding:10px 12px; font-size:13px; line-height:1.7; }
-.historycard h4 { margin:0 0 4px; font-size:12px; font-weight:700; color:var(--accent-2); letter-spacing:.03em; }
+.historycard { background:var(--blue-l); border-radius:var(--r); padding:11px 13px; font-size:13px; line-height:1.7; }
+.historycard h4 { margin:0 0 4px; font-size:12px; font-weight:800; color:var(--blue-d);
+  display:flex; align-items:center; gap:6px; }
 .historycard p { margin:0 0 2px; }
 .historycard.hidden { display:none; }
-/* result */
-.result-layout { display:grid; grid-template-columns:1.1fr 1fr; gap:20px; }
-.artwork { width:100%; border:1px solid var(--line); border-radius:12px; background:#fff; }
-.feedback-card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; }
-.feedback-text { white-space:pre-wrap; line-height:1.8; font-size:16px; }
-.scores { margin-top:14px; }
-/* 扇形图（南丁格尔玫瑰） */
-.rose-wrap { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:8px 8px 12px; box-shadow:0 2px 10px rgba(0,0,0,.04); }
+
+/* ===== 反馈页 ===== */
+.result-layout { display:grid; grid-template-columns:1.1fr 1fr; gap:22px; }
+.artwork { width:100%; border:2px solid var(--line); border-radius:var(--r-lg); background:#fff; }
+.feedback-card { background:var(--card); border:2px solid var(--line); border-radius:var(--r-lg); padding:20px; }
+.feedback-text { white-space:pre-wrap; line-height:1.9; font-size:16px; font-weight:600; }
+.scores { margin-top:16px; }
+
+/* ===== 能力值扇形图 ===== */
+.rose-wrap { background:var(--soft); border-radius:var(--r-lg); padding:10px 8px 14px; }
 .rose { width:100%; max-width:420px; margin:0 auto; display:block; }
-.rose-grid { fill:none; stroke:#ece4d8; stroke-width:1; }
-.rose-focus { filter:drop-shadow(0 0 3px rgba(232,99,43,.5)); }
-.rose-before { fill:none; stroke-width:2.5; stroke-dasharray:3 3; stroke-opacity:.85; stroke-linecap:round; }
-.rose-hub { fill:#fff; stroke:var(--line); stroke-width:1; }
-.rose-avg { font-size:20px; font-weight:800; fill:var(--ink); }
-.rose-avg-sub { font-size:9px; fill:var(--muted); letter-spacing:.03em; }
-.rose-label { font-size:11px; fill:var(--muted); }
-.rose-label.focus { fill:var(--accent); font-weight:700; }
-.rose-label .rose-num { font-weight:700; fill:var(--ink); }
-.rose-legend { display:flex; flex-wrap:wrap; justify-content:center; gap:6px 14px; margin-top:4px; font-size:12px; color:var(--muted); }
+.rose-grid { fill:none; stroke:#e5e5e5; stroke-width:2; }
+.rose-focus { filter:drop-shadow(0 0 4px rgba(255,150,0,.45)); }
+.rose-before { fill:none; stroke-width:3; stroke-dasharray:3 4; stroke-opacity:.9; stroke-linecap:round; }
+.rose-hub { fill:#fff; stroke:var(--line); stroke-width:2; }
+.rose-label { font-size:11px; font-weight:800; fill:var(--muted-2); }
+.rose-label.focus { fill:var(--accent-d); }
+.rose-legend { display:flex; flex-wrap:wrap; justify-content:center; gap:6px 14px; margin-top:6px;
+  font-size:12px; font-weight:700; color:var(--muted-2); }
 .rose-leg { display:inline-flex; align-items:center; gap:5px; }
-.rose-leg i { width:11px; height:11px; border-radius:3px; display:inline-block; }
-.rose-leg.dash i { width:16px; height:0; border-top:2.5px dashed var(--muted); border-radius:0; }
-/* 维度说明列表 */
-.dim-notes { display:grid; grid-template-columns:repeat(3,1fr); gap:8px 16px; margin-top:14px; }
+.rose-leg i { width:11px; height:11px; border-radius:4px; display:inline-block; }
+.rose-leg.dash i { width:16px; height:0; border-top:3px dashed var(--muted); border-radius:0; }
+.rose-arw.up { fill:var(--green); } .rose-arw.dn { fill:var(--red); }
+.rose-label.na { fill:var(--muted); font-style:italic; font-weight:700; }
+
+/* ===== 九维说明 ===== */
+.ability-head { display:flex; align-items:center; gap:7px; font-size:14px; font-weight:800; margin-bottom:10px; }
+.ability-head .muted { font-weight:600; font-size:12px; }
+.dim-notes { display:grid; grid-template-columns:repeat(3,1fr); gap:10px 16px; margin-top:16px; }
 .dim { font-size:12px; }
-.dim .name { display:flex; justify-content:space-between; align-items:center; color:var(--muted); }
-.dim .name .dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:5px; vertical-align:middle; }
-.dim .sval { font-weight:700; color:var(--ink); }
-.dim.focus .name { color:var(--accent); font-weight:600; }
-.dim .delta { color:var(--ok); font-weight:700; } .dim .delta.neg { color:#c0392b; }
+.dim .name { display:flex; justify-content:space-between; align-items:center; color:var(--muted-2); font-weight:700; }
+.dim .name .dot { width:9px; height:9px; border-radius:50%; display:inline-block; margin-right:6px; vertical-align:middle; }
+.dim .sval { font-weight:800; color:var(--ink); }
+.dim.focus .name { color:var(--accent-d); }
+.dim .delta { color:var(--green); font-weight:800; font-size:11px; }
+.dim .delta.neg { color:var(--red); }
 .dim .note { color:var(--muted); font-size:11px; margin-top:2px; line-height:1.4; }
-@media (max-width: 560px) { .dim-notes { grid-template-columns:1fr 1fr; } }
-.compare { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:12px 0; }
-figure { margin:0; } figcaption { text-align:center; color:var(--muted); font-size:13px; margin-top:6px; }
+.dim .sval .st { color:var(--yellow-d); letter-spacing:1px; font-size:13px; }
+.dim .sval .st u { color:var(--line); text-decoration:none; }
+.dim .sval .wait { color:var(--muted); font-size:11px; font-weight:700; }
+.dim.ph .name span:first-child { color:var(--muted); }
+/* A dimension the task cannot elicit: greyed and spelled out, never a low bar. */
+.dim.na .name span:first-child { color:var(--muted); }
+.dim.na .wait { font-size:12px; color:var(--muted); }
+@media (max-width:560px) { .dim-notes { grid-template-columns:1fr 1fr; } }
+
+.compare { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin:14px 0; }
+/* One artwork instead of an unchanged before/after pair. */
+.compare.single { grid-template-columns:minmax(0,1fr); max-width:760px; margin-inline:auto; }
+.compare figure.hidden { display:none; }
+figure { margin:0; }
+figcaption { text-align:center; color:var(--muted-2); font-size:13px; font-weight:800; margin-top:8px; }
+
 table.sessions { width:100%; border-collapse:collapse; background:var(--card); font-size:13px; }
-table.sessions th, table.sessions td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); }
-#overlay { position:fixed; inset:0; background:rgba(250,247,242,.85); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; z-index:20; font-size:16px; }
-.spinner { width:36px; height:36px; border:4px solid #eee; border-top-color:var(--accent); border-radius:50%; animation:spin .8s linear infinite; }
+table.sessions th, table.sessions td { text-align:left; padding:10px; border-bottom:2px solid var(--line); }
+table.sessions th { font-weight:800; color:var(--muted-2); font-size:12px; }
+
+#overlay { position:fixed; inset:0; background:rgba(255,255,255,.92); display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:16px; z-index:20; font-size:16px; font-weight:800; }
+.spinner { width:40px; height:40px; border:5px solid var(--line); border-top-color:var(--accent);
+  border-radius:50%; animation:spin .8s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
-@media (max-width: 900px) { .draw-layout, .result-layout { grid-template-columns:1fr; } }
+@media (max-width:900px) { .draw-layout, .result-layout { grid-template-columns:1fr; } }
 
 /* ===== 创作伙伴「彩点」 ===== */
 .sprite { width:56px; height:56px; display:block; }
-.sprite.lg { width:64px; height:64px; }
-.buddy-mini { display:flex; align-items:center; gap:10px; background:#fff8ee; border:1px solid #f1e2c8; border-radius:12px; padding:8px 10px; }
+.sprite.lg { width:66px; height:66px; }
+.buddy-mini { display:flex; align-items:center; gap:10px; background:var(--soft); border-radius:var(--r); padding:9px 11px; }
 .buddy-mini .sprite { width:48px; height:48px; flex:none; }
-.buddy-say { font-size:12px; line-height:1.5; color:#6b5b3e; }
-.buddy-card .buddy-head { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+.buddy-say { font-size:12px; line-height:1.55; color:var(--muted-2); font-weight:700; }
+.buddy-card .buddy-head { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
 .buddy-name { font-weight:800; font-size:15px; }
+
 /* ===== 过程徽章 ===== */
-.badges { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin:10px 0 4px; }
-.badge { background:#fff; border:1px solid var(--line); border-radius:16px; padding:16px 10px; text-align:center; position:relative; transition:transform .12s; }
-.badge.new { box-shadow:0 4px 14px rgba(232,99,43,.14); }
-.badge.new:hover { transform:translateY(-2px); }
-.badge .b-ico { font-size:32px; filter:drop-shadow(0 2px 4px rgba(0,0,0,.12)); }
-.badge .b-name { font-size:13px; font-weight:800; margin-top:6px; }
-.badge .b-desc { font-size:11px; color:var(--muted); margin-top:2px; line-height:1.4; }
-.badge.locked { background:#f6f3ee; border-style:dashed; }
-.badge.locked .b-ico { filter:grayscale(1); opacity:.4; }
-.badge.locked .b-name { color:#b8b2a8; }
-.badge.new::after { content:"NEW"; position:absolute; top:7px; right:7px; background:var(--accent); color:#fff; font-size:9px; font-weight:800; padding:2px 6px; border-radius:999px; }
-.badge.evo.new { border-color:#e6a6b2; }
-.badge.evo.locked { border-color:#e6a6b2; background:#fff7f8; }
-.badge.evo.locked .b-desc { color:#d9455f; font-weight:600; }
-@media (max-width:720px){ .badges { grid-template-columns:repeat(3,1fr); } }
+.badges { margin:10px 0 4px; }
+.badge-group { margin-top:16px; }
+.badge-group h4 { margin:0 0 10px; font-size:12px; font-weight:800; letter-spacing:.04em; color:var(--muted); }
+.badge-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(136px,1fr)); gap:12px; }
+.badge { background:var(--card); border:2px solid var(--line); border-radius:var(--r-lg); padding:14px 10px 12px;
+  text-align:center; position:relative; box-shadow:0 var(--edge) 0 var(--line-d); }
+/* 点亮的徽章：一枚有颜色的圆章；没点亮的：灰色、虚线，说明还能去拿 */
+.badge .b-ico { width:56px; height:56px; margin:0 auto; border-radius:50%; display:flex;
+  align-items:center; justify-content:center; background:var(--yellow); color:#fff;
+  box-shadow:0 3px 0 var(--yellow-d); }
+.badge .b-name { font-size:13px; font-weight:800; margin-top:9px; }
+.badge .b-desc { font-size:11px; color:var(--muted-2); margin-top:3px; line-height:1.45; font-weight:600; }
+.badge.locked { background:var(--soft); border-style:dashed; box-shadow:none; }
+.badge.locked .b-ico { background:#ededed; color:#c9c9c9; box-shadow:none; }
+.badge.locked .b-name { color:var(--muted); }
+.badge.new::after { content:"NEW"; position:absolute; top:8px; right:8px; background:var(--red); color:#fff;
+  font-size:9px; font-weight:800; padding:2px 7px; border-radius:999px; }
+.badge.evo.new .b-ico { background:var(--purple); box-shadow:0 3px 0 var(--purple-d); }
+.badge.evo.locked { border-color:var(--purple); background:var(--purple-l); }
+.badge.evo.locked .b-desc { color:var(--purple-d); font-weight:800; }
+.badge.rare .b-ico { background:var(--blue); box-shadow:0 3px 0 var(--blue-d); }
+.badge.rare .b-name::after { content:" ✦"; color:var(--blue); }
+.rarity { font-size:11px; color:var(--muted); margin-top:4px; font-weight:700; }
+
 /* ===== 创作图鉴 ===== */
 .dex { display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin:6px 0 4px; }
-.dex-card { display:block; border-radius:14px; overflow:hidden; border:1px solid var(--line); background:#fff; box-shadow:0 2px 8px rgba(0,0,0,.04); text-decoration:none; color:inherit; transition:transform .12s, box-shadow .15s; }
-.dex-card:hover { transform:translateY(-3px); box-shadow:0 10px 22px color-mix(in srgb, var(--qc,#000) 18%, transparent); }
-.dex-thumb { height:88px; background:#f4f0ea; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+.dex-card { display:block; border-radius:var(--r); overflow:hidden; border:2px solid var(--line);
+  background:var(--card); text-decoration:none; color:inherit; box-shadow:0 var(--edge) 0 var(--line-d);
+  transition:border-color .14s, box-shadow .14s; }
+.dex-card:hover { border-color:var(--qc,var(--accent)); box-shadow:0 var(--edge) 0 var(--qc,var(--accent)); }
+.dex-thumb { height:92px; background:var(--soft); display:flex; align-items:center; justify-content:center; overflow:hidden; }
 .dex-thumb img { width:100%; height:100%; object-fit:cover; }
-.dex-cap { padding:7px 9px; }
-.dex-cap b { display:block; font-size:12px; }
-.dex-cap span { font-size:11px; color:var(--muted); }
-@media (max-width:900px){ .dex { grid-template-columns:repeat(3,1fr); } }
-/* ===== 能力值面板 ===== */
-.ability-head { font-size:14px; font-weight:700; margin-bottom:8px; }
-.ability-head .muted { font-weight:400; margin-left:6px; }
-.dim .sval .st { color:#e6a23c; letter-spacing:1px; font-size:13px; }
-.dim .sval .st u { color:#e3ddd0; text-decoration:none; }
-.dim .sval .wait { color:#b8b2a8; font-size:11px; font-weight:500; }
-.dim.ph .name span:first-child { color:#b0a89c; }
-.dim .delta { color:var(--ok); font-weight:700; font-size:11px; } .dim .delta.neg { color:#c0392b; }
-.rose-arw.up { fill:var(--ok); } .rose-arw.dn { fill:#c0392b; }
+.dex-cap { padding:8px 10px; }
+.dex-cap b { display:flex; align-items:center; gap:5px; font-size:12px; color:var(--qc,var(--ink)); }
+.dex-cap span { font-size:11px; color:var(--muted); font-weight:700; }
+@media (max-width:900px) { .dex { grid-template-columns:repeat(3,1fr); } }
 
-/* ===== 研究数据层：记录指示器 / 实验模式 / 参考图 / 自评 ===== */
-.topright { display:flex; align-items:center; gap:14px; }
-.recstat { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); }
-.recstat i { width:8px; height:8px; border-radius:50%; background:#2e9e5b; box-shadow:0 0 0 3px rgba(46,158,91,.15); }
-.recstat.warn i { background:#e8632b; box-shadow:0 0 0 3px rgba(232,99,43,.16); animation:pulse 1.4s infinite; }
-@keyframes pulse { 50% { opacity:.35; } }
+/* ===== 彩点的成长 ===== */
+/* 彩点's nine attributes. Two layers, visually distinct on purpose: a filled pip
+   is practice the child really did; an evaluation layer that no backend can
+   judge yet says so in words instead of drawing a bar over placeholder numbers. */
+.growth { display:grid; grid-template-columns:minmax(180px,220px) 1fr; gap:20px; align-items:start;
+  background:var(--card); border:2px solid var(--line); border-radius:var(--r-lg); padding:18px; }
+.growth-buddy { text-align:center; }
+.sprite.big { width:126px; height:126px; margin:0 auto; }
+.growth-rings { display:flex; justify-content:center; gap:3px; color:var(--yellow); margin:4px 0 2px; min-height:18px; }
+.growth-dims { display:grid; grid-template-columns:repeat(auto-fill,minmax(212px,1fr)); gap:12px 18px; }
+.gdim { font-size:13px; }
+.gdim .gtop { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+.gdim .gname { font-weight:800; }
+.gdim .gnext { color:var(--muted); font-size:11px; font-weight:700; }
+.gpips { display:flex; gap:4px; margin-top:5px; }
+.gpips i { width:100%; height:9px; border-radius:999px; background:var(--line); }
+.gpips i.on { background:var(--gc,var(--accent)); }
+.gdim .gsleep { color:var(--muted); font-size:11px; margin-top:4px; font-weight:600; }
+.gdim .gawake { color:var(--green); font-size:11px; margin-top:4px; font-weight:700; }
+@media (max-width:720px) { .growth { grid-template-columns:1fr; } }
 
-.studybar { display:flex; align-items:center; gap:12px; padding:6px 22px; font-size:12px;
-  background:#26313d; color:#dbe4ee; border-bottom:1px solid #16202a; }
-.studybar .tag { font-weight:800; letter-spacing:.08em; background:#e8632b; color:#fff; padding:1px 7px; border-radius:4px; }
-.studybar .seq { font-family:ui-monospace, SFMono-Regular, Menlo, monospace; opacity:.8; letter-spacing:.06em; }
-.studybar .linkbtn { margin-left:auto; background:none; border:none; color:#9fb3c8; text-decoration:underline; cursor:pointer; font-size:12px; padding:0; }
+/* "What this mission trained" — the task's own rubric, said back to the child as
+   practice rather than as a verdict on the drawing. */
+.trained { background:var(--card); border:2px solid var(--line); border-radius:var(--r-lg); padding:14px 18px; margin-top:16px; }
+.trained h4 { margin:0 0 10px; font-size:13px; font-weight:800; display:flex; align-items:center; gap:7px; }
+.trained .tchips { display:flex; flex-wrap:wrap; gap:8px; }
+.trained .tchip { display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:800;
+  padding:6px 14px; border-radius:999px; background:color-mix(in srgb, var(--tc,#ff9600) 14%, #fff);
+  color:color-mix(in srgb, var(--tc,#ff9600) 75%, #000); }
+.trained .tchip i { width:9px; height:9px; border-radius:50%; background:var(--tc,var(--accent)); }
+.trained .tnote { color:var(--muted-2); font-size:12px; margin-top:10px; line-height:1.6; }
 
-.refpanel { margin:10px 0; }
-.refpanel .ref-img { margin-top:8px; border:1px solid var(--line); border-radius:10px; overflow:hidden; background:#fff; }
+/* Other people's approaches. Shown only after the child has submitted their own,
+   and only for sessions whose consent allows it. No score, no name, no order
+   that implies one is better. */
+.peers { margin-top:22px; }
+.peer-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(224px,1fr)); gap:14px; }
+.peer { background:var(--card); border:2px solid var(--line); border-radius:var(--r-lg); overflow:hidden; }
+.peer img { width:100%; display:block; aspect-ratio:1024/704; object-fit:contain; background:#fff; }
+.peer .p-why { padding:10px 13px 2px; font-size:13px; font-weight:800; }
+.peer .p-how { padding:0 13px 12px; font-size:12px; color:var(--muted-2); line-height:1.6; font-weight:600; }
+.peer .p-pin { display:flex; align-items:center; gap:5px; padding:0 13px 11px; font-size:11px;
+  font-weight:800; color:var(--accent-d); }
+
+/* ===== 研究数据层：实验模式 / 参考图 / 自评 ===== */
+.studybar { display:flex; align-items:center; gap:12px; padding:7px 22px; font-size:12px; font-weight:700;
+  background:#3c3c3c; color:#fff; }
+.studybar .tag { font-weight:800; letter-spacing:.08em; background:var(--red); color:#fff; padding:2px 8px; border-radius:6px; }
+.studybar .seq { font-family:ui-monospace, SFMono-Regular, Menlo, monospace; opacity:.75; letter-spacing:.06em; }
+.studybar .linkbtn { margin-left:auto; background:none; border:none; box-shadow:none; color:#fff;
+  text-decoration:underline; cursor:pointer; font-size:12px; padding:0; }
+.studybar .linkbtn:hover { background:none; }
+
+/* The reference gets its own viewport: how long a child looks, how far they
+   zoom in, and when attention moves between reference and canvas are all
+   process signals, and none of them exist if the image is a flat thumbnail. */
+.refpanel { margin:2px 0; }
+.refpanel > button { width:100%; }
+.refpanel .ref-img { margin-top:8px; border:2px solid var(--line); border-radius:var(--r); overflow:hidden; background:#fff; padding:6px; }
 .refpanel .ref-img img { display:block; width:100%; }
-.timer .limit { color:var(--muted); font-variant-numeric:tabular-nums; }
-.timer .limit.low { color:#d9455f; font-weight:700; }
-#tools button.off, .toolbox button:disabled { opacity:.35; cursor:not-allowed; }
-.quest-card.locked { opacity:.45; cursor:default; filter:saturate(.4); }
-.quest-card.locked:hover { transform:none; box-shadow:none; }
+.ref-viewport { position:relative; overflow:hidden; border-radius:10px; background:#fff; max-height:260px; cursor:grab; }
+.ref-viewport.dragging { cursor:grabbing; }
+.ref-viewport img { display:block; width:100%; height:auto; transform-origin:0 0; user-select:none; -webkit-user-drag:none; }
+.refbar { display:flex; align-items:center; gap:6px; margin-top:8px; flex-wrap:wrap; }
+.refbar button { padding:4px 9px; font-size:12px; }
+.refbar #btn-ref-reset { min-width:58px; font-variant-numeric:tabular-nums; }
+.timer .limit { color:var(--muted-2); font-variant-numeric:tabular-nums; }
+.timer .limit.low { color:var(--red); }
 
-.survey { margin:14px 0 6px; }
-.sq { padding:12px 0; border-bottom:1px dashed var(--line); }
-.sq-q { font-weight:600; margin-bottom:8px; }
-.sq-scale { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-.sq-scale button { width:44px; height:40px; border-radius:10px; border:1px solid var(--line); background:#fff; font-size:15px; cursor:pointer; }
-.sq-scale button:hover { border-color:#e8632b; }
-.sq-scale button.active { background:#e8632b; border-color:#e8632b; color:#fff; font-weight:700; }
+.survey { margin:16px 0 6px; }
+.sq { padding:14px 0; border-bottom:2px solid var(--line); }
+.sq-q { font-weight:800; margin-bottom:10px; }
+.sq-scale { display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
+.sq-scale button { width:48px; height:46px; border-radius:14px; font-size:16px; padding:0; }
+.sq-scale button.active { background:var(--blue-l); border-color:var(--blue); color:var(--blue-d);
+  box-shadow:0 var(--edge) 0 var(--blue); }
+
+/* Leaving a task partway: the child must be able to back out of a wrong choice
+   without losing work by accident, and without a stray session being left
+   half-open on the server. */
+.modal { position:fixed; inset:0; z-index:50; display:flex; align-items:center; justify-content:center;
+  background:rgba(60,60,60,.5); }
+.modal.hidden { display:none; }
+.modal-card { background:var(--card); border-radius:var(--r-lg); padding:24px; max-width:430px; width:90%;
+  box-shadow:0 20px 50px rgba(0,0,0,.2); }
+.modal-card h3 { margin:0 0 8px; font-size:19px; font-weight:800; }
+.modal-card .actions.column { margin-top:18px; }
 
 /* 安静条件（study condition ui=quiet）：收起游戏化外观，评估与记录不受影响 */
 body.quiet .trailbar,
@@ -209,131 +404,50 @@ body.quiet #badges,
 body.quiet #badges-head,
 body.quiet #collection-wrap { display:none; }
 
-/* A dimension the task cannot elicit: greyed and spelled out, never a low bar. */
-.dim.na .name span:first-child { color: var(--muted); }
-.dim.na .wait { font-size: 12px; color: var(--muted); }
-.rose-label.na { fill: #bdb6ab; font-style: italic; }
+/* ===== 图标 ===== */
+/* 一套图标，不用 emoji：emoji 在每个系统上长得都不一样，而且带着别人的视觉语言。 */
+.ico { display:inline-block; vertical-align:-.18em; flex:none; }
+.glyph { display:block; }
 
-/* The reference gets its own viewport: how long a child looks, how far they
-   zoom in, and when attention moves between reference and canvas are all
-   process signals, and none of them exist if the image is a flat thumbnail. */
-.ref-viewport { position:relative; overflow:hidden; border-radius:8px; background:#fff;
-  border:1px solid var(--line); max-height:260px; cursor:grab; }
-.ref-viewport.dragging { cursor:grabbing; }
-.ref-viewport img { display:block; width:100%; height:auto; transform-origin:0 0; user-select:none; -webkit-user-drag:none; }
-.refbar { display:flex; align-items:center; gap:5px; margin-top:6px; flex-wrap:wrap; }
-.refbar button { padding:3px 8px; font-size:12px; }
-.refbar #btn-ref-reset { min-width:56px; font-variant-numeric:tabular-nums; }
-
-/* One artwork instead of an unchanged before/after pair. */
-.compare.single { grid-template-columns: minmax(0, 1fr); max-width: 760px; margin-inline: auto; }
-.compare figure.hidden { display: none; }
-
-/* Leaving a task partway: the child must be able to back out of a wrong choice
-   without losing work by accident, and without a stray session being left
-   half-open on the server. */
-.toolbox .back { align-self:flex-start; padding:4px 10px; font-size:13px; }
-button.ghost { background:transparent; border:1px solid var(--line); color:var(--muted); }
-button.ghost:hover { color:var(--ink); border-color:var(--muted); }
-button.ghost.danger:hover { color:#b03a2e; border-color:#b03a2e; }
-.modal { position:fixed; inset:0; z-index:50; display:flex; align-items:center; justify-content:center;
-  background:rgba(43,42,40,.45); }
-.modal.hidden { display:none; }
-.modal-card { background:var(--card); border-radius:16px; padding:22px 24px; max-width:420px; width:90%;
-  box-shadow:0 20px 60px rgba(0,0,0,.25); }
-.modal-card h3 { margin:0 0 6px; }
-.modal-card .actions.column { margin-top:16px; }
-
-/* Badges grouped by what they are about, earned ones first inside each group. */
-.badge-group { margin-top:14px; }
-.badge-group h4 { margin:0 0 8px; font-size:12px; font-weight:700; letter-spacing:.04em;
-  color:var(--muted); text-transform:none; }
-.badge-row { display:grid; grid-template-columns:repeat(auto-fill, minmax(132px, 1fr)); gap:10px; }
-
-/* 彩点's nine attributes. Two layers, visually distinct on purpose: a filled pip
-   is practice the child really did; an evaluation layer that no backend can
-   judge yet says so in words instead of drawing a bar over placeholder numbers. */
-.growth { display:grid; grid-template-columns:minmax(180px,220px) 1fr; gap:18px; align-items:start;
-  background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px 18px;
-  box-shadow:0 2px 10px rgba(0,0,0,.04); }
-.growth-buddy { text-align:center; }
-.sprite.big { width:120px; height:120px; }
-.growth-rings { font-size:13px; color:var(--muted); margin-top:2px; letter-spacing:.08em; }
-.growth-dims { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:10px 18px; }
-.gdim { font-size:13px; }
-.gdim .gtop { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
-.gdim .gname { font-weight:600; }
-.gdim .gnext { color:var(--muted); font-size:11px; }
-.gpips { display:flex; gap:3px; margin-top:4px; }
-.gpips i { width:100%; height:7px; border-radius:4px; background:var(--line); }
-.gpips i.on { background:var(--gc,#e8632b); }
-.gdim .gsleep { color:var(--muted); font-size:11px; margin-top:3px; font-style:italic; }
-.gdim .gawake { color:var(--ok); font-size:11px; margin-top:3px; }
-@media (max-width:720px){ .growth { grid-template-columns:1fr; } }
-
-/* "What this mission trained" — the task's own rubric, said back to the child as
-   practice rather than as a verdict on the drawing. */
-.trained { background:var(--card); border:1px solid var(--line); border-radius:14px;
-  padding:12px 16px; margin-top:14px; }
-.trained h4 { margin:0 0 8px; font-size:13px; }
-.trained .tchips { display:flex; flex-wrap:wrap; gap:8px; }
-.trained .tchip { display:inline-flex; align-items:center; gap:6px; font-size:13px;
-  padding:5px 12px; border-radius:999px; border:1px solid var(--line);
-  background:color-mix(in srgb, var(--tc,#e8632b) 10%, #fff); }
-.trained .tchip i { width:8px; height:8px; border-radius:50%; background:var(--tc,#e8632b); }
-.trained .tnote { color:var(--muted); font-size:12px; margin-top:8px; }
-
-/* Other people's approaches. Shown only after the child has submitted their own,
-   and only for sessions whose consent allows it. No score, no name, no order
-   that implies one is better. */
-.peers { margin-top:20px; }
-.peer-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:14px; }
-.peer { background:var(--card); border:1px solid var(--line); border-radius:14px; overflow:hidden;
-  box-shadow:0 2px 10px rgba(0,0,0,.04); }
-.peer img { width:100%; display:block; aspect-ratio:1024/704; object-fit:contain; background:#fff; }
-.peer .p-why { padding:9px 12px 2px; font-size:13px; font-weight:600; }
-.peer .p-how { padding:0 12px 11px; font-size:12px; color:var(--muted); line-height:1.6; }
-.peer .p-pin { padding:0 12px 10px; font-size:11px; color:var(--accent); }
-.rarity { font-size:11px; color:var(--muted); margin-top:2px; }
-.badge.rare .b-name::after { content:" ✦"; color:var(--accent); }
-
-/* Line glyphs sit where the emoji used to, at the same optical weight. */
-.qc-top .glyph { flex: 0 0 auto; }
-.glyph { display: block; }
-
-/* 彩点 breathing. A companion that never moves reads as a picture of a
-   companion; a small idle loop is what makes it feel present. Kept slow and
-   low-amplitude so it is company rather than a distraction while drawing. */
-.sprite { overflow: visible; }
-.sprite .cd-body { animation: cd-bob 3.2s ease-in-out infinite; transform-origin: 100px 186px; }
-.sprite .cd-shadow { animation: cd-shadow 3.2s ease-in-out infinite; transform-origin: 100px 184px; }
-.sprite .cd-eyes { animation: cd-blink 5.4s ease-in-out infinite; transform-origin: 100px 92px; }
+/* ===== 彩点的呼吸 ===== */
+/* A companion that never moves reads as a picture of a companion; a small idle
+   loop is what makes it feel present. Kept slow and low-amplitude so it is
+   company rather than a distraction while drawing. */
+.sprite { overflow:visible; }
+.sprite .cd-body { animation:cd-bob 3.2s ease-in-out infinite; transform-origin:100px 186px; }
+.sprite .cd-shadow { animation:cd-shadow 3.2s ease-in-out infinite; transform-origin:100px 184px; }
+.sprite .cd-eyes { animation:cd-blink 5.4s ease-in-out infinite; transform-origin:100px 92px; }
 @keyframes cd-bob {
-  0%, 100% { transform: translateY(0) scale(1, 1); }
-  45%      { transform: translateY(-7px) scale(.982, 1.022); }
-  70%      { transform: translateY(-2px) scale(1.01, .99); }
+  0%, 100% { transform:translateY(0) scale(1,1); }
+  45%      { transform:translateY(-7px) scale(.982,1.022); }
+  70%      { transform:translateY(-2px) scale(1.01,.99); }
 }
 @keyframes cd-shadow {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  45%      { transform: scale(.86); opacity: .65; }
+  0%, 100% { transform:scale(1); opacity:1; }
+  45%      { transform:scale(.86); opacity:.65; }
 }
 @keyframes cd-blink {
-  0%, 90%, 100% { transform: scaleY(1); }
-  93%, 96%      { transform: scaleY(.08); }
+  0%, 90%, 100% { transform:scaleY(1); }
+  93%, 96%      { transform:scaleY(.08); }
 }
 /* A beat of delight — added for a moment when something is earned. */
-.sprite.cheer .cd-body { animation: cd-cheer .7s cubic-bezier(.34,1.56,.64,1) 2; }
+.sprite.cheer .cd-body { animation:cd-cheer .7s cubic-bezier(.34,1.56,.64,1) 2; }
 @keyframes cd-cheer {
-  0%   { transform: translateY(0) scale(1, 1); }
-  30%  { transform: translateY(-18px) scale(.94, 1.09); }
-  60%  { transform: translateY(0) scale(1.08, .92); }
-  100% { transform: translateY(0) scale(1, 1); }
+  0%   { transform:translateY(0) scale(1,1); }
+  30%  { transform:translateY(-18px) scale(.94,1.09); }
+  60%  { transform:translateY(0) scale(1.08,.92); }
+  100% { transform:translateY(0) scale(1,1); }
 }
 /* The buddy on the drawing screen is smaller and quieter still. */
-.buddy-mini .sprite .cd-body { animation-duration: 4.2s; }
-
+.buddy-mini .sprite .cd-body { animation-duration:4.2s; }
+/* 当前关卡的节点会轻轻跳，像在说「该你了」 */
+.trail-now { animation:trail-hop 1.8s ease-in-out infinite; }
+@keyframes trail-hop {
+  0%, 60%, 100% { transform:translateY(0); }
+  30%           { transform:translateY(-4px); }
+}
 @media (prefers-reduced-motion: reduce) {
-  .sprite .cd-body, .sprite .cd-shadow, .sprite .cd-eyes, .sprite.cheer .cd-body {
-    animation: none;
+  .sprite .cd-body, .sprite .cd-shadow, .sprite .cd-eyes, .sprite.cheer .cd-body, .trail-now {
+    animation:none;
   }
 }

@@ -8,7 +8,7 @@
   };
 
   const state = { cfg: null, quests: [], families: [], allSessions: [], rarity: null, quest: null, emotion: null, sessionId: null, phase: "before", feedback: null,
-    startedAt: null, dirtySinceSnapshot: false, timers: [], before: null, color: "#e8632b", buddyTick: 0,
+    startedAt: null, dirtySinceSnapshot: false, timers: [], before: null, color: "#ff9600", buddyTick: 0,
     anonId: "", condition: {}, study: null, seqIdx: 0, lastActivity: 0, idle: false, timeUp: false, pendingFinal: null };
 
   // ---------- research identity & environment ----------
@@ -34,13 +34,75 @@
   const canvasGeom = () => { const r = canvas.getBoundingClientRect();
     return { width: canvas.width, height: canvas.height, css_width: Math.round(r.width), css_height: Math.round(r.height) }; };
 
+  // ---------- 图标 ----------
+  // 一套自己的线性图标：粗描边、圆端点、24×24 网格，全部用 currentColor 上色，
+  // 所以放进彩色圆章里也好、放进灰色未解锁态里也好，都是同一套形状。
+  // 不用 emoji —— emoji 在每个系统上长得都不一样，还带着别人的视觉语言。
+  const ICONS = {
+    // 品牌 / 任务
+    palette: '<path d="M12 2.8C6.4 2.8 2.4 6.8 2.4 12.2c0 5 3.8 8.8 8.8 8.8 1.6 0 2.6-.9 2.6-2.2 0-.6-.2-1-.6-1.5-.3-.4-.5-.8-.5-1.3 0-1 .8-1.8 1.9-1.8h1.6c3.2 0 5.4-2.2 5.4-5.4 0-3.9-3.7-6-9.6-6Z"/><circle cx="7.2" cy="11.8" r="1.2" fill="currentColor" stroke="none"/><circle cx="10.4" cy="7.8" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="8.8" r="1.2" fill="currentColor" stroke="none"/>',
+    backpack: '<path d="M4.2 11.4a5.2 5.2 0 0 1 5.2-5.2h5.2a5.2 5.2 0 0 1 5.2 5.2v6.2a3 3 0 0 1-3 3H7.2a3 3 0 0 1-3-3Z"/><path d="M9 6.2V5a3 3 0 0 1 6 0v1.2"/><path d="M9.2 20.6v-5.4h5.6v5.4"/>',
+    think: '<path d="M6.4 4.2h11.2a3.4 3.4 0 0 1 3.4 3.4v4.8a3.4 3.4 0 0 1-3.4 3.4h-5.4l-4.8 3.6v-3.6h-1a3.4 3.4 0 0 1-3.4-3.4V7.6a3.4 3.4 0 0 1 3.4-3.4Z"/><circle cx="8.6" cy="10" r="1.15" fill="currentColor" stroke="none"/><circle cx="12" cy="10" r="1.15" fill="currentColor" stroke="none"/><circle cx="15.4" cy="10" r="1.15" fill="currentColor" stroke="none"/>',
+    bulb: '<path d="M12 2.8a6.6 6.6 0 0 0-3.8 12v2.6h7.6v-2.6A6.6 6.6 0 0 0 12 2.8Z"/><path d="M9.6 19.6h4.8"/><path d="M10.6 21.8h2.8"/>',
+    sparkle: '<path d="M11.4 2.6c.6 4.4 1.8 6.2 6.2 6.9-4.4.7-5.6 2.5-6.2 6.9-.6-4.4-1.8-6.2-6.2-6.9 4.4-.7 5.6-2.5 6.2-6.9Z" fill="currentColor"/><path d="M18.4 14.6c.3 2.2.9 3.1 3.1 3.5-2.2.4-2.8 1.3-3.1 3.5-.3-2.2-.9-3.1-3.1-3.5 2.2-.4 2.8-1.3 3.1-3.5Z" fill="currentColor"/>',
+    trophy: '<path d="M7.4 3.4h9.2v5.8a4.6 4.6 0 0 1-9.2 0Z"/><path d="M7.4 5.2H4.4v1.6a3.8 3.8 0 0 0 3.6 3.8"/><path d="M16.6 5.2h3v1.6a3.8 3.8 0 0 1-3.6 3.8"/><path d="M12 13.8v4"/><rect x="7.8" y="17.8" width="8.4" height="3" rx="1.5"/>',
+    // 画画工具（同一支笔转 45°，只有笔尖不一样）
+    pencil: '<g transform="rotate(-45 12 12)"><path d="M8.6 6.8a3.4 3.4 0 0 1 6.8 0v5.8H8.6Z"/><path d="M8.6 12.6h6.8L12 20.4Z"/><path d="M8.6 10h6.8"/></g>',
+    brush: '<g transform="rotate(-45 12 12)"><rect x="9.4" y="3.4" width="5.2" height="8" rx="2.4"/><path d="M8 11.4h8v2.4a4 4 0 0 1-.6 2.1l-2.2 3.5a1.4 1.4 0 0 1-2.4 0l-2.2-3.5a4 4 0 0 1-.6-2.1Z"/></g>',
+    marker: '<g transform="rotate(-45 12 12)"><rect x="7.6" y="3.4" width="8.8" height="8.6" rx="2.6"/><path d="M9.2 12h5.6l-.8 6.4a1.3 1.3 0 0 1-1.3 1.1h-1.4a1.3 1.3 0 0 1-1.3-1.1Z"/></g>',
+    eraser: '<g transform="rotate(-30 12 12)"><rect x="3.6" y="8.6" width="16.8" height="7.4" rx="1.6"/><path d="M11.4 8.6V16"/></g>',
+    undo: '<path d="M4.2 8.8h9.6a5.4 5.4 0 0 1 0 10.8H9.2"/><path d="M8 4.4 3.4 8.8 8 13.2"/>',
+    redo: '<path d="M19.8 8.8h-9.6a5.4 5.4 0 0 0 0 10.8h4.6"/><path d="M16 4.4l4.6 4.4L16 13.2"/>',
+    trash: '<path d="M3.6 6.4h16.8"/><path d="M9.4 6.4V4.8a1.4 1.4 0 0 1 1.4-1.4h2.4a1.4 1.4 0 0 1 1.4 1.4v1.6"/><path d="m5.9 6.4.9 12.6a2 2 0 0 0 2 1.9h6.4a2 2 0 0 0 2-1.9l.9-12.6"/><path d="M10 10.6v6M14 10.6v6"/>',
+    download: '<path d="M12 3.4v11.2"/><path d="m7.4 10.2 4.6 4.6 4.6-4.6"/><path d="M4.4 17.6v1.4a1.8 1.8 0 0 0 1.8 1.8h11.6a1.8 1.8 0 0 0 1.8-1.8v-1.4"/>',
+    zoomIn: '<circle cx="10.6" cy="10.6" r="6.8"/><path d="m15.6 15.6 5.2 5.2"/><path d="M10.6 7.9v5.4M7.9 10.6h5.4"/>',
+    zoomOut: '<circle cx="10.6" cy="10.6" r="6.8"/><path d="m15.6 15.6 5.2 5.2"/><path d="M7.9 10.6h5.4"/>',
+    search: '<circle cx="10.6" cy="10.6" r="6.8"/><path d="m15.6 15.6 5.2 5.2"/>',
+    hand: '<path d="M8.4 12.2V5.8a1.7 1.7 0 0 1 3.4 0v4.4"/><path d="M11.8 10.2V4.8a1.7 1.7 0 0 1 3.4 0v5.4"/><path d="M15.2 10.6V6.9a1.7 1.7 0 0 1 3.4 0V14a6.8 6.8 0 0 1-6.8 6.8h-.5a5 5 0 0 1-4-2l-2.7-3.6a1.8 1.8 0 0 1 2.8-2.2l1.8 1.9"/>',
+    image: '<rect x="3" y="4.6" width="18" height="14.8" rx="3.2"/><path d="m5.6 16.6 4.4-4.8 3 3.2 2.4-2.6 3.4 4"/><circle cx="15.4" cy="9.2" r="1.5"/>',
+    star: '<path d="M12 4 14.06 9.17 19.61 9.53 15.33 13.08 16.7 18.47 12 15.5 7.3 18.47 8.67 13.08 4.39 9.53 9.94 9.17Z" fill="currentColor"/>',
+    check: '<path d="m4.8 12.6 4.8 4.8L19.4 6.6"/>',
+    lock: '<rect x="4.4" y="10" width="15.2" height="10.6" rx="3.2"/><path d="M8 10V7.6a4 4 0 0 1 8 0V10"/>',
+    clock: '<circle cx="12" cy="13.4" r="7.8"/><path d="M12 9v4.4l3 1.8"/><path d="M9.4 2.6h5.2"/><path d="M12 2.6v3"/>',
+    bolt: '<path d="M13.4 2.8 5.8 13h5l-1.2 8.2L18.2 11h-5.4Z" fill="currentColor"/>',
+    loop: '<path d="M20.4 12a8.4 8.4 0 1 1-2.5-6"/><path d="M20.8 3.4v5.2h-5.2"/>',
+    map: '<path d="M9 4.4 3.4 6.8v12.8L9 17.2l6 2.4 5.6-2.4V4.4L15 6.8Z"/><path d="M9 4.4v12.8M15 6.8v12.8"/>',
+    eye: '<path d="M2.6 12S6.2 5.6 12 5.6 21.4 12 21.4 12 17.8 18.4 12 18.4 2.6 12 2.6 12Z"/><circle cx="12" cy="12" r="2.9"/>',
+    hourglass: '<path d="M6.6 3.4h10.8M6.6 20.6h10.8"/><path d="M7.8 3.4v3c0 2.2 4.2 3.9 4.2 5.6s-4.2 3.4-4.2 5.6v3"/><path d="M16.2 3.4v3c0 2.2-4.2 3.9-4.2 5.6s4.2 3.4 4.2 5.6v3"/>',
+    compass: '<circle cx="12" cy="12" r="8.6"/><path d="m15.4 8.6-2 4.8-4.8 2 2-4.8Z" fill="currentColor"/>',
+    books: '<path d="M12 6.6S9.8 4.4 4.2 4.4v13.2c5.6 0 7.8 2.2 7.8 2.2s2.2-2.2 7.8-2.2V4.4C14.2 4.4 12 6.6 12 6.6Z"/><path d="M12 6.6v13.2"/>',
+    medal: '<path d="M8.6 9.4 5.4 3.4M15.4 9.4l3.2-6"/><circle cx="12" cy="15" r="6.2"/><path d="m12 11.5 1.2 2.4 2.6.4-1.9 1.8.5 2.6-2.4-1.3-2.4 1.3.5-2.6-1.9-1.8 2.6-.4Z" fill="currentColor" stroke="none"/>',
+    sprout: '<path d="M12 20.8v-7.2"/><path d="M12 14.6C8.2 14.6 5.6 12 5.6 8.2c3.8 0 6.4 2.6 6.4 6.4Z"/><path d="M12 13c0-3.6 2.6-6.2 6.4-6.2 0 3.6-2.6 6.2-6.4 6.2Z"/>',
+    pin: '<path d="M9.4 3.4h5.2l-.8 5.4 3.4 3.4H6.8l3.4-3.4Z"/><path d="M12 12.2v8.4"/>',
+    grid: '<rect x="3.4" y="3.4" width="7.4" height="7.4" rx="2.2"/><rect x="13.2" y="3.4" width="7.4" height="7.4" rx="2.2"/><rect x="3.4" y="13.2" width="7.4" height="7.4" rx="2.2"/><rect x="13.2" y="13.2" width="7.4" height="7.4" rx="2.2"/>',
+    people: '<circle cx="9" cy="8" r="3.6"/><path d="M2.6 20.4c0-3.6 2.9-6.2 6.4-6.2s6.4 2.6 6.4 6.2"/><path d="M16.2 4.9a3.6 3.6 0 0 1 0 6.2"/><path d="M17.6 14.7c2.5.7 3.8 3 3.8 5.7"/>',
+    contrast: '<circle cx="12" cy="12" r="8.4"/><path d="M12 3.6a8.4 8.4 0 0 1 0 16.8Z" fill="currentColor"/>',
+    arrowRight: '<path d="M4.4 12h13.8"/><path d="m12.8 6.4 5.6 5.6-5.6 5.6"/>',
+    arrowLeft: '<path d="M19.6 12H5.8"/><path d="M11.2 6.4 5.6 12l5.6 5.6"/>',
+  };
+  /** 一枚图标，size px，颜色跟随 currentColor（或显式给 color）。 */
+  function icon(name, size = 20, color = "") {
+    const d = ICONS[name];
+    if (!d) return "";
+    return `<svg class="ico" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" `
+      + `stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"`
+      + (color ? ` style="color:${color}"` : "") + ` aria-hidden="true">${d}</svg>`;
+  }
+  /** index.html 里写 <i data-icon="pin"></i>，这里把它换成真的图标。 */
+  function hydrateIcons(root = document) {
+    root.querySelectorAll("[data-icon]").forEach(el => {
+      el.outerHTML = icon(el.dataset.icon, +el.dataset.size || 20);
+    });
+  }
+  hydrateIcons();   // 脚本在 </body> 前，静态标记此刻已经在了
+
   // 每个任务的图标 + 主题色（首页卡片用）
   const QUEST_STYLE = {
-    emotion_alone:        { icon: "🌗", c: "#e8632b" },
-    imagine_animal:       { icon: "🦄", c: "#7b4fd6" },
-    transform_chair:      { icon: "🪑", c: "#2b7de8" },
-    color_rain_city:      { icon: "🌧️", c: "#2e9e5b" },
-    story_character_home: { icon: "🏠", c: "#d9455f" },
+    emotion_alone:        { icon: "contrast", c: "#ff9600" },
+    imagine_animal:       { icon: "sparkle",  c: "#ce82ff" },
+    transform_chair:      { icon: "loop",     c: "#1cb0f6" },
+    color_rain_city:      { icon: "palette",  c: "#58cc02" },
+    story_character_home: { icon: "books",    c: "#ff4b4b" },
   };
 
   // ===== 创作伙伴「彩点」：一坨会变色的颜料精灵 =====
@@ -66,15 +128,24 @@
   }
   const buddyColor = () => state.color || "#e8632b";
 
-  // ===== 顶部探险路线（藏宝图闯关） =====
+  // ===== 顶部探险路线（闯关地图） =====
+  // 形式上参考多邻国的关卡路径——大圆钮、下沿厚一层、走过的路变绿、当前关在跳，
+  // 但路线本身还是我们自己的横向藏宝图，节点是这次创作的六个阶段。
   const ALL_STAGES = [
-    { key: "quest",  name: "出发", icon: "🎒" },
-    { key: "intent", name: "心愿", icon: "💭" },
-    { key: "draw",   name: "创作", icon: "🎨" },
-    { key: "result", name: "支招", icon: "💡" },
-    { key: "evolve", name: "进化", icon: "✨" },
-    { key: "final",  name: "宝藏", icon: "🏆" },
+    { key: "quest",  name: "出发", icon: "backpack" },
+    { key: "intent", name: "心愿", icon: "think" },
+    { key: "draw",   name: "创作", icon: "palette" },
+    { key: "result", name: "支招", icon: "bulb" },
+    { key: "evolve", name: "进化", icon: "sparkle" },
+    { key: "final",  name: "宝藏", icon: "trophy" },
   ];
+  // 节点配色：[正面, 下沿, 图标]
+  const TRAIL_COLORS = {
+    done:    ["#58cc02", "#48a802", "#fff"],
+    current: ["#ff9600", "#e08100", "#fff"],
+    locked:  ["#e5e5e5", "#d8d8d8", "#fff"],
+    skip:    ["#f6e9ff", "#e3d3f2", "#ce82ff"],
+  };
   function renderTrail(currentKey) {
     const el = document.getElementById("trail"); if (!el) return;
     // The map must not promise stations this condition never visits: with no
@@ -85,7 +156,7 @@
     const order = STAGES.map(s => s.key), idx = order.indexOf(currentKey);
     const span = STAGES.length > 1 ? 1040 / (STAGES.length - 1) : 0;
     const xs = STAGES.map((_, i) => 80 + i * span);
-    const ys = STAGES.map((_, i) => (i % 2 === 0 ? 58 : 78)); // gentle zigzag
+    const ys = STAGES.map((_, i) => (i % 2 === 0 ? 66 : 86)); // gentle zigzag
     const status = STAGES.map((s, i) => {
       if (currentKey === "final") {
         if (s.key === "evolve") return state.revised ? "done" : "skip";
@@ -93,6 +164,7 @@
       }
       return i < idx ? "done" : i === idx ? "current" : "locked";
     });
+    const R = 25, EDGE = 5;
     let doneSeg = "", restSeg = "";
     for (let i = 0; i < STAGES.length - 1; i++) {
       const seg = `M${xs[i]},${ys[i]} L${xs[i + 1]},${ys[i + 1]}`;
@@ -101,21 +173,28 @@
     let nodes = "";
     STAGES.forEach((s, i) => {
       const st = status[i], x = xs[i], y = ys[i], cur = st === "current";
-      const fill = st === "skip" ? "#f6f0f2" : (st === "done" || cur) ? "#fff" : "#f2efe9";
-      const stroke = (st === "done" || cur) ? "#e8632b" : st === "skip" ? "#e6a6b2" : "#d8d0c4";
-      const op = (st === "locked" || st === "skip") ? 0.5 : 1;
-      const dash = (s.key === "evolve" && st !== "done") ? ' stroke-dasharray="4 3"' : "";
-      nodes += `<circle cx="${x}" cy="${y}" r="24" fill="${fill}" stroke="${stroke}" stroke-width="${cur ? 4 : 3}"${dash}/>`;
-      nodes += `<text x="${x}" y="${y + 8}" text-anchor="middle" font-size="23" opacity="${op}">${s.icon}</text>`;
-      if (st === "done") nodes += `<circle cx="${x + 19}" cy="${y - 18}" r="10" fill="#e8632b"/><text x="${x + 19}" y="${y - 14}" text-anchor="middle" font-size="12">⭐</text>`;
-      if (st === "skip") nodes += `<text x="${x + 17}" y="${y - 12}" text-anchor="middle" font-size="15" fill="#d9455f">↷</text>`;
-      const lc = cur ? "#e8632b" : st === "done" ? "#7a766f" : "#b8b2a8";
-      nodes += `<text x="${x}" y="${y + 40}" text-anchor="middle" font-size="14" font-weight="${cur ? 700 : 600}" fill="${lc}">${s.name}</text>`;
-      if (cur) nodes += `<g transform="translate(${x - 19},${y - 50})"><svg width="38" height="38" viewBox="0 0 200 200">${spriteInner(buddyColor(), "normal")}</svg></g>`;
+      const [face, edge, ink] = TRAIL_COLORS[st];
+      let g = "";
+      // 下沿在下面多出 5px，圆钮就有了厚度——按得下去的那种厚度
+      g += `<circle cx="${x}" cy="${y + EDGE}" r="${R}" fill="${edge}"/>`;
+      g += `<circle cx="${x}" cy="${y}" r="${R}" fill="${face}"/>`;
+      if (cur) g += `<circle cx="${x}" cy="${y}" r="${R + 5}" fill="none" stroke="${edge}" stroke-width="3" stroke-opacity=".35"/>`;
+      g += `<g transform="translate(${x - 14},${y - 14})" style="color:${ink}">${icon(s.icon, 28)}</g>`;
+      // 走过的关盖一颗星；被跳过的进化关只是淡着，不打叉
+      if (st === "done") {
+        g += `<circle cx="${x + 18}" cy="${y - 17}" r="10.5" fill="#ffc800" stroke="#fff" stroke-width="2.5"/>`;
+        g += `<g transform="translate(${x + 11},${y - 24})" style="color:#fff">${icon("star", 14)}</g>`;
+      }
+      // 没走的进化关：一圈虚线，表示「这一站你路过了」，不是一个叉
+      if (st === "skip") g += `<circle cx="${x}" cy="${y}" r="${R + 5}" fill="none" stroke="#ce82ff" stroke-width="2.5" stroke-dasharray="3 6"/>`;
+      const lc = cur ? "#e08100" : st === "done" ? "#48a802" : st === "skip" ? "#b163e8" : "#afafaf";
+      g += `<text x="${x}" y="${y + R + EDGE + 19}" text-anchor="middle" class="trail-label" fill="${lc}">${s.name}</text>`;
+      if (cur) g += `<g transform="translate(${x - 19},${y - R - 40})"><svg width="38" height="38" viewBox="0 0 200 200">${spriteInner(buddyColor(), "normal")}</svg></g>`;
+      nodes += `<g class="trail-node${cur ? " trail-now" : ""}">${g}</g>`;
     });
     el.innerHTML =
-      `<path d="${restSeg}" fill="none" stroke="#cfc8bc" stroke-width="4" stroke-linecap="round" stroke-dasharray="2 10"/>`
-      + `<path d="${doneSeg}" fill="none" stroke="#e8632b" stroke-width="4" stroke-linecap="round" stroke-dasharray="2 10"/>`
+      `<path d="${restSeg}" fill="none" stroke="#e5e5e5" stroke-width="8" stroke-linecap="round" stroke-dasharray="1 16"/>`
+      + `<path d="${doneSeg}" fill="none" stroke="#58cc02" stroke-width="8" stroke-linecap="round" stroke-dasharray="1 16"/>`
       + nodes;
   }
 
@@ -140,7 +219,7 @@
   // colour via currentColor, so the map reads as one set.
   const GLYPHS = {
     // palette: choose anything
-    M0: '<path d="M12 3.4c-4.8 0-8.6 3.6-8.6 8 0 3.3 2.4 5.3 5 5.3 1.4 0 2.1.8 2.1 1.8 0 1.3 1 2.3 2.3 2.3 4.3 0 7.8-3.7 7.8-8.2 0-5.2-4-9.2-8.6-9.2Z"/><circle cx="8.2" cy="10.2" r="1.15" fill="currentColor" stroke="none"/><circle cx="12" cy="7.6" r="1.15" fill="currentColor" stroke="none"/><circle cx="15.8" cy="10.2" r="1.15" fill="currentColor" stroke="none"/>',
+    M0: ICONS.palette,
     // a framed picture with a crack through it
     M1: '<rect x="3.6" y="4.6" width="16.8" height="14.8" rx="1.6"/><path d="M9.2 19.4 11 13.2 8.6 11.4 12.6 4.6"/>',
     // a field pad: horizon, peaks, sun
@@ -165,7 +244,7 @@
     const g = GLYPHS[familyId];
     if (!g) return "";
     return `<svg class="glyph" viewBox="0 0 24 24" width="${size}" height="${size}" `
-      + `fill="none" stroke="${color || "currentColor"}" stroke-width="1.7" `
+      + `fill="none" stroke="${color || "currentColor"}" stroke-width="2.2" `
       + `stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${g}</svg>`;
   }
 
@@ -560,16 +639,16 @@
     if (!done.length) { wrap.classList.add("hidden"); return; }
     wrap.classList.remove("hidden");
     const titleOf = (qid) => (state.quests.find(q => q.id === qid) || {}).title || qid;
-    const styleOf = (qid) => QUEST_STYLE[qid] || { icon: "🎨", c: "#e8632b" };
+    const styleOf = (qid) => QUEST_STYLE[qid] || { icon: "palette", c: "#ff9600" };
     grid.innerHTML = done.slice(0, 12).map(r => {
       const st = styleOf(r.quest_id);
       return `<a class="dex-card" href="/api/sessions/${r.id}" target="_blank" style="--qc:${st.c}">
         <div class="dex-thumb"><img src="/files/${r.id}/after.png" alt="" loading="lazy"></div>
-        <div class="dex-cap"><b>${st.icon} ${titleOf(r.quest_id)}</b><span>${(r.created_at || "").slice(0, 10)}</span></div></a>`;
+        <div class="dex-cap"><b>${icon(st.icon, 14)}${titleOf(r.quest_id)}</b><span>${(r.created_at || "").slice(0, 10)}</span></div></a>`;
     }).join("");
     const types = new Set(done.map(r => r.quest_id)), total = state.quests.length;
     $("#dex-progress").innerHTML = `已解锁 ${types.size}/${total} 种任务`
-      + (types.size >= total ? ' · <b style="color:#e8632b">🏅 创作者勋章达成！</b>' : "");
+      + (types.size >= total ? ` · <b style="color:var(--accent-d)">${icon("medal", 14)} 创作者勋章达成！</b>` : "");
   }
 
   /** 彩点's nine attributes, grown from what the child actually practised.
@@ -597,7 +676,7 @@
     $("#growth-sprite").innerHTML = spriteInner(col, g.total_level >= 9 ? "happy" : "normal");
     // one ring per three levels: a visible shape change, not a number
     const rings = Math.min(5, Math.floor(g.total_level / 3));
-    $("#growth-rings").textContent = rings ? "✦".repeat(rings) : "·";
+    $("#growth-rings").innerHTML = rings ? icon("star", 16).repeat(rings) : "";
     $("#growth-total").textContent = `${g.n_tasks} 幅作品 · 总成长 ${g.total_level}/${g.max_total}`;
     $("#growth-say").textContent = best[1].practice
       ? `我在「${byKey[best[0]].zh}」上长得最快！`
@@ -656,7 +735,7 @@
     const card = $("#history-card"), lines = (p && p.shown) || [];
     card.classList.toggle("hidden", !lines.length);
     if (!lines.length) return;
-    card.innerHTML = "<h4>🧭 你的创作轨迹</h4>"
+    card.innerHTML = `<h4>${icon("compass", 15)}你的创作轨迹</h4>`
       + lines.map(l => `<p>${escapeHtml(l.text || "")}</p>`).join("");
   }
   const escapeHtml = (t) => String(t).replace(/[&<>"']/g, c =>
@@ -729,7 +808,7 @@
   function toggleRef(open) {
     const wrap = $("#ref-wrap"), willOpen = open !== undefined ? open : wrap.classList.contains("hidden");
     wrap.classList.toggle("hidden", !willOpen);
-    $("#btn-ref-toggle").textContent = willOpen ? "🖼 收起参考图" : "🖼 看看参考图";
+    $("#btn-ref-toggle").innerHTML = icon("image", 17) + (willOpen ? "收起参考图" : "看看参考图");
     const now = elapsed();
     if (willOpen) {
       refOpenedAt = now;
@@ -808,20 +887,23 @@
       ? seq.map(id => byId[id]).filter(Boolean).map((q, i) => ({
           key: q.id, icon: q.icon, color: q.color, kind: q.type, title: q.title,
           body: q.prompt, locked: i !== state.seqIdx,
-          go: i !== state.seqIdx ? "稍后解锁" : `第 ${i + 1} 关 · 开始 →`, task: q }))
+          go: i !== state.seqIdx ? "稍后解锁" : `第 ${i + 1} 关 · 开始`, task: q }))
+      // 家族卡：标题已经是家族名了，上面那行就别再念一遍——换成「这个家族有几种玩法」
       : (state.families || []).filter(f => f.n_forms).map(f => ({
-          key: f.id, icon: f.icon, color: f.color, kind: f.name,
+          key: f.id, icon: f.icon, color: f.color, kind: `${f.n_forms} 种玩法`,
           title: f.name, body: familyBlurb(f), locked: false,
-          go: "开始创作 →", family: f.id }));
+          go: "开始创作", family: f.id }));
 
     cards.forEach(c => {
       const el = document.createElement("div");
       el.className = "quest-card" + (c.locked ? " locked" : "");
       el.style.setProperty("--qc", c.color || "#e8632b");
       const fam = c.family || (c.task && c.task.family) || "";
-      const mark = glyph(fam, c.color || "#e8632b", 26) || `<span class="qc-icon">${c.icon || "🎨"}</span>`;
-      el.innerHTML = `<div class="qc-top">${mark}<span class="type">${c.kind}</span></div>`
-        + `<h3>${c.title}</h3><p>${c.body}</p><span class="qc-go">${c.go}</span>`;
+      const mark = glyph(fam, "currentColor", 26) || `<span class="qc-icon">${c.icon || ""}</span>`;
+      el.style.setProperty("--qc-edge", `color-mix(in srgb, ${c.color || "#ff9600"} 74%, #000)`);
+      el.innerHTML = `<div class="qc-top"><span class="qc-tile">${mark}</span><span class="type">${c.kind}</span></div>`
+        + `<h3>${c.title}</h3><p>${c.body}</p>`
+        + `<span class="qc-go">${c.go}${c.locked ? "" : icon("arrowRight", 16)}</span>`;
       if (!c.locked) el.onclick = () => {
         const q = c.task || randomForm(c.family);
         if (q) chooseQuest(q);
@@ -1127,46 +1209,46 @@
 
   const ALL_BADGES = [
     // -- 颜色与工具 --
-    { g: "色彩与工具", icon: "🎨", name: "缤纷调色", desc: "用了 5 种以上颜色",
+    { g: "色彩与工具", icon: "palette", name: "缤纷调色", desc: "用了 5 种以上颜色",
       earned: s => colorsUsed(s).size >= 5 },
-    { g: "色彩与工具", icon: "🌗", name: "冷暖并用", desc: "暖色和冷色都用上了",
+    { g: "色彩与工具", icon: "contrast", name: "冷暖并用", desc: "暖色和冷色都用上了",
       earned: s => hasWarmAndCool(s) },
-    { g: "色彩与工具", icon: "🖌", name: "工具全能", desc: "用了 3 种以上工具",
+    { g: "色彩与工具", icon: "brush", name: "工具全能", desc: "用了 3 种以上工具",
       earned: s => toolsUsed(s).size >= 3 },
-    { g: "色彩与工具", icon: "✏️", name: "一支到底", desc: "只用一种工具画完 30 笔以上",
+    { g: "色彩与工具", icon: "pencil", name: "一支到底", desc: "只用一种工具画完 30 笔以上",
       earned: s => toolsUsed(s).size === 1 && nStrokes(s) >= 30 },
     // -- 过程与节奏 --
-    { g: "过程与节奏", icon: "⏱️", name: "专注之心", desc: "专注创作超过 5 分钟",
+    { g: "过程与节奏", icon: "clock", name: "专注之心", desc: "专注创作超过 5 分钟",
       earned: s => drawMs(s) >= 300000 },
-    { g: "过程与节奏", icon: "💭", name: "深思熟虑", desc: "停下来想了 30 秒以上，然后继续",
+    { g: "过程与节奏", icon: "think", name: "深思熟虑", desc: "停下来想了 30 秒以上，然后继续",
       earned: s => longestPause(s) >= 30000 && nStrokes(s) >= 5 },
-    { g: "过程与节奏", icon: "⚡", name: "一气呵成", desc: "20 笔以上，中间几乎没停",
+    { g: "过程与节奏", icon: "bolt", name: "一气呵成", desc: "20 笔以上，中间几乎没停",
       earned: s => nStrokes(s) >= 20 && longestPause(s) < 10000 },
-    { g: "过程与节奏", icon: "🔁", name: "反复打磨", desc: "撤销 5 次以上，还在继续画",
+    { g: "过程与节奏", icon: "loop", name: "反复打磨", desc: "撤销 5 次以上，还在继续画",
       earned: s => evOf(s, ["UNDO"]).length >= 5 && nStrokes(s) >= 10 },
-    { g: "过程与节奏", icon: "🧹", name: "推倒重来", desc: "清空过画布，然后重新画完",
+    { g: "过程与节奏", icon: "trash", name: "推倒重来", desc: "清空过画布，然后重新画完",
       earned: s => evOf(s, ["CLEAR"]).length >= 1 && nStrokes(s) >= 10 },
     // -- 观察与细节 --
-    { g: "观察与细节", icon: "🔍", name: "细节猎人", desc: "放大到 3 倍以上作画",
+    { g: "观察与细节", icon: "search", name: "细节猎人", desc: "放大到 3 倍以上作画",
       earned: s => zoomMax(s) >= 3 },
-    { g: "观察与细节", icon: "🗺", name: "大局观", desc: "在整体和局部之间来回看了 5 次以上",
+    { g: "观察与细节", icon: "map", name: "大局观", desc: "在整体和局部之间来回看了 5 次以上",
       earned: s => evOf(s, ["ZOOM", "PAN"]).length >= 5 },
-    { g: "观察与细节", icon: "👀", name: "对照高手", desc: "参考图看了 3 次以上",
+    { g: "观察与细节", icon: "eye", name: "对照高手", desc: "参考图看了 3 次以上",
       earned: s => evOf(s, ["REFERENCE_OPEN"]).length >= 3, needs: "reference" },
-    { g: "观察与细节", icon: "⏳", name: "看得仔细", desc: "参考图累计看了 30 秒以上",
+    { g: "观察与细节", icon: "hourglass", name: "看得仔细", desc: "参考图累计看了 30 秒以上",
       earned: s => refMs(s) >= 30000, needs: "reference" },
     // -- 探索与坚持（跨作品）--
-    { g: "探索与坚持", icon: "🧭", name: "探险家", desc: "玩过 3 个不同的任务家族",
+    { g: "探索与坚持", icon: "compass", name: "探险家", desc: "玩过 3 个不同的任务家族",
       earned: () => new Set(doneRows().map(r => familyOf(r.task_id)).filter(Boolean)).size >= 3 },
-    { g: "探索与坚持", icon: "📚", name: "小有收藏", desc: "完成 5 幅作品",
+    { g: "探索与坚持", icon: "books", name: "小有收藏", desc: "完成 5 幅作品",
       earned: () => doneRows().length >= 5 },
-    { g: "探索与坚持", icon: "🏅", name: "走遍全图", desc: "每个任务家族都完成过一次",
+    { g: "探索与坚持", icon: "medal", name: "走遍全图", desc: "每个任务家族都完成过一次",
       earned: () => {
         const fams = new Set((state.families || []).map(f => f.id));
         const done = new Set(doneRows().map(r => familyOf(r.task_id)).filter(Boolean));
         return fams.size > 0 && [...fams].every(f => done.has(f));
       } },
-    { g: "探索与坚持", icon: "✨", name: "进化大师", desc: "走完进化关，改了自己的作品",
+    { g: "探索与坚持", icon: "sparkle", name: "进化大师", desc: "走完进化关，改了自己的作品",
       earned: s => s.revised === true, evo: true },
   ];
   const BADGE_RULES_VERSION = "badges/1";
@@ -1207,7 +1289,7 @@
         <div class="p-why">${escapeHtml(title)}</div>
         <div class="p-how">${a.strokes} 笔 · ${a.colors || 1} 种颜色 · ${a.minutes} 分钟</div>
         ${c.why ? `<div class="p-how">「${escapeHtml(c.why)}」</div>` : ""}
-        <div class="p-pin">📌 老师选的</div></div>`;
+        <div class="p-pin">${icon("pin", 13)}老师选的</div></div>`;
     }).join("");
   }
 
@@ -1241,7 +1323,7 @@
         <img src="${c.image}" alt="别人的作品" loading="lazy">
         <div class="p-why">${escapeHtml(c.why || "另一种做法")}</div>
         <div class="p-how">${how}</div>
-        ${c.featured_by ? `<div class="p-pin">📌 老师选的</div>` : ""}</div>`;
+        ${c.featured_by ? `<div class="p-pin">${icon("pin", 13)}老师选的</div>` : ""}</div>`;
     }).join("");
   }
 
@@ -1262,7 +1344,7 @@
       const fam = FAMILIES[DIM_FAMILY[k]];
       return `<span class="tchip" style="--tc:${fam.color}"><i></i>${(byKey[k] || {}).zh || k}</span>`;
     };
-    el.innerHTML = `<h4>🌱 这一关练的是</h4><div class="tchips">${primary.map(chip).join("")}</div>`
+    el.innerHTML = `<h4>${icon("sprout", 16)}这一关练的是</h4><div class="tchips">${primary.map(chip).join("")}</div>`
       + `<div class="tnote">彩点在这几项上又长了一点。`
       + (na.length ? `这一关用不上「${na.map(k => (byKey[k] || {}).zh || k).join("、")}」，所以不算在内。` : "")
       + `</div>`;
@@ -1303,7 +1385,7 @@
         const line = pct === null ? ""
           : `<div class="rarity">${pct <= 0 ? "还没有人点亮过" : `${pct}% 的人点亮过`}</div>`;
         return `<div class="badge${on ? " new" : " locked"}${b.evo ? " evo" : ""}${rare ? " rare" : ""}" title="${b.desc}">
-          <div class="b-ico">${b.icon}</div><div class="b-name">${b.name}</div>
+          <div class="b-ico">${icon(b.icon, 30)}</div><div class="b-name">${b.name}</div>
           <div class="b-desc">${b.desc}</div>${on ? line : ""}</div>`;
       }).join("") + "</div></div>";
     }).join("");
@@ -1401,7 +1483,7 @@
       <svg viewBox="0 0 400 400" class="rose" role="img" aria-label="九维能力值扇形图">
         ${grid}${sectors}${marks}
         <circle cx="${cx}" cy="${cy}" r="26" class="rose-hub"/>
-        <text x="${cx}" y="${cy + 9}" text-anchor="middle" font-size="26">🎨</text>
+        <g transform="translate(${cx - 13},${cy - 13})" style="color:var(--muted)">${icon("palette", 26)}</g>
         ${labels}
       </svg>
       <div class="rose-legend">${legend}${baseline ? '<span class="rose-leg dash"><i></i>修改前</span>' : ""}</div>
@@ -1431,7 +1513,7 @@
         <div class="name"><span><i class="dot" style="background:${fam.color}"></i>${d.zh}</span>
           <span class="sval">${ph ? '<span class="wait">待模型评</span>' : `<span class="st">${stars(s.score)}</span>${arrow}`}</span></div></div>`;
     }).join("");
-    el.innerHTML = `<div class="ability-head">🎨 能力值 · 你这次在这些地方使了劲<span class="muted small">（我们不打分，只看能力往哪长）</span></div>`
+    el.innerHTML = `<div class="ability-head">${icon("palette", 17)}能力值 · 你这次在这些地方使了劲<span class="muted small">（我们不打分，只看能力往哪长）</span></div>`
       + roseChart(scores, baseline) + `<div class="dim-notes">${notes}</div>`;
   }
 

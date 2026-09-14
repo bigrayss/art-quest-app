@@ -167,13 +167,13 @@ FAMILIES: Dict[str, Dict[str, Any]] = {
     # collected against these ids must stay interpretable — the library grew,
     # it did not replace what was measured before.
     "M0": _t(
-        slug="open_creation", name="自由创作", icon="🎨", color="#e8632b", difficulty=2,
+        slug="open_creation", name="自由创作", icon="🎨", color="#ff9600", difficulty=2,
         research_goal="开放创作：每个研究字段取宽松值，是合法条件取值而不是缺字段",
         time_limit_sec=None, allowed_tools=None, prompt_style="story", legacy=True,
         rubric=_t(),          # everything exploratory: the task claims nothing
         process_targets=["planning_latency", "new_element_count", "region_switching"]),
     "M1": _t(
-        slug="museum_restorer", name="博物馆修复师", icon="🏛", color="#2b7de8", difficulty=2,
+        slug="museum_restorer", name="博物馆修复师", icon="🏛", color="#1cb0f6", difficulty=2,
         research_goal="visual organization、global/local strategy、reference-based reconstruction",
         time_limit_sec=540, allowed_tools=DRAW_TOOLS, prompt_style="story",
         rubric=_t(primary_dimensions=["realism", "picture_organization", "line_combination"],
@@ -184,7 +184,7 @@ FAMILIES: Dict[str, Dict[str, Any]] = {
                          "region_switching", "structural_revision", "erase_redraw_cycle",
                          "reference_switching"]),
     "M2": _t(
-        slug="explorer_field_sketch", name="探险家速写", icon="🔭", color="#2e9e5b", difficulty=2,
+        slug="explorer_field_sketch", name="探险家速写", icon="🔭", color="#58cc02", difficulty=2,
         research_goal="observation + spatial reasoning + reference strategy",
         time_limit_sec=540, allowed_tools=DRAW_TOOLS, prompt_style="story",
         rubric=_t(primary_dimensions=["realism", "picture_organization"],
@@ -195,7 +195,7 @@ FAMILIES: Dict[str, Dict[str, Any]] = {
                          "overlap_revision", "reference_viewing", "canvas_reference_switch",
                          "region_switching"]),
     "M3": _t(
-        slug="lost_fragment_story", name="失落的碎片", icon="🧩", color="#7b4fd6", difficulty=3,
+        slug="lost_fragment_story", name="失落的碎片", icon="🧩", color="#ce82ff", difficulty=3,
         research_goal="incomplete-figure creativity（TCT-DP / TTCT 范式，刺激自制）",
         time_limit_sec=600, allowed_tools=COLOR_TOOLS, prompt_style="story",
         rubric=_t(primary_dimensions=["imagination", "transformation", "picture_organization"],
@@ -204,7 +204,7 @@ FAMILIES: Dict[str, Dict[str, Any]] = {
                          "new_element_count", "large_revision", "idea_shift",
                          "boundary_expansion", "premature_closure"]),
     "M4": _t(
-        slug="mutant_object_lab", name="变异物体实验室", icon="🔧", color="#e8632b", difficulty=3,
+        slug="mutant_object_lab", name="变异物体实验室", icon="🔧", color="#ff4b4b", difficulty=3,
         research_goal="deformation + transformation + imagination",
         time_limit_sec=720, allowed_tools=COLOR_TOOLS, prompt_style="story",
         rubric=_t(primary_dimensions=["deformation", "transformation", "imagination"],
@@ -212,7 +212,7 @@ FAMILIES: Dict[str, Dict[str, Any]] = {
         process_targets=["first_transformation_time", "base_form_preservation", "semantic_shift",
                          "alternative_attempts", "structural_revision", "erase_rebuild"]),
     "M5": _t(
-        slug="fusion_inventor", name="融合发明家", icon="🧬", color="#d9455f", difficulty=3,
+        slug="fusion_inventor", name="融合发明家", icon="🧬", color="#ff5c9d", difficulty=3,
         research_goal="conceptual integration（与 M4 的「改造单一物体」是不同 construct）",
         time_limit_sec=720, allowed_tools=COLOR_TOOLS, prompt_style="story",
         rubric=_t(primary_dimensions=["transformation", "deformation", "imagination"],
@@ -221,7 +221,7 @@ FAMILIES: Dict[str, Dict[str, Any]] = {
                          "juxtaposition_to_integration", "structural_reorganization",
                          "dominance_reversal"]),
     "M6": _t(
-        slug="mood_world", name="情绪世界", icon="🎨", color="#f4a261", difficulty=2,
+        slug="mood_world", name="情绪世界", icon="🎨", color="#00cd9c", difficulty=2,
         research_goal="让 color richness / contrast 真正 observable：不给「多用颜色」的指令，而给颜色一个表达任务",
         time_limit_sec=600, allowed_tools=COLOR_TOOLS, prompt_style="story",
         rubric=_t(primary_dimensions=["color_richness", "color_contrast"],
@@ -230,7 +230,7 @@ FAMILIES: Dict[str, Dict[str, Any]] = {
                          "recolor_frequency", "contrast_edit", "focal_recolor",
                          "local_global_color_order"]),
     "M7": _t(
-        slug="line_adventure", name="线条冒险", icon="〰️", color="#1d6fe0", difficulty=2,
+        slug="line_adventure", name="线条冒险", icon="〰️", color="#2b70c9", difficulty=2,
         research_goal="line combination / texture，两阶段：先抽象线条，再发展成完整作品",
         time_limit_sec=600, allowed_tools=COLOR_TOOLS, prompt_style="story",
         phases=[_t(id="lines", label="只用线条", seconds=60,
@@ -245,7 +245,7 @@ FAMILIES: Dict[str, Dict[str, Any]] = {
                          "density", "repetition", "pressure", "layering", "rhythm",
                          "line_preservation", "line_reinterpretation", "semantic_conversion_time"]),
     "M8": _t(
-        slug="impossible_world", name="不可能世界", icon="🌀", color="#6a4fd6", difficulty=4,
+        slug="impossible_world", name="不可能世界", icon="🌀", color="#8b5cf6", difficulty=4,
         research_goal="最接近 authentic art creation，但由 world-rule generator 约束",
         time_limit_sec=1080, allowed_tools=COLOR_TOOLS, prompt_style="story",
         # the only family where every dimension can be elicited at once
@@ -255,7 +255,7 @@ FAMILIES: Dict[str, Dict[str, Any]] = {
         process_targets=["planning_latency", "rule_coverage", "idea_shift", "large_revision",
                          "region_switching", "palette_breadth", "alternative_attempts"]),
     "M9": _t(
-        slug="story_challenge", name="故事挑战", icon="📖", color="#2a9d8f", difficulty=2,
+        slug="story_challenge", name="故事挑战", icon="📖", color="#009e6f", difficulty=2,
         research_goal="ecological validity：受控任务里看到的行为模式，在真实创作里还在吗",
         time_limit_sec=900, allowed_tools=COLOR_TOOLS, prompt_style="story",
         rubric=_t(primary_dimensions=["imagination", "picture_organization"],
