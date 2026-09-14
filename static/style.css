@@ -1,14 +1,14 @@
 /* ArtQuest 视觉系统
- * 参考多邻国（Duolingo）的界面语言，但不照抄它的内容：
- *   - 扁平高饱和色块，没有渐变、没有拟物质感
- *   - 每个可按的东西都有 4px 的「下沿」，按下去真的会陷下去
- *   - 圆润的粗体字 + 大圆角 + 2px 描边卡片
- *   - 图标全部是同一套线性图标（app.js 的 ICONS），不用 emoji
+ * 形式参考多邻国，但收着用：
+ *   - 扁平色块，但降了饱和度——一屏里只让一两块颜色说话，其余交给留白
+ *   - 能按的东西有下沿，按下去真的会陷进去
+ *   - 手机优先：底部 tab（桌面自动变成左侧导航），做任务时整个收起来
+ *   - 图标全部是 app.js 的 ICONS，不用 emoji
  * 教育原则不变：不摆分数、不排名，热闹只出现在「过程」上。
  */
 
 /* Nunito（SIL OFL 1.1）：拉丁字母的圆体，中文自动落到 Noto Sans CJK。
-   可变字重，一个文件覆盖 400–900。 */
+   可变字重，一个文件覆盖 200–1000。 */
 @font-face {
   font-family: "Nunito";
   src: url("/static/fonts/nunito-latin.woff2") format("woff2");
@@ -21,170 +21,209 @@
 }
 
 :root {
-  /* 调色板：扁平、饱和、互相之间对比够 */
-  --green:#58cc02;  --green-d:#48a802;  --green-l:#d7ffb8;
-  --blue:#1cb0f6;   --blue-d:#1a94d2;   --blue-l:#ddf4ff;
-  --orange:#ff9600; --orange-d:#e08100; --orange-l:#ffefd9;
-  --red:#ff4b4b;    --red-d:#e03d3d;    --red-l:#ffe0e0;
-  --yellow:#ffc800; --yellow-d:#e0ae00; --yellow-l:#fff5d2;
-  --purple:#ce82ff; --purple-d:#b163e8; --purple-l:#f6e9ff;
+  /* 比多邻国原色柔一档：同样的色相，饱和度和明度都收了一点，
+     整屏看下来不刺眼，小孩的画才是画面上最亮的东西。 */
+  --orange:#f79433; --orange-d:#dd7c1e; --orange-l:#fff3e6;
+  --green:#6cc24a;  --green-d:#56a637;  --green-l:#ecf8e4;
+  --blue:#4db8ef;   --blue-d:#3a9ad0;   --blue-l:#e8f5fd;
+  --red:#f2706e;    --red-d:#d95b59;    --red-l:#fdeeed;
+  --yellow:#f5c243; --yellow-d:#dca72c; --yellow-l:#fff7e4;
+  --purple:#b98cf0; --purple-d:#9d71d9; --purple-l:#f4eefd;
 
   --accent:var(--orange); --accent-d:var(--orange-d); --accent-l:var(--orange-l);
   --accent-2:var(--blue); --ok:var(--green);
 
-  --ink:#3c3c3c; --muted:#afafaf; --muted-2:#777;
-  --line:#e5e5e5; --line-d:#d8d8d8;
-  --bg:#fff; --soft:#f7f7f7; --card:#fff;
-  --r:16px; --r-lg:22px; --edge:4px;
+  --ink:#4a4a4a; --muted:#a8a8a8; --muted-2:#83817e;
+  --line:#ececec; --line-d:#e0e0e0;
+  --bg:#fff; --soft:#f8f8f7; --card:#fff;
+  --r:14px; --r-lg:20px; --edge:3px;
 
   --font: "Nunito", -apple-system, "PingFang SC", "Noto Sans CJK SC",
           "Microsoft YaHei", system-ui, sans-serif;
 }
 * { box-sizing: border-box; }
+html, body { height: 100%; }
 body { margin:0; font-family:var(--font); background:var(--bg); color:var(--ink);
-  font-weight:600; -webkit-font-smoothing:antialiased; }
+  font-weight:600; -webkit-font-smoothing:antialiased; -webkit-tap-highlight-color:transparent; }
 
-/* ===== 顶栏 ===== */
-.topwrap { position:sticky; top:0; z-index:5; background:var(--bg); }
-.topbar { display:flex; align-items:center; justify-content:space-between; gap:24px;
-  padding:10px 22px; border-bottom:2px solid var(--line); }
-.brand { display:flex; align-items:center; gap:9px; font-weight:800; font-size:20px; letter-spacing:-.01em; }
-.brand .mark { display:flex; align-items:center; justify-content:center; width:34px; height:34px;
-  border-radius:11px; background:var(--accent); color:#fff; flex:none; }
-.brand .stage { font-weight:700; font-size:12px; color:var(--muted); margin-left:2px; }
-.topright { display:flex; align-items:center; gap:10px; }
-/* 顶栏右侧的小胶囊：状态看一眼就懂，不抢戏 */
-.recstat, .backend { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:800;
-  color:var(--muted-2); background:var(--soft); border-radius:999px; padding:5px 12px; }
-.recstat i { width:9px; height:9px; border-radius:50%; background:var(--green); }
+/* ===== app 外壳：手机是「顶栏 + 内容 + 底部 tab」，桌面把 tab 转成左侧导航 ===== */
+.app { display:flex; flex-direction:column; min-height:100dvh; }
+.screen { flex:1; min-width:0; display:flex; flex-direction:column; }
+.appbar { position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:10px;
+  padding:9px 14px; background:rgba(255,255,255,.94); backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--line); min-height:52px; }
+.appbar-main { flex:1; min-width:0; }
+.appbar-title { font-weight:800; font-size:17px; letter-spacing:-.01em; }
+.appbar-right { display:flex; align-items:center; gap:8px; }
+.iconbtn { border:none; box-shadow:none; background:none; padding:6px; border-radius:50%;
+  color:var(--muted-2); }
+.iconbtn:hover { background:var(--soft); color:var(--ink); }
+.iconbtn:active { transform:none; }
+.recstat { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:800;
+  color:var(--muted-2); background:var(--soft); border-radius:999px; padding:5px 11px; }
+.recstat i { width:8px; height:8px; border-radius:50%; background:var(--green); }
 .recstat.warn { background:var(--orange-l); color:var(--orange-d); }
 .recstat.warn i { background:var(--orange); animation:pulse 1.4s infinite; }
 @keyframes pulse { 50% { opacity:.3; } }
 
-/* ===== 顶部探险路线 ===== */
-.trailbar { background:var(--bg); border-bottom:2px solid var(--line); padding:6px 16px 2px; }
-.trailbar svg { display:block; width:100%; max-width:1120px; margin:0 auto; height:auto; max-height:152px; }
-.trail-label { font-size:13px; font-weight:800; font-family:var(--font); }
-.trail-icon { color:#fff; }
-
-main { max-width:1280px; margin:0 auto; padding:22px 20px 48px; }
+main { flex:1; width:100%; max-width:960px; margin:0 auto; padding:16px 16px 28px; }
 .view.hidden, .hidden { display:none !important; }
-h1 { font-size:28px; font-weight:800; margin:6px 0 6px; letter-spacing:-.02em; }
-h2 { font-size:19px; font-weight:800; margin:26px 0 10px; display:flex; align-items:center; gap:8px; }
-h2 .muted { font-weight:700; }
-.muted { color:var(--muted-2); font-weight:600; }
-.small { font-size:12px; }
 
-/* ===== 按钮：多邻国式「下沿」 —— 按下去真的会陷进去 ===== */
+/* 底部 tab（手机） */
+.tabbar { order:2; display:flex; gap:2px; background:#fff; border-top:1px solid var(--line);
+  position:sticky; bottom:0; z-index:6; padding:4px 6px calc(4px + env(safe-area-inset-bottom)); }
+.tab { flex:1; flex-direction:column; gap:2px; border:none; box-shadow:none; background:none;
+  font-size:11px; font-weight:800; color:var(--muted); padding:7px 0 5px; border-radius:12px; }
+.tab:hover { background:var(--soft); }
+.tab:active { transform:none; }
+.tab.active { color:var(--accent-d); background:var(--accent-l); }
+.rail-brand { display:none; }
+/* 做任务的时候把导航收起来：这一屏只有画画 */
+body.inflow .tabbar { display:none; }
+
+/* ===== 按钮：按下去会陷进去的那种厚度 ===== */
 button { font:inherit; font-weight:800; cursor:pointer; color:var(--ink); background:var(--card);
   border:2px solid var(--line); border-radius:var(--r); padding:9px 16px;
   box-shadow:0 var(--edge) 0 var(--line-d);
+  display:inline-flex; align-items:center; justify-content:center; gap:7px;
   transition:background .12s, border-color .12s, filter .12s; }
 button:hover { background:var(--soft); }
 button:active { transform:translateY(var(--edge)); box-shadow:none; }
 button.primary { background:var(--accent); border-color:var(--accent); color:#fff;
   box-shadow:0 var(--edge) 0 var(--accent-d); }
-button.primary:hover { filter:brightness(1.05); background:var(--accent); }
+button.primary:hover { filter:brightness(1.04); background:var(--accent); }
 button.go { background:var(--green); border-color:var(--green); color:#fff;
   box-shadow:0 var(--edge) 0 var(--green-d); }
-button.go:hover { filter:brightness(1.05); background:var(--green); }
-button.secondary { background:var(--card); color:var(--blue-d); border-color:var(--line); }
+button.go:hover { filter:brightness(1.04); background:var(--green); }
+button.secondary { color:var(--blue-d); }
 button.secondary:hover { background:var(--blue-l); }
-button.big { padding:13px 20px; font-size:16px; border-radius:var(--r); }
+button.big { padding:13px 20px; font-size:16px; }
+button.grow { flex:1; }
 button.ghost { background:transparent; border-color:transparent; box-shadow:none; color:var(--muted-2); }
 button.ghost:hover { background:var(--soft); color:var(--ink); }
 button.ghost:active { transform:none; }
-button.ghost.danger:hover { color:var(--red); background:var(--red-l); }
-button:disabled { opacity:.45; cursor:not-allowed; box-shadow:0 var(--edge) 0 var(--line-d); }
+button.ghost.danger:hover { color:var(--red-d); background:var(--red-l); }
+button:disabled { opacity:.45; cursor:not-allowed; }
 button:disabled:active { transform:none; }
-/* 图标 + 文字的按钮统一对齐 */
-button .ico, .brand .ico, h2 .ico, .badge .ico, .qc-top .ico, .tchip .ico { flex:none; }
-button { display:inline-flex; align-items:center; justify-content:center; gap:7px; }
 
-/* ===== 任务卡（闯关入口） ===== */
-.quest-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(272px,1fr)); gap:16px; margin:18px 0; }
-.quest-card { position:relative; background:var(--card); border:2px solid var(--line); border-radius:var(--r-lg);
-  padding:18px; cursor:pointer; box-shadow:0 var(--edge) 0 var(--line-d);
-  transition:border-color .14s, box-shadow .14s, transform .1s; }
-.quest-card:hover { border-color:var(--qc,var(--accent)); box-shadow:0 var(--edge) 0 var(--qc,var(--accent)); }
-.quest-card:active { transform:translateY(var(--edge)); box-shadow:none; }
-.qc-top { display:flex; align-items:center; gap:11px; margin-bottom:10px; }
-/* 图标住在自己那块彩色圆角砖里，一眼能认出是哪一类任务 */
-.qc-tile { display:flex; align-items:center; justify-content:center; width:46px; height:46px; flex:none;
-  border-radius:14px; background:var(--qc,var(--accent)); color:#fff;
-  box-shadow:0 3px 0 var(--qc-edge, var(--accent-d)); }
-.qc-icon { font-size:24px; line-height:1; }
-.quest-card .type { display:inline-block; font-size:11px; font-weight:800; letter-spacing:.04em;
-  color:var(--qc,var(--accent-2)); }
-.quest-card h3 { margin:2px 0 6px; font-size:17px; font-weight:800; }
-.quest-card p { margin:0; font-size:13px; color:var(--muted-2); line-height:1.6; font-weight:600; }
-.qc-go { display:inline-flex; align-items:center; gap:4px; margin-top:12px; font-size:13px; font-weight:800;
-  color:var(--qc,var(--accent)); }
-.quest-card.small { cursor:default; padding:12px 14px; box-shadow:none; }
-.quest-card.small:hover { border-color:var(--line); }
-.quest-card.small:active { transform:none; }
-.quest-card.small p { font-size:12px; }
-.quest-card.small .type { color:var(--muted); }
-.quest-card.locked { opacity:.5; cursor:default; }
-.quest-card.locked:hover { border-color:var(--line); box-shadow:0 var(--edge) 0 var(--line-d); }
-.quest-card.locked:active { transform:none; box-shadow:0 var(--edge) 0 var(--line-d); }
+h1 { font-size:24px; font-weight:800; margin:4px 0 8px; letter-spacing:-.02em; }
+h2 { font-size:17px; font-weight:800; margin:24px 0 10px; display:flex; align-items:center; gap:8px; }
+h2:first-child { margin-top:4px; }
+h2 .muted { font-weight:700; }
+.muted { color:var(--muted-2); font-weight:600; }
+.small { font-size:12px; }
+.empty { color:var(--muted); font-size:14px; text-align:center; padding:48px 20px; }
+
+/* ===== 地图：竖着蜿蜒下去的一串关卡 ===== */
+.unit { display:flex; align-items:center; gap:12px; background:var(--soft); border-radius:var(--r-lg);
+  padding:12px 16px; margin-bottom:6px; }
+.unit-l { flex:1; min-width:0; }
+.unit-l b { display:block; font-size:15px; }
+.unit-l span { font-size:12px; color:var(--muted-2); font-weight:600; }
+.unit-r { font-size:12px; font-weight:800; color:var(--accent-d); white-space:nowrap; }
+#view-quest { max-width:560px; margin:0 auto; width:100%; }
+.map { position:relative; max-width:420px; margin:0 auto; padding:30px 0 40px;
+  display:flex; flex-direction:column; align-items:center; gap:24px; }
+.map-path { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; overflow:visible; }
+.map .quest-card { position:relative; z-index:1; width:150px; text-align:center; cursor:pointer;
+  background:none; border:none; padding:0; box-shadow:none;
+  transform:translateX(var(--dx, 0px)); transition:transform .15s; }
+.node-btn { position:relative; width:76px; height:76px; margin:0 auto; border-radius:50%;
+  background:var(--qc, var(--accent)); color:#fff; display:flex; align-items:center; justify-content:center;
+  box-shadow:0 6px 0 var(--qc-edge, var(--accent-d)); transition:transform .1s, box-shadow .1s; }
+.map .quest-card:active .node-btn { transform:translateY(6px); box-shadow:none; }
+.map .quest-card h3 { margin:12px 0 0; font-size:14px; font-weight:800; }
+.node-sub { font-size:11px; color:var(--muted); font-weight:700; margin-top:1px; }
+/* 走过的关：盖一颗星 */
+.node-star { position:absolute; right:-4px; top:-4px; width:26px; height:26px; border-radius:50%;
+  background:var(--yellow); color:#fff; border:3px solid #fff; display:flex;
+  align-items:center; justify-content:center; }
+.map .quest-card.locked { cursor:default; }
+.map .quest-card.locked .node-btn { background:var(--line); box-shadow:0 6px 0 var(--line-d); color:#fff; }
+.map .quest-card.locked:active .node-btn { transform:none; box-shadow:0 6px 0 var(--line-d); }
+.map .quest-card.locked h3 { color:var(--muted); }
+/* 下一关：彩点站在这儿，头上一个小气泡 */
+.node-here { position:absolute; left:calc(50% + 28px); top:-12px; width:40px; height:40px; z-index:2; }
+.node-tip { position:absolute; left:50%; top:-26px; transform:translateX(-50%);
+  background:var(--accent); color:#fff; font-size:11px; font-weight:800; padding:3px 10px;
+  border-radius:999px; white-space:nowrap; box-shadow:0 2px 0 var(--accent-d); }
+.map .quest-card.next .node-btn { box-shadow:0 6px 0 var(--qc-edge, var(--accent-d)), 0 0 0 5px color-mix(in srgb, var(--qc, #f79433) 18%, #fff); }
+
+/* ===== 流程进度条：做一幅画的六步 ===== */
+.flow { display:flex; align-items:center; gap:10px; max-width:380px; }
+.flow-track { position:relative; flex:1; height:12px; border-radius:999px; background:var(--line); overflow:hidden; }
+.flow-fill { height:100%; border-radius:999px; background:var(--green); width:0; transition:width .35s ease; }
+.flow-sprite { width:30px; height:30px; flex:none; overflow:visible; }
+.flow-step { font-size:12px; font-weight:800; color:var(--muted-2); white-space:nowrap; }
+
+/* ===== 任务卡（画画时侧边那张小卡） ===== */
+.quest-card.small { background:var(--card); border:2px solid var(--line); border-radius:var(--r);
+  padding:12px 14px; cursor:default; }
+.quest-card.small .type { font-size:11px; font-weight:800; color:var(--muted); }
+.quest-card.small h3 { margin:3px 0 5px; font-size:15px; font-weight:800; }
+.quest-card.small p { margin:0; font-size:12px; color:var(--muted-2); line-height:1.6; font-weight:600; }
+.qc-icon { font-size:22px; line-height:1; }
 
 .quest-prompt { font-size:16px; line-height:1.7; background:var(--soft); border-radius:var(--r);
   padding:14px 16px; font-weight:700; }
 .hint { color:var(--muted-2); font-size:14px; }
-label { display:block; margin:16px 0 6px; font-weight:800; font-size:14px; }
-textarea, input[type=text] { width:100%; max-width:640px; padding:12px 14px; border:2px solid var(--line);
+label { display:block; margin:18px 0 7px; font-weight:800; font-size:14px; }
+textarea, input[type=text] { width:100%; max-width:560px; padding:12px 14px; border:2px solid var(--line);
   border-radius:var(--r); font:inherit; font-weight:600; background:var(--card); color:var(--ink); }
 textarea:focus, input[type=text]:focus { outline:none; border-color:var(--blue); }
 textarea::placeholder, input::placeholder { color:var(--muted); font-weight:600; }
-
-/* 选择型胶囊（心情等）：和按钮同一套「下沿」逻辑 */
-.chips { display:flex; flex-wrap:wrap; gap:9px; }
-.chips button { border-radius:var(--r); padding:8px 16px; }
+.chips { display:flex; flex-wrap:wrap; gap:8px; }
+.chips button { border-radius:var(--r); padding:8px 15px; }
 .chips button.active { background:var(--blue-l); border-color:var(--blue); color:var(--blue-d);
   box-shadow:0 var(--edge) 0 var(--blue); }
-.actions { display:flex; gap:12px; margin-top:22px; } .actions.column { flex-direction:column; }
+.actions { display:flex; gap:10px; margin-top:22px; }
+.actions.column { flex-direction:column; }
+/* 主按钮钉在底边，手机上拇指够得着 */
+.actions.sticky { position:sticky; bottom:0; margin-top:20px; padding:12px 0 calc(12px + env(safe-area-inset-bottom));
+  background:linear-gradient(180deg, rgba(255,255,255,0), #fff 35%); }
 
 /* ===== 画画界面 ===== */
-.draw-layout { display:grid; grid-template-columns:242px 1fr; gap:18px; }
+.draw-layout { display:flex; flex-direction:column; gap:14px; }
 .toolbox { display:flex; flex-direction:column; gap:12px; }
-.toolbox .back { align-self:flex-start; padding:5px 10px; font-size:13px; }
 .intent-card { background:var(--yellow-l); border-radius:var(--r); padding:11px 13px; font-size:12px; line-height:1.6; }
 .tool-group { background:var(--card); border:2px solid var(--line); border-radius:var(--r); padding:11px; }
-.tool-group.row { display:flex; gap:7px; } .tool-group.row button { flex:1; padding:7px 4px; font-size:12px; gap:4px; }
+.tool-group.row { display:flex; gap:7px; }
+.tool-group.row button { flex:1; padding:7px 4px; font-size:12px; gap:4px; }
 .tool-group .label { font-size:11px; font-weight:800; color:var(--muted); letter-spacing:.04em; margin-bottom:8px; }
-.tools { display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+.tools { display:grid; grid-template-columns:repeat(4,1fr); gap:7px; }
 .tools button { flex-direction:column; gap:3px; padding:9px 4px; font-size:12px; }
 .tools button.active { background:var(--accent); border-color:var(--accent); color:#fff;
   box-shadow:0 var(--edge) 0 var(--accent-d); }
-.palette { display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin-bottom:8px; }
-.palette div { aspect-ratio:1; border-radius:9px; border:3px solid transparent; cursor:pointer;
+.palette { display:grid; grid-template-columns:repeat(12,1fr); gap:6px; margin-bottom:8px; }
+.palette div { aspect-ratio:1; border-radius:8px; border:3px solid transparent; cursor:pointer;
   box-shadow:inset 0 0 0 1px rgba(0,0,0,.06); }
 .palette div.active { border-color:var(--ink); }
-input[type=color] { width:100%; height:34px; padding:2px; border:2px solid var(--line); border-radius:10px; background:var(--card); cursor:pointer; }
-/* 粗细滑杆：粗轨道 + 大圆钮 */
-input[type=range] { width:100%; appearance:none; height:14px; border-radius:999px; background:var(--line); }
+input[type=color] { width:100%; height:34px; padding:2px; border:2px solid var(--line);
+  border-radius:10px; background:var(--card); cursor:pointer; }
+input[type=range] { width:100%; appearance:none; height:12px; border-radius:999px; background:var(--line); }
 input[type=range]::-webkit-slider-thumb { appearance:none; width:26px; height:26px; border-radius:50%;
   background:var(--accent); border:3px solid #fff; box-shadow:0 2px 0 var(--accent-d); cursor:pointer; }
 input[type=range]::-moz-range-thumb { width:22px; height:22px; border-radius:50%; background:var(--accent);
   border:3px solid #fff; cursor:pointer; }
 .timer { display:flex; align-items:center; gap:6px; font-size:14px; font-weight:800; margin-bottom:10px; }
+.timer .limit { color:var(--muted-2); font-variant-numeric:tabular-nums; }
+.timer .limit.low { color:var(--red-d); }
 .tool-group > button { width:100%; margin-top:8px; }
-.banner { margin-top:12px; background:var(--purple-l); border-radius:var(--r); padding:12px; font-size:13px; font-weight:700; }
+.banner { margin-top:10px; background:var(--purple-l); border-radius:var(--r); padding:12px; font-size:13px; font-weight:700; }
 .banner button { margin-top:10px; width:100%; }
-.canvas-wrap { background:var(--card); border:2px solid var(--line); border-radius:var(--r-lg); padding:12px; }
+.canvas-wrap { background:var(--card); border:2px solid var(--line); border-radius:var(--r-lg); padding:10px; }
 /* Zoom/pan is a CSS transform on the canvas element, never a change to the
    drawing context: pointer coordinates are mapped through getBoundingClientRect(),
    which already reports the transformed box, so stroke points stay in canvas
    pixel space at every zoom level and the logs replay unchanged. */
-.canvas-viewport { position:relative; overflow:hidden; border-radius:12px; background:#fff; }
-canvas { width:100%; height:auto; display:block; background:#fff; border-radius:12px; touch-action:none;
+.canvas-viewport { position:relative; overflow:hidden; border-radius:11px; background:#fff; }
+canvas { width:100%; height:auto; display:block; background:#fff; border-radius:11px; touch-action:none;
   cursor:crosshair; transform-origin:0 0; }
 .canvas-viewport.grab canvas { cursor:grab; }
 .canvas-viewport.panning canvas { cursor:grabbing; }
-.zoombar { display:flex; align-items:center; gap:7px; margin-top:10px; flex-wrap:wrap; }
+.zoombar { display:flex; align-items:center; gap:7px; margin-top:9px; flex-wrap:wrap; }
 .zoombar button { padding:6px 11px; font-size:13px; }
-.zoombar #btn-zoom-reset { min-width:66px; font-variant-numeric:tabular-nums; }
+.zoombar #btn-zoom-reset { min-width:64px; font-variant-numeric:tabular-nums; }
 .zoombar #btn-hand.active { background:var(--blue); border-color:var(--blue); color:#fff;
   box-shadow:0 var(--edge) 0 var(--blue-d); }
 .zoombar.hidden { display:none; }
@@ -198,41 +237,60 @@ canvas { width:100%; height:auto; display:block; background:#fff; border-radius:
 .historycard p { margin:0 0 2px; }
 .historycard.hidden { display:none; }
 
-/* ===== 反馈页 ===== */
-.result-layout { display:grid; grid-template-columns:1.1fr 1fr; gap:22px; }
+/* The reference gets its own viewport: how long a child looks, how far they
+   zoom in, and when attention moves between reference and canvas are all
+   process signals, and none of them exist if the image is a flat thumbnail. */
+.refpanel > button { width:100%; }
+.refpanel .ref-img { margin-top:8px; border:2px solid var(--line); border-radius:var(--r); padding:6px; background:#fff; }
+.refpanel .ref-img img { display:block; width:100%; }
+.ref-viewport { position:relative; overflow:hidden; border-radius:10px; background:#fff; max-height:260px; cursor:grab; }
+.ref-viewport.dragging { cursor:grabbing; }
+.ref-viewport img { display:block; width:100%; height:auto; transform-origin:0 0; user-select:none; -webkit-user-drag:none; }
+.refbar { display:flex; align-items:center; gap:6px; margin-top:8px; flex-wrap:wrap; }
+.refbar button { padding:4px 9px; font-size:12px; }
+.refbar #btn-ref-reset { min-width:56px; font-variant-numeric:tabular-nums; }
+
+/* ===== 反馈 / 结算 ===== */
+.result-layout { display:flex; flex-direction:column; gap:16px; }
 .artwork { width:100%; border:2px solid var(--line); border-radius:var(--r-lg); background:#fff; }
-.feedback-card { background:var(--card); border:2px solid var(--line); border-radius:var(--r-lg); padding:20px; }
-.feedback-text { white-space:pre-wrap; line-height:1.9; font-size:16px; font-weight:600; }
+.feedback-card { background:var(--card); border:2px solid var(--line); border-radius:var(--r-lg); padding:18px; }
+.feedback-text { white-space:pre-wrap; line-height:1.9; font-size:15px; font-weight:600; }
 .scores { margin-top:16px; }
+.compare { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:12px 0; }
+/* One artwork instead of an unchanged before/after pair. */
+.compare.single { grid-template-columns:minmax(0,1fr); max-width:620px; margin-inline:auto; }
+.compare figure.hidden { display:none; }
+figure { margin:0; }
+figcaption { text-align:center; color:var(--muted-2); font-size:12px; font-weight:800; margin-top:7px; }
 
 /* ===== 能力值扇形图 ===== */
 .rose-wrap { background:var(--soft); border-radius:var(--r-lg); padding:10px 8px 14px; }
-.rose { width:100%; max-width:420px; margin:0 auto; display:block; }
-.rose-grid { fill:none; stroke:#e5e5e5; stroke-width:2; }
-.rose-focus { filter:drop-shadow(0 0 4px rgba(255,150,0,.45)); }
+.rose { width:100%; max-width:400px; margin:0 auto; display:block; }
+.rose-grid { fill:none; stroke:#e9e9e9; stroke-width:2; }
+.rose-focus { filter:drop-shadow(0 0 4px rgba(247,148,51,.4)); }
 .rose-before { fill:none; stroke-width:3; stroke-dasharray:3 4; stroke-opacity:.9; stroke-linecap:round; }
 .rose-hub { fill:#fff; stroke:var(--line); stroke-width:2; }
 .rose-label { font-size:11px; font-weight:800; fill:var(--muted-2); }
 .rose-label.focus { fill:var(--accent-d); }
+.rose-label.na { fill:var(--muted); font-style:italic; font-weight:700; }
 .rose-legend { display:flex; flex-wrap:wrap; justify-content:center; gap:6px 14px; margin-top:6px;
   font-size:12px; font-weight:700; color:var(--muted-2); }
 .rose-leg { display:inline-flex; align-items:center; gap:5px; }
 .rose-leg i { width:11px; height:11px; border-radius:4px; display:inline-block; }
 .rose-leg.dash i { width:16px; height:0; border-top:3px dashed var(--muted); border-radius:0; }
-.rose-arw.up { fill:var(--green); } .rose-arw.dn { fill:var(--red); }
-.rose-label.na { fill:var(--muted); font-style:italic; font-weight:700; }
+.rose-arw.up { fill:var(--green-d); } .rose-arw.dn { fill:var(--red-d); }
 
 /* ===== 九维说明 ===== */
 .ability-head { display:flex; align-items:center; gap:7px; font-size:14px; font-weight:800; margin-bottom:10px; }
 .ability-head .muted { font-weight:600; font-size:12px; }
-.dim-notes { display:grid; grid-template-columns:repeat(3,1fr); gap:10px 16px; margin-top:16px; }
+.dim-notes { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:10px 16px; margin-top:16px; }
 .dim { font-size:12px; }
 .dim .name { display:flex; justify-content:space-between; align-items:center; color:var(--muted-2); font-weight:700; }
 .dim .name .dot { width:9px; height:9px; border-radius:50%; display:inline-block; margin-right:6px; vertical-align:middle; }
 .dim .sval { font-weight:800; color:var(--ink); }
 .dim.focus .name { color:var(--accent-d); }
-.dim .delta { color:var(--green); font-weight:800; font-size:11px; }
-.dim .delta.neg { color:var(--red); }
+.dim .delta { color:var(--green-d); font-weight:800; font-size:11px; }
+.dim .delta.neg { color:var(--red-d); }
 .dim .note { color:var(--muted); font-size:11px; margin-top:2px; line-height:1.4; }
 .dim .sval .st { color:var(--yellow-d); letter-spacing:1px; font-size:13px; }
 .dim .sval .st u { color:var(--line); text-decoration:none; }
@@ -241,62 +299,43 @@ canvas { width:100%; height:auto; display:block; background:#fff; border-radius:
 /* A dimension the task cannot elicit: greyed and spelled out, never a low bar. */
 .dim.na .name span:first-child { color:var(--muted); }
 .dim.na .wait { font-size:12px; color:var(--muted); }
-@media (max-width:560px) { .dim-notes { grid-template-columns:1fr 1fr; } }
 
-.compare { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin:14px 0; }
-/* One artwork instead of an unchanged before/after pair. */
-.compare.single { grid-template-columns:minmax(0,1fr); max-width:760px; margin-inline:auto; }
-.compare figure.hidden { display:none; }
-figure { margin:0; }
-figcaption { text-align:center; color:var(--muted-2); font-size:13px; font-weight:800; margin-top:8px; }
-
-table.sessions { width:100%; border-collapse:collapse; background:var(--card); font-size:13px; }
-table.sessions th, table.sessions td { text-align:left; padding:10px; border-bottom:2px solid var(--line); }
-table.sessions th { font-weight:800; color:var(--muted-2); font-size:12px; }
-
-#overlay { position:fixed; inset:0; background:rgba(255,255,255,.92); display:flex; flex-direction:column;
-  align-items:center; justify-content:center; gap:16px; z-index:20; font-size:16px; font-weight:800; }
-.spinner { width:40px; height:40px; border:5px solid var(--line); border-top-color:var(--accent);
-  border-radius:50%; animation:spin .8s linear infinite; }
-@keyframes spin { to { transform:rotate(360deg); } }
-@media (max-width:900px) { .draw-layout, .result-layout { grid-template-columns:1fr; } }
-
-/* ===== 创作伙伴「彩点」 ===== */
-.sprite { width:56px; height:56px; display:block; }
-.sprite.lg { width:66px; height:66px; }
+/* ===== 彩点 ===== */
+.sprite { width:54px; height:54px; display:block; overflow:visible; }
+.sprite.lg { width:62px; height:62px; }
+.sprite.big { width:120px; height:120px; margin:0 auto; }
 .buddy-mini { display:flex; align-items:center; gap:10px; background:var(--soft); border-radius:var(--r); padding:9px 11px; }
-.buddy-mini .sprite { width:48px; height:48px; flex:none; }
+.buddy-mini .sprite { width:46px; height:46px; flex:none; }
 .buddy-say { font-size:12px; line-height:1.55; color:var(--muted-2); font-weight:700; }
 .buddy-card .buddy-head { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
 .buddy-name { font-weight:800; font-size:15px; }
 
-/* ===== 过程徽章 ===== */
-.badges { margin:10px 0 4px; }
+/* ===== 徽章 ===== */
 .badge-group { margin-top:16px; }
 .badge-group h4 { margin:0 0 10px; font-size:12px; font-weight:800; letter-spacing:.04em; color:var(--muted); }
-.badge-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(136px,1fr)); gap:12px; }
-.badge { background:var(--card); border:2px solid var(--line); border-radius:var(--r-lg); padding:14px 10px 12px;
+.badge-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(128px,1fr)); gap:11px; }
+.badge { background:var(--card); border:2px solid var(--line); border-radius:var(--r-lg); padding:13px 9px 11px;
   text-align:center; position:relative; box-shadow:0 var(--edge) 0 var(--line-d); }
-/* 点亮的徽章：一枚有颜色的圆章；没点亮的：灰色、虚线，说明还能去拿 */
-.badge .b-ico { width:56px; height:56px; margin:0 auto; border-radius:50%; display:flex;
+/* 点亮的是一枚有颜色的圆章；没点亮的是灰的虚线——还能去拿，不是丢了什么 */
+.badge .b-ico { width:52px; height:52px; margin:0 auto; border-radius:50%; display:flex;
   align-items:center; justify-content:center; background:var(--yellow); color:#fff;
   box-shadow:0 3px 0 var(--yellow-d); }
 .badge .b-name { font-size:13px; font-weight:800; margin-top:9px; }
 .badge .b-desc { font-size:11px; color:var(--muted-2); margin-top:3px; line-height:1.45; font-weight:600; }
 .badge.locked { background:var(--soft); border-style:dashed; box-shadow:none; }
-.badge.locked .b-ico { background:#ededed; color:#c9c9c9; box-shadow:none; }
+.badge.locked .b-ico { background:#ededed; color:#cbcbcb; box-shadow:none; }
 .badge.locked .b-name { color:var(--muted); }
 .badge.new::after { content:"NEW"; position:absolute; top:8px; right:8px; background:var(--red); color:#fff;
   font-size:9px; font-weight:800; padding:2px 7px; border-radius:999px; }
-.badge.evo.new .b-ico { background:var(--purple); box-shadow:0 3px 0 var(--purple-d); }
+.badge.evo.on .b-ico { background:var(--purple); box-shadow:0 3px 0 var(--purple-d); }
 .badge.evo.locked { border-color:var(--purple); background:var(--purple-l); }
 .badge.evo.locked .b-desc { color:var(--purple-d); font-weight:800; }
 .badge.rare .b-ico { background:var(--blue); box-shadow:0 3px 0 var(--blue-d); }
 .badge.rare .b-name::after { content:" ✦"; color:var(--blue); }
 .rarity { font-size:11px; color:var(--muted); margin-top:4px; font-weight:700; }
 
-/* ===== 创作图鉴 ===== */
-.dex { display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin:6px 0 4px; }
+/* ===== 图鉴 ===== */
+.dex { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:11px; }
 .dex-card { display:block; border-radius:var(--r); overflow:hidden; border:2px solid var(--line);
   background:var(--card); text-decoration:none; color:inherit; box-shadow:0 var(--edge) 0 var(--line-d);
   transition:border-color .14s, box-shadow .14s; }
@@ -306,18 +345,16 @@ table.sessions th { font-weight:800; color:var(--muted-2); font-size:12px; }
 .dex-cap { padding:8px 10px; }
 .dex-cap b { display:flex; align-items:center; gap:5px; font-size:12px; color:var(--qc,var(--ink)); }
 .dex-cap span { font-size:11px; color:var(--muted); font-weight:700; }
-@media (max-width:900px) { .dex { grid-template-columns:repeat(3,1fr); } }
 
 /* ===== 彩点的成长 ===== */
 /* 彩点's nine attributes. Two layers, visually distinct on purpose: a filled pip
    is practice the child really did; an evaluation layer that no backend can
    judge yet says so in words instead of drawing a bar over placeholder numbers. */
-.growth { display:grid; grid-template-columns:minmax(180px,220px) 1fr; gap:20px; align-items:start;
-  background:var(--card); border:2px solid var(--line); border-radius:var(--r-lg); padding:18px; }
+.growth { display:grid; grid-template-columns:1fr; gap:16px; background:var(--card);
+  border:2px solid var(--line); border-radius:var(--r-lg); padding:16px; }
 .growth-buddy { text-align:center; }
-.sprite.big { width:126px; height:126px; margin:0 auto; }
 .growth-rings { display:flex; justify-content:center; gap:3px; color:var(--yellow); margin:4px 0 2px; min-height:18px; }
-.growth-dims { display:grid; grid-template-columns:repeat(auto-fill,minmax(212px,1fr)); gap:12px 18px; }
+.growth-dims { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px 18px; }
 .gdim { font-size:13px; }
 .gdim .gtop { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
 .gdim .gname { font-weight:800; }
@@ -326,82 +363,82 @@ table.sessions th { font-weight:800; color:var(--muted-2); font-size:12px; }
 .gpips i { width:100%; height:9px; border-radius:999px; background:var(--line); }
 .gpips i.on { background:var(--gc,var(--accent)); }
 .gdim .gsleep { color:var(--muted); font-size:11px; margin-top:4px; font-weight:600; }
-.gdim .gawake { color:var(--green); font-size:11px; margin-top:4px; font-weight:700; }
-@media (max-width:720px) { .growth { grid-template-columns:1fr; } }
+.gdim .gawake { color:var(--green-d); font-size:11px; margin-top:4px; font-weight:700; }
 
 /* "What this mission trained" — the task's own rubric, said back to the child as
    practice rather than as a verdict on the drawing. */
-.trained { background:var(--card); border:2px solid var(--line); border-radius:var(--r-lg); padding:14px 18px; margin-top:16px; }
+.trained { background:var(--card); border:2px solid var(--line); border-radius:var(--r-lg); padding:14px 16px; margin-top:16px; }
 .trained h4 { margin:0 0 10px; font-size:13px; font-weight:800; display:flex; align-items:center; gap:7px; }
 .trained .tchips { display:flex; flex-wrap:wrap; gap:8px; }
 .trained .tchip { display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:800;
-  padding:6px 14px; border-radius:999px; background:color-mix(in srgb, var(--tc,#ff9600) 14%, #fff);
-  color:color-mix(in srgb, var(--tc,#ff9600) 75%, #000); }
+  padding:6px 13px; border-radius:999px; background:color-mix(in srgb, var(--tc,#f79433) 13%, #fff);
+  color:color-mix(in srgb, var(--tc,#f79433) 72%, #000); }
 .trained .tchip i { width:9px; height:9px; border-radius:50%; background:var(--tc,var(--accent)); }
 .trained .tnote { color:var(--muted-2); font-size:12px; margin-top:10px; line-height:1.6; }
 
 /* Other people's approaches. Shown only after the child has submitted their own,
    and only for sessions whose consent allows it. No score, no name, no order
    that implies one is better. */
-.peers { margin-top:22px; }
-.peer-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(224px,1fr)); gap:14px; }
+.peers { margin-top:20px; }
+.peer-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:12px; }
 .peer { background:var(--card); border:2px solid var(--line); border-radius:var(--r-lg); overflow:hidden; }
 .peer img { width:100%; display:block; aspect-ratio:1024/704; object-fit:contain; background:#fff; }
-.peer .p-why { padding:10px 13px 2px; font-size:13px; font-weight:800; }
-.peer .p-how { padding:0 13px 12px; font-size:12px; color:var(--muted-2); line-height:1.6; font-weight:600; }
-.peer .p-pin { display:flex; align-items:center; gap:5px; padding:0 13px 11px; font-size:11px;
+.peer .p-why { padding:10px 12px 2px; font-size:13px; font-weight:800; }
+.peer .p-how { padding:0 12px 11px; font-size:12px; color:var(--muted-2); line-height:1.6; font-weight:600; }
+.peer .p-pin { display:flex; align-items:center; gap:5px; padding:0 12px 10px; font-size:11px;
   font-weight:800; color:var(--accent-d); }
 
-/* ===== 研究数据层：实验模式 / 参考图 / 自评 ===== */
-.studybar { display:flex; align-items:center; gap:12px; padding:7px 22px; font-size:12px; font-weight:700;
-  background:#3c3c3c; color:#fff; }
+/* ===== 我的 ===== */
+.tablewrap { overflow-x:auto; }
+table.sessions { width:100%; border-collapse:collapse; background:var(--card); font-size:13px; }
+table.sessions th, table.sessions td { text-align:left; padding:10px; border-bottom:1px solid var(--line); white-space:nowrap; }
+table.sessions th { font-weight:800; color:var(--muted-2); font-size:12px; }
+.infolist { border:2px solid var(--line); border-radius:var(--r); overflow:hidden; }
+.info { display:flex; justify-content:space-between; gap:12px; padding:11px 14px; font-size:13px; }
+.info + .info { border-top:1px solid var(--line); }
+.info span { color:var(--muted-2); }
+
+/* ===== 研究数据层：实验模式 / 自评 ===== */
+.studybar { display:flex; align-items:center; gap:12px; padding:7px 16px; font-size:12px; font-weight:700;
+  background:#4a4a4a; color:#fff; flex-wrap:wrap; }
 .studybar .tag { font-weight:800; letter-spacing:.08em; background:var(--red); color:#fff; padding:2px 8px; border-radius:6px; }
 .studybar .seq { font-family:ui-monospace, SFMono-Regular, Menlo, monospace; opacity:.75; letter-spacing:.06em; }
 .studybar .linkbtn { margin-left:auto; background:none; border:none; box-shadow:none; color:#fff;
   text-decoration:underline; cursor:pointer; font-size:12px; padding:0; }
 .studybar .linkbtn:hover { background:none; }
-
-/* The reference gets its own viewport: how long a child looks, how far they
-   zoom in, and when attention moves between reference and canvas are all
-   process signals, and none of them exist if the image is a flat thumbnail. */
-.refpanel { margin:2px 0; }
-.refpanel > button { width:100%; }
-.refpanel .ref-img { margin-top:8px; border:2px solid var(--line); border-radius:var(--r); overflow:hidden; background:#fff; padding:6px; }
-.refpanel .ref-img img { display:block; width:100%; }
-.ref-viewport { position:relative; overflow:hidden; border-radius:10px; background:#fff; max-height:260px; cursor:grab; }
-.ref-viewport.dragging { cursor:grabbing; }
-.ref-viewport img { display:block; width:100%; height:auto; transform-origin:0 0; user-select:none; -webkit-user-drag:none; }
-.refbar { display:flex; align-items:center; gap:6px; margin-top:8px; flex-wrap:wrap; }
-.refbar button { padding:4px 9px; font-size:12px; }
-.refbar #btn-ref-reset { min-width:58px; font-variant-numeric:tabular-nums; }
-.timer .limit { color:var(--muted-2); font-variant-numeric:tabular-nums; }
-.timer .limit.low { color:var(--red); }
-
 .survey { margin:16px 0 6px; }
-.sq { padding:14px 0; border-bottom:2px solid var(--line); }
+.sq { padding:14px 0; border-bottom:1px solid var(--line); }
 .sq-q { font-weight:800; margin-bottom:10px; }
-.sq-scale { display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
-.sq-scale button { width:48px; height:46px; border-radius:14px; font-size:16px; padding:0; }
+.sq-scale { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.sq-scale button { width:46px; height:44px; border-radius:13px; font-size:16px; padding:0; }
 .sq-scale button.active { background:var(--blue-l); border-color:var(--blue); color:var(--blue-d);
   box-shadow:0 var(--edge) 0 var(--blue); }
 
 /* Leaving a task partway: the child must be able to back out of a wrong choice
    without losing work by accident, and without a stray session being left
    half-open on the server. */
-.modal { position:fixed; inset:0; z-index:50; display:flex; align-items:center; justify-content:center;
-  background:rgba(60,60,60,.5); }
+.modal { position:fixed; inset:0; z-index:50; display:flex; align-items:flex-end; justify-content:center;
+  background:rgba(60,60,60,.45); }
 .modal.hidden { display:none; }
-.modal-card { background:var(--card); border-radius:var(--r-lg); padding:24px; max-width:430px; width:90%;
-  box-shadow:0 20px 50px rgba(0,0,0,.2); }
-.modal-card h3 { margin:0 0 8px; font-size:19px; font-weight:800; }
-.modal-card .actions.column { margin-top:18px; }
+.modal-card { background:var(--card); border-radius:var(--r-lg) var(--r-lg) 0 0; padding:22px 20px calc(22px + env(safe-area-inset-bottom));
+  max-width:460px; width:100%; box-shadow:0 -8px 40px rgba(0,0,0,.14); }
+.modal-card h3 { margin:0 0 8px; font-size:18px; font-weight:800; }
+.modal-card .actions.column { margin-top:16px; }
+
+#overlay { position:fixed; inset:0; background:rgba(255,255,255,.93); display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:16px; z-index:60; font-size:15px; font-weight:800; }
+.spinner { width:38px; height:38px; border:5px solid var(--line); border-top-color:var(--accent);
+  border-radius:50%; animation:spin .8s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
 
 /* 安静条件（study condition ui=quiet）：收起游戏化外观，评估与记录不受影响 */
-body.quiet .trailbar,
+body.quiet .flow,
+body.quiet .node-here, body.quiet .node-tip, body.quiet .node-star,
 body.quiet .buddy-mini,
 body.quiet .buddy-head,
 body.quiet #badges,
 body.quiet #badges-head,
+body.quiet [data-tab="buddy"],
 body.quiet #collection-wrap { display:none; }
 
 /* ===== 图标 ===== */
@@ -409,14 +446,47 @@ body.quiet #collection-wrap { display:none; }
 .ico { display:inline-block; vertical-align:-.18em; flex:none; }
 .glyph { display:block; }
 
+/* ===== 平板 / 桌面：tab 变成左侧导航，画画变成两栏 ===== */
+@media (min-width: 900px) {
+  .app { flex-direction:row; }
+  .tabbar { order:-1; flex-direction:column; justify-content:flex-start; gap:4px;
+    width:216px; height:100dvh; position:sticky; top:0; border-top:none;
+    border-right:1px solid var(--line); padding:16px 12px; }
+  .tab { flex:0 0 auto; flex-direction:row; justify-content:flex-start; gap:12px;
+    font-size:15px; padding:11px 14px; border-radius:var(--r); }
+  .rail-brand { display:flex; align-items:center; gap:9px; font-size:19px; font-weight:800;
+    padding:4px 10px 18px; }
+  .rail-brand .mark { display:flex; align-items:center; justify-content:center; width:32px; height:32px;
+    border-radius:10px; background:var(--accent); color:#fff; flex:none; }
+  body.inflow .tabbar { display:none; }
+  main { padding:22px 26px 36px; }
+  h1 { font-size:27px; }
+  .draw-layout { display:grid; grid-template-columns:minmax(0,1fr) 262px; align-items:start; }
+  .toolbox { position:sticky; top:66px; max-height:calc(100dvh - 92px); overflow-y:auto; padding-right:3px; }
+  #view-draw .actions.sticky { width:262px; margin-left:auto; margin-top:14px; }
+  .palette { grid-template-columns:repeat(6,1fr); }
+  .result-layout { display:grid; grid-template-columns:1.05fr 1fr; gap:22px; }
+  .growth { grid-template-columns:minmax(170px,210px) 1fr; }
+  .actions.sticky { position:static; padding:0; background:none; }
+  .actions.sticky button.grow { flex:0 0 auto; }
+  .modal { align-items:center; }
+  .modal-card { border-radius:var(--r-lg); width:90%; }
+}
+@media (max-width: 899px) {
+  /* 手机上先给工具，说明性的卡片排到后面——画布下面就是笔 */
+  .toolbox .tool-group { order:-1; }
+  .hint-desktop { display:none; }
+  .zoombar #btn-hand .lbl { display:none; }
+  .compare { grid-template-columns:1fr; }
+}
+
 /* ===== 彩点的呼吸 ===== */
 /* A companion that never moves reads as a picture of a companion; a small idle
    loop is what makes it feel present. Kept slow and low-amplitude so it is
    company rather than a distraction while drawing. */
-.sprite { overflow:visible; }
-.sprite .cd-body { animation:cd-bob 3.2s ease-in-out infinite; transform-origin:100px 186px; }
-.sprite .cd-shadow { animation:cd-shadow 3.2s ease-in-out infinite; transform-origin:100px 184px; }
-.sprite .cd-eyes { animation:cd-blink 5.4s ease-in-out infinite; transform-origin:100px 92px; }
+.sprite .cd-body, .flow-sprite .cd-body, .node-here .cd-body { animation:cd-bob 3.2s ease-in-out infinite; transform-origin:100px 186px; }
+.sprite .cd-shadow, .flow-sprite .cd-shadow, .node-here .cd-shadow { animation:cd-shadow 3.2s ease-in-out infinite; transform-origin:100px 184px; }
+.sprite .cd-eyes, .flow-sprite .cd-eyes, .node-here .cd-eyes { animation:cd-blink 5.4s ease-in-out infinite; transform-origin:100px 92px; }
 @keyframes cd-bob {
   0%, 100% { transform:translateY(0) scale(1,1); }
   45%      { transform:translateY(-7px) scale(.982,1.022); }
@@ -438,16 +508,8 @@ body.quiet #collection-wrap { display:none; }
   60%  { transform:translateY(0) scale(1.08,.92); }
   100% { transform:translateY(0) scale(1,1); }
 }
-/* The buddy on the drawing screen is smaller and quieter still. */
 .buddy-mini .sprite .cd-body { animation-duration:4.2s; }
-/* 当前关卡的节点会轻轻跳，像在说「该你了」 */
-.trail-now { animation:trail-hop 1.8s ease-in-out infinite; }
-@keyframes trail-hop {
-  0%, 60%, 100% { transform:translateY(0); }
-  30%           { transform:translateY(-4px); }
-}
 @media (prefers-reduced-motion: reduce) {
-  .sprite .cd-body, .sprite .cd-shadow, .sprite .cd-eyes, .sprite.cheer .cd-body, .trail-now {
-    animation:none;
-  }
+  .sprite .cd-body, .sprite .cd-shadow, .sprite .cd-eyes, .sprite.cheer .cd-body,
+  .flow-sprite .cd-body, .node-here .cd-body { animation:none; }
 }

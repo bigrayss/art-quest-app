@@ -264,7 +264,7 @@ class SessionStore:
         write_json(self.dir(sid) / "metadata.json", meta)
 
     def list(self) -> List[Dict[str, Any]]:
-        keys = ("id", "created_at", "quest_id", "status", "revised")
+        keys = ("id", "created_at", "quest_id", "status", "revised", "badges")
         out = []
         for d in self.root.iterdir():
             if not d.is_dir():
