@@ -1,0 +1,8 @@
+Nunito — Copyright 2014 The Nunito Project Authors
+(https://github.com/googlefonts/nunito)
+
+Licensed under the SIL Open Font License, Version 1.1:
+https://scripts.sil.org/OFL
+
+nunito-latin.woff2 是 Google Fonts 提供的拉丁子集（可变字重 200–1000），
+仅用于界面里的拉丁字母与数字；中文由系统的 Noto Sans CJK 承担。
