@@ -19,7 +19,7 @@ cp .env.example .env          # 可选：填入 ANTHROPIC_API_KEY
 测试：
 
 ```bash
-./test.sh                     # 64 项，离线后端，不需要 API key
+./test.sh                     # 72 项，离线后端，不需要 API key
 ```
 
 其中 `tests/test_browser.py` 会用系统的 Chrome 真跑一遍（缩放后坐标是否还准、含撤销的 session 能否重建）。
@@ -304,6 +304,9 @@ rubric 不合法的任务会被**拒绝加载**并记日志，其余任务照常
 | `undo_allowed` | bool | 是否允许撤销 |
 | `zoom_allowed` | bool | 是否允许缩放 / 平移画布（关掉时工具条隐藏、滚轮与空格失效） |
 | `history_mode` | `none` / `history` / `personalized` | 个性化臂：不看历史 / 看自己的历史 / 模型读表示 |
+| `growth_display` | `none` / `badges` / `full` | 孩子能看到多少自己的成长（彩点九属性、徽章、玫瑰图） |
+| `gallery_display` | `none` / `after_submit` / `always` | 能不能看到别人的作品，以及什么时候 |
+| `share_consent` | bool | 这个孩子的作品是否获准展示给其他人。**默认 false，从不推断** |
 | `questionnaire` | bool | 结束前是否做 1–5 自评 |
 | `feedback_source` | `ai` / `teacher` / `none` | 反馈来源 |
 | `time_limit_sec` | int / null | 时限，到点自动提交并记 `TIME_LIMIT_REACHED` |
@@ -399,6 +402,45 @@ share_in_region_before / share_in_region_after / region_shift`——就是反馈
 的视觉反馈接上，把区域填进同一个字段即可，下游一行不用改。修改轮次目前是一轮，但数据模型不假设这一点——
 归因是按 `feedback_id` 逐条算的，多轮反馈直接成立。
 
+## 观摩与成就：不给孩子的画排名
+
+需求是"推荐服务器里的佳作 + 成就系统"。**"佳作榜"这个做法被换掉了**，不是出于顾虑，
+而是它和这个项目其余部分正面冲突：
+
+1. **排名会把前面所有克制全部抵消。** 别处一直拒绝给孩子下判决——N/A 不是低分、
+   徽章只读过程、结束页说"这关练的是"。佳作榜就是那个判决，只不过用社交方式送达。
+2. **它是"公开一个未成年人的作品"。** 把一个孩子的画展示给另一个孩子，正是监护人
+   同意书里单独勾选的那一项（`docs/ETHICS.md`）。
+3. **它会污染研究。** 看过别人解法再画的孩子，已经不是任务条件的干净观测，
+   Task Condition 那条线直接作废。
+
+换成三件事：
+
+| | 是什么 | 靠什么选 |
+|---|---|---|
+| **观摩** `/api/gallery/task/{id}` | 同一道题，别人**怎么画**的 | 过程签名上离你**最远**的几种做法（最远点采样），不是最好的几张 |
+| **精选墙** `/api/gallery/featured` | 老师特意挑出来给大家看的 | **人的决定**，带 `rater_id`。教室墙上贴画一直是这么回事，算法给孩子排名不是 |
+| **成就稀有度** `/api/achievements` | 每枚徽章有多少人点亮过 | 全服统计。「8% 的人点亮过这枚」说的是**徽章**，不是你 |
+
+### 三道闸
+
+- **同意**：只有 `condition.share_consent` 为真、且已完成的 session 才可能出现。
+  这个字段和其他条件一样冻结在 session 里，**从不默认为真、从不推断**。
+- **时机**：`gallery_display` 默认 `none`；`after_submit` 只在孩子**交完自己那张之后**
+  才可见——画之前看到别人的，既会左右他画什么，也会让这次观测作废；`always` 才在首页
+  显示精选墙。
+- **内容**：卡片上只有作品、做法（几笔 / 几种颜色 / 几分钟 / 有没有放大）、
+  和一句「他和你哪里不一样」。**没有分数、没有名字、没有暗示优劣的排序**。
+
+「他和你哪里不一样」是真算出来的：把双方的过程签名（笔数、颜色数、工具数、时长、
+撤销率、是否放大、停顿占比，全部是过程，没有一项是质量）归一化后取差异最大的那一维，
+说成一句话——"用的颜色比你多"、"用更少的笔画就画完了"、"停下来想的时间更多"。
+
+### 徽章与稀有度
+
+徽章由客户端在结束时上报，连同**规则版本**一起存进 session。以后收紧某条规则，
+不会追溯地把徽章从已经拿到的孩子手上拿走——和 `condition.json` 冻结任务定义是同一个道理。
+
 ## 个性化：历史 → 用户表示 → 新任务 → 预测
 
 ```
@@ -490,6 +532,10 @@ python3 tools/replay.py --all --check                    # 校验每个 session 
 | POST | `/api/sessions/{id}/qc` | 重跑数据质量检查 |
 | GET | `/api/sessions`, `/api/sessions/{id}`, `/api/sessions/{id}/strokes` | 浏览记录 / 原始笔画 |
 | GET | `/api/sessions/{id}/personalization` | 画之前系统知道什么、决定了什么（冻结） |
+| GET | `/api/gallery/task/{task_id}` | 同一道题里和你做法最不一样的几张（需同意 + 条件允许） |
+| GET | `/api/gallery/featured` | 老师精选墙（跨任务） |
+| GET | `/api/achievements` | 每枚徽章的全服稀有度 |
+| POST | `/api/sessions/{id}/badges` | 上报本次点亮的徽章及规则版本 |
 | GET | `/api/participants/{pid}/protocol` | planned vs actual 任务顺序、偏离与重复 |
 | GET | `/api/participants/{pid}/history` | 该被试已完成的任务（表示的输入） |
 | GET | `/api/participants/{pid}/representation` | 用户表示，**每次从日志现算**；`?before=` 复现历史输入 |
@@ -508,6 +554,7 @@ artquest/            后端（FastAPI）
   events.py          统一事件词表 + 旧名折叠（所有读取方的唯一权威）
   qc.py              结束时的数据质量检查
   revision.py        反馈 → 其后修改的归因（纯函数，不落库）
+  gallery.py         观摩（按差异选）、精选墙（人选）、徽章稀有度
   history.py         行为历史 → 用户表示（纯函数，不落库）
   personalize/       三臂：none / history / personalized（可插拔）
   reconstruct.py     从事件时间线重建作品（replay 与 QC 共用）
@@ -522,6 +569,7 @@ tests/               端到端测试 + 研究数据层测试（离线后端）
   test_feedback_revision.py 区域坐标约束、反馈→修改归因、多评分者
   test_task_library.py 任务库、rubric contract、condition 冻结、protocol 平衡
   test_process_layer.py 事件词表、null 压感、生命周期、语义关键帧、过程标注、撤回
+  test_gallery.py    同意闸、按差异而非质量选、人选精选、稀有度
   test_browser.py    真实 Chrome：缩放不改坐标、含撤销的 session 能重建、参考图交互、
                      鼠标压感确实是 null（无浏览器则跳过）
 docs/                指南文档

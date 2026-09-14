@@ -157,6 +157,17 @@ HARDEST_PARTS = [
 HARDEST_PART_KEYS = [k for k, _ in HARDEST_PARTS]
 
 
+class EarnedBadges(BaseModel):
+    """What the client's badge rules lit for this session.
+
+    Stored with the rule-set `version` they were earned under: tightening a rule
+    later must not retroactively take a badge off a child who already had it.
+    """
+    earned: List[str] = []
+    offered: List[str] = []
+    version: str = ""
+
+
 class Abandon(BaseModel):
     """Backing out of a task before submitting it."""
     elapsed_ms: int = 0
@@ -286,6 +297,7 @@ class Rating(BaseModel):
     dims: Dict[str, int] = Field({}, description="可选的 9 维打分，与模型同一量表")
     note: str = ""
     t_ms: int = 0
+    featured: bool = Field(False, description="老师选它给大家看——人的决定，不是排名函数")
 
     @field_validator("dims")
     @classmethod

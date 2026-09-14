@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import __version__
 from . import events as ev
+from . import gallery as gallery_mod
 from . import history as history_mod
 from . import study as study_mod
 from .config import (CLAUDE_MODEL, SESSIONS_DIR, SNAPSHOT_INTERVAL_SEC, STATIC_DIR,
@@ -20,7 +21,7 @@ from .quests import (EMOTIONS, QUESTS, QUESTS_BY_ID, condition_snapshot,
 from .reconstruct import check_final
 from .rubric import apply_contract, check_rating
 from .revision import attribute as attribute_revision
-from .schemas import (Abandon, Annotation, CreateSession, DrawEvent, FeedbackIn, Finalize,
+from .schemas import (Abandon, Annotation, CreateSession, DrawEvent, EarnedBadges, FeedbackIn, Finalize,
                       HARDEST_PARTS, LogBatch, PROCESS_LABELS, Questionnaire, Rating,
                       Snapshot, StudyAssign, Stroke, Submit)
 from .scoring import DIMENSIONS, SCALE_MAX, get_scorer
@@ -482,6 +483,47 @@ def get_annotations(sid: str):
     _session_or_404(sid)
     return {"session_id": sid, "labels": list(PROCESS_LABELS),
             "annotations": store.log(sid, "annotations").read()}
+
+
+@app.post("/api/sessions/{sid}/badges")
+def report_badges(sid: str, body: EarnedBadges):
+    """Record which badges this session lit, under which rule set."""
+    _session_or_404(sid)
+    rec = body.model_dump()
+    rec["at"] = now_iso()
+    store.update(sid, badges=rec)
+    return {"ok": True, "badges": rec}
+
+
+# -- gallery: other people's approaches, never a ranking of children ----------
+@app.get("/api/gallery/task/{task_id}")
+def gallery_for_task(task_id: str, exclude: str = "", k: int = 3):
+    """Approaches to this task that differ most from the viewer's.
+
+    Only sessions whose frozen condition carries `share_consent` are eligible —
+    showing one child's drawing to another is publication, and consent for it
+    is a separate box on the form.
+    """
+    viewer = None
+    if exclude:
+        try:
+            viewer = store.load(exclude)
+        except KeyError:
+            viewer = None
+    return gallery_mod.diverse_examples(task_id, exclude_session=exclude,
+                                        k=max(1, min(6, k)), viewer_meta=viewer)
+
+
+@app.get("/api/gallery/featured")
+def gallery_featured(task_id: str = "", k: int = 8):
+    """Work a teacher pinned up. A human decision, with a rater id behind it."""
+    return gallery_mod.featured_examples(task_id, k=max(1, min(24, k)))
+
+
+@app.get("/api/achievements")
+def achievements():
+    """How rare each badge is across everyone — collection, not comparison."""
+    return gallery_mod.achievement_stats()
 
 
 @app.get("/api/sessions/{sid}/personalization")
