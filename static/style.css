@@ -296,3 +296,44 @@ button.ghost.danger:hover { color:#b03a2e; border-color:#b03a2e; }
 .peer .p-pin { padding:0 12px 10px; font-size:11px; color:var(--accent); }
 .rarity { font-size:11px; color:var(--muted); margin-top:2px; }
 .badge.rare .b-name::after { content:" ✦"; color:var(--accent); }
+
+/* Line glyphs sit where the emoji used to, at the same optical weight. */
+.qc-top .glyph { flex: 0 0 auto; }
+.glyph { display: block; }
+
+/* 彩点 breathing. A companion that never moves reads as a picture of a
+   companion; a small idle loop is what makes it feel present. Kept slow and
+   low-amplitude so it is company rather than a distraction while drawing. */
+.sprite { overflow: visible; }
+.sprite .cd-body { animation: cd-bob 3.2s ease-in-out infinite; transform-origin: 100px 186px; }
+.sprite .cd-shadow { animation: cd-shadow 3.2s ease-in-out infinite; transform-origin: 100px 184px; }
+.sprite .cd-eyes { animation: cd-blink 5.4s ease-in-out infinite; transform-origin: 100px 92px; }
+@keyframes cd-bob {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  45%      { transform: translateY(-7px) scale(.982, 1.022); }
+  70%      { transform: translateY(-2px) scale(1.01, .99); }
+}
+@keyframes cd-shadow {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  45%      { transform: scale(.86); opacity: .65; }
+}
+@keyframes cd-blink {
+  0%, 90%, 100% { transform: scaleY(1); }
+  93%, 96%      { transform: scaleY(.08); }
+}
+/* A beat of delight — added for a moment when something is earned. */
+.sprite.cheer .cd-body { animation: cd-cheer .7s cubic-bezier(.34,1.56,.64,1) 2; }
+@keyframes cd-cheer {
+  0%   { transform: translateY(0) scale(1, 1); }
+  30%  { transform: translateY(-18px) scale(.94, 1.09); }
+  60%  { transform: translateY(0) scale(1.08, .92); }
+  100% { transform: translateY(0) scale(1, 1); }
+}
+/* The buddy on the drawing screen is smaller and quieter still. */
+.buddy-mini .sprite .cd-body { animation-duration: 4.2s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sprite .cd-body, .sprite .cd-shadow, .sprite .cd-eyes, .sprite.cheer .cd-body {
+    animation: none;
+  }
+}
