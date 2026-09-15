@@ -42,6 +42,7 @@
   </div>
   <div class="appbar-right">
     <div class="recstat" id="recstat" title="过程数据先存本地，再同步到服务器"><i></i><span id="recstat-text">就绪</span></div>
+    <button class="avatar hidden" id="btn-world" title="看看彩点"><svg class="sprite" id="avatar-sprite" viewBox="0 0 200 200"></svg></button>
   </div>
 </header>
 
@@ -53,6 +54,25 @@
 </div>
 
 <main>
+<!-- ===== tab 1 的门口：精灵 + 它的属性 → 进入世界 ===== -->
+<section class="view hidden" id="view-world">
+  <div class="world">
+    <div class="world-card">
+      <div class="world-glow"></div>
+      <svg class="sprite hero" id="world-sprite" viewBox="0 0 200 200"></svg>
+      <div class="world-name">彩点<span class="lvl" id="world-level">Lv.1</span></div>
+      <div class="world-say" id="world-say"></div>
+      <div class="world-bar"><i id="world-bar-fill"></i></div>
+      <div class="world-bar-note" id="world-total"></div>
+    </div>
+    <h2 class="attrs-head"><i data-icon="sprout" data-size="18"></i>它的九个属性</h2>
+    <div class="attrs" id="world-attrs"></div>
+    <div class="actions sticky">
+      <button class="primary big grow clay" id="btn-enter-world">进入世界<i data-icon="arrowRight" data-size="18"></i></button>
+    </div>
+  </div>
+</section>
+
 <!-- ===== tab 1：地图 ===== -->
 <section class="view" id="view-quest">
   <div class="unit">

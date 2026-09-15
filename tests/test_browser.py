@@ -82,6 +82,10 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
         """Walk the real UI from the mission map into a running session."""
         page.set_default_timeout(15000)
         page.goto(self.base)
+        # the app opens on 彩点's world; the map is behind "进入世界"
+        page.wait_for_selector("#view-world:not(.hidden), #quest-grid .quest-card")
+        if page.is_visible("#btn-enter-world"):
+            page.click("#btn-enter-world")
         # `.quest-card` alone would resolve to the hidden card inside the draw
         # view before /api/quests lands, and a locator never re-queries
         page.wait_for_selector("#quest-grid .quest-card")
