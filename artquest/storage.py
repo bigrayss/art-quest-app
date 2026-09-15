@@ -1,18 +1,28 @@
 """Session store — stroke/event logs are the primary data, images are aids.
 
+Four data files, not fifteen:
+
     data/sessions/<session_id>/
-        metadata.json      identity, task, condition, device, timing, counts, QC
-        events.jsonl       append-only operation log
-        strokes.jsonl      append-only per-stroke record with sampled points
-        feedback.jsonl     append-only record of every feedback shown
-        questionnaire.json short 1–5 self-report
-        before.png         work submitted before feedback
-        after.png          work after the (optional) revision
-        final.png          copy of the last submitted work
-        snapshots/NNNN_<elapsed_s>s.png     auxiliary key frames
+        session.json       everything small and non-time-series: identity, the
+                           frozen task definition, condition, device, canvas,
+                           timing, personalisation, self-report, QC
+        strokes.jsonl[.gz] the drawing itself, one line per stroke
+        events.jsonl[.gz]  every non-drawing operation — and feedback, which is
+                           an event on the same timeline, not a second file
+        labels.jsonl       human ground truth: teacher ratings + expert spans
+        final.png          the last submitted work
+        checkpoints/before_feedback.png   only when a revision actually happened
+        reference/         the stimulus this child saw (static/refs gets replaced)
+
+Sessions recorded under the older split layout (metadata.json + condition.json +
+self_report.json + personalization.json + quality.json + feedback/ratings/
+annotations.jsonl) are read as they are — **old data is never rewritten**, the
+readers below fold it onto the current shape, the same contract `events.canonical`
+gives event names.
 
 Client records carry a monotonic `seq` per stream; appends drop anything at or
 below the stored high-water mark, so an offline client can safely re-send.
+Finished streams are gzipped; reads and late appends are transparent.
 """
 import base64
 import hashlib
@@ -27,16 +37,22 @@ from . import __version__
 from . import config          # read through the module: the data dir is env-driven
                              # and tests reload it, so binding the value at import
                              # time would freeze the production path
+from . import events as ev
 from .logstore import JsonlLog, read_json, write_json
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 # Where a session is in its journey from the child's screen to a verified row.
 # Separate from `status` (which says where the *child* is): a finished drawing
 # whose last batch never uploaded is done for the child and not done for the data.
 LIFECYCLE = ("recording", "completed_local", "pending_upload", "uploaded", "server_verified")
 _DATAURL_RE = re.compile(r"^data:image/(png|jpeg);base64,(.+)$", re.DOTALL)
+# Logical streams a caller asks for -> the physical file they live in. Feedback
+# is an event; a rating and an expert span are both human labels.
 _STREAMS = ("events", "strokes", "feedback", "ratings", "annotations")
+_STREAM_FILE = {"events": "events", "strokes": "strokes", "feedback": "events",
+                "ratings": "labels", "annotations": "labels"}
+_LABEL_TYPE = {"ratings": "rating", "annotations": "process_annotation"}
 
 
 def now_iso() -> str:
@@ -74,12 +90,25 @@ class SessionStore:
         return self.root / sid
 
     def _meta_path(self, sid: str) -> Path:
+        """`session.json` since schema 3 — and, by coincidence, schema 1's name.
+
+        A schema-2 session keeps writing to its own `metadata.json`: converging
+        the layout must not rewrite data that has already been collected.
+        """
         d = self.dir(sid)
-        legacy = d / "session.json"          # schema 1 sessions stay readable
-        return legacy if legacy.exists() and not (d / "metadata.json").exists() else d / "metadata.json"
+        return d / "metadata.json" if (d / "metadata.json").exists() else d / "session.json"
 
     def log(self, sid: str, stream: str) -> JsonlLog:
-        return JsonlLog(self.dir(sid) / f"{stream}.jsonl")
+        """The physical append-only log a logical stream writes to.
+
+        A session recorded when feedback / ratings / annotations each had their
+        own file keeps appending there, so its records stay in one place.
+        """
+        d = self.dir(sid)
+        own = JsonlLog(d / f"{stream}.jsonl")
+        if stream in ("feedback", "ratings", "annotations") and not own.exists():
+            return JsonlLog(d / f"{_STREAM_FILE[stream]}.jsonl")
+        return own
 
     # -- lifecycle ---------------------------------------------------------
     def create(self, quest: Dict[str, Any], intent: Dict[str, Any], *,
@@ -90,7 +119,7 @@ class SessionStore:
                canvas: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         sid = uuid.uuid4().hex[:12]
         d = self.root / sid
-        (d / "snapshots").mkdir(parents=True)
+        d.mkdir(parents=True)
         p = dict(participant or {})
         meta = {
             "schema_version": SCHEMA_VERSION,
@@ -149,6 +178,9 @@ class SessionStore:
             "lifecycle": "recording",
             "streams": {s: {"last_seq": 0, "count": 0} for s in _STREAMS},
             "counts": {"strokes": 0, "points": 0, "events": 0, "snapshots": 0},
+            # everything that used to be its own small file lives here now
+            "personalization": None,
+            "self_report": None,
             "qc": None,
         }
         self._write(sid, meta)
@@ -195,9 +227,9 @@ class SessionStore:
         if meta.get("schema_version", 1) >= 2:
             meta["events"] = self.log(sid, "events").read()
             meta["strokes_summary"] = self._strokes_summary(sid)
-            meta["feedback_log"] = self.log(sid, "feedback").read()
-            meta["ratings"] = self.log(sid, "ratings").read()
-            meta["annotations"] = self.log(sid, "annotations").read()
+            meta["feedback_log"] = self.feedback_log(sid)
+            meta["ratings"] = self.labels(sid, "rating")
+            meta["annotations"] = self.labels(sid, "process_annotation")
             meta["condition_snapshot"] = self.condition_snapshot(sid)
             meta.setdefault("questionnaire", None)
             meta["questionnaire"] = meta["questionnaire"] or self.self_report(sid)
@@ -208,20 +240,24 @@ class SessionStore:
     # -- personalisation ---------------------------------------------------
     # -- the condition the child actually saw -------------------------------
     def save_condition(self, sid: str, snapshot: Dict[str, Any]) -> Dict[str, Any]:
-        """Freeze the complete task definition into `condition.json`.
+        """Freeze the complete task definition into `session.json`'s `task`.
 
         `tasks.json` gets edited and the library grows; a task_id alone is not
         enough to recover what was on screen. Without this, a later reader
-        resolves the id against a definition the child never saw.
+        resolves the id against a definition the child never saw. `frozen_at`
+        marks the merged block as the real snapshot rather than the compact
+        view `create()` writes.
         """
-        write_json(self.dir(sid) / "condition.json", snapshot)
+        meta = self.load(sid)
+        meta["task"] = {**(meta.get("task") or {}), **snapshot, "frozen_at": now_iso()}
+        self._write(sid, meta)
         return snapshot
 
     def condition_snapshot(self, sid: str) -> Optional[Dict[str, Any]]:
-        return read_json(self.dir(sid) / "condition.json")
+        return session_task(self.dir(sid)) or None
 
     def personalization(self, sid: str) -> Optional[Dict[str, Any]]:
-        return read_json(self.dir(sid) / "personalization.json")
+        return session_part(self.dir(sid), "personalization")
 
     def save_personalization(self, sid: str, record: Dict[str, Any]) -> Dict[str, Any]:
         """Freeze what the system knew and decided *before* the child drew.
@@ -231,8 +267,8 @@ class SessionStore:
         reproducible against the input it actually had.
         """
         record = dict(record, frozen_at=now_iso())
-        write_json(self.dir(sid) / "personalization.json", record)
         meta = self.load(sid)
+        meta["personalization"] = record
         meta["history_mode"] = record.get("requested_mode", "none")
         meta["personalization_backend"] = record.get("backend")
         self._write(sid, meta)
@@ -257,11 +293,16 @@ class SessionStore:
         rec["outcome"] = outcome
         rec["error"] = error
         rec["scored_at"] = now_iso()
-        write_json(self.dir(sid) / "personalization.json", rec)
+        meta = self.load(sid)
+        if meta.get("personalization"):
+            meta["personalization"] = rec
+            self._write(sid, meta)
+        else:                                    # older split layout: leave it there
+            write_json(self.dir(sid) / "personalization.json", rec)
         return rec
 
     def _write(self, sid: str, meta: Dict[str, Any]) -> None:
-        write_json(self.dir(sid) / "metadata.json", meta)
+        write_json(self._meta_path(sid), meta)
 
     def list(self) -> List[Dict[str, Any]]:
         keys = ("id", "created_at", "quest_id", "status", "revised", "badges")
@@ -269,7 +310,7 @@ class SessionStore:
         for d in self.root.iterdir():
             if not d.is_dir():
                 continue
-            m = read_json(d / "metadata.json") or read_json(d / "session.json")
+            m = read_json(d / "session.json") or read_json(d / "metadata.json")
             if not m:
                 continue
             row = {k: m.get(k) for k in keys}
@@ -288,7 +329,13 @@ class SessionStore:
         meta = self.load(sid)
         state = meta.setdefault("streams", {}).setdefault(stream, {"last_seq": 0, "count": 0})
         prev = int(state.get("last_seq", 0))
-        stamped = [dict(r, src=r.get("src", "client"), ts=r.get("ts") or now_iso()) for r in records]
+        # One clock: `t_ms` / `t0_ms` since the session started drawing, and the
+        # wall clock recovered from `times.started_at`. A per-record timestamp
+        # would be a second clock for the same fact, so records carry only
+        # provenance. Strokes are folded onto the current field names on the way
+        # in, so the file on disk is already canonical.
+        norm = ev.canonical_stroke if stream == "strokes" else (lambda r: r)
+        stamped = [dict(norm(r), src=r.get("src", "client")) for r in records]
         fresh = [r for r in stamped if int(r.get("seq") or 0) > prev]
         written, skipped, last = self.log(sid, stream).append_after(stamped, prev)
         state["last_seq"], state["count"] = last, int(state.get("count", 0)) + written
@@ -304,22 +351,23 @@ class SessionStore:
     def add_server_event(self, sid: str, type_: str, t_ms: int = 0, payload: Optional[Dict[str, Any]] = None) -> None:
         """Log something the server did (feedback shown, revision skipped, …)."""
         self.log(sid, "events").append([
-            {"seq": None, "src": "server", "ts": now_iso(), "t_ms": t_ms, "type": type_, "payload": payload}])
+            {"seq": None, "src": "server", "t_ms": t_ms, "type": type_, "payload": payload}])
         meta = self.load(sid)
         meta.setdefault("counts", {})["events"] = self.log(sid, "events").count()
         self._write(sid, meta)
 
     def add_feedback(self, sid: str, record: Dict[str, Any]) -> Dict[str, Any]:
-        """Append a structured feedback record (source / type / text / region)."""
+        """Record a feedback as what it is: an event on the process timeline.
+
+        It used to be a second file plus a thin `FEEDBACK_SHOW` event pointing
+        at it — the same fact written twice. One record now carries the whole
+        thing, and `stroke / undo / feedback / pause / stroke` reads in order.
+        """
         meta = self.load(sid)
         state = meta.setdefault("streams", {}).setdefault("feedback", {"last_seq": 0, "count": 0})
-        rec = {
+        payload = {
             "feedback_id": f"fb_{uuid.uuid4().hex[:8]}",
-            "seq": None,
-            "src": "server",
-            "ts": now_iso(),
             "session_id": sid,
-            "t_ms": record.get("t_ms", 0),
             "phase": record.get("phase", "before"),
             "source": record.get("source", "ai"),      # ai | teacher | self
             "feedback_type": record.get("feedback_type", "text"),
@@ -327,11 +375,21 @@ class SessionStore:
             "text": record.get("text", ""),
             "target_region": record.get("target_region"),
             "shown_at": record.get("shown_at") or now_iso(),
+            # provenance, so a later model-generated intervention is comparable
+            **{k: record[k] for k in ("trigger", "model", "prompt_version") if record.get(k)},
         }
-        self.log(sid, "feedback").append([rec])
+        t_ms = record.get("t_ms", 0)
+        # the event stream keeps one shape: type + payload, like every other event
+        self.log(sid, "feedback").append(
+            [{"seq": None, "src": "server", "t_ms": t_ms, "type": ev.FEEDBACK_SHOW, "payload": payload}])
         state["count"] = int(state.get("count", 0)) + 1
+        meta.setdefault("counts", {})["events"] = self.log(sid, "events").count()
         self._write(sid, meta)
-        return rec
+        return {**payload, "t_ms": t_ms}
+
+    def feedback_log(self, sid: str) -> List[Dict[str, Any]]:
+        """Every feedback shown — its own file in older sessions, an event since 3."""
+        return session_feedback(self.dir(sid))
 
     def add_rating(self, sid: str, record: Dict[str, Any]) -> Dict[str, Any]:
         """Append a human rating. Append-only and rater-tagged on purpose:
@@ -341,8 +399,8 @@ class SessionStore:
         meta = self.load(sid)
         state = meta.setdefault("streams", {}).setdefault("ratings", {"last_seq": 0, "count": 0})
         rec = dict(record)
-        rec.update({"rating_id": f"rt_{uuid.uuid4().hex[:8]}", "seq": None, "src": "server",
-                    "ts": now_iso(), "session_id": sid})
+        rec.update({"type": "rating", "rating_id": f"rt_{uuid.uuid4().hex[:8]}", "seq": None,
+                    "src": "server", "ts": now_iso(), "session_id": sid})
         self.log(sid, "ratings").append([rec])
         state["count"] = int(state.get("count", 0)) + 1
         meta.setdefault("counts", {})["ratings"] = state["count"]
@@ -354,13 +412,35 @@ class SessionStore:
         meta = self.load(sid)
         state = meta.setdefault("streams", {}).setdefault("annotations", {"last_seq": 0, "count": 0})
         rec = dict(record)
-        rec.update({"annotation_id": f"an_{uuid.uuid4().hex[:8]}", "seq": None,
-                    "src": "server", "ts": now_iso(), "session_id": sid})
+        rec.update({"type": "process_annotation", "annotation_id": f"an_{uuid.uuid4().hex[:8]}",
+                    "seq": None, "src": "server", "ts": now_iso(), "session_id": sid})
         self.log(sid, "annotations").append([rec])
         state["count"] = int(state.get("count", 0)) + 1
         meta.setdefault("counts", {})["annotations"] = state["count"]
         self._write(sid, meta)
         return rec
+
+    def labels(self, sid: str, kind: str = "") -> List[Dict[str, Any]]:
+        """Everything a human wrote down about this session (ratings + spans)."""
+        return session_labels(self.dir(sid), kind)
+
+    def strokes(self, sid: str) -> List[Dict[str, Any]]:
+        """The drawing, with older field names folded onto the current ones."""
+        return session_strokes(self.dir(sid))
+
+    def finalize(self, sid: str) -> Dict[str, Any]:
+        """Close the two process streams: nothing more is coming, so compress.
+
+        Only the high-volume streams — `labels.jsonl` stays plain text because a
+        teacher may still be grading weeks later.
+        """
+        out = {}
+        for stream in ("strokes", "events"):
+            log = JsonlLog(self.dir(sid) / f"{stream}.jsonl")
+            before = log.path.stat().st_size if log.path.exists() else 0
+            if log.compress():
+                out[stream] = {"bytes": before, "gz_bytes": log.gz_path.stat().st_size}
+        return out
 
     def _strokes_summary(self, sid: str) -> Dict[str, Any]:
         log = self.log(sid, "strokes")
@@ -370,35 +450,81 @@ class SessionStore:
             "points": sum(len(r.get("points") or []) for r in rows),
             "tools": sorted({r.get("tool") for r in rows if r.get("tool")}),
             "colors": sorted({r.get("color") for r in rows if r.get("color")}),
-            "last_t_ms": max((r.get("t_end_ms") or 0) for r in rows) if rows else 0,
+            "last_t_ms": max((ev.stroke_end_ms(r) for r in rows), default=0),
         }
 
     # -- images ------------------------------------------------------------
     def add_snapshot(self, sid: str, png: bytes, elapsed_ms: int) -> str:
+        """An intermediate frame. Off by default (`ARTQUEST_SNAPSHOT_INTERVAL=0`)
+        because the log can regenerate any moment; kept for experiments that
+        genuinely need frames, and stored beside the other deliberate ones."""
         meta = self.load(sid)
         idx = len(meta.get("snapshots", [])) + 1
         name = f"{idx:04d}_{elapsed_ms // 1000}s.png"
-        (self.dir(sid) / "snapshots" / name).write_bytes(png)
-        meta.setdefault("snapshots", []).append({"file": f"snapshots/{name}", "elapsed_ms": elapsed_ms, "at": now_iso()})
+        d = self.dir(sid) / "checkpoints"
+        d.mkdir(parents=True, exist_ok=True)
+        (d / name).write_bytes(png)
+        meta.setdefault("snapshots", []).append({"file": f"checkpoints/{name}", "elapsed_ms": elapsed_ms, "at": now_iso()})
         meta.setdefault("counts", {})["snapshots"] = len(meta["snapshots"])
         self._write(sid, meta)
         return name
 
+    # -- images ------------------------------------------------------------
+    # Artwork(t) = replay(strokes[0:t], events[0:t]), so a frame is only worth
+    # storing when it is an *experimental* landmark. `final.png` is the work;
+    # the pre-feedback state is written only if a revision actually starts.
+    # Before this, a session with no revision stored the same PNG three times.
     def save_phase_image(self, sid: str, phase: str, png: bytes) -> Path:
-        p = self.dir(sid) / f"{phase}.png"
-        p.write_bytes(png)
-        if phase in ("before", "after"):
-            (self.dir(sid) / "final.png").write_bytes(png)  # last submitted work
-        return p
+        final = self.dir(sid) / "final.png"
+        # The work about to be replaced by a revision *is* the pre-feedback
+        # state — the one frame a replay cannot tell you was an experimental
+        # landmark. Freeze it here rather than storing a copy every submit.
+        if phase == "after" and final.exists():
+            self.save_checkpoint(sid, "before_feedback")
+        final.write_bytes(png)
+        return final
+
+    def save_checkpoint(self, sid: str, name: str) -> Optional[Path]:
+        """Freeze the current `final.png` as a named experimental landmark."""
+        final = self.dir(sid) / "final.png"
+        if not final.exists():
+            return None
+        d = self.dir(sid) / "checkpoints"
+        d.mkdir(parents=True, exist_ok=True)
+        dest = d / f"{name}.png"
+        shutil.copyfile(final, dest)
+        return dest
+
+    # phase -> where that frame may be found, newest layout first
+    _IMAGE_PATHS = {
+        "before": ("checkpoints/before_feedback.png", "before.png", "final.png"),
+        "after": ("final.png", "after.png"),
+        "final": ("final.png", "after.png", "before.png"),
+    }
 
     def read_image(self, sid: str, phase: str) -> Optional[bytes]:
-        p = self.dir(sid) / f"{phase}.png"
-        return p.read_bytes() if p.exists() else None
+        d = self.dir(sid)
+        for name in self._IMAGE_PATHS.get(phase, (f"{phase}.png",)):
+            p = d / name
+            if p.exists():
+                return p.read_bytes()
+        return None
 
     # -- mutations ---------------------------------------------------------
     def update(self, sid: str, **fields: Any) -> Dict[str, Any]:
         meta = self.load(sid)
         meta.update(fields)
+        self._write(sid, meta)
+        return meta
+
+    def update_task(self, sid: str, **fields: Any) -> Dict[str, Any]:
+        """Merge into the frozen task block, re-reading first.
+
+        `task` now holds the whole frozen definition, so writing back a copy
+        captured before it was frozen would quietly drop the snapshot.
+        """
+        meta = self.load(sid)
+        meta["task"] = {**(meta.get("task") or {}), **fields}
         self._write(sid, meta)
         return meta
 
@@ -419,13 +545,13 @@ class SessionStore:
         return meta
 
     def self_report(self, sid: str) -> Optional[Dict[str, Any]]:
-        """The child's own answers — `self_report.json`, or the older name."""
-        d = self.dir(sid)
-        return read_json(d / "self_report.json") or read_json(d / "questionnaire.json")
+        """The child's own answers, wherever this session's layout keeps them."""
+        return session_part(self.dir(sid), "self_report")
 
     def save_quality(self, sid: str, result: Dict[str, Any]) -> Dict[str, Any]:
-        """`quality.json` beside the data it judges, not only inside metadata."""
-        write_json(self.dir(sid) / "quality.json", result)
+        meta = self.load(sid)
+        meta["qc"] = result
+        self._write(sid, meta)
         return result
 
     def copy_reference(self, sid: str, quest: Dict[str, Any]) -> Optional[str]:
@@ -450,6 +576,138 @@ class SessionStore:
 
     def save_questionnaire(self, sid: str, answers: Dict[str, Any]) -> Dict[str, Any]:
         rec = dict(answers, session_id=sid, at=now_iso())
-        write_json(self.dir(sid) / "self_report.json", rec)
-        self.update(sid, questionnaire=rec)
+        self.update(sid, self_report=rec, questionnaire=rec)
         return rec
+
+
+# ---------------------------------------------------------------------------
+# Directory-level readers
+# ---------------------------------------------------------------------------
+# Tools and modules that hold a path rather than a store read a session through
+# these, so the "new layout, else the older split one" rule lives in exactly one
+# place. Nothing here ever writes: collected data is not rewritten to fit a
+# newer shape, it is folded on the way out.
+_PART_FILES = {
+    "personalization": ("personalization.json",),
+    "self_report": ("self_report.json", "questionnaire.json"),
+    "qc": ("quality.json",),
+}
+
+
+def session_meta(d: Path) -> Dict[str, Any]:
+    """`session.json` (schema 1 and 3) or `metadata.json` (schema 2)."""
+    return read_json(Path(d) / "session.json") or read_json(Path(d) / "metadata.json") or {}
+
+
+def session_part(d: Path, name: str) -> Optional[Dict[str, Any]]:
+    """One of the small blocks that used to be its own file."""
+    d = Path(d)
+    rec = (session_meta(d) or {}).get(name)
+    if rec:
+        return rec
+    for f in _PART_FILES.get(name, ()):
+        rec = read_json(d / f)
+        if rec:
+            return rec
+    return None
+
+
+def session_task(d: Path) -> Dict[str, Any]:
+    """The task definition as this child actually saw it."""
+    task = (session_meta(d) or {}).get("task") or {}
+    if task.get("frozen_at"):
+        return task
+    return read_json(Path(d) / "condition.json") or task
+
+
+def session_events(d: Path) -> List[Dict[str, Any]]:
+    return JsonlLog(Path(d) / "events.jsonl").read()
+
+
+def session_strokes(d: Path) -> List[Dict[str, Any]]:
+    return [ev.canonical_stroke(r) for r in JsonlLog(Path(d) / "strokes.jsonl").read()]
+
+
+def session_feedback(d: Path) -> List[Dict[str, Any]]:
+    """Every feedback shown, feedback-shaped.
+
+    It is one of the events on the timeline now; older sessions had a file of
+    its own. Either way a caller gets the flat record it always got.
+    """
+    d = Path(d)
+    own = JsonlLog(d / "feedback.jsonl")
+    if own.exists():
+        return own.read()
+    out = []
+    for e in session_events(d):
+        if ev.canonical(e.get("type", "")) != ev.FEEDBACK_SHOW:
+            continue
+        p = e.get("payload") or {}
+        if p.get("feedback_id"):
+            out.append({**p, "t_ms": e.get("t_ms", 0)})
+    return out
+
+
+def session_labels(d: Path, kind: str = "") -> List[Dict[str, Any]]:
+    d, rows = Path(d), []
+    for stream, tag in _LABEL_TYPE.items():
+        own = JsonlLog(d / f"{stream}.jsonl")
+        if own.exists():
+            rows += [dict(r, type=r.get("type", tag)) for r in own.read()]
+    merged = JsonlLog(d / "labels.jsonl")
+    if merged.exists():
+        rows += merged.read()
+    return [r for r in rows if not kind or r.get("type") == kind]
+
+
+def dataset_manifest(root: Optional[Path] = None) -> Dict[str, Any]:
+    """One file at the top of `data/` saying what this dataset is.
+
+    Counts are read back from the sessions rather than kept as running state:
+    a manifest that can drift from the data it describes is worse than none.
+    """
+    root = Path(root or config.SESSIONS_DIR)
+    counts = {"sessions": 0, "done": 0, "verified": 0, "withdrawn": 0,
+              "strokes": 0, "points": 0, "events": 0, "labels": 0}
+    schemas: Dict[str, int] = {}
+    for d in sorted(root.iterdir()) if root.exists() else []:
+        if not d.is_dir():
+            continue
+        m = session_meta(d)
+        if not m:
+            continue
+        counts["sessions"] += 1
+        sv = str(m.get("schema_version", 1))
+        schemas[sv] = schemas.get(sv, 0) + 1
+        if m.get("status") == "done":
+            counts["done"] += 1
+        if m.get("status") == "withdrawn":
+            counts["withdrawn"] += 1
+        if m.get("lifecycle") == "server_verified":
+            counts["verified"] += 1
+        c = m.get("counts") or {}
+        for k in ("strokes", "points", "events"):
+            counts[k] += int(c.get(k) or 0)
+        counts["labels"] += len(session_labels(d))
+    return {
+        "dataset": "artquest",
+        "schema_version": SCHEMA_VERSION,
+        "app_version": __version__,
+        "generated_at": now_iso(),
+        "counts": counts,
+        "sessions_by_schema": schemas,
+        "layout": {
+            "session.json": "identity, frozen task, condition, device, canvas, timing, "
+                            "personalisation, self-report, QC",
+            "strokes.jsonl[.gz]": "one line per stroke: geometry + time + tool state; "
+                                  "points are [x, y, dt_ms, pressure, tilt_x, tilt_y] "
+                                  "in canvas pixels, dt from the stroke's t0_ms",
+            "events.jsonl[.gz]": "every non-drawing operation, feedback included",
+            "labels.jsonl": "human ground truth: teacher ratings + expert process spans",
+            "final.png": "the last submitted work",
+            "checkpoints/": "frames kept on purpose (before_feedback, and any snapshots)",
+            "reference/": "the stimulus this child saw",
+        },
+        "note": "Older sessions keep the split layout they were recorded in; every "
+                "reader in artquest/storage.py folds them onto this shape.",
+    }

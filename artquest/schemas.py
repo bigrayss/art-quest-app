@@ -1,7 +1,7 @@
 """Pydantic request/response models."""
 from typing import Any, Dict, List, Literal, Optional, Union
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import AliasChoices, BaseModel, Field, field_validator, model_validator
 
 from .scoring.base import DIM_KEYS, SCALE_MAX
 
@@ -81,33 +81,50 @@ class DrawEvent(BaseModel):
 class Stroke(BaseModel):
     """One stroke with its sampled points — the core process datum.
 
-    `points` are `[x, y, dt_ms, pressure, tiltX, tiltY]` in canvas pixel space,
-    `dt_ms` relative to `t_start_ms`; `pressure`/`tilt` are `null` when the
-    pointer does not measure them. Zoom and pan never enter these numbers —
-    they are a view transform, so a stroke drawn at 4x lands in the same
-    coordinate space as one drawn at 1x and replay stays exact. `zoom` records
-    what the child could see while drawing it, which is a different question.
+        geometry + time + tool state, and nothing else
 
-    Raw only: no speed/length/hesitation is computed here, that belongs in
-    offline analysis.
+    `points` are `[x, y, dt_ms, pressure, tiltX, tiltY]` in canvas pixel space,
+    `dt_ms` counted from `t0_ms`; absolute time is `times.started_at + t0_ms + dt`,
+    so there is one clock and no record carries a second one. Anything derivable
+    is left out: the stroke ends at `t0_ms + points[-1][2]`, and speed, length
+    and hesitation belong to offline analysis.
+
+    `pressure`/`tilt` are `null` when the pointer does not measure them, and the
+    two `*_supported` flags say *why* — no sensor, as against a sensor that read
+    nothing. Zoom and pan never enter the coordinates (they are a view
+    transform, so a stroke drawn at 4x lands where a 1x one would and replay
+    stays exact); `zoom` records what the child could see while drawing it,
+    which is a different question and not recoverable from the numbers.
+
+    `t_start_ms` / `pointer_type` / `erase` are the pre-schema-3 spellings and
+    still accepted, so a client that has not reloaded keeps working.
     """
+    model_config = {"populate_by_name": True}
+
     seq: int
     stroke_id: str = ""
     phase: Literal["before", "after"] = "before"
-    t_start_ms: int = 0
-    t_end_ms: int = 0
+    op: Literal["draw", "erase"] = "draw"
+    t0_ms: int = Field(0, validation_alias=AliasChoices("t0_ms", "t_start_ms"))
     tool: str = ""
     color: str = ""
     size: float = 0
     opacity: float = 1.0
-    erase: bool = False
-    pointer_type: str = ""
+    pointer: str = Field("", validation_alias=AliasChoices("pointer", "pointer_type"))
     pressure_supported: bool = False
     tilt_supported: bool = False
     zoom: float = 1.0
     # `None` in a slot means the device does not measure that channel — a mouse
     # reports a constant 0.5 pressure, which is not a reading
     points: List[List[Optional[float]]] = []
+
+    @model_validator(mode="before")
+    @classmethod
+    def _fold_erase(cls, data):
+        """`erase: true` was how an eraser stroke used to be spelled."""
+        if isinstance(data, dict) and "op" not in data and data.get("erase"):
+            data = dict(data, op="erase")
+        return data
 
 
 class LogBatch(BaseModel):

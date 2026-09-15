@@ -18,6 +18,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from artquest.main import app  # noqa: E402
 from artquest.reconstruct import read_jsonl, render  # noqa: E402
+from artquest.storage import session_feedback, session_labels  # noqa: E402
 from tools.export_dataset import export  # noqa: E402
 
 SESSIONS = Path(_TMP) / "sessions"
@@ -162,7 +163,7 @@ class FeedbackAndRevision(unittest.TestCase):
 
         events = read_jsonl(SESSIONS / sid / "events.jsonl")
         skipped = next(e for e in events if e["type"] == "REVISION_SKIPPED")
-        ai = read_jsonl(SESSIONS / sid / "feedback.jsonl")[0]
+        ai = session_feedback(SESSIONS / sid)[0]
         self.assertEqual(skipped["payload"]["feedback_id"], ai["feedback_id"])
         self.assertEqual(skipped["payload"]["latency_ms"], 5000)
 
@@ -179,7 +180,7 @@ class FeedbackAndRevision(unittest.TestCase):
                 "dims": {"imagination": 4, "picture_organization": 3}, "note": "note", "t_ms": 130000})
             self.assertEqual(r.status_code, 200, r.text)
 
-        rows = read_jsonl(SESSIONS / sid / "ratings.jsonl")
+        rows = session_labels(SESSIONS / sid, "rating")
         self.assertEqual([r["rater_id"] for r in rows], ["T-01", "T-02"])   # nothing overwritten
         self.assertEqual(rows[0]["dims"]["imagination"], 4)
         self.assertEqual(len({r["rating_id"] for r in rows}), 2)

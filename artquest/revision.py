@@ -20,6 +20,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 from . import events as ev
 from .reconstruct import read_jsonl, visible_ids
+from .storage import session_feedback
 
 # A feedback with no region can still be attributed in time, just not in space.
 _NEEDS = {"rect": 4, "point": 3}
@@ -54,7 +55,7 @@ def _window(strokes: Sequence[Dict[str, Any]], region: Optional[Dict[str, Any]],
     """Drawing activity in a time window, and how much of it lands in `region`."""
     n_strokes = n_points = in_strokes = in_points = 0
     for s in strokes:
-        t = s.get("t_start_ms") or 0
+        t = ev.stroke_start_ms(s)
         if lo_ms is not None and t < lo_ms:
             continue
         if hi_ms is not None and t >= hi_ms:
@@ -76,7 +77,7 @@ def _window(strokes: Sequence[Dict[str, Any]], region: Optional[Dict[str, Any]],
 def attribute(session_dir: Path) -> Dict[str, Any]:
     """One record per feedback: when it landed, and what followed it."""
     d = Path(session_dir)
-    feedback = read_jsonl(d / "feedback.jsonl")
+    feedback = session_feedback(d)
     events = read_jsonl(d / "events.jsonl")
     strokes = read_jsonl(d / "strokes.jsonl")
 
@@ -86,7 +87,7 @@ def attribute(session_dir: Path) -> Dict[str, Any]:
     if keep is not None:
         alive = set(keep)
         strokes = [s for s in strokes if s.get("stroke_id") in alive]
-    strokes.sort(key=lambda s: s.get("t_start_ms") or 0)
+    strokes.sort(key=ev.stroke_start_ms)
 
     starts = {}   # feedback_id -> REVISION_START / REVISION_SKIPPED event
     for e in events:

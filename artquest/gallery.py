@@ -34,6 +34,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from . import events as ev
 from .history import _process_from_events, iter_sessions
+from .storage import session_labels
 
 # Signature axes: all process, none of them a judgement of the drawing.
 AXES = ("strokes", "colors", "tools", "duration", "undo", "zoom", "pause_share")
@@ -209,7 +210,7 @@ def _ratings(meta: Dict[str, Any]) -> List[Dict[str, Any]]:
     from .reconstruct import read_jsonl
     from . import config
     sid = meta.get("id")
-    return read_jsonl(config.SESSIONS_DIR / str(sid) / "ratings.jsonl") if sid else []
+    return session_labels(config.SESSIONS_DIR / str(sid), "rating") if sid else []
 
 
 def achievement_stats() -> Dict[str, Any]:

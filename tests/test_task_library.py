@@ -101,7 +101,7 @@ class ConditionSnapshot(unittest.TestCase):
 
     def test_what_the_child_saw_is_frozen_beside_the_session(self):
         sid = self._create()
-        snap = json.loads((SESSIONS / sid / "condition.json").read_text(encoding="utf-8"))
+        snap = json.loads((SESSIONS / sid / "session.json").read_text(encoding="utf-8"))["task"]
         # a task_id alone cannot recover this once tasks.json moves on
         self.assertEqual(snap["task_id"], "M4_UMB_UW_TRA_story")
         self.assertEqual((snap["family"], snap["form_id"], snap["prompt_style"]),
@@ -139,7 +139,7 @@ class ConditionSnapshot(unittest.TestCase):
     def test_a_fragment_task_does_not_start_on_a_blank_canvas(self):
         """Replay is `initial canvas + strokes + events` — the canvas counts."""
         sid = self._create("M3_A")
-        snap = json.loads((SESSIONS / sid / "condition.json").read_text(encoding="utf-8"))
+        snap = json.loads((SESSIONS / sid / "session.json").read_text(encoding="utf-8"))["task"]
         stim = snap["stimulus"]
         self.assertEqual(stim["kind"], "fragments")
         self.assertGreaterEqual(len(stim["items"]), 5)

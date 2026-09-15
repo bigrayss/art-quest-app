@@ -30,7 +30,9 @@ from typing import Any, Dict, List, Optional
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from artquest import config  # noqa: E402
 from artquest import events as ev  # noqa: E402
-from artquest.reconstruct import read_jsonl, visible_strokes  # noqa: E402
+from artquest.logstore import JsonlLog  # noqa: E402
+from artquest.reconstruct import visible_strokes  # noqa: E402
+from artquest.storage import session_events, session_meta, session_strokes  # noqa: E402
 from artquest.logstore import read_json  # noqa: E402
 
 SCHEMA_NOTE = "artquest/1 — converted view; the full record is the session directory"
@@ -56,9 +58,9 @@ def _epoch_ms(meta: Dict[str, Any]) -> int:
 
 def _load(sid: str):
     d = config.SESSIONS_DIR / sid
-    meta = read_json(d / "metadata.json") or {}
-    events = read_jsonl(d / "events.jsonl")
-    strokes = read_jsonl(d / "strokes.jsonl")
+    meta = session_meta(d)
+    events = session_events(d)
+    strokes = session_strokes(d)
     # only what is on the finished artwork, in painting order
     return meta, events, visible_strokes(events, strokes)
 
@@ -110,7 +112,7 @@ def to_differsketching(sid: str) -> Optional[Dict[str, Any]]:
             "width": s.get("size") or 1,
         })
     kinds = [ev.canonical(e.get("type")) for e in events]
-    all_strokes = read_jsonl(config.SESSIONS_DIR / sid / "strokes.jsonl")
+    all_strokes = session_strokes(config.SESSIONS_DIR / sid)
     return {
         "strokes": out_strokes,
         "undo_count": kinds.count(ev.UNDO),
@@ -161,7 +163,7 @@ def to_svg(sid: str) -> Optional[str]:
         if not pts:
             continue
         d = "M " + " L ".join(f"{round(p[0], 1)},{round(p[1], 1)}" for p in pts)
-        stroke = "#ffffff" if s.get("erase") else (s.get("color") or "#222222")
+        stroke = "#ffffff" if s.get("op") == "erase" else (s.get("color") or "#222222")
         parts.append(f'<path d="{d}" fill="none" stroke="{stroke}" '
                      f'stroke-width="{s.get("size") or 1}" stroke-linecap="round" '
                      f'stroke-linejoin="round" opacity="{s.get("opacity", 1)}"/>')
@@ -179,7 +181,7 @@ WRITERS = {
 def export(out: Path, formats: List[str]) -> Dict[str, int]:
     out.mkdir(parents=True, exist_ok=True)
     sids = [d.name for d in sorted(config.SESSIONS_DIR.iterdir())
-            if (d / "strokes.jsonl").exists()]
+            if JsonlLog(d / "strokes.jsonl").exists()]
     counts = {f: 0 for f in formats}
     nd = {}
     for fmt in formats:

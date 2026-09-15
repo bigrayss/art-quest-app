@@ -7,8 +7,11 @@ STATIC_DIR = BASE_DIR / "static"
 DATA_DIR = Path(os.environ.get("ARTQUEST_DATA_DIR", BASE_DIR / "data"))
 SESSIONS_DIR = DATA_DIR / "sessions"
 
-# How often the browser sends an intermediate canvas image (seconds).
-SNAPSHOT_INTERVAL_SEC = int(os.environ.get("ARTQUEST_SNAPSHOT_INTERVAL", "45"))
+# How often the browser sends an intermediate canvas image (seconds); 0 = never.
+# Off by default: Artwork(t) = replay(strokes[0:t], events[0:t]), so a periodic
+# PNG is a copy of something the log already contains. Set it only when an
+# experiment genuinely needs frames it cannot regenerate.
+SNAPSHOT_INTERVAL_SEC = int(os.environ.get("ARTQUEST_SNAPSHOT_INTERVAL", "0"))
 
 # Claude settings. Model defaults to Claude Opus 5.
 CLAUDE_MODEL = os.environ.get("ARTQUEST_MODEL", "claude-opus-5")

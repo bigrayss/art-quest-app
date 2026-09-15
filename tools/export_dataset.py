@@ -17,7 +17,10 @@ from typing import Any, Dict, List
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from artquest import config  # noqa: E402
-from artquest.reconstruct import read_jsonl  # noqa: E402
+from artquest import events as ev  # noqa: E402
+from artquest.logstore import write_json  # noqa: E402
+from artquest.storage import (dataset_manifest, session_events, session_feedback,  # noqa: E402
+                              session_labels, session_meta, session_part, session_strokes)
 from artquest.revision import attribute  # noqa: E402
 from artquest.quests import QUESTS  # noqa: E402
 from artquest.scoring.base import DIM_KEYS  # noqa: E402
@@ -167,24 +170,23 @@ def export(out: Path, with_points: bool = False) -> Dict[str, int]:
         pw.writerow(["session_id", "stroke_id", "i", "x", "y", "t_ms", "pressure", "tilt_x", "tilt_y"])
 
     for d in sorted(config.SESSIONS_DIR.iterdir()):
-        meta_p = d / "metadata.json"
-        if not meta_p.exists():
+        m = session_meta(d)
+        if not m:
             continue
-        m = json.loads(meta_p.read_text(encoding="utf-8"))
         sid = m.get("id") or d.name
         sessions.append(_flat_session(m))
-        pz = d / "personalization.json"
-        if pz.exists():
-            personal.append(_flat_personalization(m, json.loads(pz.read_text(encoding="utf-8"))))
+        pz = session_part(d, "personalization")
+        if pz:
+            personal.append(_flat_personalization(m, pz))
 
-        for s in read_jsonl(d / "strokes.jsonl"):
+        for s in session_strokes(d):
             pts = s.get("points") or []
+            t0, t1 = ev.stroke_start_ms(s), ev.stroke_end_ms(s)
             strokes.append({
                 "session_id": sid, "stroke_id": s.get("stroke_id"), "seq": s.get("seq"), "phase": s.get("phase"),
-                "t_start_ms": s.get("t_start_ms"), "t_end_ms": s.get("t_end_ms"),
-                "duration_ms": (s.get("t_end_ms") or 0) - (s.get("t_start_ms") or 0),
+                "t0_ms": t0, "t_end_ms": t1, "duration_ms": t1 - t0,
                 "tool": s.get("tool"), "color": s.get("color"), "size": s.get("size"),
-                "opacity": s.get("opacity"), "erase": s.get("erase"), "pointer_type": s.get("pointer_type"),
+                "opacity": s.get("opacity"), "op": s.get("op"), "pointer": s.get("pointer"),
                 "zoom": s.get("zoom", 1.0),   # what the child could see while drawing it
                 "n_points": len(pts),
                 "pressure_supported": s.get("pressure_supported"),
@@ -195,17 +197,16 @@ def export(out: Path, with_points: bool = False) -> Dict[str, int]:
             if pw:
                 for i, p in enumerate(pts):
                     p = list(p) + [""] * (6 - len(p))
-                    pw.writerow([sid, s.get("stroke_id"), i, p[0], p[1],
-                                 (s.get("t_start_ms") or 0) + (p[2] or 0), p[3], p[4], p[5]])
+                    pw.writerow([sid, s.get("stroke_id"), i, p[0], p[1], t0 + (p[2] or 0), p[3], p[4], p[5]])
 
-        for e in read_jsonl(d / "events.jsonl"):
-            events.append({"session_id": sid, "seq": e.get("seq"), "src": e.get("src"), "ts": e.get("ts"),
+        for e in session_events(d):
+            events.append({"session_id": sid, "seq": e.get("seq"), "src": e.get("src"),
                            "t_ms": e.get("t_ms"), "type": e.get("type"),
                            "payload": json.dumps(e.get("payload"), ensure_ascii=False) if e.get("payload") else ""})
         # one row per feedback, carrying what the child did after seeing it:
         # this is the unit of analysis for the feedback experiments
         attributed = {r["feedback_id"]: r for r in attribute(d)["feedback"] if r.get("feedback_id")}
-        for f in read_jsonl(d / "feedback.jsonl"):
+        for f in session_feedback(d):
             a = attributed.get(f.get("feedback_id")) or {}
             rev, before, after = a.get("revision") or {}, a.get("before") or {}, a.get("after") or {}
             feedback.append({"session_id": sid, **{k: f.get(k) for k in
@@ -221,7 +222,7 @@ def export(out: Path, with_points: bool = False) -> Dict[str, int]:
                              "share_in_region_after": after.get("share_in_region"),
                              "region_shift": a.get("region_shift")})
 
-        for a in read_jsonl(d / "annotations.jsonl"):
+        for a in session_labels(d, "process_annotation"):
             annotations.append({"session_id": sid, "annotation_id": a.get("annotation_id"),
                                 "rater_id": a.get("rater_id"), "label": a.get("label"),
                                 "t_start_ms": a.get("t_start_ms"), "t_end_ms": a.get("t_end_ms"),
@@ -229,26 +230,29 @@ def export(out: Path, with_points: bool = False) -> Dict[str, int]:
                                 "confidence": a.get("confidence"), "note": a.get("note", ""),
                                 "ts": a.get("ts")})
 
-        for r in read_jsonl(d / "ratings.jsonl"):
+        for r in session_labels(d, "rating"):
             ratings.append({"session_id": sid, "rating_id": r.get("rating_id"),
                             "source": r.get("source"), "rater_id": r.get("rater_id"),
                             "phase": r.get("phase"), "overall": r.get("overall"),
                             "note": r.get("note", ""), "ts": r.get("ts"),
                             **{f"dim_{k}": v for k, v in (r.get("dims") or {}).items()}})
-        # `self_report.json` now; the older name stays readable
-        q = next((d / n for n in ("self_report.json", "questionnaire.json") if (d / n).exists()), None)
-        if q is not None:
-            quest.append({"session_id": sid, **json.loads(q.read_text(encoding="utf-8"))})
+        q = session_part(d, "self_report")
+        if q:
+            quest.append({"session_id": sid, **q})
 
     if pf:
         pf.close()
+    # refresh the dataset-level manifest, next to the data and next to the export
+    manifest = dataset_manifest()
+    write_json(config.DATA_DIR / "dataset.json", manifest)
+    write_json(out / "dataset.json", manifest)
     counts = {
         "sessions": _write(out / "sessions.csv", SESSION_COLS, sessions),
-        "strokes": _write(out / "strokes.csv", ["session_id", "stroke_id", "seq", "phase", "t_start_ms", "t_end_ms",
-                                                "duration_ms", "tool", "color", "size", "opacity", "erase",
-                                                "pointer_type", "pressure_supported", "zoom",
+        "strokes": _write(out / "strokes.csv", ["session_id", "stroke_id", "seq", "phase", "t0_ms", "t_end_ms",
+                                                "duration_ms", "tool", "color", "size", "opacity", "op",
+                                                "pointer", "pressure_supported", "zoom",
                                                 "n_points", "mean_pressure"], strokes),
-        "events": _write(out / "events.csv", ["session_id", "seq", "src", "ts", "t_ms", "type", "payload"], events),
+        "events": _write(out / "events.csv", ["session_id", "seq", "src", "t_ms", "type", "payload"], events),
         "feedback": _write(out / "feedback.csv", ["session_id", "feedback_id", "t_ms", "phase", "source",
                                                   "feedback_type", "backend", "trigger", "model",
                                                   "prompt_version", "text", "target_region", "shown_at",

@@ -58,13 +58,19 @@ class StageOneLoop(unittest.TestCase):
         s = r.json()["session"]
         self.assertEqual(s["status"], "done")
         self.assertTrue(s["revised"])
-        self.assertEqual(len(s["snapshots"]), 1)
+        self.assertEqual(len(s["snapshots"]), 1)   # 周期快照默认关，这里是测试显式打开的
         self.assertTrue(any(e["type"] == "FEEDBACK_SHOW" for e in s["events"]))
 
+        # 四个数据文件 + 一张作品；修改前的那一张只有真的改过才存
         d = os.path.join(_TMP, "sessions", sid)
-        for f in ("metadata.json", "before.png", "after.png", "final.png", "events.jsonl", "snapshots/0001_45s.png"):
+        for f in ("session.json", "final.png", "events.jsonl",
+                  "checkpoints/before_feedback.png", "checkpoints/0001_45s.png"):
             self.assertTrue(os.path.exists(os.path.join(d, f)), f)
-        self.assertEqual(self.c.get(f"/files/{sid}/before.png").status_code, 200)
+        for gone in ("metadata.json", "condition.json", "feedback.jsonl", "before.png", "after.png"):
+            self.assertFalse(os.path.exists(os.path.join(d, gone)), gone)
+        # 「阶段」不是文件名：这些 URL 照样解析得到
+        for phase in ("before", "after", "final"):
+            self.assertEqual(self.c.get(f"/files/{sid}/{phase}.png").status_code, 200, phase)
 
     def test_finalize_without_revision(self):
         sid = self.c.post("/api/sessions", json={"quest_id": "emotion_alone", "intent": {"emotion": "平静", "text": ""}}).json()["session_id"]

@@ -19,16 +19,18 @@ from typing import Any, Dict
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from artquest import config  # noqa: E402
 from artquest.qc import MAX_REPLAY_REL_DIFF  # noqa: E402
+from artquest.logstore import JsonlLog  # noqa: E402
 from artquest.reconstruct import check_final, rebuild, render  # noqa: E402
+from artquest.storage import session_meta  # noqa: E402
 
 KEYFRAME_PCTS = (10, 25, 50, 75, 100)
 
 
 def replay_session(sid: str, out_dir: Path = None, keyframes: bool = False) -> Dict[str, Any]:
     d = config.SESSIONS_DIR / sid
-    if not (d / "metadata.json").exists():
-        raise FileNotFoundError(2, "no such file", str(d / "metadata.json"))
-    if not (d / "strokes.jsonl").exists():
+    if not session_meta(d):
+        raise FileNotFoundError(2, "no such session", str(d))
+    if not JsonlLog(d / "strokes.jsonl").exists():
         # a schema-1 session: it predates the stroke log, so there is nothing to
         # replay. Not a failure — reporting it as one would bury real ones.
         return {"session_id": sid, "skipped": "no stroke log (schema 1)", "replayable": None}
@@ -70,7 +72,7 @@ def main() -> int:
     ap.add_argument("--out", type=Path, default=None)
     a = ap.parse_args()
 
-    sids = ([d.name for d in sorted(config.SESSIONS_DIR.iterdir()) if (d / "metadata.json").exists()]
+    sids = ([d.name for d in sorted(config.SESSIONS_DIR.iterdir()) if d.is_dir() and session_meta(d)]
             if a.all else [a.session_id])
     if not sids or sids == [None]:
         ap.error("give a session_id or --all")
