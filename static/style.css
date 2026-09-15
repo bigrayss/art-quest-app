@@ -47,7 +47,7 @@ body { margin:0; font-family:var(--font); background:var(--bg); color:var(--ink)
   font-weight:600; -webkit-font-smoothing:antialiased; -webkit-tap-highlight-color:transparent; }
 
 /* ===== app 外壳：手机是「顶栏 + 内容 + 底部 tab」，桌面把 tab 转成左侧导航 ===== */
-.app { display:flex; flex-direction:column; min-height:100dvh; }
+.app { display:flex; flex-direction:column; min-height:100vh; min-height:100dvh; }
 .screen { flex:1; min-width:0; display:flex; flex-direction:column; }
 .appbar { position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:10px;
   padding:9px 14px; background:rgba(255,255,255,.72);
@@ -116,23 +116,34 @@ h2 .muted { font-weight:700; }
 .empty { color:var(--muted); font-size:14px; text-align:center; padding:48px 20px; }
 
 /* ===== 地图：竖着蜿蜒下去的一串关卡 ===== */
-.unit { display:flex; align-items:center; gap:12px; background:var(--soft); border-radius:var(--r-lg);
-  padding:12px 16px; margin-bottom:6px; }
+.unit { position:relative; z-index:2; display:flex; align-items:center; gap:12px;
+  background:var(--soft); border-radius:var(--r-lg); padding:12px 16px; margin-bottom:12px; }
 .unit-l { flex:1; min-width:0; }
 .unit-l b { display:block; font-size:15px; }
 .unit-l span { font-size:12px; color:var(--muted-2); font-weight:600; }
 .unit-r { font-size:12px; font-weight:800; color:var(--accent-d); white-space:nowrap; }
-#view-quest { max-width:560px; margin:0 auto; width:100%; }
-.map { position:relative; max-width:420px; margin:0 auto; padding:30px 0 40px;
-  display:flex; flex-direction:column; align-items:center; gap:24px; }
-.map-path { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; overflow:visible; }
-.map .quest-card { position:relative; z-index:1; width:150px; text-align:center; cursor:pointer;
-  background:none; border:none; padding:0; box-shadow:none;
-  transform:translateX(var(--dx, 0px)); transition:transform .15s; }
+#view-quest { max-width:1000px; margin:0 auto; width:100%; }
+/* 一张地图上的十个地方。任务家族之间没有先后，所以不画那条线——
+   有顺序的那件事在顶栏的进度条上。地块是几团很淡的色，像从上面看一片地。 */
+.map { position:relative; width:100%; max-width:1000px; margin:0 auto; aspect-ratio:16/10;
+  border-radius:34px;
+  background:
+    radial-gradient(34% 42% at 17% 30%, #d3edc9, rgba(108,194,74,0) 66%),
+    radial-gradient(32% 38% at 73% 16%, #cdebfb, rgba(77,184,239,0) 66%),
+    radial-gradient(36% 40% at 50% 84%, #fcedc7, rgba(245,194,67,0) 66%),
+    radial-gradient(27% 33% at 93% 62%, #ede1fb, rgba(185,140,240,0) 66%),
+    radial-gradient(25% 30% at 4% 74%, #fce0df, rgba(242,112,110,0) 66%),
+    radial-gradient(30% 34% at 88% 92%, #e2f3db, rgba(108,194,74,0) 66%),
+    linear-gradient(180deg, #fdfcfa, #f6f5f1);
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.9), 0 20px 40px -24px rgba(90,70,40,.5); }
+.map .quest-card { position:absolute; left:var(--mx,50%); top:var(--my,50%);
+  transform:translate(-50%,-50%); z-index:1; width:150px; text-align:center; cursor:pointer;
+  background:none; border:none; padding:0; box-shadow:none; transition:transform .15s; }
+.map .quest-card:active { transform:translate(-50%,-50%) scale(.97); }
 .node-btn { position:relative; width:76px; height:76px; margin:0 auto; border-radius:50%;
   background:var(--qc, var(--accent)); color:#fff; display:flex; align-items:center; justify-content:center;
   box-shadow:0 6px 0 var(--qc-edge, var(--accent-d)); transition:transform .1s, box-shadow .1s; }
-.map .quest-card:active .node-btn { transform:translateY(6px); box-shadow:none; }
+.map .quest-card:active .node-btn { transform:translateY(5px); box-shadow:none; }
 .map .quest-card h3 { margin:12px 0 0; font-size:14px; font-weight:800; }
 .node-sub { font-size:11px; color:var(--muted); font-weight:700; margin-top:1px; }
 /* 走过的关：盖一颗星 */
@@ -148,7 +159,7 @@ h2 .muted { font-weight:700; }
 .node-tip { position:absolute; left:50%; top:-26px; transform:translateX(-50%);
   background:var(--accent); color:#fff; font-size:11px; font-weight:800; padding:3px 10px;
   border-radius:999px; white-space:nowrap; box-shadow:0 2px 0 var(--accent-d); }
-.map .quest-card.next .node-btn { box-shadow:0 6px 0 var(--qc-edge, var(--accent-d)), 0 0 0 5px color-mix(in srgb, var(--qc, #f79433) 18%, #fff); }
+.map .quest-card.next .node-btn { box-shadow:0 6px 0 var(--qc-edge, var(--accent-d)), 0 0 0 5px var(--qc-soft, #fdeacf); }
 
 /* ===== 流程进度条：做一幅画的六步 ===== */
 .flow { display:flex; align-items:center; gap:10px; max-width:380px; }
@@ -372,8 +383,7 @@ figcaption { text-align:center; color:var(--muted-2); font-size:12px; font-weigh
 .trained h4 { margin:0 0 10px; font-size:13px; font-weight:800; display:flex; align-items:center; gap:7px; }
 .trained .tchips { display:flex; flex-wrap:wrap; gap:8px; }
 .trained .tchip { display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:800;
-  padding:6px 13px; border-radius:999px; background:color-mix(in srgb, var(--tc,#f79433) 13%, #fff);
-  color:color-mix(in srgb, var(--tc,#f79433) 72%, #000); }
+  padding:6px 13px; border-radius:999px; background:var(--tc-bg, #fef1e2); color:var(--tc-fg, #b26a24); }
 .trained .tchip i { width:9px; height:9px; border-radius:50%; background:var(--tc,var(--accent)); }
 .trained .tnote { color:var(--muted-2); font-size:12px; margin-top:10px; line-height:1.6; }
 
@@ -446,11 +456,11 @@ body.quiet #collection-wrap { display:none; }
 /* 形状语言是 claymorphism —— 一层外投影给体积，两层内投影把它吹鼓起来。
    2026 年 iPad 上这类「软糖/黏土」质感正是给小孩用的 app 的主流做法，
    而且它天生是低饱和的，跟我们「颜色别太重」的结论走同一个方向。 */
-#view-world { min-height: calc(100dvh - 150px); margin: -16px -16px 0; padding: 16px 16px 0;
+#view-world { min-height: calc(100vh - 150px); min-height: calc(100dvh - 150px); margin: -16px -16px 0; padding: 16px 16px 0;
   background:
-    radial-gradient(64% 40% at 50% -4%, color-mix(in srgb, var(--accent) 22%, #fff), transparent 72%),
-    radial-gradient(50% 34% at 102% 16%, color-mix(in srgb, var(--blue) 20%, #fff), transparent 74%),
-    radial-gradient(48% 32% at -2% 54%, color-mix(in srgb, var(--green) 18%, #fff), transparent 74%); }
+    radial-gradient(64% 40% at 50% -4%, #fde7d2, rgba(247,148,51,0) 72%),
+    radial-gradient(50% 34% at 102% 16%, #dbf1fc, rgba(77,184,239,0) 74%),
+    radial-gradient(48% 32% at -2% 54%, #e5f4de, rgba(108,194,74,0) 74%); }
 .world { max-width: 560px; margin: 0 auto; }
 .world-card { position: relative; overflow: hidden; text-align: center;
   padding: 18px 24px 22px; border-radius: 34px;
@@ -460,7 +470,7 @@ body.quiet #collection-wrap { display:none; }
               inset 0 20px 28px -12px rgba(255,255,255,.9); }
 .world-glow { position: absolute; inset: -46% -24% auto -24%; height: 78%; pointer-events: none;
   background: radial-gradient(58% 58% at 50% 42%,
-              color-mix(in srgb, var(--accent) 26%, transparent), transparent 70%); }
+              rgba(247,148,51,0.26), rgba(247,148,51,0) 70%); }
 .sprite.hero { position: relative; width: clamp(146px, 34vw, 196px); height: clamp(146px, 34vw, 196px);
   margin: 0 auto; }
 .sprite.grey { filter: grayscale(.9) opacity(.9); }
@@ -489,12 +499,12 @@ body.quiet #collection-wrap { display:none; }
 .attr.dim .attr-name { color: var(--muted); }
 /* 黏土按钮：厚、软、按下去会陷 */
 button.clay { border: none; border-radius: 24px; padding: 15px 22px; font-size: 17px;
-  box-shadow: 0 16px 28px -12px color-mix(in srgb, var(--accent) 62%, transparent),
+  box-shadow: 0 16px 28px -12px rgba(247,148,51,0.62),
               0 6px 0 var(--accent-d),
               inset 0 -9px 15px -9px rgba(0,0,0,.20),
               inset 0 11px 17px -9px rgba(255,255,255,.42); }
 button.clay:active { transform: translateY(6px);
-  box-shadow: 0 8px 16px -12px color-mix(in srgb, var(--accent) 62%, transparent),
+  box-shadow: 0 8px 16px -12px rgba(247,148,51,0.62),
               inset 0 -9px 15px -9px rgba(0,0,0,.20); }
 /* 顶栏的彩点头像 */
 .avatar { padding: 0; border: none; box-shadow: none; background: none; width: 38px; height: 38px;
@@ -555,7 +565,7 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
 @media (min-width: 900px) {
   .app { flex-direction:row; }
   .tabbar { order:-1; flex-direction:column; justify-content:flex-start; gap:4px;
-    width:216px; height:100dvh; position:sticky; top:0; border-top:none;
+    width:216px; height:100vh; height:100dvh; position:sticky; top:0; border-top:none;
     border-right:1px solid var(--line); padding:16px 12px; }
   .tab { flex:0 0 auto; flex-direction:row; justify-content:flex-start; gap:12px;
     font-size:15px; padding:11px 14px; border-radius:var(--r); }
@@ -567,7 +577,8 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
   main { padding:22px 26px 36px; }
   h1 { font-size:27px; }
   .draw-layout { display:grid; grid-template-columns:minmax(0,1fr) 262px; align-items:start; }
-  .toolbox { position:sticky; top:66px; max-height:calc(100dvh - 92px); overflow-y:auto; padding-right:3px; }
+  .toolbox { position:sticky; top:66px; max-height:calc(100vh - 92px); max-height:calc(100dvh - 92px);
+    overflow-y:auto; padding-right:3px; }
   #view-draw .actions.sticky { width:262px; margin-left:auto; margin-top:14px; }
   .palette { grid-template-columns:repeat(6,1fr); }
   .result-layout { display:grid; grid-template-columns:1.05fr 1fr; gap:22px; }
@@ -576,6 +587,14 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
   .actions.sticky button.grow { flex:0 0 auto; }
   .modal { align-items:center; }
   .modal-card { border-radius:var(--r-lg); width:90%; }
+}
+/* 窄屏放不下一张地图：改成交错两列，仍然不是一条线 */
+@media (max-width: 700px) {
+  .map { aspect-ratio:auto; display:grid; grid-template-columns:1fr 1fr;
+    gap:20px 4px; padding:26px 8px 34px; }
+  .map .quest-card { position:static; transform:none; width:auto; }
+  .map .quest-card:active { transform:scale(.97); }
+  .map .quest-card:nth-child(even) { margin-top:38px; }
 }
 @media (max-width: 899px) {
   /* 手机上先给工具，说明性的卡片排到后面——画布下面就是笔 */
