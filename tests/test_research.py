@@ -94,7 +94,8 @@ class ResearchDataLayer(unittest.TestCase):
         sid = self._create()
         m = self.c.get(f"/api/sessions/{sid}").json()
         self.assertEqual(m["schema_version"], 3)
-        self.assertEqual(m["participant"], {"anon_id": "anon-abc123", "participant_id": "P007", "label": ""})
+        self.assertEqual(m["participant"],
+                         {"anon_id": "anon-abc123", "participant_id": "P007", "label": "", "buddy_name": ""})
         self.assertEqual(m["task"]["task_id"], "imagine_animal")
         self.assertEqual(m["task"]["category"], "open_creation")   # = the family slug
         self.assertEqual(m["task"]["family"], "M0")                # the original open quests

@@ -10,7 +10,7 @@
   const state = { cfg: null, quests: [], families: [], allSessions: [], rarity: null, quest: null, emotion: null, sessionId: null, phase: "before", feedback: null,
     startedAt: null, dirtySinceSnapshot: false, timers: [], before: null, color: "#f79433", buddyTick: 0,
     anonId: "", condition: {}, study: null, seqIdx: 0, lastActivity: 0, idle: false, timeUp: false, pendingFinal: null,
-    entered: false, worldColor: "" };
+    entered: false, worldColor: "", buddyName: "" };
 
   // ---------- research identity & environment ----------
   // Two anonymous ids: one the device keeps by itself (so free play still lines
@@ -80,6 +80,16 @@
     contrast: '<circle cx="12" cy="12" r="8.4"/><path d="M12 3.6a8.4 8.4 0 0 1 0 16.8Z" fill="currentColor"/>',
     arrowRight: '<path d="M4.4 12h13.8"/><path d="m12.8 6.4 5.6 5.6-5.6 5.6"/>',
     arrowLeft: '<path d="M19.6 12H5.8"/><path d="M11.2 6.4 5.6 12l5.6 5.6"/>',
+    // 徽章用的一批
+    drops: '<path d="M8.4 3.6c2.6 3 3.8 5 3.8 6.6a3.8 3.8 0 0 1-7.6 0c0-1.6 1.2-3.6 3.8-6.6Z"/><path d="M16.8 10.4c1.8 2.1 2.6 3.5 2.6 4.6a2.6 2.6 0 0 1-5.2 0c0-1.1.8-2.5 2.6-4.6Z"/>',
+    sliders: '<path d="M3.6 8.6h16.8M3.6 15.4h16.8"/><circle cx="9" cy="8.6" r="2.7"/><circle cx="15.4" cy="15.4" r="2.7"/>',
+    route: '<path d="M5.6 19.4c4.2-.6 3-6.6 6.8-7.4s3-6 7-6.6"/><circle cx="5.6" cy="19.4" r="2.1" fill="currentColor" stroke="none"/><circle cx="18.6" cy="5.4" r="2.1" fill="currentColor" stroke="none"/>',
+    calendar: '<rect x="3.6" y="5.4" width="16.8" height="15" rx="3.2"/><path d="M3.6 10.4h16.8M8.4 3v4.6M15.6 3v4.6"/>',
+    layers: '<path d="m12 3.4 8.4 4.6L12 12.6 3.6 8Z"/><path d="m4.8 12.4 7.2 3.9 7.2-3.9"/><path d="m4.8 16.6 7.2 3.9 7.2-3.9"/>',
+    wave: '<path d="M2.6 13.6c2.4-6.2 4.3-6.2 6.7 0s4.3 6.2 6.7 0 4.3-6.2 5.4-2.6"/>',
+    dense: '<circle cx="6.4" cy="6.4" r="1.9" fill="currentColor" stroke="none"/><circle cx="12" cy="6.4" r="1.9" fill="currentColor" stroke="none"/><circle cx="17.6" cy="6.4" r="1.9" fill="currentColor" stroke="none"/><circle cx="6.4" cy="12" r="1.9" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.9" fill="currentColor" stroke="none"/><circle cx="17.6" cy="12" r="1.9" fill="currentColor" stroke="none"/><circle cx="6.4" cy="17.6" r="1.9" fill="currentColor" stroke="none"/><circle cx="12" cy="17.6" r="1.9" fill="currentColor" stroke="none"/><circle cx="17.6" cy="17.6" r="1.9" fill="currentColor" stroke="none"/>',
+    swap: '<path d="M4.4 8.6h13.4"/><path d="m14.2 5 3.6 3.6-3.6 3.6"/><path d="M19.6 15.4H6.2"/><path d="M9.8 11.8 6.2 15.4 9.8 19"/>',
+    pause: '<rect x="6.4" y="4.4" width="4" height="15.2" rx="1.8"/><rect x="13.6" y="4.4" width="4" height="15.2" rx="1.8"/>',
   };
   /** 一枚图标，size px，颜色跟随 currentColor（或显式给 color）。 */
   function icon(name, size = 20, color = "") {
@@ -127,7 +137,40 @@
       + `<circle cx="84" cy="86" r="3" fill="#fff"/><circle cx="115" cy="86" r="3" fill="#fff"/>`
       + `</g>${mouth}</g>`;
   }
-  const buddyColor = () => state.color || "#e8632b";
+  const buddyColor = () => state.color || "#f79433";
+
+  // ===== 伙伴的名字 =====
+  // 「彩点」只是个占位的默认名。它是孩子的伙伴，名字该由孩子起——
+  // 起了名字的东西才会被惦记着回来看。名字存在本机，并冻进 session，
+  // 这样研究上也看得到每个孩子给它起了什么。
+  const DEFAULT_BUDDY = "彩点";
+  const buddyName = () => state.buddyName || DEFAULT_BUDDY;
+  function loadBuddyName() {
+    try { state.buddyName = localStorage.getItem("artquest.buddy_name") || ""; } catch (e) { /* 无所谓 */ }
+  }
+  function setBuddyName(name) {
+    state.buddyName = (name || "").trim().slice(0, 8);
+    try {
+      if (state.buddyName) localStorage.setItem("artquest.buddy_name", state.buddyName);
+      else localStorage.removeItem("artquest.buddy_name");
+    } catch (e) { /* 无所谓 */ }
+    paintBuddyName();
+  }
+  /** 界面上所有出现名字的地方，一处改全处改。 */
+  function paintBuddyName() {
+    const n = buddyName();
+    document.querySelectorAll(".buddy-word").forEach(el => { el.textContent = n; });
+    const w = $("#world-name"); if (w) w.textContent = n;
+    TITLES.world = `${n}的世界`;
+    TITLES.buddy = n;
+    const av = $("#btn-world"); if (av) av.title = `看看${n}`;
+  }
+  function askBuddyName() {
+    const m = $("#name-modal"), input = $("#buddy-name-input");
+    input.value = state.buddyName || "";
+    m.classList.remove("hidden");
+    setTimeout(() => input.focus(), 50);
+  }
 
   // ===== 做一幅画的六步：顶栏上一条细进度条 =====
   // 闯关地图搬到首页去了——那儿才该热闹。一次创作的过程条只需要回答一件事：还剩几步。
@@ -200,6 +243,42 @@
   document.querySelectorAll(".tab").forEach(b => { b.onclick = () => openTab(b.dataset.tab); });
   const overlay = (text) => { $("#overlay").classList.toggle("hidden", !text); if (text) $("#overlay-text").textContent = text; };
 
+  // ---------- 被选为优秀作品：先问本人 ----------
+  // `share_consent` 回答的是「我的画可不可以被人看见」，画之前就冻结了。
+  // 被单独挑出来当优秀作品是另一个问题、针对另一个东西——**这一张**，挂在大家面前。
+  // 所以老师的挑选只是一个提议，答应了才展出，而且随时能收回来。
+  let featuredQueue = [];
+  async function checkFeatured() {
+    if (state.condition.ui === "quiet") return;
+    try {
+      const r = await api(`/api/participants/${encodeURIComponent(savedPid() || " ")}/featured`
+        + `?anon_id=${encodeURIComponent(state.anonId)}`);
+      featuredQueue = r.pending || [];
+    } catch (e) { return; }
+    showNextFeatured();
+  }
+  function showNextFeatured() {
+    const m = $("#featured-modal");
+    const item = featuredQueue[0];
+    if (!item) { m.classList.add("hidden"); return; }
+    $("#featured-note").textContent = item.note
+      ? `老师说：「${item.note}」` : `你画的《${item.title}》被老师挑出来了。`;
+    $("#featured-img").src = item.image;
+    m.classList.remove("hidden");
+  }
+  async function answerFeatured(accept) {
+    const item = featuredQueue.shift();
+    $("#featured-modal").classList.add("hidden");
+    if (!item) return;
+    try {
+      await api(`/api/sessions/${item.session_id}/featured`,
+        { method: "POST", body: JSON.stringify({ accept: !!accept }) });
+    } catch (e) { /* 下次再问 */ }
+    showNextFeatured();
+  }
+  $("#btn-featured-yes").onclick = () => answerFeatured(true);
+  $("#btn-featured-no").onclick = () => answerFeatured(false);
+
   // ---------- 世界入口 ----------
   // 游戏的开场：先看见这只精灵和它身上的九个属性，再进世界，再挑任务。
   // 属性不是分数——它长在「练过什么」上：做一个训练某维度的任务，那一格就涨。
@@ -222,7 +301,9 @@
     const lv = lit ? 1 + Math.floor(g.total_level / 3) : 1;
     $("#world-level").textContent = `Lv.${lv}`;
     $("#world-say").textContent = !lit
-      ? "我现在还是灰的。你画画用什么颜色，我就变成什么颜色。"
+      ? (state.buddyName
+          ? "我现在还是灰的。你画画用什么颜色，我就变成什么颜色。"
+          : "我还没有名字呢。点一下旁边那支笔，给我起一个吧。")
       : best && best[1].practice
         ? `我在「${(byKey[best[0]] || {}).zh || best[0]}」上长得最快！`
         : "再画几幅，我就开始长啦～";
@@ -248,6 +329,16 @@
     show("quest");
   }
   $("#btn-enter-world").onclick = enterWorld;
+  $("#btn-rename").onclick = askBuddyName;
+  $("#btn-name-cancel").onclick = () => $("#name-modal").classList.add("hidden");
+  $("#btn-name-save").onclick = () => {
+    setBuddyName($("#buddy-name-input").value);
+    $("#name-modal").classList.add("hidden");
+    renderWorld();
+  };
+  $("#buddy-name-input").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") $("#btn-name-save").click();
+  });
   $("#btn-world").onclick = async () => { await renderWorld(); show("world"); };
 
   // ---------- mission glyphs ----------
@@ -792,10 +883,27 @@
     const styleOf = (qid) => QUEST_STYLE[qid] || { icon: "palette", c: "#f79433" };
     grid.innerHTML = done.slice(0, 12).map(r => {
       const st = styleOf(r.quest_id);
-      return `<a class="dex-card" href="/api/sessions/${r.session_id}" target="_blank" style="--qc:${st.c}">
-        <div class="dex-thumb"><img src="/files/${r.session_id}/after.png" alt="" loading="lazy"></div>
-        <div class="dex-cap"><b>${icon(st.icon, 14)}${titleOf(r.quest_id)}</b><span>${(r.created_at || "").slice(0, 10)}</span></div></a>`;
+      const feat = (r.featured || {}).state;
+      const flag = feat === "accepted"
+        ? `<button class="dex-featured on" data-sid="${r.session_id}" data-accept="0"
+             title="收回来，不再给大家看">${icon("pin", 12)}在大家的图鉴里</button>`
+        : feat === "declined"
+          ? `<button class="dex-featured" data-sid="${r.session_id}" data-accept="1"
+               title="老师选过它，你当时说先不要">${icon("pin", 12)}老师选过它</button>`
+          : "";
+      return `<div class="dex-card" style="--qc:${st.c}">
+        <a class="dex-open" href="/api/sessions/${r.session_id}" target="_blank">
+          <div class="dex-thumb"><img src="/files/${r.session_id}/after.png" alt="" loading="lazy"></div>
+          <div class="dex-cap"><b>${icon(st.icon, 14)}${titleOf(r.quest_id)}</b><span>${(r.created_at || "").slice(0, 10)}</span></div>
+        </a>${flag}</div>`;
     }).join("");
+    grid.querySelectorAll(".dex-featured").forEach(b => {
+      b.onclick = async () => {
+        await api(`/api/sessions/${b.dataset.sid}/featured`,
+          { method: "POST", body: JSON.stringify({ accept: b.dataset.accept === "1" }) });
+        await loadCollection(); await renderWall();
+      };
+    });
     const types = new Set(done.map(r => r.quest_id)), total = state.quests.length;
     $("#dex-progress").innerHTML = `已解锁 ${types.size}/${total} 种任务`
       + (types.size >= total ? ` · <b style="color:var(--accent-d)">${icon("medal", 14)} 创作者勋章达成！</b>` : "");
@@ -1126,6 +1234,7 @@
     state.cfg = await api("/api/config"); state.quests = await api("/api/quests");
     state.families = await api("/api/families");
     state.anonId = anonId();
+    loadBuddyName(); paintBuddyName();
     $("#backend-badge").textContent = `评分: ${state.cfg.scorer} · 反馈: ${state.cfg.feedback}` + (state.cfg.claude_available ? "" : " (离线模式)");
     await setupStudy();
     applyCondition();
@@ -1138,6 +1247,7 @@
     try { state.entered = sessionStorage.getItem("artquest.entered") === "1"; } catch (e) { /* 无所谓 */ }
     if (state.entered || state.condition.ui === "quiet") { show("quest"); }
     else { await renderWorld(); show("world"); }
+    checkFeatured();
   }
   function chooseQuest(q) {
     state.quest = q; $("#intent-quest-title").textContent = q.title; $("#intent-quest-prompt").textContent = q.prompt; $("#intent-quest-hint").textContent = "提示：" + q.hint; show("intent");
@@ -1198,7 +1308,7 @@
     if (pid && pid !== savedPid()) setPid(pid);
     const r = await api("/api/sessions", { method: "POST", body: JSON.stringify({
       quest_id: state.quest.id, intent,
-      participant: { anon_id: state.anonId, participant_id: savedPid(), label: "" },
+      participant: { anon_id: state.anonId, participant_id: savedPid(), label: "", buddy_name: state.buddyName },
       condition: state.condition, device: deviceInfo(), canvas: canvasGeom(),
       study: state.study ? { active: !!state.study.active, study_id: state.study.study_id, group: state.study.group || "",
         order_index: state.seqIdx, sequence_id: (state.study.sequence || []).join(">") } : {},
@@ -1366,7 +1476,7 @@
     const scores = $("#final-scores");
     scores.classList.toggle("hidden", !showScores);
     if (showScores) renderScores(scores, session.after.scores, session.before.scores);
-    $("#final-meta").textContent = `Session ${session.id} · 过程截图 ${session.snapshots.length} 张 · 事件 ${session.events.length} 条 · 数据在 data/sessions/${session.id}/`;
+    $("#final-meta").textContent = `Session ${session.session_id} · 过程截图 ${session.snapshots.length} 张 · 事件 ${session.events.length} 条 · 数据在 data/sessions/${session.session_id}/`;
     show("final");
   }
 
@@ -1401,7 +1511,19 @@
     const c = colorsUsed(s);
     return WARM.some(x => c.has(x)) && COOL.some(x => c.has(x));
   };
+  const sizesUsed = (s) => payloads(s, ["SIZE_CHANGE", "STROKE_START", "STROKE_END"], "size").map(Number);
+  const firstStrokeMs = (s) => {
+    const t = evOf(s, ["STROKE_START"]).map(e => Number(e.t_ms) || 0);
+    return t.length ? Math.min(...t) : 0;
+  };
+  const maxStrokePoints = (s) => Math.max(0, ...payloads(s, ["STROKE_END", "ERASE"], "n").map(Number));
   const doneRows = () => (state.allSessions || []).filter(r => r.status === "done");
+  const activeDays = () => new Set(doneRows().map(r => (r.created_at || "").slice(0, 10)).filter(Boolean)).size;
+  const deepestFamily = () => {
+    const c = {};
+    doneRows().forEach(r => { const f = familyOf(r.task_id); if (f) c[f] = (c[f] || 0) + 1; });
+    return Math.max(0, ...Object.values(c));
+  };
   const familyOf = (taskId) => (state.quests.find(q => q.id === taskId) || {}).family || "";
 
   const ALL_BADGES = [
@@ -1447,7 +1569,35 @@
       } },
     { g: "探索与坚持", icon: "sparkle", name: "进化大师", desc: "走完进化关，改了自己的作品",
       earned: s => s.revised === true, evo: true },
+    // -- 后加的一批：没点亮的不展示，所以多一些才有得发现 --
+    { g: "色彩与工具", icon: "marker", name: "单色也精彩", desc: "只用一种颜色画完 20 笔以上",
+      earned: s => colorsUsed(s).size === 1 && nStrokes(s) >= 20 },
+    { g: "色彩与工具", icon: "drops", name: "彩虹收集者", desc: "一幅画里用了 8 种以上颜色",
+      earned: s => colorsUsed(s).size >= 8 },
+    { g: "色彩与工具", icon: "sliders", name: "粗细都试", desc: "最粗和最细的笔差了 20 以上",
+      earned: s => { const z = sizesUsed(s); return z.length > 1 && Math.max(...z) - Math.min(...z) >= 20; } },
+    { g: "过程与节奏", icon: "pause", name: "想好再落笔", desc: "看了 15 秒以上才画第一笔",
+      earned: s => firstStrokeMs(s) >= 15000 && nStrokes(s) >= 3 },
+    { g: "过程与节奏", icon: "hourglass", name: "慢慢来", desc: "在一幅画上待了 10 分钟以上",
+      earned: s => drawMs(s) >= 600000 },
+    { g: "过程与节奏", icon: "wave", name: "长长的一笔", desc: "一笔画了很长都没抬手",
+      earned: s => maxStrokePoints(s) >= 300 },
+    { g: "过程与节奏", icon: "dense", name: "画得很满", desc: "一幅画里画了 60 笔以上",
+      earned: s => nStrokes(s) >= 60 },
+    { g: "观察与细节", icon: "swap", name: "来回对照", desc: "在参考图和画布之间来回看了 6 次以上",
+      earned: s => evOf(s, ["REFERENCE_FOCUS", "CANVAS_FOCUS"]).length >= 6, needs: "reference" },
+    { g: "观察与细节", icon: "route", name: "走遍画布", desc: "移动画布 8 次以上，每个角落都去过",
+      earned: s => evOf(s, ["PAN"]).length >= 8 },
+    { g: "探索与坚持", icon: "calendar", name: "常来的人", desc: "在 3 个不同的日子画过画",
+      earned: () => activeDays() >= 3 },
+    { g: "探索与坚持", icon: "books", name: "十幅收藏", desc: "完成 10 幅作品",
+      earned: () => doneRows().length >= 10 },
+    { g: "探索与坚持", icon: "layers", name: "专攻一门", desc: "同一个任务家族完成 3 次以上",
+      earned: () => deepestFamily() >= 3 },
   ];
+  // 每组一个颜色，徽章不再是一片一样的黄
+  const BADGE_COLORS = { "色彩与工具": "#f79433", "过程与节奏": "#4db8ef",
+                         "观察与细节": "#6cc24a", "探索与坚持": "#b98cf0" };
   const BADGE_RULES_VERSION = "badges/1";
 
   /** Tell the server what this session lit, so rarity can be counted.
@@ -1457,7 +1607,7 @@
     const pool = badgePool(session);
     const earned = pool.filter(b => { try { return !!b.earned(session); } catch (e) { return false; } });
     try {
-      await api(`/api/sessions/${session.id}/badges`, { method: "POST", body: JSON.stringify({
+      await api(`/api/sessions/${session.session_id}/badges`, { method: "POST", body: JSON.stringify({
         earned: earned.map(b => b.name), offered: pool.map(b => b.name),
         version: BADGE_RULES_VERSION }) });
       state.rarity = await api("/api/achievements");
@@ -1499,7 +1649,7 @@
     if ((state.condition.gallery_display || "none") !== "after_submit") { el.classList.add("hidden"); return; }
     let data;
     try {
-      data = await api(`/api/gallery/task/${encodeURIComponent(session.quest_id)}?exclude=${session.id}&k=3`);
+      data = await api(`/api/gallery/task/${encodeURIComponent(session.quest_id)}?exclude=${session.session_id}&k=3`);
     } catch (e) { el.classList.add("hidden"); return; }
     let cards = (data && data.examples) || [];
     try {
@@ -1543,7 +1693,7 @@
         + `;--tc-fg:${mixHex(fam.color, 72, "#000")}"><i></i>${(byKey[k] || {}).zh || k}</span>`;
     };
     el.innerHTML = `<h4>${icon("sprout", 16)}这一关练的是</h4><div class="tchips">${primary.map(chip).join("")}</div>`
-      + `<div class="tnote">彩点在这几项上又长了一点。`
+      + `<div class="tnote">${buddyName()}在这几项上又长了一点。`
       + (na.length ? `这一关用不上「${na.map(k => (byKey[k] || {}).zh || k).join("、")}」，所以不算在内。` : "")
       + `</div>`;
   }
@@ -1557,32 +1707,41 @@
   }
 
   /** One badge grid, used by both the end-of-task result and the all-time wall.
-   *  `isOn` is the only difference between them, so the two can never drift. */
+   *
+   *  **Only lit badges are shown.** A wall of greyed-out ones tells the child
+   *  exactly what is coming, which is the opposite of a surprise — and it reads
+   *  as a list of things they have failed to do. What is left is told as a
+   *  number instead, so there is still something to go and find.
+   */
   function badgeGroupsHtml(pool, isOn, { newTag = false } = {}) {
+    const lit = pool.filter(isOn);
     const groups = [];
-    pool.forEach(b => {
+    lit.forEach(b => {
       let g = groups.find(x => x.name === b.g);
       if (!g) groups.push(g = { name: b.g, items: [] });
       g.items.push(b);
     });
-    return groups.map(g => {
-      // earned first inside each group, so the child sees what they got
-      const items = [...g.items].sort((a, b) => (isOn(b) ? 1 : 0) - (isOn(a) ? 1 : 0));
-      return `<div class="badge-group"><h4>${g.name}</h4><div class="badge-row">` + items.map(b => {
-        const on = isOn(b);
+    const html = groups.map(g => {
+      const c = BADGE_COLORS[g.name] || "#f79433";
+      const style = `--bc:${c};--bc-l:${mixHex(c, 62, "#fff")};--bc-d:${mixHex(c, 66, "#000")}`;
+      return `<div class="badge-group"><h4>${g.name}</h4><div class="badge-row">` + g.items.map(b => {
         // Rarity is about the badge, not about you: "8 % of people have lit this"
         // gives the collecting feeling without comparing anyone's drawing.
         const st = ((state.rarity || {}).badges || {})[b.name];
         const pct = st && st.rarity !== null ? Math.round(st.rarity * 100) : null;
-        const rare = on && pct !== null && pct <= 15;
+        const rare = pct !== null && pct <= 15;
         const line = pct === null ? ""
           : `<div class="rarity">${pct <= 0 ? "还没有人点亮过" : `${pct}% 的人点亮过`}</div>`;
-        const cls = on ? (newTag ? "on new" : "on") : "locked";
-        return `<div class="badge ${cls}${b.evo ? " evo" : ""}${rare ? " rare" : ""}" title="${b.desc}">
-          <div class="b-ico">${icon(b.icon, 28)}</div><div class="b-name">${b.name}</div>
-          <div class="b-desc">${b.desc}</div>${on ? line : ""}</div>`;
+        return `<div class="badge on${newTag ? " new" : ""}${b.evo ? " evo" : ""}${rare ? " rare" : ""}"
+          style="${style}" title="${b.desc}">
+          <div class="b-ico">${icon(b.icon, 30)}</div><div class="b-name">${b.name}</div>
+          <div class="b-desc">${b.desc}</div>${line}</div>`;
       }).join("") + "</div></div>";
     }).join("");
+    const left = pool.length - lit.length;
+    return html + (left > 0
+      ? `<p class="badge-left">还有 ${left} 枚等你发现——它们长什么样，点亮了才知道。</p>`
+      : lit.length ? `<p class="badge-left">全部 ${lit.length} 枚都点亮了。</p>` : "");
   }
 
   function renderBadges(session) {
@@ -1592,8 +1751,10 @@
     const pool = badgePool();
     const got = pool.filter(b => { try { return !!b.earned(session); } catch (e) { return false; } });
     const gotSet = new Set(got);
-    el.innerHTML = badgeGroupsHtml(pool, b => gotSet.has(b), { newTag: true });
-    $("#badges-count").textContent = `点亮了 ${got.length}/${pool.length} 枚`;
+    el.innerHTML = got.length
+      ? badgeGroupsHtml(pool, b => gotSet.has(b), { newTag: true })
+      : `<p class="badge-left">这次没有点亮新徽章——换个画法试试，它们藏在过程里。</p>`;
+    $("#badges-count").textContent = got.length ? `点亮了 ${got.length} 枚` : "";
     if (got.length) {
       // one beat of delight, then back to breathing
       document.querySelectorAll("#view-final .sprite").forEach(el => {
@@ -1606,15 +1767,16 @@
    *  读的是那份上报记录本身，不重算——规则以后收紧，也不会把已经拿到的从孩子手上取走。 */
   async function renderBadgeWall() {
     const el = $("#badge-wall"); if (!el) return;
-    if (!(state.allSessions || []).length) {
-      try { state.allSessions = await api("/api/sessions"); } catch (e) { /* 离线就先空着 */ }
-    }
+    // 每次都重新取：徽章是刚刚那一局才上报的，缓存里的名单一定是旧的
+    try { state.allSessions = await api("/api/sessions"); } catch (e) { /* 离线就先空着 */ }
     const lit = new Set();
     (state.allSessions || []).forEach(r => ((r.badges || {}).earned || []).forEach(n => lit.add(n)));
     try { state.rarity = await api("/api/achievements"); } catch (e) { /* 稀有度是可选的 */ }
     const pool = badgePool();
-    el.innerHTML = badgeGroupsHtml(pool, b => lit.has(b.name));
-    $("#badge-wall-count").textContent = `点亮了 ${pool.filter(b => lit.has(b.name)).length}/${pool.length} 枚`;
+    const n = pool.filter(b => lit.has(b.name)).length;
+    el.innerHTML = n ? badgeGroupsHtml(pool, b => lit.has(b.name))
+      : `<p class="badge-left">还一枚都没有。画一幅试试——徽章只看你怎么画，不看画得好不好。</p>`;
+    $("#badge-wall-count").textContent = n ? `已点亮 ${n} 枚` : "";
   }
 
   $("#btn-again").onclick = async () => {
@@ -1628,6 +1790,7 @@
     await loadCollection();
     renderQuests();
     show("quest");
+    checkFeatured();
   };
 
   // 9 维分为 4 个家族，扇形图按家族上色（配色经 dataviz 校验：CVD 全部通过）
