@@ -21,9 +21,9 @@ from .quests import (EMOTIONS, QUESTS, QUESTS_BY_ID, condition_snapshot,
 from .reconstruct import check_final
 from .rubric import apply_contract, check_rating
 from .revision import attribute as attribute_revision
-from .schemas import (Abandon, Annotation, CreateSession, DrawEvent, EarnedBadges, FeedbackIn, Finalize,
-                      HARDEST_PARTS, LogBatch, PROCESS_LABELS, Questionnaire, Rating,
-                      Snapshot, StudyAssign, Stroke, Submit)
+from .schemas import (Abandon, Annotation, CreateSession, DrawEvent, EarnedBadges, FeaturedAnswer,
+                      FeedbackIn, Finalize, HARDEST_PARTS, LogBatch, PROCESS_LABELS,
+                      Questionnaire, Rating, Snapshot, StudyAssign, Stroke, Submit)
 from .scoring import DIMENSIONS, SCALE_MAX, get_scorer
 from .storage import SCHEMA_VERSION, SessionStore, decode_data_url, now_iso, sid_of
 
@@ -33,7 +33,7 @@ log = logging.getLogger("artquest")
 # instructions is never pooled in analysis.
 PROMPT_VERSION = "feedback/1"
 
-app = FastAPI(title="ArtQuest", version=__version__)
+app = FastAPI(title="KidsArtQuest", version=__version__)
 store = SessionStore()
 SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -467,7 +467,36 @@ def add_rating(sid: str, body: Rating):
                            {"rating_id": rec["rating_id"], "source": body.source,
                             "rater_id": body.rater_id, "overall": body.overall,
                             "n_dims": len(body.dims)})
-    return {"ok": True, "rating": rec}
+    featured = None
+    if body.featured:
+        # 老师挑中只是一个**提议**：作品先不展出，等本人答复
+        featured = store.propose_featured(sid, by=body.rater_id, note=body.note)
+    return {"ok": True, "rating": rec, "featured": featured}
+
+
+@app.get("/api/participants/{pid}/featured")
+def featured_pending(pid: str, anon_id: str = ""):
+    """这个孩子有哪几张被老师挑中、还等着他自己答复。"""
+    out = []
+    for meta in history_mod.sessions_for(pid, anon_id):
+        rec = meta.get("featured") or {}
+        if rec.get("state") != "pending":
+            continue
+        sid = sid_of(meta)
+        quest = QUESTS_BY_ID.get(meta.get("quest_id")) or {}
+        out.append({"session_id": sid, "task_id": meta.get("quest_id"),
+                    "title": quest.get("title") or meta.get("quest_id"),
+                    "image": f"/files/{sid}/final.png",
+                    "by": rec.get("by", ""), "note": rec.get("note", ""),
+                    "proposed_at": rec.get("proposed_at")})
+    return {"participant_id": pid, "pending": out}
+
+
+@app.post("/api/sessions/{sid}/featured")
+def answer_featured(sid: str, body: FeaturedAnswer):
+    """孩子自己的答复。答应了才会出现在图鉴的优秀作品里；随时可以反悔。"""
+    _session_or_404(sid)
+    return {"ok": True, "featured": store.answer_featured(sid, body.accept)}
 
 
 @app.get("/api/sessions/{sid}/revision")

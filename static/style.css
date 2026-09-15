@@ -326,25 +326,33 @@ figcaption { text-align:center; color:var(--muted-2); font-size:12px; font-weigh
 .badge-group { margin-top:16px; }
 .badge-group h4 { margin:0 0 10px; font-size:12px; font-weight:800; letter-spacing:.04em; color:var(--muted); }
 .badge-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(128px,1fr)); gap:11px; }
-.badge { background:var(--card); border:2px solid var(--line); border-radius:var(--r-lg); padding:13px 9px 11px;
-  text-align:center; position:relative; box-shadow:0 var(--edge) 0 var(--line-d); }
-/* 点亮的是一枚有颜色的圆章；没点亮的是灰的虚线——还能去拿，不是丢了什么 */
-.badge .b-ico { width:52px; height:52px; margin:0 auto; border-radius:50%; display:flex;
-  align-items:center; justify-content:center; background:var(--yellow); color:#fff;
-  box-shadow:0 3px 0 var(--yellow-d); }
-.badge .b-name { font-size:13px; font-weight:800; margin-top:9px; }
+.badge { background:var(--card); border:2px solid var(--line); border-radius:var(--r-lg);
+  padding:15px 9px 12px; text-align:center; position:relative;
+  box-shadow:0 var(--edge) 0 var(--line-d); }
+/* 一枚真的章：捏出来的圆盘、内圈高光、底下一层影。每组自己的颜色，不再一片黄。
+   没点亮的根本不展示——摆一墙灰的等于提前把惊喜说完，还像一张没做到的清单。 */
+.badge .b-ico { width:60px; height:60px; margin:0 auto; border-radius:50%; display:flex;
+  align-items:center; justify-content:center; color:#fff;
+  background:radial-gradient(120% 120% at 50% 14%, var(--bc-l, #fbc48a), var(--bc, #f79433));
+  box-shadow:0 10px 18px -8px var(--bc, #f79433),
+             0 4px 0 var(--bc-d, #a5621f),
+             inset 0 -7px 11px -6px rgba(0,0,0,.34),
+             inset 0 8px 11px -5px rgba(255,255,255,.55),
+             inset 0 0 0 3px rgba(255,255,255,.26); }
+.badge .b-name { font-size:13px; font-weight:800; margin-top:11px; }
 .badge .b-desc { font-size:11px; color:var(--muted-2); margin-top:3px; line-height:1.45; font-weight:600; }
-.badge.locked { background:var(--soft); border-style:dashed; box-shadow:none; }
-.badge.locked .b-ico { background:#ededed; color:#cbcbcb; box-shadow:none; }
-.badge.locked .b-name { color:var(--muted); }
 .badge.new::after { content:"NEW"; position:absolute; top:8px; right:8px; background:var(--red); color:#fff;
   font-size:9px; font-weight:800; padding:2px 7px; border-radius:999px; }
-.badge.evo.on .b-ico { background:var(--purple); box-shadow:0 3px 0 var(--purple-d); }
-.badge.evo.locked { border-color:var(--purple); background:var(--purple-l); }
-.badge.evo.locked .b-desc { color:var(--purple-d); font-weight:800; }
-.badge.rare .b-ico { background:var(--blue); box-shadow:0 3px 0 var(--blue-d); }
-.badge.rare .b-name::after { content:" ✦"; color:var(--blue); }
+.badge.evo { border-color:var(--purple-l); }
+.badge.rare { border-color:var(--yellow); box-shadow:0 var(--edge) 0 var(--yellow-d); }
+.badge.rare .b-ico { box-shadow:0 10px 18px -8px var(--bc, #f79433), 0 4px 0 var(--bc-d, #a5621f),
+             inset 0 -7px 11px -6px rgba(0,0,0,.34),
+             inset 0 8px 11px -5px rgba(255,255,255,.55),
+             inset 0 0 0 3px var(--yellow); }
+.badge.rare .b-name::after { content:" ✦"; color:var(--yellow-d); }
 .rarity { font-size:11px; color:var(--muted); margin-top:4px; font-weight:700; }
+/* 没点亮的只报个数——留着惊喜，也留个奔头 */
+.badge-left { font-size:13px; color:var(--muted-2); font-weight:700; margin:14px 2px 0; }
 
 /* ===== 图鉴 ===== */
 .dex { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:11px; }
@@ -357,6 +365,17 @@ figcaption { text-align:center; color:var(--muted-2); font-size:12px; font-weigh
 .dex-cap { padding:8px 10px; }
 .dex-cap b { display:flex; align-items:center; gap:5px; font-size:12px; color:var(--qc,var(--ink)); }
 .dex-cap span { font-size:11px; color:var(--muted); font-weight:700; }
+.dex-card { position:relative; }
+.dex-open { display:block; text-decoration:none; color:inherit; }
+/* 自己的画挂没挂在大家的图鉴里，本人随时能改 */
+.dex-featured { position:absolute; top:7px; left:7px; gap:4px; padding:4px 9px; min-height:0;
+  font-size:10px; border:none; border-radius:999px; background:rgba(255,255,255,.92);
+  color:var(--muted-2); box-shadow:0 2px 8px rgba(0,0,0,.14); backdrop-filter:blur(6px); }
+.dex-featured.on { background:var(--accent); color:#fff; box-shadow:0 2px 8px rgba(0,0,0,.18); }
+.dex-featured:hover { background:rgba(255,255,255,.98); }
+.dex-featured.on:hover { background:var(--accent); filter:brightness(1.05); }
+.featured-shot { width:100%; border-radius:var(--r); border:2px solid var(--line);
+  background:#fff; margin:10px 0 4px; }
 
 /* ===== 彩点的成长 ===== */
 /* 彩点's nine attributes. Two layers, visually distinct on purpose: a filled pip
@@ -478,6 +497,11 @@ body.quiet #collection-wrap { display:none; }
   font-size: 25px; font-weight: 800; margin-top: 4px; }
 .world-name .lvl { font-size: 13px; color: #fff; background: var(--accent);
   padding: 3px 11px; border-radius: 999px; box-shadow: 0 3px 0 var(--accent-d); }
+.rename { padding: 6px; min-height: 0; border: none; box-shadow: none; background: none;
+  color: var(--muted); border-radius: 50%; }
+.rename:hover { background: var(--soft); color: var(--ink); }
+.rename:active { transform: scale(.92); }
+#buddy-name-input { max-width: none; margin-top: 4px; font-size: 17px; }
 .world-say { font-size: 14px; color: var(--muted-2); margin-top: 9px; line-height: 1.65; }
 .world-bar { max-width: 300px; height: 13px; margin: 18px auto 7px; border-radius: 999px;
   background: var(--line); overflow: hidden; box-shadow: inset 0 2px 5px rgba(0,0,0,.09); }

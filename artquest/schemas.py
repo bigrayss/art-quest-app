@@ -16,6 +16,8 @@ class Participant(BaseModel):
     anon_id: str = Field("", description="设备本地生成的匿名 id，日常也能跨任务对齐")
     participant_id: str = Field("", description="研究员分配的代号，如 P007（不要用真名）")
     label: str = ""
+    # 孩子给创作伙伴起的名字。存下来是因为「有没有给它起名」本身就是投入程度的信号
+    buddy_name: str = Field("", max_length=16, description="孩子给创作伙伴起的名字")
 
 
 class Device(BaseModel):
@@ -298,6 +300,15 @@ class Annotation(BaseModel):
         if v < start:
             raise ValueError("t_end_ms must not precede t_start_ms")
         return v
+
+
+class FeaturedAnswer(BaseModel):
+    """孩子对「你的画被选为优秀作品」的答复。
+
+    被挑中不等于被展出：`share_consent` 管的是「这幅画可不可以被别人看见」，
+    这里管的是**这一张**要不要挂出去，由本人说了算，而且随时可以改回来。
+    """
+    accept: bool
 
 
 class Rating(BaseModel):

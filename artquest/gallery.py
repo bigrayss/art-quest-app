@@ -23,7 +23,8 @@ What it offers instead:
   how much they differ from yours rather than how good they are. "Someone else
   solved this a completely different way" is the thing a young artist actually
   learns from, and it needs no judgement of anybody.
-* `featured_examples` — work a teacher chose to show. A human decision with a
+* `featured_examples` — work a teacher chose to show **and the child then agreed
+  to show**. Being picked is a proposal, not a publication.
   name attached to it, which is what pinning a drawing on the classroom wall
   has always been, and is defensible where an algorithm ranking children is not.
 * `achievement_stats` — how rare each badge is across everyone. Collection and
@@ -195,6 +196,10 @@ def featured_examples(task_id: str = "", k: int = 8) -> Dict[str, Any]:
         if task_id and meta.get("quest_id") != task_id:
             continue
         if not is_shareable(meta):
+            continue
+        # 两道闸：画之前冻结的 share_consent（上面 is_shareable），
+        # 以及这一张被选中时本人给的答复。没答应就不展出。
+        if (meta.get("featured") or {}).get("state") != "accepted":
             continue
         picks = [r for r in _ratings(meta) if r.get("featured")]
         if picks:

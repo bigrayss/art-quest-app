@@ -123,18 +123,41 @@ class Gallery(unittest.TestCase):
         self.assertNotIn(viewer, [e["session_id"] for e in seen["examples"]])
 
     # -- curation is a human act --------------------------------------------
-    def test_featured_needs_a_teacher_to_pin_it(self):
-        sid = self._session(pid="P-PIN", n=8)
-        self.assertEqual(self.c.get(f"/api/gallery/featured?task_id={TASK}").json()["examples"], [])
+    def test_being_picked_is_a_proposal_the_child_answers(self):
+        """Two gates, not one.
 
-        self.c.post(f"/api/sessions/{sid}/rating", json={
+        `share_consent` says "my work may be seen at all" and is frozen before
+        the child draws. Being singled out as a good piece is a different
+        question about a different thing — *this* drawing, in front of everyone —
+        so the teacher's pin only proposes it, and nothing is shown until the
+        child says yes. A no is respected and can be changed back either way.
+        """
+        sid = self._session(pid="P-PIN", n=8)
+        featured = lambda: [e["session_id"] for e in
+                            self.c.get(f"/api/gallery/featured?task_id={TASK}").json()["examples"]]
+        self.assertEqual(featured(), [])
+
+        r = self.c.post(f"/api/sessions/{sid}/rating", json={
             "source": "teacher", "rater_id": "T-07", "featured": True,
             "note": "这张的空间处理很有意思"})
+        self.assertEqual(r.json()["featured"]["state"], "pending")
+        self.assertEqual(featured(), [], "a pin alone must not publish anything")
+
+        pending = self.c.get("/api/participants/P-PIN/featured").json()["pending"]
+        self.assertEqual([p["session_id"] for p in pending], [sid])
+        self.assertEqual(pending[0]["by"], "T-07")
+
+        self.c.post(f"/api/sessions/{sid}/featured", json={"accept": True})
         picked = self.c.get(f"/api/gallery/featured?task_id={TASK}").json()["examples"]
         self.assertEqual([e["session_id"] for e in picked], [sid])
         # the decision carries who made it — a wall, not a ranking function
         self.assertEqual(picked[0]["featured_by"], "T-07")
         self.assertIn("空间", picked[0]["why"])
+        # …and the child can take it down again
+        self.c.post(f"/api/sessions/{sid}/featured", json={"accept": False})
+        self.assertEqual(featured(), [])
+        self.assertEqual(self.c.get("/api/participants/P-PIN/featured").json()["pending"], [],
+                         "an answered proposal must not keep asking")
 
     def test_a_pinned_drawing_still_obeys_consent(self):
         sid = self._session(pid="P-PIN-NOCONSENT", n=8, consent=False)

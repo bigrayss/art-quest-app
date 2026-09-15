@@ -132,6 +132,8 @@ class SessionStore:
                 "anon_id": p.get("anon_id", ""),
                 "participant_id": p.get("participant_id", ""),
                 "label": p.get("label", ""),
+                # 孩子给创作伙伴起的名字；有没有起名本身就是投入程度的信号
+                "buddy_name": p.get("buddy_name", ""),
             },
             # -- task: same row the child sees as a level
             "quest_id": quest["id"],
@@ -306,7 +308,7 @@ class SessionStore:
         write_json(self._meta_path(sid), meta)
 
     def list(self) -> List[Dict[str, Any]]:
-        keys = ("session_id", "created_at", "quest_id", "status", "revised", "badges")
+        keys = ("session_id", "created_at", "quest_id", "status", "revised", "badges", "featured")
         out = []
         for d in self.root.iterdir():
             if not d.is_dir():
@@ -517,6 +519,35 @@ class SessionStore:
         meta.update(fields)
         self._write(sid, meta)
         return meta
+
+    # -- 被选为优秀作品：先问，答了才算 --------------------------------
+    # `share_consent` 管的是「这幅画可不可以被别人看见」，是画之前就冻结的条件。
+    # 这里管的是另一件事：**这一张**被老师挑出来当优秀作品时，本人愿不愿意。
+    # 两道闸都要过。老师的 pin 只产生一个 pending，不会自己变成展出。
+    FEATURED_STATES = ("pending", "accepted", "declined")
+
+    def propose_featured(self, sid: str, *, by: str = "", note: str = "") -> Dict[str, Any]:
+        """A teacher picked this one. Nothing is shown yet — the child is asked."""
+        meta = self.load(sid)
+        cur = meta.get("featured") or {}
+        if cur.get("state") in ("accepted", "declined"):
+            return cur                      # 已经问过并答过了，不再骚扰
+        rec = {"state": "pending", "by": by, "note": note, "proposed_at": now_iso()}
+        meta["featured"] = rec
+        self._write(sid, meta)
+        self.add_server_event(sid, ev.FEATURED_PROPOSED, 0, {"by": by})
+        return rec
+
+    def answer_featured(self, sid: str, accept: bool) -> Dict[str, Any]:
+        """The child's own answer. Declining is final until they change it here."""
+        meta = self.load(sid)
+        rec = dict(meta.get("featured") or {})
+        rec["state"] = "accepted" if accept else "declined"
+        rec["answered_at"] = now_iso()
+        meta["featured"] = rec
+        self._write(sid, meta)
+        self.add_server_event(sid, ev.FEATURED_ACCEPTED if accept else ev.FEATURED_DECLINED, 0, {})
+        return rec
 
     def update_task(self, sid: str, **fields: Any) -> Dict[str, Any]:
         """Merge into the frozen task block, re-reading first.

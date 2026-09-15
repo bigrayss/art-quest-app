@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, maximum-scale=1">
 <meta name="theme-color" content="#ffffff">
-<title>ArtQuest · 创作冒险</title>
+<title>KidsArtQuest · 创作冒险</title>
 <!-- 装到 iPad 主屏上就是一个 app：没有地址栏，自己的图标，横竖屏都跑 -->
 <link rel="manifest" href="/static/manifest.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="ArtQuest">
+<meta name="apple-mobile-web-app-title" content="KidsArtQuest">
 <link rel="apple-touch-icon" href="/static/icons/icon-180.png">
 <link rel="icon" href="/static/icons/icon-192.png">
 <link rel="stylesheet" href="/static/style.css">
@@ -20,10 +20,10 @@
 
 <!-- 底部 tab（手机）／左侧导航栏（桌面）。做任务时整个收起来，只剩画画。 -->
 <nav class="tabbar" id="tabbar">
-  <div class="rail-brand"><span class="mark"><i data-icon="palette" data-size="20"></i></span><b>ArtQuest</b></div>
+  <div class="rail-brand"><span class="mark"><i data-icon="palette" data-size="20"></i></span><b>KidsArtQuest</b></div>
   <button class="tab active" data-tab="map"><i data-icon="map" data-size="24"></i><span>地图</span></button>
   <button class="tab" data-tab="dex"><i data-icon="grid" data-size="24"></i><span>图鉴</span></button>
-  <button class="tab" data-tab="buddy"><i data-icon="sprout" data-size="24"></i><span>彩点</span></button>
+  <button class="tab" data-tab="buddy"><i data-icon="sprout" data-size="24"></i><span class="buddy-word">彩点</span></button>
   <button class="tab" data-tab="me"><i data-icon="books" data-size="24"></i><span>我的</span></button>
 </nav>
 
@@ -60,7 +60,8 @@
     <div class="world-card">
       <div class="world-glow"></div>
       <svg class="sprite hero" id="world-sprite" viewBox="0 0 200 200"></svg>
-      <div class="world-name">彩点<span class="lvl" id="world-level">Lv.1</span></div>
+      <div class="world-name"><span id="world-name">彩点</span><span class="lvl" id="world-level">Lv.1</span>
+        <button class="rename" id="btn-rename" title="给它起个名字"><i data-icon="pencil" data-size="15"></i></button></div>
       <div class="world-say" id="world-say"></div>
       <div class="world-bar"><i id="world-bar-fill"></i></div>
       <div class="world-bar-note" id="world-total"></div>
@@ -98,7 +99,7 @@
 <!-- ===== tab 3：彩点 ===== -->
 <section class="view hidden" id="view-buddy">
   <div id="growth-wrap" class="hidden">
-    <h2><i data-icon="sprout" data-size="18"></i>彩点的成长 <span class="muted small" id="growth-total"></span></h2>
+    <h2><i data-icon="sprout" data-size="18"></i><span class="buddy-word">彩点</span>的成长 <span class="muted small" id="growth-total"></span></h2>
     <div class="growth">
       <div class="growth-buddy">
         <svg class="sprite big" id="growth-sprite" viewBox="0 0 200 200"></svg>
@@ -222,7 +223,7 @@
     </div>
     <div class="feedback-card buddy-card">
       <div class="buddy-head"><svg class="sprite lg" id="fb-sprite" viewBox="0 0 200 200"></svg>
-        <div><div class="buddy-name">彩点 · 你的创作伙伴</div><div class="muted small">陪你想，不替你画</div></div></div>
+        <div><div class="buddy-name"><span class="buddy-word">彩点</span> · 你的创作伙伴</div><div class="muted small">陪你想，不替你画</div></div></div>
       <div class="feedback-text" id="feedback-text"></div>
       <div class="actions column">
         <button class="primary big" id="btn-revise"><i data-icon="sparkle" data-size="19"></i>去进化关，改一改<i data-icon="arrowRight" data-size="17"></i></button>
@@ -255,7 +256,7 @@
   </div>
   <div class="feedback-card buddy-card">
     <div class="buddy-head"><svg class="sprite lg" id="cmp-sprite" viewBox="0 0 200 200"></svg>
-      <div><div class="buddy-name">彩点</div></div></div>
+      <div><div class="buddy-name buddy-word">彩点</div></div></div>
     <div class="feedback-text" id="comparison-text"></div>
   </div>
   <div class="trained" id="trained"></div>
@@ -272,6 +273,33 @@
 </main>
 </div><!-- /.screen -->
 </div><!-- /.app -->
+
+<!-- 被老师选为优秀作品：先问本人 -->
+<div class="modal hidden" id="featured-modal">
+  <div class="modal-card">
+    <h3>老师选中了你的一张画</h3>
+    <p class="muted" id="featured-note"></p>
+    <img id="featured-img" class="featured-shot" alt="被选中的作品">
+    <p class="muted small">放进图鉴后，别的小朋友也会看到它。你说了算，之后也可以随时收回来。</p>
+    <div class="actions column">
+      <button class="primary" id="btn-featured-yes">可以，挂出去吧</button>
+      <button class="ghost" id="btn-featured-no">先不要</button>
+    </div>
+  </div>
+</div>
+
+<!-- 给伙伴起名字 -->
+<div class="modal hidden" id="name-modal">
+  <div class="modal-card">
+    <h3>给它起个名字</h3>
+    <p class="muted">它是你的创作伙伴——你想叫它什么都行。</p>
+    <input id="buddy-name-input" type="text" maxlength="8" placeholder="比如：小墨、阿布、泡泡">
+    <div class="actions column">
+      <button class="primary" id="btn-name-save">就叫它这个</button>
+      <button class="ghost" id="btn-name-cancel">以后再说</button>
+    </div>
+  </div>
+</div>
 
 <!-- 中途离开一个任务 -->
 <div class="modal hidden" id="leave-modal">
