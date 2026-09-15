@@ -5,7 +5,9 @@ Run:  python3 -m unittest -v
 import base64
 import io
 import os
+import re
 import unittest
+from pathlib import Path
 
 from .env import TMP as _TMP  # sets the offline backends and the test data dir
 
@@ -86,6 +88,39 @@ class StageOneLoop(unittest.TestCase):
         self.assertEqual(self.c.get("/api/sessions/deadbeef0000").status_code, 404)
         sid = self.c.post("/api/sessions", json={"quest_id": "story_character_home", "intent": {"emotion": "x"}}).json()["session_id"]
         self.assertEqual(self.c.post(f"/api/sessions/{sid}/snapshot", json={"image": "not-an-image", "elapsed_ms": 1}).status_code, 400)
+
+
+class FrontEndTargetsRealBrowsers(unittest.TestCase):
+    """CSS the target browser does not know is dropped *silently*.
+
+    This bit for real: `color-mix()` needs Chrome 111, the machine this is
+    developed on runs 106, and one unsupported function voids the **whole**
+    declaration — so the map's clay edges and the world's sky simply were not
+    painted, with nothing in the console to say so. Blends are computed in JS
+    now (`mixHex`) and written out as plain hex.
+
+    `dvh` (Chrome 108) is allowed, but only with a `vh` line in front of it.
+    """
+
+    def _css(self):
+        return (Path(__file__).resolve().parent.parent / "static" / "style.css").read_text(encoding="utf-8")
+
+    @staticmethod
+    def _uncommented(text):
+        """Source with comments removed — they are allowed to name the hazard."""
+        text = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
+        return re.sub(r"^\s*//.*$|(?<=[\s;{])//.*$", "", text, flags=re.M)
+
+    def test_no_color_mix_anywhere_in_the_front_end(self):
+        static = Path(__file__).resolve().parent.parent / "static"
+        for f in ("style.css", "app.js", "index.html"):
+            self.assertNotIn("color-mix(", self._uncommented((static / f).read_text(encoding="utf-8")),
+                             f"{f}: color-mix() is dropped whole on Chrome < 111 — compute the blend instead")
+
+    def test_every_dvh_has_a_vh_fallback(self):
+        css = self._css()
+        self.assertGreaterEqual(css.count("100vh"), css.count("100dvh"),
+                                "each `100dvh` needs a `100vh` line before it (dvh is Chrome 108+)")
 
 
 if __name__ == "__main__":

@@ -394,6 +394,19 @@
   // -- stroke recording: the core process datum. Raw points only —
   //    speed / length / hesitation / rhythm are derived offline, never here.
   const R = (v, n) => { const f = Math.pow(10, n); return Number.isFinite(v) ? Math.round(v * f) / f : 0; };
+  /** 把两个颜色按比例混一下，自己算。
+   *  CSS 的 color-mix() 要 Chrome 111+；低版本会把**整条**声明丢掉，
+   *  于是立体下沿、柔光圈这些直接消失且不报错。算好再塞进去就没这问题。 */
+  function mixHex(hex, pct, other) {
+    const rgb = (h) => {
+      h = String(h).replace("#", "");
+      if (h.length === 3) h = h.split("").map(c => c + c).join("");
+      return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16));
+    };
+    const a = rgb(hex), b = rgb(other), p = pct / 100;
+    return "#" + a.map((v, i) => Math.round(v * p + b[i] * (1 - p))
+      .toString(16).padStart(2, "0")).join("");
+  }
   /** Does this pointer actually measure pressure and tilt?
    *  A mouse reports a constant pressure of 0.5 and no tilt. Logging that as a
    *  reading would put a fabricated number in every point of every mouse-drawn
@@ -1012,9 +1025,35 @@
     return forms.length ? forms[Math.floor(Math.random() * forms.length)] : null;
   }
 
-  // 首页就是一张竖着蜿蜒下去的关卡地图：一个家族一个大圆钮，走过的盖星，
-  // 彩点站在你该去的下一关上。比原来那条「出发 → 宝藏」的直线有得看。
-  const MAP_DX = [0, 44, 64, 44, 0, -44, -64, -44];
+  // 进了世界看到的是**一张地图上的十个地方**，不是一条排队的线。
+  // 任务家族之间本来就没有先后 —— 孩子想画哪个就画哪个，一条线会凭空
+  // 承诺一个不存在的顺序。有顺序的那件事（做一幅画的六步）在顶栏进度条上。
+  // 十个家族是一张排过的图，不是自动摆出来的格子——手放的位置才有「地方」的感觉
+  const MAP_LAYOUTS = {
+    10: [[13, 19], [37, 13], [61, 20], [86, 15],
+         [22, 47], [50, 52], [78, 45],
+         [16, 78], [46, 80], [76, 72]],
+  };
+  /** 同一个数量永远摆出同一张图：换设备、换屏宽，地方还在原来的位置。 */
+  function mapSpots(n) {
+    if (MAP_LAYOUTS[n]) return MAP_LAYOUTS[n];
+    const rows = [];
+    for (let i = 0, r = 0; i < n; r++) {
+      const take = Math.min(n - i, r % 2 === 0 ? 3 : 4);
+      rows.push(take); i += take;
+    }
+    const out = [];
+    rows.forEach((take, ri) => {
+      const y = 17 + (rows.length > 1 ? (ri / (rows.length - 1)) * 63 : 34);
+      for (let c = 0; c < take; c++) {
+        const x = ((c + 0.5) / take) * 100;
+        // 一点错位，免得读成一张表格
+        out.push([clamp(x + (((ri * 7 + c * 13) % 5) - 2) * 1.6, 12, 88),
+                  clamp(y + (((ri * 11 + c * 5) % 5) - 2) * 2.2, 14, 82)]);
+      }
+    });
+    return out;
+  }
   function renderQuests() {
     const grid = $("#quest-grid"); if (!grid) return;
     grid.querySelectorAll(".quest-card").forEach(el => el.remove());
@@ -1035,6 +1074,7 @@
 
     const doneFam = new Set((state.allSessions || []).filter(r => r.status === "done")
       .map(r => familyOf(r.task_id)).filter(Boolean));
+    const spots = mapSpots(cards.length);
     let nextMarked = false, nDone = 0;
     cards.forEach((c, i) => {
       const fam = c.family || (c.task && c.task.family) || "";
@@ -1045,8 +1085,12 @@
       const el = document.createElement("div");
       el.className = "quest-card" + (c.locked ? " locked" : "") + (done ? " done" : "") + (isNext ? " next" : "");
       el.style.setProperty("--qc", c.color || "#f79433");
-      el.style.setProperty("--qc-edge", `color-mix(in srgb, ${c.color || "#f79433"} 72%, #000)`);
-      el.style.setProperty("--dx", MAP_DX[i % MAP_DX.length] + "px");
+      const qc = c.color || "#f79433";
+      el.style.setProperty("--qc-edge", mixHex(qc, 72, "#000"));
+      el.style.setProperty("--qc-soft", mixHex(qc, 18, "#fff"));
+      const spot = spots[i] || [50, 50];
+      el.style.setProperty("--mx", spot[0] + "%");
+      el.style.setProperty("--my", spot[1] + "%");
       const mark = glyph(fam, "currentColor", 34) || `<span class="qc-icon">${c.icon || ""}</span>`;
       el.innerHTML =
         (isNext ? `<svg class="sprite node-here" viewBox="0 0 200 200">${spriteInner(buddyColor(), "normal")}</svg>` : "")
@@ -1062,35 +1106,7 @@
     });
     const prog = $("#map-progress");
     if (prog) prog.textContent = cards.length ? `走过 ${nDone}/${cards.length} 关` : "";
-    requestAnimationFrame(drawMapPath);
   }
-  /** 关卡之间那条虚线。节点位置是布局算出来的，所以换屏宽也不会错位。 */
-  function drawMapPath() {
-    const grid = $("#quest-grid"), path = $("#map-path");
-    if (!grid || !path) return;
-    const cards = [...grid.querySelectorAll(".quest-card")];
-    if (cards.length < 2) { path.innerHTML = ""; return; }
-    const gb = grid.getBoundingClientRect();
-    // 起点取卡片底边、终点取下一个圆钮的顶边 —— 这样线是从一站走到下一站，
-    // 不会横穿关卡名字
-    const geom = cards.map(c => {
-      const b = c.querySelector(".node-btn").getBoundingClientRect();
-      const r = c.getBoundingClientRect();
-      return { x: b.left - gb.left + b.width / 2, top: b.top - gb.top, bottom: r.bottom - gb.top };
-    });
-    path.setAttribute("viewBox", `0 0 ${Math.round(gb.width)} ${Math.round(gb.height)}`);
-    let done = "", rest = "";
-    for (let i = 0; i < geom.length - 1; i++) {
-      const a = geom[i], b = geom[i + 1];
-      const seg = `M${a.x.toFixed(1)},${(a.bottom + 5).toFixed(1)} L${b.x.toFixed(1)},${(b.top - 5).toFixed(1)}`;
-      if (cards[i].classList.contains("done") && cards[i + 1].classList.contains("done")) done += seg;
-      else rest += seg;
-    }
-    path.innerHTML =
-      `<path d="${rest}" fill="none" stroke="#ececec" stroke-width="7" stroke-linecap="round" stroke-dasharray="1 15"/>`
-      + `<path d="${done}" fill="none" stroke="#6cc24a" stroke-width="7" stroke-linecap="round" stroke-dasharray="1 15"/>`;
-  }
-  addEventListener("resize", () => { if (!$("#view-quest").classList.contains("hidden")) drawMapPath(); });
 
   /** One child-facing line per family — never the research goal. */
   const FAMILY_BLURB = {
@@ -1523,7 +1539,8 @@
     const byKey = Object.fromEntries(state.cfg.dimensions.map(d => [d.key, d]));
     const chip = (k) => {
       const fam = FAMILIES[DIM_FAMILY[k]];
-      return `<span class="tchip" style="--tc:${fam.color}"><i></i>${(byKey[k] || {}).zh || k}</span>`;
+      return `<span class="tchip" style="--tc:${fam.color};--tc-bg:${mixHex(fam.color, 13, "#fff")}`
+        + `;--tc-fg:${mixHex(fam.color, 72, "#000")}"><i></i>${(byKey[k] || {}).zh || k}</span>`;
     };
     el.innerHTML = `<h4>${icon("sprout", 16)}这一关练的是</h4><div class="tchips">${primary.map(chip).join("")}</div>`
       + `<div class="tnote">彩点在这几项上又长了一点。`
