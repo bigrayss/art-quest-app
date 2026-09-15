@@ -9,7 +9,8 @@
 
   const state = { cfg: null, quests: [], families: [], allSessions: [], rarity: null, quest: null, emotion: null, sessionId: null, phase: "before", feedback: null,
     startedAt: null, dirtySinceSnapshot: false, timers: [], before: null, color: "#f79433", buddyTick: 0,
-    anonId: "", condition: {}, study: null, seqIdx: 0, lastActivity: 0, idle: false, timeUp: false, pendingFinal: null };
+    anonId: "", condition: {}, study: null, seqIdx: 0, lastActivity: 0, idle: false, timeUp: false, pendingFinal: null,
+    entered: false, worldColor: "" };
 
   // ---------- research identity & environment ----------
   // Two anonymous ids: one the device keeps by itself (so free play still lines
@@ -159,10 +160,10 @@
 
   // ---------- views ----------
   // 四个 tab 是四块独立的界面；做任务时导航整个收起来，只剩画画。
-  const VIEWS = ["quest", "dex", "buddy", "sessions", "intent", "draw", "result", "survey", "final"];
+  const VIEWS = ["world", "quest", "dex", "buddy", "sessions", "intent", "draw", "result", "survey", "final"];
   const TAB_VIEW = { map: "quest", dex: "dex", buddy: "buddy", me: "sessions" };
-  const VIEW_TAB = { quest: "map", dex: "dex", buddy: "buddy", sessions: "me" };
-  const TITLES = { quest: "创作冒险", dex: "创作图鉴", buddy: "彩点", sessions: "我的" };
+  const VIEW_TAB = { world: "map", quest: "map", dex: "dex", buddy: "buddy", sessions: "me" };
+  const TITLES = { world: "彩点的世界", quest: "创作冒险", dex: "创作图鉴", buddy: "彩点", sessions: "我的" };
   function show(name) {
     VIEWS.forEach(v => $(`#view-${v}`).classList.toggle("hidden", v !== name));
     const tab = VIEW_TAB[name];
@@ -170,6 +171,12 @@
     document.querySelectorAll(".tab").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
     $("#appbar-title").classList.toggle("hidden", !tab);
     if (tab) $("#appbar-title").textContent = TITLES[name];
+    // 顶栏的彩点头像：在地图上才出现，点它回到世界
+    const av = $("#btn-world");
+    if (av) {
+      av.classList.toggle("hidden", name !== "quest");
+      if (name === "quest") $("#avatar-sprite").innerHTML = spriteInner(buddyColor(), "normal");
+    }
     // 返回键归顶栏管：哪个流程界面，用哪个已有的返回逻辑
     $("#btn-back-quest").classList.toggle("hidden", name !== "intent");
     $("#btn-back-draw").classList.toggle("hidden", name !== "draw");
@@ -179,7 +186,11 @@
     window.scrollTo(0, 0);
   }
   async function openTab(tab) {
-    const view = TAB_VIEW[tab] || "quest";
+    let view = TAB_VIEW[tab] || "quest";
+    // 第一次进来先见彩点：它带着自己的属性，然后才是世界和任务
+    if (view === "quest" && !state.entered && state.condition.ui !== "quiet") {
+      await renderWorld(); view = "world";
+    }
     show(view);
     // 每块界面自己去取自己的数据，进哪块取哪块
     if (view === "dex") { await loadCollection(); await renderWall(); }
@@ -188,6 +199,56 @@
   }
   document.querySelectorAll(".tab").forEach(b => { b.onclick = () => openTab(b.dataset.tab); });
   const overlay = (text) => { $("#overlay").classList.toggle("hidden", !text); if (text) $("#overlay-text").textContent = text; };
+
+  // ---------- 世界入口 ----------
+  // 游戏的开场：先看见这只精灵和它身上的九个属性，再进世界，再挑任务。
+  // 属性不是分数——它长在「练过什么」上：做一个训练某维度的任务，那一格就涨。
+  // 没画过画的时候它是灰的，这是设定的一部分：孩子用的颜色把它点亮。
+  async function renderWorld() {
+    const sp = $("#world-sprite"); if (!sp) return;
+    let g = null;
+    try {
+      g = await api(`/api/participants/${encodeURIComponent(savedPid() || " ")}/growth`
+        + `?anon_id=${encodeURIComponent(state.anonId)}`);
+    } catch (e) { /* 离线就当还没点亮 */ }
+    const lit = !!(g && g.n_tasks);
+    const byKey = Object.fromEntries((state.cfg.dimensions || []).map(d => [d.key, d]));
+    const best = lit ? Object.entries(g.dims).sort((a, b) => b[1].practice - a[1].practice)[0] : null;
+    const col = lit && best && best[1].practice ? FAMILIES[DIM_FAMILY[best[0]]].color : "#cfcbc4";
+    state.worldColor = col;
+    sp.innerHTML = spriteInner(col, lit && g.total_level >= 9 ? "happy" : "normal");
+    sp.classList.toggle("grey", !lit);
+
+    const lv = lit ? 1 + Math.floor(g.total_level / 3) : 1;
+    $("#world-level").textContent = `Lv.${lv}`;
+    $("#world-say").textContent = !lit
+      ? "我现在还是灰的。你画画用什么颜色，我就变成什么颜色。"
+      : best && best[1].practice
+        ? `我在「${(byKey[best[0]] || {}).zh || best[0]}」上长得最快！`
+        : "再画几幅，我就开始长啦～";
+    const pct = lit ? Math.round(100 * g.total_level / Math.max(1, g.max_total)) : 0;
+    $("#world-bar-fill").style.width = pct + "%";
+    $("#world-total").textContent = lit
+      ? `${g.n_tasks} 幅作品 · 成长 ${g.total_level}/${g.max_total}`
+      : "还没有作品";
+
+    $("#world-attrs").innerHTML = CHART_ORDER.map(key => {
+      const d = byKey[key]; if (!d) return "";
+      const v = (lit && g.dims[key]) || { level: 0, max_level: 5 };
+      const fam = FAMILIES[DIM_FAMILY[key]];
+      const pips = Array.from({ length: v.max_level || 5 },
+        (_, i) => `<i class="${i < (v.level || 0) ? "on" : ""}"></i>`).join("");
+      return `<div class="attr${v.level ? "" : " dim"}" style="--ac:${fam.color}">
+        <div class="attr-name">${d.zh}</div><div class="attr-pips">${pips}</div></div>`;
+    }).join("");
+  }
+  function enterWorld() {
+    state.entered = true;
+    try { sessionStorage.setItem("artquest.entered", "1"); } catch (e) { /* 无所谓 */ }
+    show("quest");
+  }
+  $("#btn-enter-world").onclick = enterWorld;
+  $("#btn-world").onclick = async () => { await renderWorld(); show("world"); };
 
   // ---------- mission glyphs ----------
   // Line glyphs instead of emoji: emoji render differently on every platform,
@@ -1058,7 +1119,9 @@
     state.cfg.emotions.forEach(em => { const b = document.createElement("button"); b.textContent = em; b.onclick = () => { state.emotion = em; chips.querySelectorAll("button").forEach(x => x.classList.toggle("active", x === b)); }; chips.appendChild(b); });
     await loadCollection();          // 地图要知道哪几关走过了
     renderQuests();
-    show("quest");
+    try { state.entered = sessionStorage.getItem("artquest.entered") === "1"; } catch (e) { /* 无所谓 */ }
+    if (state.entered || state.condition.ui === "quiet") { show("quest"); }
+    else { await renderWorld(); show("world"); }
   }
   function chooseQuest(q) {
     state.quest = q; $("#intent-quest-title").textContent = q.title; $("#intent-quest-prompt").textContent = q.prompt; $("#intent-quest-hint").textContent = "提示：" + q.hint; show("intent");

@@ -50,7 +50,8 @@ body { margin:0; font-family:var(--font); background:var(--bg); color:var(--ink)
 .app { display:flex; flex-direction:column; min-height:100dvh; }
 .screen { flex:1; min-width:0; display:flex; flex-direction:column; }
 .appbar { position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:10px;
-  padding:9px 14px; background:rgba(255,255,255,.94); backdrop-filter:blur(8px);
+  padding:9px 14px; background:rgba(255,255,255,.72);
+  backdrop-filter:blur(22px) saturate(1.5); -webkit-backdrop-filter:blur(22px) saturate(1.5);
   border-bottom:1px solid var(--line); min-height:52px; }
 .appbar-main { flex:1; min-width:0; }
 .appbar-title { font-weight:800; font-size:17px; letter-spacing:-.01em; }
@@ -440,6 +441,81 @@ body.quiet #badges,
 body.quiet #badges-head,
 body.quiet [data-tab="buddy"],
 body.quiet #collection-wrap { display:none; }
+
+/* ===== 世界入口：精灵带着属性，然后进世界 ===== */
+/* 形状语言是 claymorphism —— 一层外投影给体积，两层内投影把它吹鼓起来。
+   2026 年 iPad 上这类「软糖/黏土」质感正是给小孩用的 app 的主流做法，
+   而且它天生是低饱和的，跟我们「颜色别太重」的结论走同一个方向。 */
+#view-world { min-height: calc(100dvh - 150px); margin: -16px -16px 0; padding: 16px 16px 0;
+  background:
+    radial-gradient(64% 40% at 50% -4%, color-mix(in srgb, var(--accent) 22%, #fff), transparent 72%),
+    radial-gradient(50% 34% at 102% 16%, color-mix(in srgb, var(--blue) 20%, #fff), transparent 74%),
+    radial-gradient(48% 32% at -2% 54%, color-mix(in srgb, var(--green) 18%, #fff), transparent 74%); }
+.world { max-width: 560px; margin: 0 auto; }
+.world-card { position: relative; overflow: hidden; text-align: center;
+  padding: 18px 24px 22px; border-radius: 34px;
+  background: linear-gradient(180deg, #fff, #fffdfa);
+  box-shadow: 0 24px 44px -16px rgba(150,115,70,.30),
+              inset 0 -18px 28px -14px rgba(0,0,0,.10),
+              inset 0 20px 28px -12px rgba(255,255,255,.9); }
+.world-glow { position: absolute; inset: -46% -24% auto -24%; height: 78%; pointer-events: none;
+  background: radial-gradient(58% 58% at 50% 42%,
+              color-mix(in srgb, var(--accent) 26%, transparent), transparent 70%); }
+.sprite.hero { position: relative; width: clamp(146px, 34vw, 196px); height: clamp(146px, 34vw, 196px);
+  margin: 0 auto; }
+.sprite.grey { filter: grayscale(.9) opacity(.9); }
+.world-name { display: flex; justify-content: center; align-items: baseline; gap: 10px;
+  font-size: 25px; font-weight: 800; margin-top: 4px; }
+.world-name .lvl { font-size: 13px; color: #fff; background: var(--accent);
+  padding: 3px 11px; border-radius: 999px; box-shadow: 0 3px 0 var(--accent-d); }
+.world-say { font-size: 14px; color: var(--muted-2); margin-top: 9px; line-height: 1.65; }
+.world-bar { max-width: 300px; height: 13px; margin: 18px auto 7px; border-radius: 999px;
+  background: var(--line); overflow: hidden; box-shadow: inset 0 2px 5px rgba(0,0,0,.09); }
+.world-bar i { display: block; height: 100%; width: 0; border-radius: 999px;
+  background: linear-gradient(90deg, var(--yellow), var(--accent)); transition: width .7s ease; }
+.world-bar-note { font-size: 12px; font-weight: 700; color: var(--muted); }
+.attrs-head { justify-content: center; }
+.attrs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 11px; }
+.world .actions { justify-content: center; }
+.world .actions button { flex: 0 1 260px; }
+.attr { text-align: center; padding: 12px 10px; border-radius: 20px; background: var(--card);
+  box-shadow: 0 12px 20px -12px rgba(0,0,0,.20),
+              inset 0 -9px 15px -9px rgba(0,0,0,.08),
+              inset 0 11px 16px -9px rgba(255,255,255,.9); }
+.attr-name { font-size: 13px; font-weight: 800; }
+.attr-pips { display: flex; justify-content: center; gap: 3px; margin-top: 8px; }
+.attr-pips i { width: 100%; height: 7px; border-radius: 999px; background: var(--line); }
+.attr-pips i.on { background: var(--ac, var(--accent)); }
+.attr.dim .attr-name { color: var(--muted); }
+/* 黏土按钮：厚、软、按下去会陷 */
+button.clay { border: none; border-radius: 24px; padding: 15px 22px; font-size: 17px;
+  box-shadow: 0 16px 28px -12px color-mix(in srgb, var(--accent) 62%, transparent),
+              0 6px 0 var(--accent-d),
+              inset 0 -9px 15px -9px rgba(0,0,0,.20),
+              inset 0 11px 17px -9px rgba(255,255,255,.42); }
+button.clay:active { transform: translateY(6px);
+  box-shadow: 0 8px 16px -12px color-mix(in srgb, var(--accent) 62%, transparent),
+              inset 0 -9px 15px -9px rgba(0,0,0,.20); }
+/* 顶栏的彩点头像 */
+.avatar { padding: 0; border: none; box-shadow: none; background: none; width: 38px; height: 38px;
+  border-radius: 50%; min-height: 0; }
+.avatar .sprite { width: 38px; height: 38px; }
+.avatar:hover { background: none; }
+.avatar:active { transform: scale(.94); }
+/* 关卡圆钮也用同一套「捏出来的」质感 */
+.node-btn { box-shadow: 0 6px 0 var(--qc-edge, var(--accent-d)),
+                        0 16px 24px -12px var(--qc-edge, var(--accent-d)),
+                        inset 0 -10px 16px -10px rgba(0,0,0,.24),
+                        inset 0 12px 18px -10px rgba(255,255,255,.45); }
+/* 换屏是滑进来的，不是闪出来的。画画那屏不做：动画期间祖先有 transform，
+   会让 getBoundingClientRect 报出偏移的盒子，落笔坐标就不准了。 */
+.view:not(.hidden):not(#view-draw) { animation: view-in .26s cubic-bezier(.22,1,.36,1); }
+@keyframes view-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .view { animation: none !important; } }
+@media (max-width: 420px) { .attrs { grid-template-columns: repeat(2, 1fr); } }
 
 /* ===== iPad：当成 app，而不是一个网页 ===== */
 /* 装到主屏后没有地址栏，所以页面自己要像 app：不回弹、不长按弹菜单、
