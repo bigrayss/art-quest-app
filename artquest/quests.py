@@ -68,7 +68,8 @@ def _normalize(task: Dict[str, Any]) -> Dict[str, Any]:
     out["prompt"] = out["instruction"]
     out["title"] = out.get("title") or tid
 
-    out["rubric"] = normalize(out.get("rubric"), task_id=tid)
+    # 条件决定哪些维度不可能产生，所以 rubric 要看见 allowed_tools
+    out["rubric"] = normalize(out.get("rubric"), task_id=tid, allowed_tools=out.get("allowed_tools"))
     # the dimensions the task is built to elicit, for the scorer and the UI
     out["focus_dims"] = list(out["rubric"]["primary_dimensions"])
     out["applicable_dims"] = applicable(out["rubric"])
