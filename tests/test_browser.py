@@ -76,7 +76,7 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
         return json.load(urllib.request.urlopen(self.base + path))
 
     def _ids(self):
-        return {r["id"] for r in self._get("/api/sessions")}
+        return {r["session_id"] for r in self._get("/api/sessions")}
 
     def _start(self, page, intent, family=None):
         """Walk the real UI from the mission map into a running session."""
@@ -293,6 +293,104 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
         self.assertTrue(shown["placeholder"], "a placeholder stimulus must say so")
         # the switch back to the canvas is what makes look→draw→check countable
         self.assertLess(kinds.index("REFERENCE_FOCUS"), kinds.index("CANVAS_FOCUS"))
+
+
+@unittest.skipUnless(_chrome_available(), "playwright + chrome not available")
+class IPadGestures(ZoomKeepsStrokesInCanvasSpace):
+    """One finger draws, two fingers navigate — and the log says which was which.
+
+    On an iPad the child's second finger lands *after* the first has already
+    touched the canvas, so a navigation gesture always starts with a stray mark.
+    It is rolled back rather than kept, and rolled back visibly: `STROKE_CANCELLED`
+    is in the timeline, so "this mark was not meant" stays readable instead of
+    becoming a mystery dot or a missing stroke.
+    """
+
+    def test_two_fingers_navigate_without_moving_the_drawing(self):
+        errors, before = [], self._ids()
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(channel="chrome")
+            page = browser.new_page(viewport={"width": 1194, "height": 834},   # 11" iPad, landscape
+                                    has_touch=True)
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            self._start(page, "ipad gestures")
+            cdp = page.context.new_cdp_session(page)
+
+            def touch(kind, pts):
+                cdp.send("Input.dispatchTouchEvent", {"type": kind, "touchPoints": [
+                    {"x": x, "y": y, "id": i} for i, (x, y) in enumerate(pts)]})
+                page.wait_for_timeout(28)
+
+            def at(cx, cy):
+                """Where canvas pixel (cx, cy) is on screen *right now* — the box has
+                to be re-read, because zooming is what moves it."""
+                return page.evaluate("""([cx, cy]) => {
+                    const c = document.querySelector('#canvas'), r = c.getBoundingClientRect();
+                    return [r.left + cx * r.width / c.width, r.top + cy * r.height / c.height];
+                }""", [cx, cy])
+
+            def finger_stroke(a, b, steps=6):
+                pa, pb = at(*a), at(*b)
+                touch("touchStart", [pa])
+                for i in range(1, steps + 1):
+                    touch("touchMove", [(pa[0] + (pb[0] - pa[0]) * i / steps,
+                                         pa[1] + (pb[1] - pa[1]) * i / steps)])
+                touch("touchEnd", [])
+
+            finger_stroke((200, 200), (420, 330))          # 1. one finger draws
+
+            c = at(500, 350)                                # 2. pinch to zoom in
+            touch("touchStart", [(c[0] - 60, c[1]), (c[0] + 60, c[1])])
+            for i in range(1, 9):
+                k = 60 + i * 22
+                touch("touchMove", [(c[0] - k, c[1]), (c[0] + k, c[1])])
+            touch("touchEnd", [])
+            page.wait_for_timeout(400)
+            zoomed = page.eval_on_selector("#zoom-level", "e=>e.textContent")
+
+            # 3. draw again, zoomed in — near the pinch focus, which is what is
+            #    still on screen at ~4x
+            finger_stroke((540, 380), (566, 398), steps=4)
+
+            touch("touchStart", [(c[0] - 70, c[1]), (c[0] + 70, c[1])])   # 4. two-finger tap
+            touch("touchEnd", [])
+            page.wait_for_timeout(300)
+
+            page.evaluate("ArtLog.flush()")
+            page.wait_for_timeout(1500)
+            browser.close()
+
+        self.assertEqual(errors, [], "JS errors on the page")
+        self.assertNotEqual(zoomed, "100%", "pinch did not zoom")
+
+        sid = (self._ids() - before).pop()
+        strokes = self._get(f"/api/sessions/{sid}/strokes")
+        events = self._get(f"/api/sessions/{sid}")["events"]
+        kinds = [e["type"] for e in events]
+
+        # the two marks the child meant, and only those
+        self.assertEqual(len(strokes), 2, strokes)
+        self.assertEqual([s["pointer"] for s in strokes], ["touch", "touch"])
+        # …landing in canvas pixels whatever the pinch did to the view
+        for stroke, (want_x, want_y) in zip(strokes, [(200, 200), (540, 380)]):
+            self.assertAlmostEqual(stroke["points"][0][0], want_x, delta=6, msg=stroke["stroke_id"])
+            self.assertAlmostEqual(stroke["points"][0][1], want_y, delta=6, msg=stroke["stroke_id"])
+        self.assertEqual(strokes[0]["zoom"], 1.0)
+        self.assertGreater(strokes[1]["zoom"], 1.0)        # the second was drawn zoomed in
+
+        # a finger is not a pen: pressure and tilt are absent, not invented
+        for stroke in strokes:
+            self.assertFalse(stroke["pressure_supported"])
+            for pt in stroke["points"]:
+                self.assertIsNone(pt[3], "pressure was fabricated")
+
+        # every gesture's first finger left a mark that was rolled back, and said so
+        self.assertEqual(kinds.count("STROKE_CANCELLED"), kinds.count("STROKE_START") - 2)
+        self.assertGreaterEqual(kinds.count("STROKE_CANCELLED"), 1)
+        # the gestures themselves are on the same timeline as wheel and buttons,
+        # distinguishable only by source
+        self.assertIn("pinch", [e["payload"].get("source") for e in events if e["type"] == "ZOOM"])
+        self.assertIn("UNDO", kinds)                        # two-finger tap
 
 
 if __name__ == "__main__":

@@ -441,6 +441,35 @@ body.quiet #badges-head,
 body.quiet [data-tab="buddy"],
 body.quiet #collection-wrap { display:none; }
 
+/* ===== iPad：当成 app，而不是一个网页 ===== */
+/* 装到主屏后没有地址栏，所以页面自己要像 app：不回弹、不长按弹菜单、
+   不双击缩放、不选中文字——除了真正需要输入和阅读的地方。 */
+html, body { overscroll-behavior: none; }
+body { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
+  touch-action: manipulation; }
+input, textarea { -webkit-user-select: text; user-select: text; }
+.feedback-text, .quest-prompt, .peer .p-how, .buddy-say, table.sessions { user-select: text; }
+button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent; }
+.hint-touch { display: none; }
+/* 手指的最小落点 44pt；hover 态在触摸屏上不该留下「按过」的样子 */
+@media (pointer: coarse) {
+  .hint-touch { display: inline; }
+  .hint-desktop { display: none; }
+  button { min-height: 44px; }
+  .zoombar button, .refbar button, .tool-group.row button { min-height: 42px; }
+  .tab { min-height: 48px; }
+  .palette div { border-radius: 10px; }
+  button:hover { background: var(--card); }
+  button.secondary:hover { background: var(--card); }
+  .quest-card:hover { border-color: var(--line); box-shadow: 0 var(--edge) 0 var(--line-d); }
+}
+/* 横屏 iPad 是拿来画画的：画布吃满，工具在右边，主按钮永远在拇指够得到的地方 */
+@media (min-width: 900px) and (orientation: landscape) {
+  body.inflow main { max-width: 1280px; }
+  #view-draw .actions.sticky { position: sticky; bottom: 0; padding: 10px 0 14px;
+    background: linear-gradient(180deg, rgba(255,255,255,0), #fff 40%); }
+}
+
 /* ===== 图标 ===== */
 /* 一套图标，不用 emoji：emoji 在每个系统上长得都不一样，而且带着别人的视觉语言。 */
 .ico { display:inline-block; vertical-align:-.18em; flex:none; }

@@ -34,7 +34,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from . import events as ev
 from .history import _process_from_events, iter_sessions
-from .storage import session_labels
+from .storage import session_labels, sid_of
 
 # Signature axes: all process, none of them a judgement of the drawing.
 AXES = ("strokes", "colors", "tools", "duration", "undo", "zoom", "pause_share")
@@ -47,7 +47,7 @@ def is_shareable(meta: Dict[str, Any]) -> bool:
 
 def signature(meta: Dict[str, Any]) -> Dict[str, float]:
     """How this drawing was *made*, as a handful of comparable numbers."""
-    sid = meta.get("id") or meta.get("session_id")
+    sid = sid_of(meta)
     proc = _process_from_events(sid)
     duration = ((meta.get("times") or {}).get("duration_ms")) or 0
     strokes = proc["strokes"] or 1
@@ -81,7 +81,7 @@ def _dist(a: Sequence[float], b: Sequence[float]) -> float:
 
 def _card(meta: Dict[str, Any], sig: Dict[str, float], *, why: str = "") -> Dict[str, Any]:
     """What a viewer is shown. No score, no name, no ranking."""
-    sid = meta.get("id")
+    sid = sid_of(meta)
     proc = _process_from_events(sid)
     return {
         "session_id": sid,
@@ -148,7 +148,7 @@ def diverse_examples(task_id: str, *, exclude_session: str = "", k: int = 3,
     """
     pool: List[Tuple[Dict[str, Any], Dict[str, float]]] = []
     for meta in iter_sessions():
-        if meta.get("quest_id") != task_id or meta.get("id") == exclude_session:
+        if meta.get("quest_id") != task_id or sid_of(meta) == exclude_session:
             continue
         if not is_shareable(meta):
             continue
@@ -209,7 +209,7 @@ def featured_examples(task_id: str = "", k: int = 8) -> Dict[str, Any]:
 def _ratings(meta: Dict[str, Any]) -> List[Dict[str, Any]]:
     from .reconstruct import read_jsonl
     from . import config
-    sid = meta.get("id")
+    sid = sid_of(meta)
     return session_labels(config.SESSIONS_DIR / str(sid), "rating") if sid else []
 
 

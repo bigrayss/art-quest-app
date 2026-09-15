@@ -239,6 +239,7 @@
     CANVAS_FOCUS: "CANVAS_FOCUS",
     PAUSE_START: "PAUSE_START", PAUSE_END: "PAUSE_END",
     TIME_LIMIT_REACHED: "TIME_LIMIT_REACHED", CANVAS_GEOMETRY: "CANVAS_GEOMETRY",
+    STROKE_CANCELLED: "STROKE_CANCELLED",
     FEEDBACK_DISMISS: "FEEDBACK_DISMISS", REVISION_START: "REVISION_START",
     TASK_SUBMIT: "TASK_SUBMIT", DOWNLOAD: "DOWNLOAD",
   };
@@ -376,7 +377,85 @@
     logEvent(s.erase ? EV.ERASE : EV.STROKE_END, { stroke_id: id, tool: s.tool, color: s.color,
       size: s.size, n: s.points.length, dur_ms: last_pt[2] });
   }
+  // ===== iPad：一根手指画，两根手指看 =====
+  // 捏合缩放、双指拖动平移、双指轻点撤销、三指轻点重做（Procreate 的那套手势）。
+  // 它们走的是和滚轮/按钮同一个 zoomAt / PAN 通道，所以日志里是同一种记录，
+  // 只有 source 不一样——分析时「他什么时候放大去抠细节」不会因为换了设备就断掉。
+  const touches = new Map();          // pointerId -> {x, y}
+  let gesture = null;
+  let penSeen = false;                // 见过手写笔之后，手指就只当手势用（防手掌误触）
+  const _mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+  const _dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
+  /** 第二根手指落下时，第一根手指刚蹭出来的那道印子不算数。
+   *  不是偷偷删掉：画面回退，日志里记一条 STROKE_CANCELLED，
+   *  所以「这一笔没被留下」本身也是可读的过程信息。 */
+  function cancelStroke(reason) {
+    if (!drawing || !curStroke) return;
+    drawing = false; ctx.globalAlpha = 1;
+    const s = curStroke; curStroke = null;
+    if (undoStack.length) { ctx.putImageData(undoStack.pop(), 0, 0); undoDoc.pop(); }
+    logEvent(EV.STROKE_CANCELLED, { stroke_id: s.id, reason, n: s.points.length });
+  }
+
+  function startGesture() {
+    const pts = [...touches.values()];
+    if (pts.length < 2) return;
+    const m = _mid(pts[0], pts[1]);
+    gesture = { n: touches.size, t0: elapsed(), moved: 0,
+                d0: _dist(pts[0], pts[1]), z0: view.z, mx0: m.x, my0: m.y,
+                tx0: view.tx, ty0: view.ty,
+                panFrom: [Math.round(view.tx), Math.round(view.ty)], points: [] };
+  }
+  function moveGesture() {
+    const pts = [...touches.values()];
+    if (!gesture || pts.length < 2) return;
+    gesture.n = Math.max(gesture.n, touches.size);
+    const m = _mid(pts[0], pts[1]), d = _dist(pts[0], pts[1]);
+    gesture.moved = Math.max(gesture.moved, Math.hypot(m.x - gesture.mx0, m.y - gesture.my0),
+                             Math.abs(d - gesture.d0));
+    const prev = view.z;
+    // 一步算完：让「手指落下时那个中点下面的画布位置」始终待在当前中点下面
+    const z = clamp(gesture.d0 > 0 ? gesture.z0 * (d / gesture.d0) : view.z, MIN_ZOOM, MAX_ZOOM);
+    const lx = (gesture.mx0 - gesture.tx0) / gesture.z0, ly = (gesture.my0 - gesture.ty0) / gesture.z0;
+    const r = viewport.getBoundingClientRect();
+    view.z = z;
+    view.tx = (m.x - r.left) - lx * z;
+    view.ty = (m.y - r.top) - ly * z;
+    applyView();
+    if (Math.abs(z - prev) > 1e-4) noteZoom(prev, "pinch");
+    if (gesture.points.length < MAX_GESTURE_STEPS)
+      gesture.points.push([Math.round(elapsed() - gesture.t0), Math.round(view.tx), Math.round(view.ty)]);
+    markActive();
+  }
+  function endGesture() {
+    const g = gesture; gesture = null;
+    if (!g) return;
+    // 轻点：两根手指点一下撤销，三根手指点一下重做
+    if (g.moved < 12 && elapsed() - g.t0 < 300) {
+      if (g.n >= 3) redo(); else undo();
+      return;
+    }
+    const to = [Math.round(view.tx), Math.round(view.ty)];
+    if (g.points.length && (to[0] !== g.panFrom[0] || to[1] !== g.panFrom[1]))
+      logEvent(EV.PAN, { from: g.panFrom, to, zoom: R(view.z, 3),
+        dur_ms: Math.round(elapsed() - g.t0), points: g.points, source: "touch" });
+    flushZoom();
+  }
+
   canvas.addEventListener("pointerdown", (e) => {
+    if (e.pointerType === "pen") penSeen = true;
+    if (e.pointerType === "touch") {
+      touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (touches.size >= 2) {
+        e.preventDefault();
+        cancelStroke("multitouch");
+        if (zoomAllowed()) startGesture();
+        return;
+      }
+      // 手里拿着笔的时候，落在屏幕上的手指是手掌，不是画笔
+      if (penSeen) { e.preventDefault(); return; }
+    }
     if (wantsPan(e)) { e.preventDefault(); panStart(e); return; }
     if (e.button !== 0 && e.pointerType === "mouse") return;
     if (state.timeUp) return;
@@ -386,6 +465,10 @@
     markActive();
   });
   canvas.addEventListener("pointermove", (e) => {
+    if (e.pointerType === "touch" && touches.has(e.pointerId)) {
+      touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (gesture) { e.preventDefault(); return moveGesture(); }
+    }
     if (panning) return panMove(e);
     if (!drawing) return;
     // coalesced events keep the full input rate of a pen (up to ~240 Hz)
@@ -397,7 +480,15 @@
     });
     state.dirtySinceSnapshot = true; markActive();
   });
-  const endStroke = () => { if (panning) return panEnd(); if (drawing) { drawing = false; ctx.globalAlpha = 1; finishStroke(); } };
+  const endStroke = (e) => {
+    if (e && e.pointerType === "touch") {
+      touches.delete(e.pointerId);
+      if (gesture && touches.size < 2) { endGesture(); return; }
+      if (gesture) return;
+    }
+    if (panning) return panEnd();
+    if (drawing) { drawing = false; ctx.globalAlpha = 1; finishStroke(); }
+  };
   canvas.addEventListener("pointerup", endStroke); canvas.addEventListener("pointercancel", endStroke); canvas.addEventListener("pointerleave", endStroke);
 
   // ---------- view: zoom / pan ----------
@@ -627,8 +718,8 @@
     const styleOf = (qid) => QUEST_STYLE[qid] || { icon: "palette", c: "#f79433" };
     grid.innerHTML = done.slice(0, 12).map(r => {
       const st = styleOf(r.quest_id);
-      return `<a class="dex-card" href="/api/sessions/${r.id}" target="_blank" style="--qc:${st.c}">
-        <div class="dex-thumb"><img src="/files/${r.id}/after.png" alt="" loading="lazy"></div>
+      return `<a class="dex-card" href="/api/sessions/${r.session_id}" target="_blank" style="--qc:${st.c}">
+        <div class="dex-thumb"><img src="/files/${r.session_id}/after.png" alt="" loading="lazy"></div>
         <div class="dex-cap"><b>${icon(st.icon, 14)}${titleOf(r.quest_id)}</b><span>${(r.created_at || "").slice(0, 10)}</span></div></a>`;
     }).join("");
     const types = new Set(done.map(r => r.quest_id)), total = state.quests.length;
@@ -1572,7 +1663,7 @@
     const rows = await api("/api/sessions");
     state.allSessions = rows;
     const tb = $("#sessions-table tbody"); tb.innerHTML = "";
-    rows.forEach(s => { const tr = document.createElement("tr"); tr.innerHTML = `<td>${s.created_at}</td><td>${s.quest_id}</td><td>${s.participant || ""}</td><td>${s.status}</td><td>${s.revised === null ? "—" : s.revised ? "是" : "否"}</td><td><a href="/files/${s.id}/before.png" target="_blank">before</a> · <a href="/files/${s.id}/after.png" target="_blank">after</a> · <a href="/api/sessions/${s.id}" target="_blank">json</a></td>`; tb.appendChild(tr); });
+    rows.forEach(s => { const tr = document.createElement("tr"); tr.innerHTML = `<td>${s.created_at}</td><td>${s.quest_id}</td><td>${s.participant || ""}</td><td>${s.status}</td><td>${s.revised === null ? "—" : s.revised ? "是" : "否"}</td><td><a href="/files/${s.session_id}/before.png" target="_blank">before</a> · <a href="/files/${s.session_id}/after.png" target="_blank">after</a> · <a href="/api/sessions/${s.session_id}" target="_blank">json</a></td>`; tb.appendChild(tr); });
     $("#anon-badge").textContent = state.anonId;
   }
   $("#btn-sessions-back").onclick = () => openTab("map");

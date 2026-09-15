@@ -32,7 +32,7 @@ from artquest import config  # noqa: E402
 from artquest import events as ev  # noqa: E402
 from artquest.logstore import JsonlLog  # noqa: E402
 from artquest.reconstruct import visible_strokes  # noqa: E402
-from artquest.storage import session_events, session_meta, session_strokes  # noqa: E402
+from artquest.storage import session_events, session_meta, session_strokes, sid_of  # noqa: E402
 from artquest.logstore import read_json  # noqa: E402
 
 SCHEMA_NOTE = "artquest/1 — converted view; the full record is the session directory"
@@ -69,7 +69,7 @@ def _provenance(meta: Dict[str, Any], fmt: str) -> Dict[str, Any]:
     task = meta.get("task") or {}
     return {
         "schema": SCHEMA_NOTE,
-        "session_id": meta.get("id"),
+        "session_id": sid_of(meta),
         "task_id": meta.get("quest_id"),
         "family": task.get("family", ""),
         "form_id": task.get("form_id", ""),
@@ -137,7 +137,7 @@ def to_quickdraw(sid: str) -> Optional[Dict[str, Any]]:
                         [round(p[1]) for p in pts],
                         [t0 + int(p[2] or 0) for p in pts]])
     return {
-        "key_id": meta.get("id"),
+        "key_id": sid_of(meta),
         "word": meta.get("quest_id"),          # the task, in their "category" slot
         "recognized": None,                    # no recognition step in this study
         "timestamp": (meta.get("times") or {}).get("started_at"),
