@@ -15,10 +15,13 @@ from .env import TMP as _TMP  # sets the offline backends and the test data dir
 
 from fastapi.testclient import TestClient  # noqa: E402
 
+from artquest import events as ev  # noqa: E402
 from artquest import study as study_mod  # noqa: E402
 from artquest.main import app  # noqa: E402
 from tools.export_dataset import export  # noqa: E402
 from artquest.reconstruct import compare, read_jsonl, render  # noqa: E402
+from artquest.storage import (SessionStore, decode_data_url,  # noqa: E402
+                              session_feedback, session_part)
 from tools.replay import replay_session  # noqa: E402
 
 SESSIONS = Path(_TMP) / "sessions"
@@ -90,7 +93,7 @@ class ResearchDataLayer(unittest.TestCase):
     def test_metadata_records_identity_task_condition_and_device(self):
         sid = self._create()
         m = self.c.get(f"/api/sessions/{sid}").json()
-        self.assertEqual(m["schema_version"], 2)
+        self.assertEqual(m["schema_version"], 3)
         self.assertEqual(m["participant"], {"anon_id": "anon-abc123", "participant_id": "P007", "label": ""})
         self.assertEqual(m["task"]["task_id"], "imagine_animal")
         self.assertEqual(m["task"]["category"], "open_creation")   # = the family slug
@@ -155,7 +158,7 @@ class ResearchDataLayer(unittest.TestCase):
         self.c.post(f"/api/sessions/{sid}/submit",
                     json={"image": _png_of(strokes), "elapsed_ms": 60000, "phase": "before"})
 
-        fb = read_jsonl(SESSIONS / sid / "feedback.jsonl")
+        fb = session_feedback(SESSIONS / sid)
         self.assertEqual(len(fb), 1)
         self.assertEqual(fb[0]["source"], "ai")
         self.assertEqual(fb[0]["phase"], "before")
@@ -168,7 +171,7 @@ class ResearchDataLayer(unittest.TestCase):
                     json={"source": "teacher", "text": "试试把主体画大一点", "t_ms": 61000,
                           "target_region": {"shape": "rect", "coords": [200, 200, 400, 300],
                                             "label": "主体"}})
-        fb = read_jsonl(SESSIONS / sid / "feedback.jsonl")
+        fb = session_feedback(SESSIONS / sid)
         self.assertEqual([f["source"] for f in fb], ["ai", "teacher"])
         self.assertEqual(fb[1]["target_region"]["coords"], [200, 200, 400, 300])
 
@@ -232,7 +235,7 @@ class ResearchDataLayer(unittest.TestCase):
         q = self.c.post(f"/api/sessions/{sid}/questionnaire",
                         json={"difficulty": 4, "confidence": 3, "enjoyment": 5, "hardest_part": "比例"}).json()
         self.assertEqual(q["questionnaire"]["difficulty"], 4)
-        self.assertTrue((SESSIONS / sid / "self_report.json").exists())
+        self.assertTrue(session_part(SESSIONS / sid, "self_report"))
         self.assertEqual(self.c.get(f"/api/sessions/{sid}").json()["questionnaire"]["hardest_part"], "比例")
         self.assertEqual(self.c.post(f"/api/sessions/{sid}/questionnaire", json={"difficulty": 9}).status_code, 422)
 
@@ -344,6 +347,64 @@ class ResearchDataLayer(unittest.TestCase):
         points = (out / "points.csv").read_text(encoding="utf-8").splitlines()
         self.assertGreater(len(points), 30)
         self.assertEqual(points[0].split(",")[3:6], ["x", "y", "t_ms"])
+
+    # -- the older on-disk layout stays readable ---------------------------
+    def test_a_session_recorded_in_the_old_layout_still_reads(self):
+        """Fifteen files became four. Data already collected is not rewritten.
+
+        This builds a session the way schema 2 wrote one — metadata.json plus
+        five sidecars, strokes spelled `t_start_ms` / `pointer_type` / `erase` —
+        and checks every reader folds it onto the current shape. If this breaks,
+        every session collected before the convergence becomes unreadable, which
+        is the one outcome the merge was not allowed to have.
+        """
+        d = SESSIONS / "0123456789ab"
+        d.mkdir(parents=True)
+        (d / "metadata.json").write_text(json.dumps({
+            "schema_version": 2, "id": "0123456789ab", "session_id": "0123456789ab",
+            "created_at": "2026-01-01T00:00:00+00:00", "quest_id": "emotion_alone",
+            "participant": {"anon_id": "anon-old", "participant_id": "P001", "label": ""},
+            "task": {"task_id": "emotion_alone"}, "status": "done",
+            "counts": {"strokes": 1, "points": 2, "events": 1},
+        }, ensure_ascii=False), encoding="utf-8")
+        (d / "condition.json").write_text(json.dumps(
+            {"task_id": "emotion_alone", "instruction": "画出孤独"}), encoding="utf-8")
+        (d / "self_report.json").write_text(json.dumps({"difficulty": 3}), encoding="utf-8")
+        (d / "personalization.json").write_text(json.dumps({"backend": "none"}), encoding="utf-8")
+        (d / "quality.json").write_text(json.dumps({"ok": True, "failed": []}), encoding="utf-8")
+        (d / "feedback.jsonl").write_text(json.dumps(
+            {"feedback_id": "fb_old", "source": "ai", "text": "旧格式"}) + "\n", encoding="utf-8")
+        (d / "ratings.jsonl").write_text(json.dumps(
+            {"rating_id": "rt_old", "rater_id": "t1", "overall": 4}) + "\n", encoding="utf-8")
+        (d / "annotations.jsonl").write_text(json.dumps(
+            {"annotation_id": "an_old", "label": "planning", "t_start_ms": 0, "t_end_ms": 10}) + "\n",
+            encoding="utf-8")
+        (d / "strokes.jsonl").write_text(json.dumps(
+            {"seq": 1, "stroke_id": "s00001", "t_start_ms": 100, "t_end_ms": 180,
+             "pointer_type": "mouse", "erase": True, "tool": "eraser",
+             "points": [[1, 2, 0, None, None, None], [3, 4, 80, None, None, None]]}) + "\n",
+            encoding="utf-8")
+        (d / "before.png").write_bytes(decode_data_url(_png_of([])))
+
+        store = SessionStore(SESSIONS)
+        self.assertEqual(store.condition_snapshot("0123456789ab")["instruction"], "画出孤独")
+        self.assertEqual(store.self_report("0123456789ab")["difficulty"], 3)
+        self.assertEqual(store.personalization("0123456789ab")["backend"], "none")
+        self.assertEqual(session_part(d, "qc")["ok"], True)
+        self.assertEqual([f["feedback_id"] for f in store.feedback_log("0123456789ab")], ["fb_old"])
+        self.assertEqual([r["rating_id"] for r in store.labels("0123456789ab", "rating")], ["rt_old"])
+        self.assertEqual([a["annotation_id"] for a in
+                          store.labels("0123456789ab", "process_annotation")], ["an_old"])
+        # stroke fields folded, and the derivable one recomputed rather than read
+        s = store.strokes("0123456789ab")[0]
+        self.assertEqual((s["t0_ms"], s["pointer"], s["op"]), (100, "mouse", "erase"))
+        self.assertNotIn("t_end_ms", s)
+        self.assertEqual(ev.stroke_end_ms(s), 180)
+        # a phase is not a file name: the old before.png still answers for it
+        self.assertEqual(self.c.get("/files/0123456789ab/before.png").status_code, 200)
+        # and it is still one of the participant's sessions
+        hist = self.c.get("/api/participants/P001/history").json()["tasks"]
+        self.assertIn("0123456789ab", [t.get("session_id") or t.get("id") for t in hist])
 
 
 if __name__ == "__main__":

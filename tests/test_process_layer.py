@@ -172,8 +172,9 @@ class HonestSignals(unittest.TestCase):
         self.assertEqual(ok.status_code, 200, ok.text)
         self.assertEqual(self.c.post(f"/api/sessions/{sid}/questionnaire",
                                      json={"hardest_part_choice": "banana"}).status_code, 422)
-        # written under the name §14 asks for, and still reachable as before
-        self.assertTrue((SESSIONS / sid / "self_report.json").exists())
+        # 自评不再单独一个文件，并进 session.json，读法不变
+        self.assertEqual(json.loads((SESSIONS / sid / "session.json").read_text(
+            encoding="utf-8"))["self_report"]["hardest_part_choice"], "proportion")
         self.assertEqual(self.c.get(f"/api/sessions/{sid}").json()["questionnaire"]["hardest_part_choice"],
                          "proportion")
 
@@ -216,7 +217,8 @@ class Lifecycle(unittest.TestCase):
         sid = self._run(pending=0)
         meta = self.c.get(f"/api/sessions/{sid}").json()
         self.assertEqual(meta["lifecycle"], "server_verified")
-        self.assertTrue((SESSIONS / sid / "quality.json").exists())
+        self.assertTrue(json.loads((SESSIONS / sid / "session.json").read_text(
+            encoding="utf-8"))["qc"]["checks"])
         self.assertTrue(meta["qc"]["checks"])
         checksum = next(c for c in meta["qc"]["checks"] if c["name"] == "log_checksum")["detail"]
         self.assertIn("strokes", checksum)

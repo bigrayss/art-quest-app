@@ -3,7 +3,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__
@@ -36,6 +36,25 @@ PROMPT_VERSION = "feedback/1"
 app = FastAPI(title="ArtQuest", version=__version__)
 store = SessionStore()
 SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
+
+# `before.png` / `after.png` / `final.png` are *phases*, not file names: since
+# schema 3 a session stores one artwork plus, when a revision happened, the
+# pre-feedback checkpoint. This route resolves a phase against whichever layout
+# the session was written in, so every existing URL keeps working. Registered
+# before the mount, which still serves everything else (reference/, checkpoints/).
+@app.get("/files/{sid}/{phase}.png")
+def phase_image(sid: str, phase: str):
+    if phase not in ("before", "after", "final"):
+        raise HTTPException(404, "not found")
+    try:
+        png = store.read_image(sid, phase)
+    except KeyError:
+        raise HTTPException(404, "session not found")
+    if png is None:
+        raise HTTPException(404, "not found")
+    return Response(content=png, media_type="image/png",
+                    headers={"Cache-Control": "no-cache"})
+
 
 app.mount("/files", StaticFiles(directory=SESSIONS_DIR), name="files")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -81,18 +100,18 @@ def _run_qc(sid: str, pending: int = 0) -> Dict[str, Any]:
         has_final_image=(store.dir(sid) / "final.png").exists(),
         pending_uploads=pending,
         replay=replay,
-        condition_frozen=(store.dir(sid) / "condition.json").exists(),
+        condition_frozen=bool((store.condition_snapshot(sid) or {}).get("task_id")),
         reference_available=_reference_available(sid, meta),
         checksum=store.log_checksum(sid),
     )
     result["at"] = now_iso()
-    store.update(sid, qc=result)
-    store.save_quality(sid, result)          # beside the data it judges
+    store.save_quality(sid, result)          # into session.json, beside what it judges
     # `server_verified` means the logs agree with each other and with the artwork,
     # and nothing is still queued on the client — not merely "the child finished"
     verified = {"log_streams_agree", "replay_matches_final", "uploads_flushed"}
     if not (verified & set(result["failed"])):
         store.set_lifecycle(sid, "server_verified")
+        store.finalize(sid)                  # nothing more is coming: compress the logs
     if not result["ok"]:
         log.warning("session %s failed QC: %s", sid, result["failed"])
     return result
@@ -226,7 +245,7 @@ def create_session(body: CreateSession):
         task_order=st.get("order_index")))
     ref_file = store.copy_reference(meta["id"], quest)
     if ref_file:
-        store.update(meta["id"], task=dict(meta["task"], reference_file=ref_file))
+        store.update_task(meta["id"], reference_file=ref_file)
     store.add_server_event(meta["id"], ev.TASK_SHOW, 0, {
         "task_id": quest["id"], "family": quest.get("family", ""),
         "form_id": quest.get("form_id", ""), "prompt_style": quest.get("prompt_style", ""),
@@ -328,8 +347,7 @@ def submit(sid: str, body: Submit):
             "prompt_version": PROMPT_VERSION})
         fb["feedback_id"] = entry["feedback_id"]
         fb["t_ms"] = body.elapsed_ms
-        store.add_server_event(sid, ev.FEEDBACK_SHOW, body.elapsed_ms,
-                               {"feedback_id": entry["feedback_id"], "backend": fb["backend"], "phase": "before"})
+        # `entry` *is* the FEEDBACK_SHOW event on the timeline — no second record
         meta = store.update(sid, before=record, feedback=fb, status="feedback")
         return {"phase": "before", "scores": record["scores"], "feedback": fb,
                 "feedback_source": source, "session": meta}
@@ -378,9 +396,9 @@ def finalize(sid: str, body: Finalize):
     store.add_server_event(sid, "REVISION_SKIPPED", body.elapsed_ms, {
         "feedback_id": last_fb.get("feedback_id"),
         "latency_ms": body.elapsed_ms - (last_fb.get("t_ms") or 0) if last_fb.get("feedback_id") else None})
-    png = store.read_image(sid, "before")
-    store.save_phase_image(sid, "after", png)
-    record = dict(meta["before"], file="after.png", elapsed_ms=body.elapsed_ms, at=now_iso())
+    # No revision means no second artwork: `final.png` already is the work,
+    # and copying it under a second name is a copy, not a measurement.
+    record = dict(meta["before"], file="final.png", elapsed_ms=body.elapsed_ms, at=now_iso())
     store.add_server_event(sid, "SESSION_END", body.elapsed_ms, {"revised": False})
     store.update(sid, after=record, revised=False, status="done")
     store.mark_ended(sid, body.elapsed_ms)
@@ -432,10 +450,7 @@ def add_feedback(sid: str, body: FeedbackIn):
     so `/revision` can answer whether the child then worked where it pointed.
     """
     _session_or_404(sid)
-    rec = store.add_feedback(sid, body.model_dump())
-    store.add_server_event(sid, ev.FEEDBACK_SHOW, body.t_ms,
-                           {"feedback_id": rec["feedback_id"], "source": body.source, "phase": body.phase,
-                            "has_region": bool(body.target_region)})
+    rec = store.add_feedback(sid, body.model_dump())   # the record *is* the event
     return {"ok": True, "feedback": rec}
 
 
@@ -482,7 +497,7 @@ def get_annotations(sid: str):
     """Expert process labels, plus the replay boundaries they were drawn against."""
     _session_or_404(sid)
     return {"session_id": sid, "labels": list(PROCESS_LABELS),
-            "annotations": store.log(sid, "annotations").read()}
+            "annotations": store.labels(sid, "process_annotation")}
 
 
 @app.post("/api/sessions/{sid}/badges")

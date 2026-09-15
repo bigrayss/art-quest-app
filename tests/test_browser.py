@@ -163,7 +163,7 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
         # a mouse reports a constant 0.5 pressure and no tilt; that is not a
         # measurement, so it must reach the log as null rather than as a number
         for stroke in strokes:
-            self.assertEqual(stroke["pointer_type"], "mouse")
+            self.assertEqual(stroke["pointer"], "mouse")
             self.assertFalse(stroke["pressure_supported"])
             self.assertFalse(stroke["tilt_supported"])
             for pt in stroke["points"]:

@@ -362,10 +362,15 @@
     if (!curStroke) return;
     const s = curStroke; curStroke = null;
     const id = s.id, last_pt = s.points[s.points.length - 1];
-    ArtLog.stroke({ stroke_id: id, phase: state.phase, t_start_ms: Math.round(s.t0), t_end_ms: Math.round(s.t0 + last_pt[2]),
-      tool: s.tool, color: s.color, size: s.size, opacity: s.opacity, erase: s.erase,
-      pointer_type: s.pointer_type, pressure_supported: s.pressure_supported,
-      tilt_supported: s.tilt_supported, zoom: R(s.zoom, 3), points: s.points });
+    // 一笔 = 几何 + 时间 + 工具状态，别的都不存。
+    // t_end 是 t0_ms + 最后一个点的 dt，能算出来就不写进去；
+    // zoom 和两个 *_supported 留着是因为它们算不出来：前者是画这一笔时孩子看到的画面，
+    // 后者说明 null 是「没有这个传感器」而不是「传感器读到了空」。
+    ArtLog.stroke({ stroke_id: id, phase: state.phase, op: s.erase ? "erase" : "draw",
+      tool: s.tool, color: s.color, size: s.size, opacity: s.opacity,
+      pointer: s.pointer_type, pressure_supported: s.pressure_supported,
+      tilt_supported: s.tilt_supported, zoom: R(s.zoom, 3),
+      t0_ms: Math.round(s.t0), points: s.points });
     visible.push(id);
     // the same stroke also lands in the unified event timeline, cross-referenced by id
     logEvent(s.erase ? EV.ERASE : EV.STROKE_END, { stroke_id: id, tool: s.tool, color: s.color,
@@ -589,7 +594,9 @@
   function startTimers() {
     stopTimers();
     state.timers.push(setInterval(() => { const s = Math.floor(elapsed() / 1000); $("#timer").textContent = `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`; }, 500));
-    state.timers.push(setInterval(snapshot, state.cfg.snapshot_interval_sec * 1000));
+    // 0 = 不拍：任何时刻的画面都能从 stroke/event 日志重建，定时截图只是它的副本
+    if (state.cfg.snapshot_interval_sec > 0)
+      state.timers.push(setInterval(snapshot, state.cfg.snapshot_interval_sec * 1000));
     state.timers.push(setInterval(checkIdle, 1000));
     state.timers.push(setInterval(tickTimeLimit, 1000));
   }

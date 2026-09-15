@@ -45,48 +45,97 @@ cp .env.example .env          # 可选：填入 ANTHROPIC_API_KEY
 
 **明确不做**（指南 Stage 1 排除项）：图层、大量笔刷、协作、社交、积分、iOS/Android、本地模型、云端、教师/家长后台。
 
-## 数据结构（schema 2 · 研究级过程数据）
+## 数据结构（schema 3 · 四个数据文件）
 
-**stroke / event log 是主数据，截图只是辅助。** 每次创作一个目录（`data/` 已 gitignore，儿童作品不要提交）：
+**stroke / event log 是主数据，截图只是辅助。** 一次创作一个目录（`data/` 已 gitignore，
+儿童作品不要提交）：
 
 ```
-data/sessions/<id>/
-  metadata.json       身份、任务、条件、设备、时间、计数、QC 结果
-  condition.json      **孩子当时实际看到的完整任务定义**（tasks.json 会变，task_id 不足以还原）
-  events.jsonl        append-only 操作日志：{seq, src, ts, t_ms, type, payload}
-  strokes.jsonl       append-only 逐笔记录 + 采样点（见下）
-  feedback.jsonl      每一条反馈：{feedback_id, source, feedback_type, text, target_region, shown_at}
-  ratings.jsonl       教师 / 专家评分，append-only 带 rater_id（支持多评分者）
-  self_report.json    1–5 轻量自评（难度 / 满意度 / 开心程度 / 最难的地方，含封闭选项）
-  quality.json        数据质量检查结果，与它所判断的数据并排
-  annotations.jsonl   专家过程标注：时间轴上的区间，不是逐笔
+data/dataset.json               数据集清单：schema、版本、各项计数（导出时刷新）
+data/sessions/<session_id>/
+  session.json        一次任务里所有「小体量、非时间序列」的东西：身份、**冻结的任务定义**、
+                      条件、设备、画布、时间、个性化、自评、QC
+  strokes.jsonl.gz    画本身，一行一笔
+  events.jsonl.gz     所有非绘画操作——**反馈也在这条线上**，它本来就是过程中的一个事件
+  labels.jsonl        人写下来的 ground truth：教师评分 + 专家过程标注
+  final.png           最后交上来的作品
+  checkpoints/        只留真的需要的关键帧：`before_feedback.png`（有修改才有）
   reference/          孩子当时看到的那张刺激图的副本（static/refs 里的会被替换）
-  personalization.json 画之前冻结的表示、给孩子看了什么、预测了什么，以及事后的 outcome / error
-  before.png / after.png / final.png
-  snapshots/0001_45s.png ...   （辅助，关键帧可由 stroke log 动态重建）
 ```
 
-一条 stroke（原始数据只存不算，speed / hesitation / rhythm 一律留给离线分析）：
+一条原则决定了什么进哪里：
+
+> **凡是不高频、不是时间序列的，都进 `session.json`。**
+> **凡是能算出来的，都不存。**
+
+`metadata.json` / `condition.json` / `self_report.json` / `personalization.json` /
+`quality.json` 合并成了 `session.json`；`feedback.jsonl` 并进事件流；
+`ratings.jsonl` + `annotations.jsonl` 合并成 `labels.jsonl`（用 `type` 区分）。
+一个 session 从十几个文件收敛到**四个数据文件 + 一张图**。
+
+**旧数据一个字节都不动。** schema 1 / 2 的 session 保持原样，
+`artquest/storage.py` 里的读取方把它们折到当前形状——和 `events.canonical()`
+折叠旧事件名是同一个契约，`tests/test_research.py` 有一条专门守它的测试。
+
+### 一条 stroke
 
 ```json
-{"seq": 12, "stroke_id": "s00012", "phase": "before", "t_start_ms": 48210, "t_end_ms": 48930,
- "tool": "brush", "color": "#e63946", "size": 6, "opacity": 0.9, "erase": false, "pointer_type": "pen",
- "zoom": 4.0, "points": [[x, y, dt_ms, pressure, tiltX, tiltY], ...]}
+{"seq":12,"stroke_id":"s00012","phase":"before","op":"draw","tool":"brush","color":"#e63946",
+ "size":6,"opacity":0.9,"pointer":"pen","pressure_supported":true,"tilt_supported":true,
+ "zoom":4.0,"t0_ms":48210,
+ "points":[[368.3,256.2,0,0.31,12,-4],[369.2,257.1,16.7,0.34,12,-4]]}
 ```
 
-`points` 用画布像素坐标（`metadata.canvas` 记录画布尺寸，保证可复现），`dt_ms` 相对 `t_start_ms`；
+$$Raw\ Stroke = Geometry + Time + Tool\ State$$
+
+point 的六个槽位固定是 `[x, y, dt_ms, pressure, tilt_x, tilt_y]`，画布像素坐标，
+`dt_ms` 从这一笔的 `t0_ms` 起算。绝对时间随时可以还原：
+
+$$t_{point} = \text{started\_at} + t0_{stroke} + dt$$
+
+所以**每条记录都不带自己的时钟**——没有 `t_end_ms`（= `t0_ms` + 最后一个 `dt`）、
+没有 `ts`。速度、曲率、笔长、bounding box 一律留给离线分析。
+
+有两个字段看着像能算出来，但留着是有理由的：
+
+| 字段 | 为什么不能算 |
+| --- | --- |
+| `zoom` | 画这一笔时孩子**看到的**画面。坐标里没有它（缩放是视图变换，见下），而「什么时候放大去抠细节」本身就是过程信号 |
+| `pressure_supported` / `tilt_supported` | 说明 `null` 是「**没有这个传感器**」而不是「传感器读到了空」。只看点是分不出来的 |
+
 `pointermove` 走 `getCoalescedEvents()`，数位板可拿到完整输入率（可达 ~240 Hz）。
 
-**没测到的通道存 `null`，不伪造。** 鼠标恒定返回 `pressure = 0.5` 且没有 tilt——把它当读数记下来，
-鼠标画的每一笔的每一个点都会带上一个编造的数字，离线分析分不出它和真实读数的区别。
-所以 `pressure_supported` / `tilt_supported` 随笔记录，不支持时那三个槽位是 `null`。
+**没测到的通道存 `null`，不伪造。** 鼠标恒定返回 `pressure = 0.5` 且没有 tilt——把它当读数
+记下来，鼠标画的每一笔的每一个点都会带上一个编造的数字，离线分析分不出它和真实读数的区别。
 渲染器仍然需要一个宽度，就退回中性的 0.5——**日志保持诚实，图像不假装这个退化值是读数**；
 导出的 `mean_pressure` 只对真正测到的点求均值，全没测到就留空。
 
 **缩放不进坐标。** 缩放 / 平移是画布元素上的一个 CSS transform，绘图上下文完全不知情；指针坐标经
 `getBoundingClientRect()` 换算，而它返回的正是变换后的盒子——所以 8 倍放大下画的笔，和 100% 下画的笔
-落在同一个坐标系里，replay、undo、快照全都不受影响。`zoom` 字段记的是**当时孩子能看到什么**，那是另一个问题
-（"什么时候放大去抠细节"本身就是过程信号）。这条不变式由 `tests/test_browser.py` 在真实 Chrome 里验证。
+落在同一个坐标系里，replay、undo、快照全都不受影响。这条不变式由 `tests/test_browser.py`
+在真实 Chrome 里验证。
+
+### 图片：能重建的就不存
+
+$$Artwork(t) = Replay(Strokes_{0:t},\ Events_{0:t})$$
+
+所以默认**只存 `final.png`**。定时截图默认关掉（`ARTQUEST_SNAPSHOT_INTERVAL=0`）——
+它只是日志已经包含的东西的一份副本。唯一另外留的是 `checkpoints/before_feedback.png`，
+而且只有真的走了修改关才写：那一帧是**实验节点**，replay 看不出它特殊在哪。
+（合并前，一个没修改过的 session 会把同一张 PNG 存三份。）
+
+### 压缩：跑完就压
+
+session 通过 QC（`lifecycle = server_verified`）时，两条过程流就地压成
+`strokes.jsonl.gz` / `events.jsonl.gz`——现有真实日志 409 KB → 50 KB，**省 88%**。
+读是透明的，迟到的一批数据会先解冻再追加，调用方不需要知道这件事。
+`labels.jsonl` 不压：教师可能几周后才评分。
+
+### 派生数据不跟着 session 存
+
+`features.json` / `embedding.json` / `statistics.json` 这类东西一个都不写进 session 目录——
+它们可以重算，重算才能让改进后的算法回溯地作用到每一条旧数据上。统一由
+`tools/export_dataset.py` 在 dataset 层生成。
 
 ### 统一事件时间轴（`artquest/events.py` 是唯一权威）
 
@@ -107,8 +156,11 @@ HISTORY_SHOWN  RATING_ADDED  QUESTIONNAIRE_SUBMITTED  DOWNLOAD
 ```
 
 `STROKE_START` 在落笔时记，不等抬笔——planning latency 和 first-stroke region 问的是
-孩子**什么时候开始**，不是什么时候松手。`FEEDBACK_SHOW` 带 `feedback_id`，是切分
-「反馈前 / 反馈后」行为的锚点；`FEEDBACK_DISMISS` 带 `read_ms`，反馈被看了多久本身是信号。
+孩子**什么时候开始**，不是什么时候松手。`FEEDBACK_SHOW` 就是反馈本身（正文、来源、
+`target_region` 都在它的 payload 里），既是「反馈前 / 反馈后」的锚点，也省掉了
+一条事件 + 一个文件写同一件事；`FEEDBACK_DISMISS` 带 `read_ms`，反馈被看了多久本身是信号。
+读的时候 `storage.session_feedback()` 会把它摊回反馈那个形状，所以
+`stroke / undo / feedback / pause / stroke` 按时间排一遍就能读。
 
 统一词表时有几个名字变了。直接改名会让已经采到的 session 变成孤儿，所以
 `events.canonical()` 把旧名折叠到新名，**所有读取方都走它**——旧日志一个字节不动，
@@ -607,9 +659,9 @@ artquest/            后端（FastAPI）
   rubric.py          每任务的 9D rubric contract（N/A ≠ 低分，类型强制）
   quests.py          任务表（游戏关卡 = 研究 task）+ condition snapshot + tasks.json 合并
   study.py           Study Mode：条件、被试名册、平衡拉丁方顺序
-  storage.py         session 存储（metadata + 三条 append-only 流）
-  logstore.py        JSONL append-only 写入与幂等去重
-  events.py          统一事件词表 + 旧名折叠（所有读取方的唯一权威）
+  storage.py         session 存储：四个数据文件的布局 + 把旧布局折到当前形状的读取方
+  events.py          统一事件词表 + 旧名折叠，stroke 字段折叠（所有读取方的唯一权威）
+  logstore.py        append-only JSONL：seq 幂等追加、跑完 gzip、读写对压缩透明
   qc.py              结束时的数据质量检查
   revision.py        反馈 → 其后修改的归因（纯函数，不落库）
   gallery.py         观摩（按差异选）、精选墙（人选）、徽章稀有度

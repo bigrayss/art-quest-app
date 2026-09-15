@@ -16,7 +16,7 @@ would orphan the sessions already collected, so `canonical()` folds the old name
 onto the new one and every reader goes through it. Old logs keep their bytes;
 readers stop caring.
 """
-from typing import Dict, Iterable, Set
+from typing import Any, Dict, Iterable, Set
 
 # -- session / task ----------------------------------------------------------
 SESSION_START = "SESSION_START"
@@ -105,3 +105,53 @@ def is_known(type_: str) -> bool:
 def unknown_types(types: Iterable[str]) -> Set[str]:
     """Event types not in the vocabulary — a module inventing its own name."""
     return {t for t in types if t and not is_known(t)}
+
+
+# ---------------------------------------------------------------------------
+# Strokes carry a vocabulary too, and it converged the same way event names did.
+# ---------------------------------------------------------------------------
+# What a raw stroke is, and nothing else:
+#
+#     geometry + time + tool state
+#
+# Anything derivable stays out of the record — `t_end_ms` is `t0_ms` plus the
+# last point's `dt`, and speed / curvature / length belong to analysis. Two
+# fields that look derivable are kept on purpose: `zoom` is what the child could
+# see while drawing this stroke, and `pressure_supported` / `tilt_supported` say
+# *why* a null is null — no sensor, rather than a sensor that read nothing.
+STROKE_FIELDS = ("stroke_id", "seq", "phase", "op", "tool", "color", "size", "opacity",
+                 "pointer", "pressure_supported", "tilt_supported", "zoom", "t0_ms", "points")
+_STROKE_ALIASES = {"t_start_ms": "t0_ms", "pointer_type": "pointer"}
+
+
+def canonical_stroke(rec: Dict[str, Any]) -> Dict[str, Any]:
+    """Fold an older stroke record onto the current field names.
+
+    Same contract as `canonical()` for event names: the file on disk is never
+    rewritten, every reader goes through here.
+    """
+    out = dict(rec)
+    for old, new in _STROKE_ALIASES.items():
+        if old in out:
+            out.setdefault(new, out[old])
+            out.pop(old)
+    if "op" not in out:
+        out["op"] = "erase" if out.pop("erase", False) else "draw"
+    out.pop("erase", None)
+    out.pop("t_end_ms", None)          # exactly t0_ms + points[-1][2]
+    return out
+
+
+def stroke_end_ms(rec: Dict[str, Any]) -> float:
+    """When the pen came up — from the record, or from its last sample."""
+    if rec.get("t_end_ms") is not None:
+        return float(rec["t_end_ms"])
+    t0 = float(rec.get("t0_ms") if rec.get("t0_ms") is not None else rec.get("t_start_ms") or 0)
+    pts = rec.get("points") or []
+    return t0 + float(pts[-1][2] or 0) if pts else t0
+
+
+def stroke_start_ms(rec: Dict[str, Any]) -> float:
+    """When the pen went down, under either spelling."""
+    v = rec.get("t0_ms")
+    return float(v if v is not None else (rec.get("t_start_ms") or 0))

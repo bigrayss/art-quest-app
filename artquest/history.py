@@ -32,7 +32,7 @@ from . import events as ev
 from .logstore import read_json
 from .reconstruct import read_jsonl, visible_ids
 from .scoring.base import DIM_KEYS
-from .storage import now_iso
+from .storage import now_iso, session_meta
 
 # Bumped when the shape below changes, so a frozen snapshot stays readable.
 REPRESENTATION_SCHEMA = 1
@@ -52,7 +52,7 @@ def iter_sessions(root=None) -> Iterable[Dict[str, Any]]:
     for d in sorted((root or config.SESSIONS_DIR).iterdir()):
         if not d.is_dir():
             continue
-        meta = read_json(d / "metadata.json")
+        meta = session_meta(d)
         if meta:
             yield meta
 

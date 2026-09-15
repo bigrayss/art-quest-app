@@ -1,21 +1,18 @@
 """Append-only process logs — the primary research data.
 
 The stroke/event logs are the source of truth; canvas screenshots are only an
-aid. Everything a session produces lives in one directory:
-
-    data/sessions/<session_id>/
-        metadata.json      identity, task, condition, device, timing, QC
-        events.jsonl       one JSON object per line, append-only
-        strokes.jsonl      one JSON object per line, append-only
-        feedback.jsonl     every feedback shown, append-only
-        questionnaire.json short self-report
-        before.png / after.png / final.png
-        snapshots/         auxiliary key frames
+aid. The session directory is laid out in `storage.py`; this module is only the
+append-only JSON Lines mechanism underneath it.
 
 Every record carries a client-assigned ``seq`` that is monotonic within its
 stream. Appends drop records whose seq was already stored, so a client that
 buffered locally and lost its connection can safely re-send a batch.
+
+A finished stream is gzipped in place (`strokes.jsonl` -> `strokes.jsonl.gz`).
+Reads are transparent; a late append thaws the file first, so compression is
+never a decision a caller has to think about.
 """
+import gzip
 import json
 import os
 from pathlib import Path
@@ -29,17 +26,24 @@ class JsonlLog:
     """An append-only JSON Lines stream with idempotent, seq-ordered appends."""
 
     def __init__(self, path: Path):
-        self.path = Path(path)
+        self.path = Path(path)                       # the plain .jsonl path
+        self.gz_path = Path(str(path) + ".gz")
 
     # -- reading -----------------------------------------------------------
     def exists(self) -> bool:
-        return self.path.exists()
+        return self.path.exists() or self.gz_path.exists()
+
+    def _open_text(self):
+        """Whichever of the two forms is on disk, as a text stream."""
+        if self.path.exists():
+            return self.path.open("r", encoding="utf-8")
+        return gzip.open(self.gz_path, "rt", encoding="utf-8")
 
     def read(self) -> List[Dict[str, Any]]:
-        if not self.path.exists():
+        if not self.exists():
             return []
         out = []
-        with self.path.open("r", encoding="utf-8") as fh:
+        with self._open_text() as fh:
             for line in fh:
                 line = line.strip()
                 if not line:
@@ -51,15 +55,41 @@ class JsonlLog:
         return out
 
     def count(self) -> int:
-        if not self.path.exists():
+        if not self.exists():
             return 0
-        with self.path.open("rb") as fh:
+        with self._open_text() as fh:
             return sum(1 for line in fh if line.strip())
+
+    # -- compression -------------------------------------------------------
+    def compress(self) -> bool:
+        """Gzip a finished stream in place. Idempotent; returns True if it ran."""
+        if not self.path.exists():
+            return False
+        data = self.path.read_bytes()
+        tmp = Path(str(self.gz_path) + ".tmp")
+        with gzip.open(tmp, "wb", compresslevel=6) as fh:
+            fh.write(data)
+        tmp.replace(self.gz_path)
+        self.path.unlink()
+        return True
+
+    def thaw(self) -> bool:
+        """Undo `compress` so the stream can be appended to again."""
+        if self.path.exists() or not self.gz_path.exists():
+            return False
+        with gzip.open(self.gz_path, "rb") as fh:
+            data = fh.read()
+        tmp = Path(str(self.path) + ".tmp")
+        tmp.write_bytes(data)
+        tmp.replace(self.path)
+        self.gz_path.unlink()
+        return True
 
     def last_seq(self) -> int:
         """Highest seq already stored, read from the file's tail (0 if empty)."""
         if not self.path.exists():
-            return 0
+            # compressed: no cheap tail seek, and a finished stream is small
+            return max([int(r["seq"]) for r in self.read() if r.get("seq") is not None] or [0])
         size = self.path.stat().st_size
         if size == 0:
             return 0
@@ -80,6 +110,7 @@ class JsonlLog:
 
     # -- writing -----------------------------------------------------------
     def _write(self, records: List[Dict[str, Any]]) -> None:
+        self.thaw()                                  # a late batch reopens a finished stream
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open("a", encoding="utf-8") as fh:
             for r in records:
@@ -120,6 +151,11 @@ def write_json(path: Path, data: Any) -> None:
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     tmp.replace(path)
+
+
+def read_jsonl(path: Path) -> List[Dict[str, Any]]:
+    """One JSON object per line, from either `<path>` or `<path>.gz`."""
+    return JsonlLog(path).read()
 
 
 def read_json(path: Path) -> Optional[Any]:

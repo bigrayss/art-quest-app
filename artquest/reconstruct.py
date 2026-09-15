@@ -23,7 +23,8 @@ from typing import Any, Dict, List, Optional, Tuple
 from PIL import Image, ImageChops, ImageColor, ImageDraw
 
 from . import events as ev
-from .logstore import read_json
+from .logstore import read_json, read_jsonl as _read_jsonl
+from .storage import session_task
 
 # Mirrors static/app.js TOOLS: {size multiplier, pressure sensitivity}
 TOOL_WIDTH = {"pencil": 1.0, "brush": 3.0, "marker": 6.0, "eraser": 6.0}
@@ -319,7 +320,7 @@ def render(strokes: List[Dict[str, Any]], size: Tuple[int, int], upto: int = -1,
         pts = s.get("points") or []
         if not pts:
             continue
-        if s.get("erase"):
+        if s.get("op") == "erase" or s.get("erase"):
             img.paste(base, (0, 0), _translucent_alpha(s, pts, size, 1.0))
             continue
         color = s.get("color") or "#222222"
@@ -373,18 +374,9 @@ def compare(replay: Image.Image, final: Image.Image) -> Dict[str, Any]:
 
 # -- session-level helpers -------------------------------------------------
 def read_jsonl(path: Path) -> List[Dict[str, Any]]:
-    if not Path(path).exists():
-        return []
-    import json
-    out = []
-    for line in Path(path).read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if line:
-            try:
-                out.append(json.loads(line))
-            except json.JSONDecodeError:  # tolerate a torn final line
-                continue
-    return out
+    """Kept as a name others import; the reading itself lives in `logstore`,
+    which also knows about the gzipped form of a finished stream."""
+    return _read_jsonl(path)
 
 
 def canvas_size(meta: Dict[str, Any]) -> Tuple[int, int]:
@@ -401,12 +393,12 @@ def boundaries(events: List[Dict[str, Any]],
     and "what it looked like after" is the pair a feedback experiment compares,
     and it cannot be recovered from 25/50/75 %.
     """
-    ordered = sorted(strokes, key=lambda s: s.get("t_start_ms") or 0)
+    ordered = sorted(strokes, key=ev.stroke_start_ms)
 
     def upto(t_ms: Optional[int]) -> int:
         if t_ms is None:
             return len(ordered)
-        return sum(1 for s in ordered if (s.get("t_start_ms") or 0) < t_ms)
+        return sum(1 for s in ordered if ev.stroke_start_ms(s) < t_ms)
 
     shown = sorted((e.get("t_ms") or 0) for e in events
                    if ev.canonical(e.get("type")) == ev.FEEDBACK_SHOW)
@@ -435,7 +427,7 @@ def rebuild(session_dir: Path) -> Dict[str, Any]:
     vis = visible_strokes(events, strokes)
     size = canvas_size(meta)
     # the frozen condition is what says whether the canvas started blank
-    stimulus = ((read_json(d / "condition.json") or {}).get("stimulus")) or None
+    stimulus = (session_task(d) or {}).get("stimulus") or None
     return {"meta": meta, "size": size, "strokes": vis, "stimulus": stimulus,
             "boundaries": boundaries(events, vis),
             "image": render(vis, size, stimulus=stimulus),
