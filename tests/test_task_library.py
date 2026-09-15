@@ -57,26 +57,49 @@ class TaskLibrary(unittest.TestCase):
         self.assertTrue(all({"base_object", "environment", "goal"} <= set(t["condition"]) for t in m4))
         self.assertGreaterEqual(len({t["condition"]["base_object"] for t in m4}), 5)
 
-    def test_a_task_declares_what_it_cannot_measure(self):
+    def test_every_drawing_is_scored_on_all_nine(self):
+        """A task says what it *additionally* elicits, not what gets measured.
+
+        M1 is the case that used to be wrong: it was marked "pencil only, so no
+        colour", but `allowed_tools` only disables the brush buttons — the
+        palette is there and the pencil paints in the chosen colour. So a M1
+        drawing can be colourful, and its colour is measured like everything else.
+        """
+        for tid in ("M1_A", "M2_A", "M6_A_calm"):
+            q = quests_mod.get_quest(tid)
+            self.assertEqual(q["rubric"]["not_applicable_dimensions"], [], tid)
+            self.assertEqual(sorted(q["applicable_dims"]), sorted(DIM_KEYS), tid)
         m1 = quests_mod.get_quest("M1_A")
-        self.assertEqual(m1["rubric"]["not_applicable_dimensions"], ["color_richness", "color_contrast"])
-        self.assertNotIn("color_richness", m1["applicable_dims"])
-        # …and says why, so an N/A is never mistaken for a forgotten dimension
-        self.assertTrue(m1["rubric"]["na_reason"]["color_richness"])
-        # silence means exploratory, never N/A: dropping a dimension by accident
-        # must not quietly stop measuring it
+        # what it focuses on is still declared, and still drives the UI + growth
+        self.assertIn("realism", m1["rubric"]["primary_dimensions"])
+        self.assertIn("color_richness", m1["rubric"]["exploratory_dimensions"])
+        # silence means exploratory — scored, with no claim attached — never N/A
         self.assertEqual(sorted(sum(m1["rubric_summary"].values(), [])), sorted(DIM_KEYS))
+
+    def test_a_task_cannot_opt_out_of_a_dimension(self):
+        """"Not what this task is about" is not a reason to stop measuring it."""
+        with self.assertRaises(RubricError) as caught:
+            normalize({"primary_dimensions": ["realism"],
+                       "not_applicable_dimensions": ["color_richness"],
+                       "na_reason": {"color_richness": "这个任务不关心颜色"}},
+                      task_id="T", allowed_tools=["pencil", "eraser"])
+        self.assertIn("every dimension is scored", str(caught.exception))
+        # …but a condition that really removes the channel derives it, with a reason
+        r = normalize({"primary_dimensions": ["realism"]}, task_id="T",
+                      allowed_tools=["eraser", "undo"])
+        self.assertEqual(r["not_applicable_dimensions"], ["color_richness", "color_contrast"])
+        self.assertTrue(r["na_reason"]["color_richness"])
 
     def test_an_uninterpretable_rubric_is_refused(self):
         for bad, why in (({"primary_dimensions": ["not_a_dim"]}, "unknown dimension"),
                          ({"primary_dimensions": ["realism"], "secondary_dimensions": ["realism"]}, "two roles"),
-                         ({"not_applicable_dimensions": ["realism"]}, "no reason given")):
+                         ({"not_applicable_dimensions": ["realism"]}, "cannot be declared")):
             with self.assertRaises(RubricError, msg=why):
                 normalize(bad, task_id="T")
 
     def test_not_applicable_is_never_a_low_score(self):
-        rubric = normalize({"not_applicable_dimensions": ["color_richness"],
-                            "na_reason": {"color_richness": "铅笔任务"}})
+        # the only way to get an N/A: a condition with nothing to draw colour with
+        rubric = normalize({}, allowed_tools=["eraser", "undo"])
         # a backend that scored it anyway does not get to keep the number
         out = apply_contract({"dims": {"color_richness": {"score": 1, "note": "很少用色"},
                                        "realism": {"score": 4, "note": "x"}}}, rubric)
@@ -126,15 +149,15 @@ class ConditionSnapshot(unittest.TestCase):
         self.assertIn("stimulus_ready", qc["failed"])
         self.assertNotIn("condition_frozen", qc["failed"])
 
-    def test_a_rater_cannot_score_a_dimension_the_task_cannot_test(self):
+    def test_a_rater_scores_every_dimension_of_the_drawing(self):
+        """A teacher rates all nine; the task only says which ones it focuses on."""
         sid = self._create("M1_A")
-        bad = self.c.post(f"/api/sessions/{sid}/rating",
-                          json={"source": "teacher", "rater_id": "T1", "dims": {"color_richness": 2}})
-        self.assertEqual(bad.status_code, 422)
         ok = self.c.post(f"/api/sessions/{sid}/rating",
-                         json={"source": "teacher", "rater_id": "T1", "dims": {"realism": 4}})
+                         json={"source": "teacher", "rater_id": "T1",
+                               "dims": {"color_richness": 2, "realism": 4}})
         self.assertEqual(ok.status_code, 200, ok.text)
         self.assertTrue(ok.json()["rating"]["rubric_version"])
+        self.assertEqual(ok.json()["rating"]["dims"]["color_richness"], 2)
 
     def test_a_fragment_task_does_not_start_on_a_blank_canvas(self):
         """Replay is `initial canvas + strokes + events` — the canvas counts."""
@@ -250,15 +273,14 @@ class ResearcherOverrides(unittest.TestCase):
             "title": "自定义", "instruction": "把台灯改造成沙漠里的家。",
             "prompt_style": "minimal", "time_limit_sec": 300,
             "condition": {"base_object": "lamp", "environment": "desert", "goal": "home"},
-            "rubric": {"primary_dimensions": ["transformation"],
-                       "not_applicable_dimensions": ["color_richness"],
-                       "na_reason": {"color_richness": "限定铅笔"}},
+            "rubric": {"primary_dimensions": ["transformation"]},
         }]), encoding="utf-8")
         try:
             tasks = {t["task_id"]: t for t in quests_mod.reload_quests()}
             self.assertIn("M4_CUSTOM_01", tasks)
             self.assertEqual(tasks["M4_CUSTOM_01"]["time_limit_sec"], 300)
-            self.assertNotIn("color_richness", tasks["M4_CUSTOM_01"]["applicable_dims"])
+            # a researcher-added task is scored on all nine too
+            self.assertEqual(len(tasks["M4_CUSTOM_01"]["applicable_dims"]), len(DIM_KEYS))
             self.assertIn("M4_UMB_UW_TRA_story", tasks)     # built-ins survive
         finally:
             path.unlink()

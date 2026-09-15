@@ -159,9 +159,12 @@ M9_PROMPTS = [
 # ---------------------------------------------------------------------------
 # Family definitions: what each mission measures, and under what condition
 # ---------------------------------------------------------------------------
-_NO_COLOR = {"color_richness": "这个任务只提供铅笔，画面里不会出现颜色选择",
-             "color_contrast": "这个任务只提供铅笔，画面里不会出现颜色选择"}
-
+# 每幅画的九个维度都会评分。`primary` / `secondary` 说的是这个任务**额外**要
+# 考察什么——它决定界面的高亮、「这一关练的是」和彩点哪几项属性会长，
+# 不决定哪些维度会被打分。想「不评某个维度」是做不到的：`not_applicable` 只能
+# 由任务自己的条件推出来（见 rubric.condition_na），而且现在没有任务够得着它——
+# 调色板在每个任务里都在，`allowed_tools` 限制的是四个笔刷按钮，铅笔照样
+# 用孩子选的颜色画。
 FAMILIES: Dict[str, Dict[str, Any]] = {
     # M0 keeps the original open-creation quests alive. Sessions already
     # collected against these ids must stay interpretable — the library grew,
@@ -177,9 +180,7 @@ FAMILIES: Dict[str, Dict[str, Any]] = {
         research_goal="visual organization、global/local strategy、reference-based reconstruction",
         time_limit_sec=540, allowed_tools=DRAW_TOOLS, prompt_style="story",
         rubric=_t(primary_dimensions=["realism", "picture_organization", "line_combination"],
-                  secondary_dimensions=["line_texture"],
-                  not_applicable_dimensions=["color_richness", "color_contrast"],
-                  na_reason=_NO_COLOR),
+                  secondary_dimensions=["line_texture"]),
         process_targets=["first_stroke_region", "global_structure_time", "detail_entry_time",
                          "region_switching", "structural_revision", "erase_redraw_cycle",
                          "reference_switching"]),
@@ -188,9 +189,7 @@ FAMILIES: Dict[str, Dict[str, Any]] = {
         research_goal="observation + spatial reasoning + reference strategy",
         time_limit_sec=540, allowed_tools=DRAW_TOOLS, prompt_style="story",
         rubric=_t(primary_dimensions=["realism", "picture_organization"],
-                  secondary_dimensions=["line_combination", "line_texture"],
-                  not_applicable_dimensions=["color_richness", "color_contrast"],
-                  na_reason=_NO_COLOR),
+                  secondary_dimensions=["line_combination", "line_texture"]),
         process_targets=["object_order", "layout_establishment_time", "proportion_revision",
                          "overlap_revision", "reference_viewing", "canvas_reference_switch",
                          "region_switching"]),
