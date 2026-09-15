@@ -25,7 +25,7 @@ from .schemas import (Abandon, Annotation, CreateSession, DrawEvent, EarnedBadge
                       HARDEST_PARTS, LogBatch, PROCESS_LABELS, Questionnaire, Rating,
                       Snapshot, StudyAssign, Stroke, Submit)
 from .scoring import DIMENSIONS, SCALE_MAX, get_scorer
-from .storage import SCHEMA_VERSION, SessionStore, decode_data_url, now_iso
+from .storage import SCHEMA_VERSION, SessionStore, decode_data_url, now_iso, sid_of
 
 log = logging.getLogger("artquest")
 
@@ -235,31 +235,31 @@ def create_session(body: CreateSession):
         participant=body.participant_dict(), condition=condition,
         device=body.device.model_dump(), study=st, canvas=body.canvas.model_dump(),
     )
-    store.mark_started(meta["id"])
+    store.mark_started(sid_of(meta))
     # what this child actually saw, frozen before anything else happens
-    store.save_condition(meta["id"], condition_snapshot(
+    store.save_condition(sid_of(meta), condition_snapshot(
         quest, app_version=__version__, condition=condition,
         protocol={"study_id": st.get("study_id", ""), "group": st.get("group", ""),
                   "protocol_id": st.get("protocol_id", ""),
                   "sequence_id": st.get("sequence_id", "")},
         task_order=st.get("order_index")))
-    ref_file = store.copy_reference(meta["id"], quest)
+    ref_file = store.copy_reference(sid_of(meta), quest)
     if ref_file:
-        store.update_task(meta["id"], reference_file=ref_file)
-    store.add_server_event(meta["id"], ev.TASK_SHOW, 0, {
+        store.update_task(sid_of(meta), reference_file=ref_file)
+    store.add_server_event(sid_of(meta), ev.TASK_SHOW, 0, {
         "task_id": quest["id"], "family": quest.get("family", ""),
         "form_id": quest.get("form_id", ""), "prompt_style": quest.get("prompt_style", ""),
         "task_version": quest.get("version", "")})
-    store.add_server_event(meta["id"], "SESSION_START", 0, {
+    store.add_server_event(sid_of(meta), "SESSION_START", 0, {
         "task_id": quest["id"], "condition": condition, "study_id": st.get("study_id", "")})
-    personalization = _personalize(meta["id"], quest, meta)
+    personalization = _personalize(sid_of(meta), quest, meta)
     if personalization.get("shown"):
-        store.add_server_event(meta["id"], "HISTORY_SHOWN", 0, {
+        store.add_server_event(sid_of(meta), "HISTORY_SHOWN", 0, {
             "backend": personalization.get("backend"),
             "requested_mode": personalization.get("requested_mode"),
             "n_lines": len(personalization["shown"]),
             "n_prior_tasks": (personalization.get("history_used") or {}).get("n_tasks", 0)})
-    return {"session_id": meta["id"], "session": store.load(meta["id"]),
+    return {"session_id": sid_of(meta), "session": store.load(sid_of(meta)),
             # the client only needs what to show; the representation stays server-side
             "personalization": {k: personalization.get(k) for k in
                                 ("requested_mode", "backend", "available", "shown", "history_used")}}

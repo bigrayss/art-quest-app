@@ -79,7 +79,7 @@ class StageOneLoop(unittest.TestCase):
         s = self.c.post(f"/api/sessions/{sid}/finalize", json={"elapsed_ms": 70000}).json()["session"]
         self.assertEqual(s["status"], "done")
         self.assertFalse(s["revised"])
-        self.assertIn(sid, [x["id"] for x in self.c.get("/api/sessions").json()])
+        self.assertIn(sid, [x["session_id"] for x in self.c.get("/api/sessions").json()])
 
     def test_bad_inputs(self):
         self.assertEqual(self.c.post("/api/sessions", json={"quest_id": "nope", "intent": {"emotion": "x"}}).status_code, 400)

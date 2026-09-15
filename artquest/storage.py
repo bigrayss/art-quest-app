@@ -123,7 +123,8 @@ class SessionStore:
         p = dict(participant or {})
         meta = {
             "schema_version": SCHEMA_VERSION,
-            "id": sid,
+            # The directory is named by the id; one copy inside is documentation,
+            # two was just the old `id` field that never got cleaned up.
             "session_id": sid,
             "created_at": now_iso(),
             # -- identity: an anonymous device id always, a researcher code when given
@@ -305,7 +306,7 @@ class SessionStore:
         write_json(self._meta_path(sid), meta)
 
     def list(self) -> List[Dict[str, Any]]:
-        keys = ("id", "created_at", "quest_id", "status", "revised", "badges")
+        keys = ("session_id", "created_at", "quest_id", "status", "revised", "badges")
         out = []
         for d in self.root.iterdir():
             if not d.is_dir():
@@ -314,6 +315,7 @@ class SessionStore:
             if not m:
                 continue
             row = {k: m.get(k) for k in keys}
+            row["session_id"] = sid_of(m) or d.name
             p = m.get("participant")
             row["participant"] = p if isinstance(p, str) else (p or {}).get("participant_id") or (p or {}).get("anon_id", "")
             row["task_id"] = m.get("quest_id")
@@ -367,7 +369,6 @@ class SessionStore:
         state = meta.setdefault("streams", {}).setdefault("feedback", {"last_seq": 0, "count": 0})
         payload = {
             "feedback_id": f"fb_{uuid.uuid4().hex[:8]}",
-            "session_id": sid,
             "phase": record.get("phase", "before"),
             "source": record.get("source", "ai"),      # ai | teacher | self
             "feedback_type": record.get("feedback_type", "text"),
@@ -399,8 +400,8 @@ class SessionStore:
         meta = self.load(sid)
         state = meta.setdefault("streams", {}).setdefault("ratings", {"last_seq": 0, "count": 0})
         rec = dict(record)
-        rec.update({"type": "rating", "rating_id": f"rt_{uuid.uuid4().hex[:8]}", "seq": None,
-                    "src": "server", "ts": now_iso(), "session_id": sid})
+        rec.update({"type": "rating", "rating_id": f"rt_{uuid.uuid4().hex[:8]}",
+                    "seq": None, "src": "server", "ts": now_iso()})
         self.log(sid, "ratings").append([rec])
         state["count"] = int(state.get("count", 0)) + 1
         meta.setdefault("counts", {})["ratings"] = state["count"]
@@ -413,7 +414,7 @@ class SessionStore:
         state = meta.setdefault("streams", {}).setdefault("annotations", {"last_seq": 0, "count": 0})
         rec = dict(record)
         rec.update({"type": "process_annotation", "annotation_id": f"an_{uuid.uuid4().hex[:8]}",
-                    "seq": None, "src": "server", "ts": now_iso(), "session_id": sid})
+                    "seq": None, "src": "server", "ts": now_iso()})
         self.log(sid, "annotations").append([rec])
         state["count"] = int(state.get("count", 0)) + 1
         meta.setdefault("counts", {})["annotations"] = state["count"]
@@ -592,6 +593,11 @@ _PART_FILES = {
     "self_report": ("self_report.json", "questionnaire.json"),
     "qc": ("quality.json",),
 }
+
+
+def sid_of(meta: Dict[str, Any]) -> str:
+    """A session's id, under either spelling (schema 1/2 also wrote `id`)."""
+    return (meta or {}).get("session_id") or (meta or {}).get("id") or ""
 
 
 def session_meta(d: Path) -> Dict[str, Any]:

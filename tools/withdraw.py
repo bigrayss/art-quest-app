@@ -27,6 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from artquest import config  # noqa: E402
 from artquest import history as history_mod  # noqa: E402
 from artquest.logstore import read_json, write_json  # noqa: E402
+from artquest.storage import sid_of  # noqa: E402
 
 
 def find(participant_id: str, anon_id: str = "") -> List[Dict[str, Any]]:
@@ -44,7 +45,7 @@ def receipt_for(participant_id: str, metas: List[Dict[str, Any]]) -> Dict[str, A
         "participant_id": participant_id,
         "withdrawn_at": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
         "sessions_removed": len(metas),
-        "session_ids": [m.get("id") for m in metas],
+        "session_ids": [sid_of(m) for m in metas],
         "task_ids": sorted({m.get("quest_id") for m in metas if m.get("quest_id")}),
         "note": "content deleted on request; this record keeps no artwork, logs or text",
     }
@@ -58,7 +59,7 @@ def withdraw(participant_id: str, anon_id: str = "", *, confirm: bool = False) -
         return receipt
 
     for meta in metas:
-        sid = meta.get("id")
+        sid = sid_of(meta)
         if sid:
             shutil.rmtree(config.SESSIONS_DIR / sid, ignore_errors=True)
 

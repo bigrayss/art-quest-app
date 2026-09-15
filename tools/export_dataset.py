@@ -20,7 +20,7 @@ from artquest import config  # noqa: E402
 from artquest import events as ev  # noqa: E402
 from artquest.logstore import write_json  # noqa: E402
 from artquest.storage import (dataset_manifest, session_events, session_feedback,  # noqa: E402
-                              session_labels, session_meta, session_part, session_strokes)
+                              session_labels, session_meta, session_part, session_strokes, sid_of)
 from artquest.revision import attribute  # noqa: E402
 from artquest.quests import QUESTS  # noqa: E402
 from artquest.scoring.base import DIM_KEYS  # noqa: E402
@@ -92,7 +92,7 @@ def _flat_personalization(m: Dict[str, Any], rec: Dict[str, Any]) -> Dict[str, A
     out = rec.get("outcome") or {}
     err = rec.get("error") or {}
     row = {
-        "session_id": m.get("id"), "participant_id": p.get("participant_id", ""),
+        "session_id": sid_of(m), "participant_id": p.get("participant_id", ""),
         "task_id": m.get("quest_id"), "task_difficulty": (m.get("task") or {}).get("difficulty"),
         "requested_mode": rec.get("requested_mode"), "backend": rec.get("backend"),
         "available": rec.get("available"), "cold_start": used.get("cold_start"),
@@ -116,7 +116,7 @@ def _flat_session(m: Dict[str, Any]) -> Dict[str, Any]:
     if isinstance(p, str):  # schema 1
         p = {"participant_id": p, "anon_id": ""}
     return {
-        "session_id": m.get("id"), "created_at": m.get("created_at"),
+        "session_id": sid_of(m), "created_at": m.get("created_at"),
         "started_at": times.get("started_at"), "ended_at": times.get("ended_at"),
         "duration_ms": times.get("duration_ms"),
         "anon_id": p.get("anon_id", ""), "participant_id": p.get("participant_id", ""),
@@ -173,7 +173,7 @@ def export(out: Path, with_points: bool = False) -> Dict[str, int]:
         m = session_meta(d)
         if not m:
             continue
-        sid = m.get("id") or d.name
+        sid = sid_of(m) or d.name
         sessions.append(_flat_session(m))
         pz = session_part(d, "personalization")
         if pz:

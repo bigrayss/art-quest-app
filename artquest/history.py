@@ -32,7 +32,7 @@ from . import events as ev
 from .logstore import read_json
 from .reconstruct import read_jsonl, visible_ids
 from .scoring.base import DIM_KEYS
-from .storage import now_iso, session_meta
+from .storage import now_iso, session_meta, sid_of
 
 # Bumped when the shape below changes, so a frozen snapshot stays readable.
 REPRESENTATION_SCHEMA = 1
@@ -89,7 +89,7 @@ def sessions_for(participant_id: str = "", anon_id: str = "",
             continue
         out.append(meta)
     # id breaks ties so the order is stable whatever the filesystem hands back
-    return sorted(out, key=lambda m: (m.get("created_at") or "", m.get("id") or ""))
+    return sorted(out, key=lambda m: (m.get("created_at") or "", sid_of(m)))
 
 
 # -- one finished task, compacted -------------------------------------------
@@ -171,7 +171,7 @@ def _dims(record: Optional[Dict[str, Any]]) -> Dict[str, float]:
 
 def task_record(meta: Dict[str, Any]) -> Dict[str, Any]:
     """One finished task as the representation carries it."""
-    sid = meta.get("id") or meta.get("session_id")
+    sid = sid_of(meta)
     q = meta.get("questionnaire") or {}
     return {
         "session_id": sid,
