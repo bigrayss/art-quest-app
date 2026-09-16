@@ -25,6 +25,9 @@
     return id;
   }
   const savedPid = () => localStorage.getItem("artquest.participant_id") || "";
+  // 服务器上可能不止一个孩子。凡是界面里说「我的」的地方，都只问自己那些。
+  const mySessions = () => api(`/api/sessions?anon_id=${encodeURIComponent(state.anonId)}`
+    + `&participant_id=${encodeURIComponent(savedPid())}`);
   const setPid = (pid) => pid ? localStorage.setItem("artquest.participant_id", pid) : localStorage.removeItem("artquest.participant_id");
   const deviceInfo = () => ({
     ua: navigator.userAgent, platform: navigator.platform || "",
@@ -211,6 +214,9 @@
     VIEWS.forEach(v => $(`#view-${v}`).classList.toggle("hidden", v !== name));
     const tab = VIEW_TAB[name];
     document.body.classList.toggle("inflow", !tab);
+    // 每块 tab 有自己的空气颜色：切 tab 像换了个房间，而不是换了一页文档。
+    // 具体的色值在 CSS 里（body[data-room]），这里只说现在在哪个房间。
+    document.body.dataset.room = tab || (name === "draw" ? "draw" : "flow");
     document.querySelectorAll(".tab").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
     $("#appbar-title").classList.toggle("hidden", !tab);
     if (tab) $("#appbar-title").textContent = TITLES[name];
@@ -261,8 +267,13 @@
     const m = $("#featured-modal");
     const item = featuredQueue[0];
     if (!item) { m.classList.add("hidden"); return; }
-    $("#featured-note").textContent = item.note
-      ? `老师说：「${item.note}」` : `你画的《${item.title}》被老师挑出来了。`;
+    // 挑中的可能是老师，也可能是每天自动轮到的那一批（by = curator/...）。
+    // 自动那批不说「老师说」——它没在评价这张画，只是把它排到了今天。
+    const auto = (item.by || "").startsWith("curator/");
+    $("#featured-title").textContent = auto ? "今天轮到你的画了" : "老师选中了你的一张画";
+    $("#featured-note").textContent = auto
+      ? `你画的《${item.title}》今天轮到挂出去给大家看啦` + (item.note ? `，旁边会写着「${item.note}」。` : "。")
+      : item.note ? `老师说：「${item.note}」` : `你画的《${item.title}》被老师挑出来了。`;
     $("#featured-img").src = item.image;
     m.classList.remove("hidden");
   }
@@ -307,22 +318,95 @@
       : best && best[1].practice
         ? `我在「${(byKey[best[0]] || {}).zh || best[0]}」上长得最快！`
         : "再画几幅，我就开始长啦～";
-    const pct = lit ? Math.round(100 * g.total_level / Math.max(1, g.max_total)) : 0;
-    $("#world-bar-fill").style.width = pct + "%";
-    $("#world-total").textContent = lit
-      ? `${g.n_tasks} 幅作品 · 成长 ${g.total_level}/${g.max_total}`
-      : "还没有作品";
 
-    $("#world-attrs").innerHTML = CHART_ORDER.map(key => {
-      const d = byKey[key]; if (!d) return "";
-      const v = (lit && g.dims[key]) || { level: 0, max_level: 5 };
-      const fam = FAMILIES[DIM_FAMILY[key]];
-      const pips = Array.from({ length: v.max_level || 5 },
-        (_, i) => `<i class="${i < (v.level || 0) ? "on" : ""}"></i>`).join("");
-      return `<div class="attr${v.level ? "" : " dim"}" style="--ac:${fam.color}">
-        <div class="attr-name">${d.zh}</div><div class="attr-pips">${pips}</div></div>`;
-    }).join("");
+    // 封面这张照片的饱和度就是进度：九处里还原了几处，颜色就回来几成。
+    // 数据还是九维（dims[key].level > 0 算一处），只是门口不再摆成九个东西。
+    const on = CHART_ORDER.filter(k => lit && (g.dims[k] || {}).level > 0).length;
+    const p = on / CHART_ORDER.length;
+    // 身后那圈光 = 彩点当前的颜色，练到的项数决定它有多亮
+    const cover = $(".cover");
+    if (cover) {
+      cover.style.setProperty("--glow", col);
+      cover.style.setProperty("--glow-a", (0.1 + 0.34 * p).toFixed(2));
+    }
+    $(".world").classList.toggle("lit", on > 0);
+    $("#world-bar-fill").style.width = Math.round(100 * p) + "%";
+    $("#world-total").textContent = lit
+      ? `${g.n_tasks} 幅作品 · 颜色回来了 ${on}/${CHART_ORDER.length}` : "颜色还没回来";
   }
+
+  // ---------- 第一次进来的导览 ----------
+  // 不是一页一页讲完再放人进来：**暗掉全屏，只把正在说的那个东西留在亮处**，
+  // 旁边一句话指着它。一句一个按钮，说完就走。
+  // 说明只说一次，所以界面上不再挂常驻的小字。
+  const TOUR = [
+    { sel: "#world-sprite",    text: "这是彩点。你用什么颜色，它就变什么颜色。" },
+    { sel: "#btn-rename",      text: "点这支笔，给它起个名字。" },
+    { sel: "#btn-enter-world", text: "从这儿进地图。", after: () => enterWorld() },
+    { sel: "#quest-grid .quest-card", text: "一个钮是一类任务。挑想画的就行。" },
+    { sel: ".tab[data-tab='dex']", text: "画完的都收在图鉴里。" },
+  ];
+  let tourAt = 0, tourOn = false;
+  const tourEl = $("#tour");
+  function placeTour() {
+    const step = TOUR[tourAt];
+    const t = document.querySelector(step.sel);
+    if (!t) return nextTour(true);
+    const r = t.getBoundingClientRect();
+    const pad = 10, vw = innerWidth, vh = innerHeight;
+    const hole = $("#tour-hole");
+    hole.style.left = (r.left - pad) + "px";
+    hole.style.top = (r.top - pad) + "px";
+    hole.style.width = (r.width + pad * 2) + "px";
+    hole.style.height = (r.height + pad * 2) + "px";
+    // 圆的东西给圆洞，方的给圆角方洞——洞的形状要跟按钮长得一样
+    const square = Math.abs(r.width - r.height) / Math.max(r.width, r.height) < 0.25;
+    hole.style.borderRadius = square ? "999px" : "26px";
+
+    $("#tour-text").textContent = step.text;
+    $("#tour-dots").innerHTML = TOUR.map((_, i) => `<i class="${i === tourAt ? "on" : ""}"></i>`).join("");
+    $("#btn-tour-next").textContent = tourAt === TOUR.length - 1 ? "开始画吧" : "下一步";
+    const tip = $("#tour-tip");
+    tip.style.visibility = "hidden"; tip.style.left = "0px"; tip.style.top = "0px";
+    requestAnimationFrame(() => {
+      const tr = tip.getBoundingClientRect();
+      const below = r.bottom + pad + 14 + tr.height < vh - 8;
+      const top = below ? r.bottom + pad + 14 : Math.max(12, r.top - pad - 14 - tr.height);
+      const left = Math.min(Math.max(12, r.left + r.width / 2 - tr.width / 2), vw - tr.width - 12);
+      tip.style.left = left + "px";
+      tip.style.top = top + "px";
+      tip.classList.toggle("up", !below);
+      tip.style.setProperty("--arrow", (r.left + r.width / 2 - left) + "px");
+      tip.style.visibility = "visible";
+    });
+  }
+  function nextTour(skipAfter) {
+    const step = TOUR[tourAt];
+    if (!skipAfter && step && step.after) { try { step.after(); } catch (e) { /* 走不通就往下 */ } }
+    if (tourAt >= TOUR.length - 1) return endTour();
+    tourAt++;
+    setTimeout(placeTour, 220);          // 等视图切过去再定位
+  }
+  function startTour() {
+    tourAt = 0; tourOn = true;
+    tourEl.classList.remove("hidden");
+    setTimeout(placeTour, 60);
+  }
+  function endTour() {
+    tourOn = false;
+    tourEl.classList.add("hidden");
+    try { localStorage.setItem(TOUR_KEY, "1"); } catch (e) { /* 无所谓 */ }
+    checkFeatured();
+  }
+  $("#btn-tour-next").onclick = () => nextTour(false);
+  $("#btn-tour-skip").onclick = endTour;
+  $("#btn-guide-again").onclick = () => { show("world"); renderWorld().then(startTour); };
+  window.addEventListener("resize", () => { if (tourOn) placeTour(); });
+  // 记录带版本号：导览换过一次（从一叠讲解页换成聚光灯），那些在旧版本上点过
+  // 「看过了」的设备必须再看一次新的——否则改了等于没改。
+  const TOUR_KEY = "artquest.tour/2";
+  const guideSeen = () => { try { return localStorage.getItem(TOUR_KEY) === "1"; } catch (e) { return true; } };
+
   function enterWorld() {
     state.entered = true;
     try { sessionStorage.setItem("artquest.entered", "1"); } catch (e) { /* 无所谓 */ }
@@ -872,7 +956,7 @@
 
   // ===== 首页：创作图鉴（收藏 + 集齐进度）=====
   async function loadCollection() {
-    let rows = []; try { rows = await api("/api/sessions"); } catch (e) { return; }
+    let rows = []; try { rows = await mySessions(); } catch (e) { return; }
     state.allSessions = rows;          // 地图的星、跨作品徽章、成长视图都读它
     const done = rows.filter(r => r.status === "done");
     const wrap = $("#collection-wrap"), grid = $("#collection"), empty = $("#dex-empty");
@@ -894,7 +978,8 @@
       return `<div class="dex-card" style="--qc:${st.c}">
         <a class="dex-open" href="/api/sessions/${r.session_id}" target="_blank">
           <div class="dex-thumb"><img src="/files/${r.session_id}/after.png" alt="" loading="lazy"></div>
-          <div class="dex-cap"><b>${icon(st.icon, 14)}${titleOf(r.quest_id)}</b><span>${(r.created_at || "").slice(0, 10)}</span></div>
+          <div class="dex-cap"><b>${icon(st.icon, 14)}${titleOf(r.quest_id)}</b>
+            <span>${whenText(r.created_at)}</span></div>
         </a>${flag}</div>`;
     }).join("");
     grid.querySelectorAll(".dex-featured").forEach(b => {
@@ -905,8 +990,9 @@
       };
     });
     const types = new Set(done.map(r => r.quest_id)), total = state.quests.length;
-    $("#dex-progress").innerHTML = `已解锁 ${types.size}/${total} 种任务`
-      + (types.size >= total ? ` · <b style="color:var(--accent-d)">${icon("medal", 14)} 创作者勋章达成！</b>` : "");
+    const dp = $("#dex-progress");
+    dp.classList.toggle("done", types.size >= total);
+    dp.textContent = types.size >= total ? `${total} 种全画过了` : `${types.size}/${total} 种`;
   }
 
   /** 彩点's nine attributes, grown from what the child actually practised.
@@ -935,7 +1021,7 @@
     // one ring per three levels: a visible shape change, not a number
     const rings = Math.min(5, Math.floor(g.total_level / 3));
     $("#growth-rings").innerHTML = rings ? icon("star", 16).repeat(rings) : "";
-    $("#growth-total").textContent = `${g.n_tasks} 幅作品 · 总成长 ${g.total_level}/${g.max_total}`;
+    $("#growth-total").textContent = `成长 ${g.total_level}/${g.max_total}`;
     $("#growth-say").textContent = best[1].practice
       ? `我在「${byKey[best[0]].zh}」上长得最快！`
       : "再画几幅，我就开始长啦～";
@@ -946,12 +1032,13 @@
       const fam = FAMILIES[DIM_FAMILY[key]];
       const pips = Array.from({ length: v.max_level }, (_, i) =>
         `<i class="${i < v.level ? "on" : ""}"></i>`).join("");
+      // 「评价层已唤醒 · 29 次评分」是后台说话。孩子这儿只要两件事：
+      // 还差几幅能长一格，以及这项现在有没有人在评。
+      const left = Math.ceil(Math.max(0, (v.next_at || 0) - v.practice));
       const next = v.next_at !== null
-        ? `再练 ${Math.max(0, v.next_at - v.practice)} 次升级`
-        : "已满级";
-      const layer = v.awake
-        ? `<div class="gawake">评价层已唤醒 · ${v.score_n} 次评分</div>`
-        : `<div class="gsleep">评价层待唤醒（需要评分模型）</div>`;
+        ? (left <= 0 ? "马上升一格" : `再画 ${left} 幅长一格`)
+        : "长满了";
+      const layer = v.awake ? "" : `<div class="gsleep">这项等模型来评</div>`;
       return `<div class="gdim" style="--gc:${fam.color}">
         <div class="gtop"><span class="gname">${d.zh}</span><span class="gnext">${next}</span></div>
         <div class="gpips">${pips}</div>${layer}</div>`;
@@ -1218,7 +1305,7 @@
 
   /** One child-facing line per family — never the research goal. */
   const FAMILY_BLURB = {
-    M0: "自己决定画什么，没有标准答案。",
+    M0: "画什么由你定。",
     M1: "一幅画损坏了，把重要的东西重新画回来。",
     M2: "把看到的场景准确记录下来，让别人也能看懂。",
     M3: "画布上只剩几个碎片，把它们变成一整幅画。",
@@ -1235,7 +1322,7 @@
     state.families = await api("/api/families");
     state.anonId = anonId();
     loadBuddyName(); paintBuddyName();
-    $("#backend-badge").textContent = `评分: ${state.cfg.scorer} · 反馈: ${state.cfg.feedback}` + (state.cfg.claude_available ? "" : " (离线模式)");
+    $("#backend-badge").textContent = `${state.cfg.scorer} · ${state.cfg.feedback}` + (state.cfg.claude_available ? "" : "（离线）");
     await setupStudy();
     applyCondition();
     $("#participant").value = savedPid();
@@ -1247,7 +1334,8 @@
     try { state.entered = sessionStorage.getItem("artquest.entered") === "1"; } catch (e) { /* 无所谓 */ }
     if (state.entered || state.condition.ui === "quiet") { show("quest"); }
     else { await renderWorld(); show("world"); }
-    checkFeatured();
+    if (!guideSeen() && state.condition.ui !== "quiet") startTour();
+    else checkFeatured();
   }
   function chooseQuest(q) {
     state.quest = q; $("#intent-quest-title").textContent = q.title; $("#intent-quest-prompt").textContent = q.prompt; $("#intent-quest-hint").textContent = "提示：" + q.hint; show("intent");
@@ -1326,6 +1414,9 @@
     $("#draw-quest-card").innerHTML = `<div class="type">${state.quest.type}</div><h3>${state.quest.title}</h3><p>${state.quest.prompt}</p>`;
     $("#draw-intent-card").innerHTML = `心情：<b>${intent.emotion}</b><br>我想表达：${intent.text || "（没写）"}`;
     $("#revision-banner").classList.add("hidden"); $("#btn-submit").classList.remove("hidden"); $("#snap-info").textContent = "";
+    // 不承诺走不到的站：条件里没有 AI 反馈时，这颗按钮后面根本没有「支招」那一步。
+    $("#btn-submit").textContent = state.condition.feedback_source === "ai"
+      ? "画好了，听听反馈" : "画好了，交上去";
     state.buddyTick = 0; updateBuddy();
     startTimers(); show("draw");
     // the canvas has a real size only once the view is visible
@@ -1476,7 +1567,12 @@
     const scores = $("#final-scores");
     scores.classList.toggle("hidden", !showScores);
     if (showScores) renderScores(scores, session.after.scores, session.before.scores);
-    $("#final-meta").textContent = `Session ${session.session_id} · 过程截图 ${session.snapshots.length} 张 · 事件 ${session.events.length} 条 · 数据在 data/sessions/${session.session_id}/`;
+    // 这一行是给研究员看的，不是给孩子看的：session id、事件条数、盘上的路径。
+    // 和「我的」页那批把手同一个道理——实验模式下才露出来。
+    const fm = $("#final-meta");
+    fm.classList.toggle("hidden", !state.study);
+    if (state.study) fm.textContent = `Session ${session.session_id} · 过程截图 ${session.snapshots.length} 张`
+      + ` · 事件 ${session.events.length} 条 · 数据在 data/sessions/${session.session_id}/`;
     show("final");
   }
 
@@ -1626,17 +1722,23 @@
     let data;
     try { data = await api("/api/gallery/featured?k=8"); } catch (e) { el.classList.add("hidden"); return; }
     const cards = (data && data.examples) || [];
-    if (!cards.length) { el.classList.add("hidden"); return; }
+    // 空墙也说一句。这面墙需要两个人点头（老师挑 + 本人答应），
+    // 整块消失会让人以为功能坏了，而它只是还没有人挑过。
     el.classList.remove("hidden");
+    $("#wall-empty").classList.toggle("hidden", !!cards.length);
+    $("#wall-count").textContent = cards.length ? `${cards.length} 张` : "";
     $("#wall-grid").innerHTML = cards.map(c => {
       const a = c.approach || {};
       const title = (state.quests.find(q => q.id === c.task_id) || {}).title || c.task_id;
-      return `<div class="peer">
-        <img src="${c.image}" alt="精选作品" loading="lazy">
-        <div class="p-why">${escapeHtml(title)}</div>
-        <div class="p-how">${a.strokes} 笔 · ${a.colors || 1} 种颜色 · ${a.minutes} 分钟</div>
-        ${c.why ? `<div class="p-how">「${escapeHtml(c.why)}」</div>` : ""}
-        <div class="p-pin">${icon("pin", 13)}老师选的</div></div>`;
+      return `<figure class="peer">
+        <div class="peer-shot"><img src="${c.image}" alt="挂出来的画" loading="lazy"></div>
+        <figcaption>
+          <b>${escapeHtml(title)}</b>
+          <div class="peer-chips"><span>${a.strokes} 笔</span><span>${a.colors || 1} 种颜色</span>
+            <span>${a.minutes} 分钟</span>${a.zoomed ? "<span>放大看过</span>" : ""}</div>
+          ${c.why ? `<p class="peer-why">${escapeHtml(c.why)}</p>` : ""}
+          <div class="p-pin">${icon("pin", 13)}${c.curated ? "今天挂出来的" : "老师选的"}</div>
+        </figcaption></figure>`;
     }).join("");
   }
 
@@ -1661,7 +1763,7 @@
     } catch (e) { /* featured is optional */ }
     if (!cards.length) { el.classList.add("hidden"); return; }
     el.classList.remove("hidden");
-    $("#peers-note").textContent = "看看就好，没有哪一张是标准答案";
+    $("#peers-note").textContent = `${cards.length} 种做法`;
     $("#peer-grid").innerHTML = cards.map(c => {
       const a = c.approach || {};
       const how = [`${a.strokes} 笔`, `${a.colors || 1} 种颜色`, `${a.minutes} 分钟`,
@@ -1693,8 +1795,8 @@
         + `;--tc-fg:${mixHex(fam.color, 72, "#000")}"><i></i>${(byKey[k] || {}).zh || k}</span>`;
     };
     el.innerHTML = `<h4>${icon("sprout", 16)}这一关练的是</h4><div class="tchips">${primary.map(chip).join("")}</div>`
-      + `<div class="tnote">${buddyName()}在这几项上又长了一点。`
-      + (na.length ? `这一关用不上「${na.map(k => (byKey[k] || {}).zh || k).join("、")}」，所以不算在内。` : "")
+      + `<div class="tnote">${buddyName()}跟着长了一截。`
+      + (na.length ? `这一关用不上「${na.map(k => (byKey[k] || {}).zh || k).join("、")}」。` : "")
       + `</div>`;
   }
 
@@ -1753,7 +1855,7 @@
     const gotSet = new Set(got);
     el.innerHTML = got.length
       ? badgeGroupsHtml(pool, b => gotSet.has(b), { newTag: true })
-      : `<p class="badge-left">这次没有点亮新徽章——换个画法试试，它们藏在过程里。</p>`;
+      : `<p class="badge-left">这次没点亮新的。换个画法再来一张，它们都藏在过程里。</p>`;
     $("#badges-count").textContent = got.length ? `点亮了 ${got.length} 枚` : "";
     if (got.length) {
       // one beat of delight, then back to breathing
@@ -1768,7 +1870,7 @@
   async function renderBadgeWall() {
     const el = $("#badge-wall"); if (!el) return;
     // 每次都重新取：徽章是刚刚那一局才上报的，缓存里的名单一定是旧的
-    try { state.allSessions = await api("/api/sessions"); } catch (e) { /* 离线就先空着 */ }
+    try { state.allSessions = await mySessions(); } catch (e) { /* 离线就先空着 */ }
     const lit = new Set();
     (state.allSessions || []).forEach(r => ((r.badges || {}).earned || []).forEach(n => lit.add(n)));
     try { state.rarity = await api("/api/achievements"); } catch (e) { /* 稀有度是可选的 */ }
@@ -1776,7 +1878,7 @@
     const n = pool.filter(b => lit.has(b.name)).length;
     el.innerHTML = n ? badgeGroupsHtml(pool, b => lit.has(b.name))
       : `<p class="badge-left">还一枚都没有。画一幅试试——徽章只看你怎么画，不看画得好不好。</p>`;
-    $("#badge-wall-count").textContent = n ? `已点亮 ${n} 枚` : "";
+    $("#badge-wall-count").textContent = n ? `${n} 枚` : "";
   }
 
   $("#btn-again").onclick = async () => {
@@ -1850,7 +1952,7 @@
       const b = baseline && baseline.dims[key], delta = b ? sc.score - b.score : null;
       sectors += `<path d="${sectorPath(cx, cy, r, a0, a1)}" fill="${fam.color}" fill-opacity="${ph ? 0.26 : isFocus ? 0.95 : 0.72}"`
         + ` stroke="#fff" stroke-width="2"${isFocus && !ph ? ' class="rose-focus"' : ''}>`
-        + `<title>${d.zh}${ph ? "（待模型评）" : ""}</title></path>`;
+        + `<title>${d.zh}${ph ? "（等模型来评）" : ""}</title></path>`;
       if (b && !ph) {  // 修改前的水平：一条虚线弧
         const rb = rOf(b.score);
         marks += `<path d="${arcPath(cx, cy, rb, a0, a1)}" class="rose-before" stroke="${fam.color}"/>`;
@@ -1895,27 +1997,111 @@
       const fam = FAMILIES[DIM_FAMILY[d.key]];
       return `<div class="dim${focus.has(d.key) ? " focus" : ""}${ph ? " ph" : ""}">
         <div class="name"><span><i class="dot" style="background:${fam.color}"></i>${d.zh}</span>
-          <span class="sval">${ph ? '<span class="wait">待模型评</span>' : `<span class="st">${stars(s.score)}</span>${arrow}`}</span></div></div>`;
+          <span class="sval">${ph ? '<span class="wait">等模型来评</span>' : `<span class="st">${stars(s.score)}</span>${arrow}`}</span></div></div>`;
     }).join("");
-    el.innerHTML = `<div class="ability-head">${icon("palette", 17)}能力值 · 你这次在这些地方使了劲<span class="muted small">（我们不打分，只看能力往哪长）</span></div>`
-      + roseChart(scores, baseline) + `<div class="dim-notes">${notes}</div>`;
+    el.innerHTML = `<div class="ability-head">${icon("palette", 17)}这一幅，你长在这儿</div>`
+      + roseChart(scores, baseline)
+      // 九项的逐条细节默认收起来：宝藏这一屏要在一块 pad 上放得下，
+      // 而且第一眼该是「你的画」和「这次练了什么」，不是一张九行的表。
+      + `<details class="dim-fold"><summary>${icon("sliders", 15)}看看九项的细节</summary>`
+      + `<div class="dim-notes">${notes}</div></details>`;
   }
 
-  // ---------- 「我的」：作品记录 + 这台机器上的设置 ----------
-  async function loadSessions() {
-    const rows = await api("/api/sessions");
-    state.allSessions = rows;
-    const tb = $("#sessions-table tbody"); tb.innerHTML = "";
-    rows.forEach(s => { const tr = document.createElement("tr"); tr.innerHTML = `<td>${s.created_at}</td><td>${s.quest_id}</td><td>${s.participant || ""}</td><td>${s.status}</td><td>${s.revised === null ? "—" : s.revised ? "是" : "否"}</td><td><a href="/files/${s.session_id}/before.png" target="_blank">before</a> · <a href="/files/${s.session_id}/after.png" target="_blank">after</a> · <a href="/api/sessions/${s.session_id}" target="_blank">json</a></td>`; tb.appendChild(tr); });
-    $("#anon-badge").textContent = state.anonId;
+  // ---------- 「我的」：画过的画 + 这台设备 ----------
+  // A child (or their parent) opening this on a phone should see their own
+  // drawings, not a research export. `2026-09-15T04:33:28.149+00:00`, `M8_R03`
+  // and `before · after · json` are the same facts said in a language nobody
+  // here reads — and six columns of them ran straight off the side of a phone.
+  // The identifiers are still one fold away, for whoever runs the study on
+  // this device.
+  const WORK_STATUS = {
+    done: null, drawing: { cls: "open", zh: "还没画完" },
+    abandoned: { cls: "open", zh: "中途换了任务" },
+  };
+  /** Timestamps a person can read: today and yesterday by the clock, then the date. */
+  function whenText(iso) {
+    const t = new Date(iso);
+    if (isNaN(t)) return iso || "";
+    const hm = `${t.getHours()}:${String(t.getMinutes()).padStart(2, "0")}`;
+    const midnight = new Date(); midnight.setHours(0, 0, 0, 0);
+    const days = Math.floor((midnight - t) / 86400000);
+    if (days < 0) return `今天 ${hm}`;
+    if (days < 1) return `昨天 ${hm}`;
+    if (t.getFullYear() === new Date().getFullYear()) return `${t.getMonth() + 1}月${t.getDate()}日`;
+    return `${t.getFullYear()}年${t.getMonth() + 1}月${t.getDate()}日`;
   }
-  $("#btn-sessions-back").onclick = () => openTab("map");
+  async function loadSessions() {
+    let rows = []; try { rows = await mySessions(); } catch (e) { /* 离线也要画得出壳 */ }
+    state.allSessions = rows;
+    const mine = rows.filter(r => r.status !== "withdrawn");   // 撤回是真删，界面里也不留痕
+    const titleOf = (qid) => (state.quests.find(q => q.id === qid) || {}).title || qid;
+    const styleOf = (qid) => QUEST_STYLE[qid] || { icon: "palette", c: "#f79433" };
+
+    $("#me-sprite").innerHTML = spriteInner(buddyColor(), mine.length ? "happy" : "normal");
+    $("#me-name").textContent = state.buddyName || "彩点";
+    const done = mine.filter(r => r.status === "done").length;
+    $("#me-sub").textContent = done ? `和你一起画了 ${done} 张` : "还没一起画过";
+    $("#works-count").textContent = mine.length ? `${mine.length} 张` : "";
+
+    const list = $("#worklist");
+    $("#works-empty").classList.toggle("hidden", !!mine.length);
+    list.innerHTML = mine.map(r => {
+      const st = styleOf(r.quest_id), flag = WORK_STATUS[r.status];
+      const chips = (flag ? `<span class="work-chip ${flag.cls}">${flag.zh}</span>` : "")
+        + (r.revised ? `<span class="work-chip evolve">改过一次</span>` : "");
+      return `<button class="work" data-sid="${r.session_id}" data-qid="${r.quest_id}" style="--qc:${st.c}">
+        <span class="work-thumb">${r.status === "done"
+          ? `<img src="/files/${r.session_id}/after.png" alt="" loading="lazy"
+               onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'no-shot'}))">`
+          : icon("pencil", 18)}</span>
+        <span class="work-main">
+          <b>${icon(st.icon, 15)}${titleOf(r.quest_id)}</b>
+          <span class="work-meta">${whenText(r.created_at)}${chips}</span>
+        </span>${icon("arrowRight", 16)}
+      </button>`;
+    }).join("");
+    list.querySelectorAll(".work").forEach(b => { b.onclick = () => openWork(b.dataset.sid, b.dataset.qid); });
+
+    $("#anon-badge").textContent = state.anonId + (savedPid() ? ` · ${savedPid()}` : "");
+    paintSync(await ArtLog.pending().catch(() => 0), navigator.onLine);
+  }
+  // 「画还在不在这台设备上」——和顶栏的 recstat 是同一件事，换成孩子看得懂的话
+  function paintSync(pending, online) {
+    const me = $("#me-sync"); if (!me) return;
+    me.classList.toggle("warn", !online || pending > 0);
+    me.innerHTML = `<b></b>${!online ? "离线，先存在这台设备上" : pending ? "正在保存…" : "都保存好了"}`;
+  }
+
+  // 点开一张：先看画，再说它是哪个任务。原始文件只在实验模式下露出来。
+  const workModal = $("#work-modal");
+  function openWork(sid, qid) {
+    const row = (state.allSessions || []).find(r => r.session_id === sid) || {};
+    const q = state.quests.find(x => x.id === qid);
+    $("#work-title").textContent = (q && q.title) || qid;
+    $("#work-sub").textContent = whenText(row.created_at)
+      + (row.revised ? " · 画完又改过一次" : "") + (row.status === "done" ? "" : " · 没画完");
+    const img = $("#work-img");
+    img.classList.remove("hidden");
+    img.onerror = () => img.classList.add("hidden");
+    img.src = `/files/${sid}/after.png`;
+    const raw = $("#work-raw");
+    raw.classList.toggle("hidden", !state.study);
+    if (state.study) raw.innerHTML = `${qid} · ${sid} · <a href="/api/sessions/${sid}" target="_blank">json</a>`;
+    $("#btn-work-again").classList.toggle("hidden", !q);
+    $("#btn-work-again").onclick = () => { workModal.classList.add("hidden"); if (q) chooseQuest(q); };
+    workModal.classList.remove("hidden");
+  }
+  $("#btn-work-close").onclick = () => workModal.classList.add("hidden");
+  workModal.onclick = (e) => { if (e.target === workModal) workModal.classList.add("hidden"); };
   // recording indicator: what is still only on this device
   ArtLog.onstatus(({ pending, online }) => {
-    const el = $("#recstat"); if (!el) return;
-    el.classList.toggle("warn", !online || pending > 0);
-    $("#recstat-text").textContent = !online ? `离线 · ${pending} 条待上传`
-      : pending ? `同步中 ${pending}` : state.sessionId ? "记录中" : "就绪";
+    const el = $("#recstat");
+    if (el) {
+      el.classList.toggle("warn", !online || pending > 0);
+      $("#recstat-text").textContent = !online ? `离线 · ${pending} 条待上传`
+        : pending ? `同步中 ${pending}` : state.sessionId ? "记录中" : "就绪";
+    }
+    paintSync(pending, online);
   });
   window.addEventListener("beforeunload", (e) => { if (state.sessionId && !$("#view-draw").classList.contains("hidden")) { e.preventDefault(); e.returnValue = ""; } });
 
