@@ -17,6 +17,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 from artquest import gallery as gallery_mod  # noqa: E402
 from artquest.main import app  # noqa: E402
 from artquest.reconstruct import render  # noqa: E402
+from artquest.storage import now_iso  # noqa: E402
 
 SESSIONS = Path(_TMP) / "sessions"
 TASK = "M9_A"
@@ -186,6 +187,63 @@ class Gallery(unittest.TestCase):
         # the rule set is recorded, so tightening a rule later cannot retroactively
         # take a badge away from a child who already had it
         self.assertIn("badges/1", stats["rule_versions"])
+
+    # -- 每天自动挑一批：轮换，不是排名 ------------------------------------
+    def test_the_daily_batch_is_still_only_a_proposal(self):
+        """自动挑中和老师挑中走同一条路：先问本人，答应了才挂出去。"""
+        t0 = now_iso()                      # 只看这个测试自己造的作品
+        sid = self._session(pid="P-AUTO-1", n=7)
+        r = self.c.post("/api/gallery/curate", json={"k": 5, "since": t0})
+        self.assertIn(sid, [p["session_id"] for p in r.json()["proposed"]])
+        self.assertEqual(r.json()["by"], "curator/v1")
+
+        wall = lambda: [e["session_id"] for e in
+                        self.c.get("/api/gallery/featured?k=20").json()["examples"]]
+        self.assertNotIn(sid, wall(), "被挑中本身不等于被展出")
+
+        pending = self.c.get("/api/participants/P-AUTO-1/featured").json()["pending"]
+        self.assertEqual([p["session_id"] for p in pending], [sid])
+        self.assertTrue(pending[0]["by"].startswith("curator/"))
+        self.assertTrue(pending[0]["note"], "挂出来时要说一句它是怎么画的")
+
+        self.c.post(f"/api/sessions/{sid}/featured", json={"accept": True})
+        card = [e for e in self.c.get("/api/gallery/featured?k=20").json()["examples"]
+                if e["session_id"] == sid][0]
+        self.assertTrue(card["curated"], "自动挑的要标出来，不能冒充是人挑的")
+        self.assertEqual(card["featured_by"], "curator/v1")
+
+    def test_the_daily_batch_never_ranks_anybody(self):
+        """一轮一个人最多一张，同一个人的两张只会轮到一张，重复跑不会再提一次。"""
+        t0 = now_iso()                      # 只看这个测试自己造的作品
+        a1 = self._session(pid="P-AUTO-A", n=5)
+        a2 = self._session(pid="P-AUTO-A", n=6)
+        b1 = self._session(pid="P-AUTO-B", n=22, colors=5, tools=3, duration=400000)
+
+        first = self.c.post("/api/gallery/curate",
+                            json={"k": 10, "since": t0}).json()["proposed"]
+        ids = [s["session_id"] for s in first]
+        self.assertEqual(len(ids), len(set(ids)))
+        self.assertEqual(len({a1, a2} & set(ids)), 1, "一个人一轮只该轮到一张")
+        self.assertIn(b1, ids, "另一个人也该轮到")
+
+        # 再跑一次：已经提过的不会再提，冷却期内这个人也不会又被挑
+        again = self.c.post("/api/gallery/curate", json={"k": 10, "since": t0}).json()
+        self.assertEqual(again["proposed"], [], "重复跑必须是安全的")
+
+    def test_the_daily_batch_obeys_consent_too(self):
+        t0 = now_iso()
+        secret = self._session(pid="P-AUTO-NOCONSENT", n=6, consent=False)
+        proposed = self.c.post("/api/gallery/curate",
+                               json={"k": 10, "since": t0}).json()["proposed"]
+        self.assertNotIn(secret, [p["session_id"] for p in proposed])
+
+    def test_curation_note_describes_the_process_not_the_quality(self):
+        t0 = now_iso()
+        self._session(pid="P-AUTO-WHY", n=6, colors=6, tools=3, duration=700000)
+        picks = gallery_mod.curate(k=10, since=t0)
+        whys = " ".join(p["why"] for p in picks)
+        for forbidden in ("最好", "优秀", "第一", "分数", "评分", "厉害", "最"):
+            self.assertNotIn(forbidden, whys)
 
     def test_signature_axes_are_all_process(self):
         """A quality term anywhere in here would turn the gallery into a ranking."""
