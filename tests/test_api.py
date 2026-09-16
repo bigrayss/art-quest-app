@@ -90,6 +90,42 @@ class StageOneLoop(unittest.TestCase):
         self.assertEqual(self.c.post(f"/api/sessions/{sid}/snapshot", json={"image": "not-an-image", "elapsed_ms": 1}).status_code, 400)
 
 
+class OneServerManyChildren(unittest.TestCase):
+    """把服务器放到局域网上就不止一个孩子了。
+
+    「我的创作图鉴」「作品记录」「地图上的星」读的都是同一条 `/api/sessions`。
+    不带身份问，它返回服务器上所有人的作品——别人的画会直接出现在这个孩子的
+    个人页里，绕过了整套同意机制。所以 app 永远带着自己的两个 id 问。
+    """
+    def setUp(self):
+        self.c = TestClient(app)
+
+    def _session(self, anon, pid=""):
+        return self.c.post("/api/sessions", json={
+            "task_id": "M9_A", "intent": {"emotion": "好奇", "text": ""},
+            "participant": {"anon_id": anon, "participant_id": pid},
+            "canvas": {"width": 1024, "height": 704}}).json()["session_id"]
+
+    def test_a_child_only_sees_their_own(self):
+        mine = self._session("anon-mine-1", "P-MINE")
+        theirs = self._session("anon-theirs-1", "P-THEIRS")
+
+        got = [r["session_id"] for r in
+               self.c.get("/api/sessions?anon_id=anon-mine-1&participant_id=P-MINE").json()]
+        self.assertIn(mine, got)
+        self.assertNotIn(theirs, got, "别人的作品不能出现在「我的」里")
+
+        # 没有研究员编号的设备，只靠设备 id 也要认得出自己
+        solo = self._session("anon-solo-1")
+        got = [r["session_id"] for r in self.c.get("/api/sessions?anon_id=anon-solo-1").json()]
+        self.assertEqual(got, [solo])
+
+        # 不带参数仍然是研究员的全量视图（导出、教师端靠它）
+        everything = [r["session_id"] for r in self.c.get("/api/sessions").json()]
+        self.assertIn(mine, everything)
+        self.assertIn(theirs, everything)
+
+
 class FrontEndTargetsRealBrowsers(unittest.TestCase):
     """CSS the target browser does not know is dropped *silently*.
 

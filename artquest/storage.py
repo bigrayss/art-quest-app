@@ -307,7 +307,15 @@ class SessionStore:
     def _write(self, sid: str, meta: Dict[str, Any]) -> None:
         write_json(self._meta_path(sid), meta)
 
-    def list(self) -> List[Dict[str, Any]]:
+    def list(self, *, participant_id: str = "", anon_id: str = "") -> List[Dict[str, Any]]:
+        """Every session, or just one child's.
+
+        Unfiltered is the researcher's view. The app always asks for its own
+        two ids: once a server has more than one child on it — which is the
+        whole point of putting it on a phone — an unfiltered list would put
+        other children's drawings into this child's 图鉴 and 作品记录, with no
+        consent gate anywhere near it.
+        """
         keys = ("session_id", "created_at", "quest_id", "status", "revised", "badges", "featured")
         out = []
         for d in self.root.iterdir():
@@ -316,6 +324,12 @@ class SessionStore:
             m = read_json(d / "session.json") or read_json(d / "metadata.json")
             if not m:
                 continue
+            if participant_id or anon_id:
+                p = m.get("participant")
+                p = p if isinstance(p, dict) else {"participant_id": p or ""}
+                if not ((participant_id and p.get("participant_id") == participant_id)
+                        or (anon_id and p.get("anon_id") == anon_id)):
+                    continue
             row = {k: m.get(k) for k in keys}
             row["session_id"] = sid_of(m) or d.name
             p = m.get("participant")

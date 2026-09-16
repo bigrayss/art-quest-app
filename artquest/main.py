@@ -21,7 +21,7 @@ from .quests import (EMOTIONS, QUESTS, QUESTS_BY_ID, condition_snapshot,
 from .reconstruct import check_final
 from .rubric import apply_contract, check_rating
 from .revision import attribute as attribute_revision
-from .schemas import (Abandon, Annotation, CreateSession, DrawEvent, EarnedBadges, FeaturedAnswer,
+from .schemas import (Abandon, Annotation, CreateSession, Curate, DrawEvent, EarnedBadges, FeaturedAnswer,
                       FeedbackIn, Finalize, HARDEST_PARTS, LogBatch, PROCESS_LABELS,
                       Questionnaire, Rating, Snapshot, StudyAssign, Stroke, Submit)
 from .scoring import DIMENSIONS, SCALE_MAX, get_scorer
@@ -172,8 +172,9 @@ def study_assign(body: StudyAssign):
 
 # -- sessions --------------------------------------------------------------
 @app.get("/api/sessions")
-def list_sessions():
-    return store.list()
+def list_sessions(participant_id: str = "", anon_id: str = ""):
+    """不带参数 = 研究员看全部；带上身份 = 这个孩子自己的那些（app 永远带）。"""
+    return store.list(participant_id=participant_id, anon_id=anon_id)
 
 
 @app.get("/api/sessions/{sid}")
@@ -560,8 +561,27 @@ def gallery_for_task(task_id: str, exclude: str = "", k: int = 3):
 
 @app.get("/api/gallery/featured")
 def gallery_featured(task_id: str = "", k: int = 8):
-    """Work a teacher pinned up. A human decision, with a rater id behind it."""
+    """Work that was picked **and** that the child then agreed to show."""
     return gallery_mod.featured_examples(task_id, k=max(1, min(24, k)))
+
+
+@app.post("/api/gallery/curate")
+def gallery_curate(body: Curate):
+    """今天挂哪几张。一天跑一次（cron → `tools/curate.py`）。
+
+    这里只是**提议**，和老师 pin 走同一条路：每一张都要等本人下次打开 app
+    时自己答应，才会出现在图鉴里。挑的规则在 `gallery.curate` —— 轮换 + 差异，
+    不是排名，理由见那儿的注释。重复跑是安全的：已经提过的不会再提一次。
+    """
+    picks = gallery_mod.curate(k=body.k, since=body.since,
+                               cooldown_days=body.cooldown_days)
+    out = []
+    for p in picks:
+        rec = store.propose_featured(p["session_id"], by=gallery_mod.CURATOR_ID, note=p["why"])
+        if rec.get("state") == "pending":
+            out.append({"session_id": p["session_id"], "task_id": p["task_id"], "why": p["why"]})
+    log.info("curated %d session(s) for the wall", len(out))
+    return {"proposed": out, "count": len(out), "by": gallery_mod.CURATOR_ID}
 
 
 @app.get("/api/achievements")

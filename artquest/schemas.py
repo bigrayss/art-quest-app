@@ -311,6 +311,14 @@ class FeaturedAnswer(BaseModel):
     accept: bool
 
 
+class Curate(BaseModel):
+    """每天挑一批挂出来。挑完只是提议，等本人答应——没有一个参数是关于「好坏」的。"""
+    k: int = Field(6, ge=1, le=24, description="这一轮最多提议几张")
+    since: str = Field("", description="只考虑这个 ISO 时间之后完成的作品；空=全部还没被挑过的")
+    cooldown_days: int = Field(7, ge=0, le=365,
+                               description="同一个孩子隔多少天才会再被挑一次")
+
+
 class Rating(BaseModel):
     """Someone other than the child rating the artwork.
 
