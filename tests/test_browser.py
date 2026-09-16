@@ -78,9 +78,61 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
     def _ids(self):
         return {r["session_id"] for r in self._get("/api/sessions")}
 
+    def test_the_tour_points_at_real_buttons_and_only_shows_once(self):
+        """说明只说一次，而且是**指着按钮**说的。
+
+        每一屏上原来都挂着一行小字说明；四处小字加起来就是一层灰，对第二次打开的
+        孩子毫无用处。现在它们收成第一次进来的聚光灯导览：暗掉全屏，把正在说的那颗
+        按钮留在亮处，旁边一句话。看过就不再出现（「我的」里可以再看一遍）。
+        """
+        if type(self) is not ZoomKeepsStrokesInCanvasSpace:
+            self.skipTest("基类跑一次就够")
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(channel="chrome")
+            page = browser.new_page(viewport={"width": 820, "height": 1180})
+            page.set_default_timeout(15000)
+            page.goto(self.base)
+            page.wait_for_selector("#tour:not(.hidden)")
+
+            seen = []
+            for _ in range(5):
+                page.wait_for_timeout(400)
+                box = page.evaluate("""() => {
+                  const h = document.querySelector('#tour-hole').getBoundingClientRect();
+                  const t = document.querySelector('#tour-tip').getBoundingClientRect();
+                  return {hole: [h.left, h.top, h.width, h.height],
+                          tip: [t.left, t.top, t.right, t.bottom],
+                          text: document.querySelector('#tour-text').textContent};
+                }""")
+                # 洞要真的罩在一个元素上，卡片要整个留在屏幕里
+                self.assertGreater(box["hole"][2], 8, "聚光灯没有罩住任何东西")
+                self.assertGreater(box["hole"][3], 8)
+                self.assertGreaterEqual(box["tip"][0], 0)
+                self.assertLessEqual(box["tip"][2], 820 + 1)
+                self.assertLessEqual(box["tip"][3], 1180 + 1)
+                seen.append(box["text"])
+                page.click("#btn-tour-next")
+            self.assertEqual(len(set(seen)), 5, "五步该说五件不同的事")
+            page.wait_for_function("() => document.querySelector('#tour').classList.contains('hidden')")
+
+            page.reload()
+            page.wait_for_selector("#view-world:not(.hidden), #quest-grid .quest-card")
+            self.assertTrue(page.is_hidden("#tour"), "看过一次就不该再拦路")
+
+            page.click(".tab[data-tab='me']")
+            page.click("#btn-guide-again")
+            page.wait_for_selector("#tour:not(.hidden)")
+            browser.close()
+
     def _start(self, page, intent, family=None):
-        """Walk the real UI from the mission map into a running session."""
+        """Walk the real UI from the mission map into a running session.
+
+        A first-time visitor gets the four-step guide over everything, so these
+        tests arrive as a child who has already seen it — that is the state the
+        gestures under test actually run in.
+        """
         page.set_default_timeout(15000)
+        page.add_init_script("localStorage.setItem('artquest.tour/2','1')")
         page.goto(self.base)
         # the app opens on 彩点's world; the map is behind "进入世界"
         page.wait_for_selector("#view-world:not(.hidden), #quest-grid .quest-card")

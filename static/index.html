@@ -57,18 +57,22 @@
 <!-- ===== tab 1 的门口：精灵 + 它的属性 → 进入世界 ===== -->
 <section class="view hidden" id="view-world">
   <div class="world">
-    <div class="world-card">
-      <div class="world-glow"></div>
+    <!-- 封面不放图：主角是彩点自己。
+         没画过画的时候它是灰的，孩子练过的东西把它的颜色带回来——身后那圈光
+         就是它当前的颜色，九项里练到几项，光就有多亮。九维数据一个字段没少，
+         只是门口不摆成九个东西，也不摆分数。 -->
+    <div class="cover">
+      <div class="cover-glow"></div>
       <svg class="sprite hero" id="world-sprite" viewBox="0 0 200 200"></svg>
-      <div class="world-name"><span id="world-name">彩点</span><span class="lvl" id="world-level">Lv.1</span>
-        <button class="rename" id="btn-rename" title="给它起个名字"><i data-icon="pencil" data-size="15"></i></button></div>
-      <div class="world-say" id="world-say"></div>
-      <div class="world-bar"><i id="world-bar-fill"></i></div>
-      <div class="world-bar-note" id="world-total"></div>
     </div>
-    <h2 class="attrs-head"><i data-icon="sprout" data-size="18"></i>它的九个属性</h2>
-    <div class="attrs" id="world-attrs"></div>
-    <div class="actions sticky">
+
+    <div class="world-name"><span id="world-name">彩点</span><span class="lvl" id="world-level">Lv.1</span>
+      <button class="rename" id="btn-rename" title="给它起个名字"><i data-icon="pencil" data-size="15"></i></button></div>
+    <div class="world-say" id="world-say"></div>
+    <div class="world-bar"><i id="world-bar-fill"></i></div>
+    <div class="world-bar-note" id="world-total"></div>
+
+    <div class="actions">
       <button class="primary big grow clay" id="btn-enter-world">进入世界<i data-icon="arrowRight" data-size="18"></i></button>
     </div>
   </div>
@@ -77,7 +81,7 @@
 <!-- ===== tab 1：地图 ===== -->
 <section class="view" id="view-quest">
   <div class="unit">
-    <div class="unit-l"><b>今天想挑战哪一个？</b><span>没有标准答案，选一个想画的</span></div>
+    <div class="unit-l"><b>今天画哪一个？</b></div>
     <span class="unit-r" id="map-progress"></span>
   </div>
   <div class="map" id="quest-grid"></div>
@@ -86,20 +90,37 @@
 <!-- ===== tab 2：图鉴 ===== -->
 <section class="view hidden" id="view-dex">
   <div id="collection-wrap" class="hidden">
-    <h2><i data-icon="grid" data-size="18"></i>我的创作图鉴 <span class="muted small" id="dex-progress"></span></h2>
+    <!-- 区块标题是个可复用的小零件：一枚彩色图标砖 + 标题 + 一句人话 + 右边一个数字牌。
+         原来那种「粗体标题后面拖一小段灰字」是没设计，不是设计。 -->
+    <div class="sechead" style="--sc:var(--accent); --sc-d:var(--accent-d)">
+      <span class="sechead-ico"><i data-icon="grid" data-size="19"></i></span>
+      <div class="sechead-t"><b>我的创作图鉴</b></div>
+      <span class="sechead-chip" id="dex-progress"></span>
+    </div>
     <div class="dex" id="collection"></div>
   </div>
+
   <div id="wall-wrap" class="hidden">
-    <h2><i data-icon="pin" data-size="18"></i>老师选出来的 <span class="muted small">每一张都是有人特意挑出来给大家看的</span></h2>
+    <div class="sechead" style="--sc:var(--purple); --sc-d:var(--purple-d)">
+      <span class="sechead-ico"><i data-icon="pin" data-size="19"></i></span>
+      <div class="sechead-t"><b>大家的画廊</b></div>
+      <span class="sechead-chip" id="wall-count"></span>
+    </div>
     <div class="peer-grid" id="wall-grid"></div>
+    <p class="wall-empty hidden" id="wall-empty">墙还空着。等有人愿意把画挂上来，这儿就热闹了。</p>
   </div>
-  <p class="empty" id="dex-empty">画完第一幅，这里就会有第一张收藏。</p>
+
+  <p class="empty" id="dex-empty">还没有收藏。去地图挑一个想画的，画完它就会跑到这儿来。</p>
 </section>
 
 <!-- ===== tab 3：彩点 ===== -->
 <section class="view hidden" id="view-buddy">
   <div id="growth-wrap" class="hidden">
-    <h2><i data-icon="sprout" data-size="18"></i><span class="buddy-word">彩点</span>的成长 <span class="muted small" id="growth-total"></span></h2>
+    <div class="sechead" style="--sc:var(--green); --sc-d:var(--green-d)">
+      <span class="sechead-ico"><i data-icon="sprout" data-size="19"></i></span>
+      <div class="sechead-t"><b><span class="buddy-word">彩点</span>的成长</b></div>
+      <span class="sechead-chip" id="growth-total"></span>
+    </div>
     <div class="growth">
       <div class="growth-buddy">
         <svg class="sprite big" id="growth-sprite" viewBox="0 0 200 200"></svg>
@@ -109,22 +130,40 @@
       <div class="growth-dims" id="growth-dims"></div>
     </div>
   </div>
-  <h2><i data-icon="medal" data-size="18"></i>徽章墙 <span class="muted small" id="badge-wall-count"></span></h2>
+  <div class="sechead" style="--sc:var(--yellow); --sc-d:var(--yellow-d)">
+    <span class="sechead-ico"><i data-icon="medal" data-size="19"></i></span>
+    <div class="sechead-t"><b>徽章墙</b></div>
+    <span class="sechead-chip" id="badge-wall-count"></span>
+  </div>
   <div class="badges" id="badge-wall"></div>
 </section>
 
 <!-- ===== tab 4：我的 ===== -->
 <section class="view hidden" id="view-sessions">
-  <h2><i data-icon="books" data-size="18"></i>作品记录</h2>
-  <div class="tablewrap">
-    <table class="sessions" id="sessions-table"><thead><tr><th>时间</th><th>任务</th><th>代号</th><th>状态</th><th>修改</th><th>文件</th></tr></thead><tbody></tbody></table>
+  <div class="mecard">
+    <svg class="sprite" id="me-sprite" viewBox="0 0 200 200"></svg>
+    <div class="me-text"><b id="me-name">彩点</b><span id="me-sub"></span></div>
+    <span class="me-sync" id="me-sync"></span>
   </div>
-  <h2>这台机器上的设置</h2>
-  <div class="infolist">
-    <div class="info"><span>评分 / 反馈后端</span><b id="backend-badge"></b></div>
-    <div class="info"><span>本机代号</span><b id="anon-badge"></b></div>
+
+  <div class="sechead" style="--sc:var(--blue); --sc-d:var(--blue-d)">
+    <span class="sechead-ico"><i data-icon="books" data-size="19"></i></span>
+    <div class="sechead-t"><b>画过的画</b></div>
+    <span class="sechead-chip" id="works-count"></span>
   </div>
-  <div class="actions"><button class="secondary" id="btn-sessions-back"><i data-icon="arrowLeft" data-size="17"></i>回地图</button></div>
+  <div class="worklist" id="worklist"></div>
+  <p class="empty hidden" id="works-empty">还没画过呢。回地图挑一个想画的试试。</p>
+
+  <button class="secondary wide" id="btn-guide-again"><i data-icon="bulb" data-size="17"></i>再看一遍新手指南</button>
+
+  <details class="techbox" id="techbox">
+    <summary><i data-icon="sliders" data-size="16"></i>这台设备</summary>
+    <div class="infolist">
+      <div class="info"><span>评分 / 反馈</span><b id="backend-badge"></b></div>
+      <div class="info"><span>本机代号</span><b id="anon-badge"></b></div>
+      <div class="info"><span>全部记录</span><b><a href="/api/sessions" target="_blank">导出 JSON</a></b></div>
+    </div>
+  </details>
 </section>
 
 <!-- ===== 流程 1：心愿 ===== -->
@@ -153,8 +192,7 @@
         <button id="btn-zoom-out" title="缩小"><i data-icon="zoomOut" data-size="17"></i></button>
         <button id="btn-zoom-reset" title="回到 100%"><span id="zoom-level">100%</span></button>
         <button id="btn-zoom-in" title="放大"><i data-icon="zoomIn" data-size="17"></i></button>
-        <span class="muted small hint-desktop">滚轮缩放 · 空格或中键拖动</span>
-        <span class="muted small hint-touch">双指缩放移动 · 双指轻点撤销</span>
+
       </div>
     </div>
     <aside class="toolbox">
@@ -169,8 +207,7 @@
             <button id="btn-ref-out" title="缩小"><i data-icon="zoomOut" data-size="16"></i></button>
             <button id="btn-ref-reset" title="回到 100%"><span id="ref-zoom">100%</span></button>
             <button id="btn-ref-in" title="放大"><i data-icon="zoomIn" data-size="16"></i></button>
-            <span class="muted small hint-desktop">滚轮缩放 · 拖动移动</span>
-            <span class="muted small hint-touch">双指缩放 · 拖动移动</span>
+
           </div>
         </div>
       </div>
@@ -223,7 +260,7 @@
     </div>
     <div class="feedback-card buddy-card">
       <div class="buddy-head"><svg class="sprite lg" id="fb-sprite" viewBox="0 0 200 200"></svg>
-        <div><div class="buddy-name"><span class="buddy-word">彩点</span> · 你的创作伙伴</div><div class="muted small">陪你想，不替你画</div></div></div>
+        <div><div class="buddy-name"><span class="buddy-word">彩点</span> · 你的创作伙伴</div></div></div>
       <div class="feedback-text" id="feedback-text"></div>
       <div class="actions column">
         <button class="primary big" id="btn-revise"><i data-icon="sparkle" data-size="19"></i>去进化关，改一改<i data-icon="arrowRight" data-size="17"></i></button>
@@ -236,7 +273,7 @@
 <!-- ===== 流程 3.5：自评（条件要求时才出现） ===== -->
 <section class="view hidden" id="view-survey">
   <h1>画完啦，随手答几个小问题</h1>
-  <p class="muted">没有对错，凭感觉选就行。</p>
+
   <div class="survey" id="survey"></div>
   <label for="survey-hardest">这次哪里最难？（可不写）</label>
   <div class="chips" id="survey-hardest-choices"></div>
@@ -261,7 +298,11 @@
   </div>
   <div class="trained" id="trained"></div>
   <div class="peers hidden" id="peers">
-    <h2><i data-icon="people" data-size="18"></i>别人是怎么解这道题的 <span class="muted small" id="peers-note"></span></h2>
+    <div class="sechead" style="--sc:var(--purple); --sc-d:var(--purple-d)">
+      <span class="sechead-ico"><i data-icon="people" data-size="19"></i></span>
+      <div class="sechead-t"><b>同一道题，他们这么画</b></div>
+      <span class="sechead-chip" id="peers-note"></span>
+    </div>
     <div class="peer-grid" id="peer-grid"></div>
   </div>
   <h2 id="badges-head"><i data-icon="medal" data-size="18"></i>这次点亮的徽章 <span class="muted small" id="badges-count"></span></h2>
@@ -277,13 +318,41 @@
 <!-- 被老师选为优秀作品：先问本人 -->
 <div class="modal hidden" id="featured-modal">
   <div class="modal-card">
-    <h3>老师选中了你的一张画</h3>
+    <h3 id="featured-title">老师选中了你的一张画</h3>
     <p class="muted" id="featured-note"></p>
     <img id="featured-img" class="featured-shot" alt="被选中的作品">
     <p class="muted small">放进图鉴后，别的小朋友也会看到它。你说了算，之后也可以随时收回来。</p>
     <div class="actions column">
       <button class="primary" id="btn-featured-yes">可以，挂出去吧</button>
       <button class="ghost" id="btn-featured-no">先不要</button>
+    </div>
+  </div>
+</div>
+
+<!-- 第一次进来的导览：暗掉全屏，只把正在说的那个按钮留在亮处，旁边一句话。
+     说明就说这一次；「我的」里可以再看一遍。 -->
+<div class="tour hidden" id="tour">
+  <div class="tour-hole" id="tour-hole"></div>
+  <div class="tour-tip" id="tour-tip">
+    <p class="tour-text" id="tour-text"></p>
+    <div class="tour-bar">
+      <span class="tour-dots" id="tour-dots"></span>
+      <button class="linkbtn" id="btn-tour-skip">跳过</button>
+      <button class="primary" id="btn-tour-next">下一步</button>
+    </div>
+  </div>
+</div>
+
+<!-- 「我的」里点开一张画 -->
+<div class="modal hidden" id="work-modal">
+  <div class="modal-card">
+    <h3 id="work-title"></h3>
+    <p class="muted small" id="work-sub"></p>
+    <img id="work-img" class="featured-shot" alt="这张画">
+    <p class="muted small hidden" id="work-raw"></p>
+    <div class="actions column">
+      <button class="primary" id="btn-work-again">再画一张这个任务</button>
+      <button class="ghost" id="btn-work-close">关掉</button>
     </div>
   </div>
 </div>

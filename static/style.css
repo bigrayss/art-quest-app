@@ -125,31 +125,42 @@ h2 .muted { font-weight:700; }
 #view-quest { max-width:1000px; margin:0 auto; width:100%; }
 /* 一张地图上的十个地方。任务家族之间没有先后，所以不画那条线——
    有顺序的那件事在顶栏的进度条上。地块是几团很淡的色，像从上面看一片地。 */
+/* ===== 地图 =====
+   原来是「一团模糊的彩虹底 + 十个飘着的圆点」：底色发浑、和圆钮抢颜色，
+   而且十个一样大的点读起来像一排图标，不像十个地方。
+   现在每个家族**自己占一块地**（它自己颜色的软色块），底子退成干净的纸，
+   下一关的地块更大更亮——一眼看得出该往哪儿走。 */
 .map { position:relative; width:100%; max-width:1000px; margin:0 auto; aspect-ratio:16/10;
-  border-radius:34px;
+  border-radius:34px; overflow:hidden;
   background:
-    radial-gradient(34% 42% at 17% 30%, #d3edc9, rgba(108,194,74,0) 66%),
-    radial-gradient(32% 38% at 73% 16%, #cdebfb, rgba(77,184,239,0) 66%),
-    radial-gradient(36% 40% at 50% 84%, #fcedc7, rgba(245,194,67,0) 66%),
-    radial-gradient(27% 33% at 93% 62%, #ede1fb, rgba(185,140,240,0) 66%),
-    radial-gradient(25% 30% at 4% 74%, #fce0df, rgba(242,112,110,0) 66%),
-    radial-gradient(30% 34% at 88% 92%, #e2f3db, rgba(108,194,74,0) 66%),
-    linear-gradient(180deg, #fdfcfa, #f6f5f1);
+    radial-gradient(70% 50% at 50% -6%, #fdf6ec, rgba(255,255,255,0) 70%),
+    linear-gradient(180deg, #fefdfb, #f5f3ee);
   box-shadow: inset 0 2px 0 rgba(255,255,255,.9), 0 20px 40px -24px rgba(90,70,40,.5); }
 .map .quest-card { position:absolute; left:var(--mx,50%); top:var(--my,50%);
   transform:translate(-50%,-50%); z-index:1; width:150px; text-align:center; cursor:pointer;
   background:none; border:none; padding:0; box-shadow:none; transition:transform .15s; }
+/* 这一家的地：钮底下一块它自己颜色的软地块 */
+.map .quest-card::before { content:""; position:absolute; left:50%; top:38px; z-index:-1;
+  width:172px; height:172px; margin:-86px 0 0 -86px; border-radius:50%;
+  background:radial-gradient(closest-side, var(--qc,var(--accent)), rgba(255,255,255,0));
+  opacity:.3; transition:opacity .2s, transform .2s; }
+.map .quest-card:hover::before { opacity:.26; transform:scale(1.06); }
 .map .quest-card:active { transform:translate(-50%,-50%) scale(.97); }
 .node-btn { position:relative; width:76px; height:76px; margin:0 auto; border-radius:50%;
   background:var(--qc, var(--accent)); color:#fff; display:flex; align-items:center; justify-content:center;
-  box-shadow:0 6px 0 var(--qc-edge, var(--accent-d)); transition:transform .1s, box-shadow .1s; }
-.map .quest-card:active .node-btn { transform:translateY(5px); box-shadow:none; }
+  box-shadow:0 6px 0 var(--qc-edge, var(--accent-d)), 0 14px 22px -10px rgba(60,45,25,.45);
+  transition:transform .1s, box-shadow .1s; }
+.map .quest-card:active .node-btn { transform:translateY(5px);
+  box-shadow:0 0 0 var(--qc-edge, var(--accent-d)), 0 8px 14px -10px rgba(60,45,25,.4); }
 .map .quest-card h3 { margin:12px 0 0; font-size:14px; font-weight:800; }
-.node-sub { font-size:11px; color:var(--muted); font-weight:700; margin-top:1px; }
+.node-sub { display:none; }          /* 「N 种玩法」是个数量，不是给孩子的话 */
 /* 走过的关：盖一颗星 */
 .node-star { position:absolute; right:-4px; top:-4px; width:26px; height:26px; border-radius:50%;
   background:var(--yellow); color:#fff; border:3px solid #fff; display:flex;
   align-items:center; justify-content:center; }
+/* 走过的地块淡一点，没走过的还亮着——一眼看得出哪儿没去过 */
+.map .quest-card.done::before { opacity:.16; }
+.map .quest-card.done h3 { color:var(--muted-2); }
 .map .quest-card.locked { cursor:default; }
 .map .quest-card.locked .node-btn { background:var(--line); box-shadow:0 6px 0 var(--line-d); color:#fff; }
 .map .quest-card.locked:active .node-btn { transform:none; box-shadow:0 6px 0 var(--line-d); }
@@ -159,7 +170,21 @@ h2 .muted { font-weight:700; }
 .node-tip { position:absolute; left:50%; top:-26px; transform:translateX(-50%);
   background:var(--accent); color:#fff; font-size:11px; font-weight:800; padding:3px 10px;
   border-radius:999px; white-space:nowrap; box-shadow:0 2px 0 var(--accent-d); }
-.map .quest-card.next .node-btn { box-shadow:0 6px 0 var(--qc-edge, var(--accent-d)), 0 0 0 5px var(--qc-soft, #fdeacf); }
+/* 下一关：地块更大更亮，钮外面一圈呼吸的光——该往哪儿走不用文字说 */
+.map .quest-card.next .node-btn { box-shadow:0 6px 0 var(--qc-edge, var(--accent-d)),
+  0 14px 22px -10px rgba(60,45,25,.45), 0 0 0 5px var(--qc-soft, #fdeacf); }
+.map .quest-card.next::before { opacity:.46; width:208px; height:208px; margin:-104px 0 0 -104px; }
+@media (prefers-reduced-motion: no-preference) {
+  .map .quest-card.next::before { animation: land-breathe 3.4s ease-in-out infinite; }
+  @keyframes land-breathe { 50% { opacity:.58; transform:scale(1.06); } }
+}
+/* 大屏上地图铺满整块屏幕，不要上面一张图下面一片空白——
+   十个地方本来就该占住一整片地。（窄屏走的是下面那套两列，不受影响。） */
+@media (min-width: 701px) {
+  #view-quest { display:flex; flex-direction:column;
+    height:calc(100vh - 168px); height:calc(100dvh - 168px); }
+  #view-quest .map { flex:1 1 auto; aspect-ratio:auto; min-height:0; max-width:none; }
+}
 
 /* ===== 流程进度条：做一幅画的六步 ===== */
 .flow { display:flex; align-items:center; gap:10px; max-width:380px; }
@@ -229,8 +254,11 @@ input[type=range]::-moz-range-thumb { width:22px; height:22px; border-radius:50%
    which already reports the transformed box, so stroke points stay in canvas
    pixel space at every zoom level and the logs replay unchanged. */
 .canvas-viewport { position:relative; overflow:hidden; border-radius:11px; background:#fff; }
-canvas { width:100%; height:auto; display:block; background:#fff; border-radius:11px; touch-action:none;
-  cursor:crosshair; transform-origin:0 0; }
+/* 画布按**能放下的那一边**缩：宽度不够按宽度，高度不够按高度。
+   1024x704 的比例自己守住，缩放/取点走的还是 getBoundingClientRect，数据不受影响。 */
+canvas { width:auto; height:auto; max-width:100%; max-height:100%; display:block; background:#fff;
+  border-radius:11px; touch-action:none; cursor:crosshair; transform-origin:0 0; }
+.canvas-viewport { display:flex; align-items:center; justify-content:center; }
 .canvas-viewport.grab canvas { cursor:grab; }
 .canvas-viewport.panning canvas { cursor:grabbing; }
 .zoombar { display:flex; align-items:center; gap:7px; margin-top:9px; flex-wrap:wrap; }
@@ -354,21 +382,91 @@ figcaption { text-align:center; color:var(--muted-2); font-size:12px; font-weigh
 /* 没点亮的只报个数——留着惊喜，也留个奔头 */
 .badge-left { font-size:13px; color:var(--muted-2); font-weight:700; margin:14px 2px 0; }
 
-/* ===== 图鉴 ===== */
-.dex { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:11px; }
-.dex-card { display:block; border-radius:var(--r); overflow:hidden; border:2px solid var(--line);
-  background:var(--card); text-decoration:none; color:inherit; box-shadow:0 var(--edge) 0 var(--line-d);
-  transition:border-color .14s, box-shadow .14s; }
-.dex-card:hover { border-color:var(--qc,var(--accent)); box-shadow:0 var(--edge) 0 var(--qc,var(--accent)); }
-.dex-thumb { height:92px; background:var(--soft); display:flex; align-items:center; justify-content:center; overflow:hidden; }
+/* ===== 房间：每块 tab 自己的空气颜色 =====
+   之前整个 app 只有一种表面——白卡片、灰边框、圆角全一样，颜色只在按钮上，
+   所以排得再整齐也像一份文档。现在每块 tab 有自己的底色和主色：切 tab 像换了个
+   房间。色是从已有的 token 里取的，都压得很淡（孩子的画仍然是屏幕上最亮的东西）。 */
+body { --room: var(--orange); --room-d: var(--orange-d); --room-l: var(--orange-l); }
+body[data-room="map"]   { --room:var(--orange); --room-d:var(--orange-d); --room-l:var(--orange-l); }
+body[data-room="dex"]   { --room:var(--blue);   --room-d:var(--blue-d);   --room-l:var(--blue-l); }
+body[data-room="buddy"] { --room:var(--green);  --room-d:var(--green-d);  --room-l:var(--green-l); }
+body[data-room="me"]    { --room:var(--purple); --room-d:var(--purple-d); --room-l:var(--purple-l); }
+body[data-room="draw"]  { --room:var(--blue);   --room-d:var(--blue-d);   --room-l:var(--blue-l); }
+body[data-room="flow"]  { --room:var(--yellow); --room-d:var(--yellow-d); --room-l:var(--yellow-l); }
+
+.screen { background:
+  radial-gradient(120% 55% at 50% -12%, var(--room-l), rgba(255,255,255,0) 68%),
+  linear-gradient(180deg, #fff 0%, var(--soft) 100%);
+  transition: background .5s ease; }
+/* 顶栏底下压一条房间色的细线，翻到哪儿一眼知道 */
+.appbar { position:relative; }
+.appbar::after { content:""; position:absolute; left:0; right:0; bottom:-1px; height:2px;
+  background:linear-gradient(90deg, var(--room), rgba(255,255,255,0) 72%); opacity:.55; }
+.tab.active { color:var(--room-d); background:var(--room-l); }
+.recstat i { background:var(--green); }
+
+/* 主角卡：作品、伙伴、当前任务——它们该有颜色，别的还是白卡。
+   一屏里最多两三块有色的，剩下留白，才看得出主次。 */
+.hero-card,
+.unit,                      /* 地图顶上「今天画哪一个」 */
+#draw-quest-card,           /* 画画时钉在手边的任务 */
+.feedback-card.buddy-card,  /* 彩点说的话 */
+.mecard,                    /* 「我的」那张伙伴卡 */
+.growth                     /* 成长面板 */
+{ background:linear-gradient(180deg, var(--room-l), #fff 76%);
+  border:2px solid var(--room-l);
+  box-shadow:0 var(--edge) 0 var(--room-l), 0 14px 26px -18px rgba(90,70,40,.32); }
+
+/* 进这一屏时卡片依次浮上来，一层一层，不是整块闪一下 */
+@media (prefers-reduced-motion: no-preference) {
+  .view:not(.hidden):not(#view-draw) > * { animation: rise .42s cubic-bezier(.22,1,.36,1) backwards; }
+  .view:not(.hidden) > *:nth-child(1) { animation-delay: .02s; }
+  .view:not(.hidden) > *:nth-child(2) { animation-delay: .07s; }
+  .view:not(.hidden) > *:nth-child(3) { animation-delay: .12s; }
+  .view:not(.hidden) > *:nth-child(4) { animation-delay: .17s; }
+  .view:not(.hidden) > *:nth-child(n+5) { animation-delay: .21s; }
+  @keyframes rise { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
+}
+
+/* ===== 区块标题（通用零件）=====
+   一枚彩色图标砖 + 标题 + 一句人话 + 右边一个数字牌。
+   颜色由用的人给：`style="--sc:...; --sc-d:..."`。 */
+.sechead { display:flex; align-items:center; gap:12px; margin:26px 0 14px; }
+.sechead:first-child { margin-top:4px; }
+.sechead-ico { flex:none; display:flex; align-items:center; justify-content:center;
+  width:40px; height:40px; border-radius:13px; color:#fff;
+  background:var(--sc,var(--accent)); box-shadow:0 4px 0 var(--sc-d,var(--accent-d)); }
+.sechead-t { min-width:0; display:flex; flex-direction:column; gap:1px; }
+.sechead-t b { font-size:17px; font-weight:800; letter-spacing:.01em; }
+.sechead-t span { font-size:12px; font-weight:700; color:var(--muted); line-height:1.5; }
+.sechead-chip { margin-left:auto; flex:none; padding:6px 12px; border-radius:999px;
+  background:var(--soft); color:var(--muted-2); font-size:12px; font-weight:800; white-space:nowrap; }
+.sechead-chip:empty { display:none; }
+.sechead-chip.done { background:#fef1e2; color:#b26a24; }
+
+/* ===== 图鉴 =====
+   一张画就是一张**拍立得**：白边、厚一点的下沿、下面写着是哪一关、哪天画的。
+   一格格排开才像「收藏」，而不像文件列表。 */
+.dex { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:14px; }
+.dex-card { position:relative; display:block; border-radius:16px; overflow:hidden;
+  border:2px solid var(--line); background:var(--card); text-decoration:none; color:inherit;
+  box-shadow:0 var(--edge) 0 var(--line-d);
+  transition:transform .16s cubic-bezier(.22,1,.36,1), box-shadow .16s, border-color .16s; }
+.dex-card::before { content:""; display:block; height:5px; background:var(--qc,var(--accent)); }
+.dex-card:hover { transform:translateY(-2px); border-color:var(--qc,var(--accent));
+  box-shadow:0 calc(var(--edge) + 2px) 0 var(--qc,var(--accent)); }
+.dex-card:active { transform:translateY(var(--edge)); box-shadow:none; }
+.dex-thumb { height:104px; margin:8px 8px 0; border-radius:10px; background:#fff;
+  border:1px solid var(--line); display:flex; align-items:center; justify-content:center; overflow:hidden; }
 .dex-thumb img { width:100%; height:100%; object-fit:cover; }
-.dex-cap { padding:8px 10px; }
-.dex-cap b { display:flex; align-items:center; gap:5px; font-size:12px; color:var(--qc,var(--ink)); }
-.dex-cap span { font-size:11px; color:var(--muted); font-weight:700; }
-.dex-card { position:relative; }
+.dex-cap { padding:9px 11px 11px; }
+.dex-cap b { display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:800;
+  color:var(--qc,var(--ink)); }
+.dex-cap span { display:inline-block; margin-top:5px; padding:2px 8px; border-radius:999px;
+  background:var(--soft); font-size:10.5px; color:var(--muted-2); font-weight:800; }
 .dex-open { display:block; text-decoration:none; color:inherit; }
 /* 自己的画挂没挂在大家的图鉴里，本人随时能改 */
-.dex-featured { position:absolute; top:7px; left:7px; gap:4px; padding:4px 9px; min-height:0;
+.dex-featured { position:absolute; top:16px; left:14px; gap:4px; padding:4px 9px; min-height:0;
   font-size:10px; border:none; border-radius:999px; background:rgba(255,255,255,.92);
   color:var(--muted-2); box-shadow:0 2px 8px rgba(0,0,0,.14); backdrop-filter:blur(6px); }
 .dex-featured.on { background:var(--accent); color:#fff; box-shadow:0 2px 8px rgba(0,0,0,.18); }
@@ -410,23 +508,84 @@ figcaption { text-align:center; color:var(--muted-2); font-size:12px; font-weigh
    and only for sessions whose consent allows it. No score, no name, no order
    that implies one is better. */
 .peers { margin-top:20px; }
-.peer-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:12px; }
-.peer { background:var(--card); border:2px solid var(--line); border-radius:var(--r-lg); overflow:hidden; }
-.peer img { width:100%; display:block; aspect-ratio:1024/704; object-fit:contain; background:#fff; }
-.peer .p-why { padding:10px 12px 2px; font-size:13px; font-weight:800; }
-.peer .p-how { padding:0 12px 11px; font-size:12px; color:var(--muted-2); line-height:1.6; font-weight:600; }
-.peer .p-pin { display:flex; align-items:center; gap:5px; padding:0 12px 10px; font-size:11px;
+/* 画廊里的一张：画在上面，下面是**它是怎么画出来的**（几笔、几种颜色、几分钟），
+   全是过程，不是评价。挂出来的理由单独一行，像展签。 */
+.peer-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; }
+.peer { margin:0; background:var(--card); border:2px solid var(--line); border-radius:18px;
+  overflow:hidden; box-shadow:0 var(--edge) 0 var(--line-d); }
+.peer-shot { height:186px; margin:8px 8px 0; border:1px solid var(--line); border-radius:11px;
+  overflow:hidden; background:#fff; }
+.peer img { width:100%; height:100%; display:block; object-fit:contain; background:#fff; }
+.peer figcaption { padding:10px 12px 12px; text-align:left; }
+.peer figcaption > b { display:block; font-size:13.5px; font-weight:800; color:var(--ink); }
+.peer-chips { display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; }
+.peer-chips span { padding:2px 8px; border-radius:999px; background:var(--soft);
+  font-size:10.5px; font-weight:800; color:var(--muted-2); }
+.peer-why { margin:9px 0 0; padding:8px 10px; border-radius:11px; background:var(--yellow-l);
+  font-size:12px; font-weight:700; color:var(--ink); line-height:1.6; }
+.peer .p-pin { display:flex; align-items:center; gap:5px; margin-top:9px; font-size:11px;
   font-weight:800; color:var(--accent-d); }
+.wall-empty { margin:0; padding:22px 16px; border:2px dashed var(--line); border-radius:18px;
+  color:var(--muted); font-size:13px; font-weight:700; text-align:center; line-height:1.7; }
 
-/* ===== 我的 ===== */
-.tablewrap { overflow-x:auto; }
-table.sessions { width:100%; border-collapse:collapse; background:var(--card); font-size:13px; }
-table.sessions th, table.sessions td { text-align:left; padding:10px; border-bottom:1px solid var(--line); white-space:nowrap; }
-table.sessions th { font-weight:800; color:var(--muted-2); font-size:12px; }
+
+/* ===== 我的 =====
+   This page used to be the developer's table: ISO timestamps, task ids, a row of
+   raw file links, six columns that ran off the side of a phone. On a phone, for
+   somebody else's child, none of that is readable. The research handles stay —
+   they just live under "这台设备", folded shut, instead of being the page. */
+.mecard { display:flex; align-items:center; gap:13px; padding:14px 16px; background:var(--card);
+  border:2px solid var(--line); border-radius:var(--r-lg); box-shadow:0 var(--edge) 0 var(--line); }
+.mecard .sprite { width:48px; height:48px; flex:0 0 auto; }
+.me-text { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.me-text b { font-size:16px; font-weight:800; }
+.me-text span { font-size:12.5px; color:var(--muted-2); font-weight:600; }
+.me-sync { margin-left:auto; flex:0 0 auto; display:flex; align-items:center; gap:5px; font-size:11.5px;
+  font-weight:800; color:var(--muted-2); background:var(--soft); border-radius:999px; padding:5px 10px; }
+.me-sync b { width:7px; height:7px; border-radius:50%; background:#3fbf6a; }
+.me-sync.warn { color:#b26a24; background:#fef1e2; }
+.me-sync.warn b { background:#f79433; }
+
+.worklist { display:grid; grid-template-columns:1fr; gap:10px; }
+/* 宽屏上一行一条会拉出一条又空又长的带子：排成格子，缩略图也给大一点 */
+@media (min-width: 700px) { .worklist { grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); } }
+.work { display:flex; align-items:center; gap:12px; width:100%; text-align:left; padding:10px 12px;
+  background:var(--card); border:2px solid var(--line); border-radius:var(--r); font:inherit;
+  box-shadow:0 var(--edge) 0 var(--line); transition:transform .06s, box-shadow .06s, border-color .12s; }
+.work:hover { border-color:var(--qc,var(--accent)); }
+.work:active { transform:translateY(var(--edge)); box-shadow:none; }
+.work-thumb { width:66px; height:52px; flex:0 0 auto; border-radius:9px; overflow:hidden; background:var(--soft);
+  display:flex; align-items:center; justify-content:center; color:var(--muted); }
+.work-thumb img { width:100%; height:100%; object-fit:cover; }
+/* a finished session whose png never made it to disk: say "no picture", not a blank hole */
+.work-thumb .no-shot { width:100%; height:100%;
+  background:repeating-linear-gradient(45deg, var(--soft) 0 6px, var(--line) 6px 7px); }
+.work-main { min-width:0; flex:1; }
+.work-main b { display:flex; align-items:center; gap:6px; font-size:14.5px; font-weight:800;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.work-main b i { color:var(--qc,var(--accent)); flex:0 0 auto; }
+.work-meta { display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin-top:3px;
+  font-size:12px; font-weight:700; color:var(--muted-2); }
+.work-chip { padding:2px 8px; border-radius:999px; background:var(--soft); font-size:11px; font-weight:800; }
+.work-chip.evolve { background:#efe7fb; color:#6b45b8; }
+.work-chip.open { background:#fef1e2; color:#b26a24; }
+
+.techbox { margin-top:26px; border:2px solid var(--line); border-radius:var(--r); background:var(--card); }
+.techbox summary { display:flex; align-items:center; gap:7px; padding:12px 14px; cursor:pointer;
+  font-size:13px; font-weight:800; color:var(--muted-2); list-style:none; }
+.techbox summary::-webkit-details-marker { display:none; }
+.techbox[open] summary { border-bottom:1px solid var(--line); }
+.techbox .infolist { border:0; border-radius:0; }
+.techbox .info b { max-width:60%; overflow-wrap:anywhere; text-align:right; }
 .infolist { border:2px solid var(--line); border-radius:var(--r); overflow:hidden; }
 .info { display:flex; justify-content:space-between; gap:12px; padding:11px 14px; font-size:13px; }
 .info + .info { border-top:1px solid var(--line); }
 .info span { color:var(--muted-2); }
+
+.dim-fold { margin-top: 12px; border-top: 1px solid var(--line); }
+.dim-fold summary { display: flex; align-items: center; gap: 7px; padding: 11px 2px 9px;
+  cursor: pointer; font-size: 13px; font-weight: 800; color: var(--muted-2); list-style: none; }
+.dim-fold summary::-webkit-details-marker { display: none; }
 
 /* ===== 研究数据层：实验模式 / 自评 ===== */
 .studybar { display:flex; align-items:center; gap:12px; padding:7px 16px; font-size:12px; font-weight:700;
@@ -455,6 +614,32 @@ table.sessions th { font-weight:800; color:var(--muted-2); font-size:12px; }
 .modal-card h3 { margin:0 0 8px; font-size:18px; font-weight:800; }
 .modal-card .actions.column { margin-top:16px; }
 
+/* ===== 第一次进来的导览 =====
+   经典的聚光灯：一个「洞」用一圈铺满全屏的阴影把别处压暗，正在说的那个按钮
+   留在亮处，旁边一张带箭头的小卡片指着它。说明只说一次——所以界面上不再挂
+   常驻小字，也不用把人拦在一叠讲解页后面。 */
+.tour { position:fixed; inset:0; z-index:70; }
+.tour.hidden { display:none; }
+.tour-hole { position:fixed; box-shadow:0 0 0 9999px rgba(38,32,26,.62);
+  outline:3px solid rgba(255,255,255,.9); outline-offset:0;
+  transition:left .28s cubic-bezier(.22,1,.36,1), top .28s cubic-bezier(.22,1,.36,1),
+             width .28s, height .28s; pointer-events:none; }
+.tour-tip { position:fixed; max-width:min(320px, calc(100vw - 24px)); background:var(--card);
+  border-radius:16px; padding:14px 16px 12px; box-shadow:0 18px 40px -12px rgba(0,0,0,.4); }
+.tour-tip::before { content:""; position:absolute; top:-8px; left:var(--arrow,50%); margin-left:-9px;
+  border:9px solid transparent; border-top:0; border-bottom-color:var(--card); }
+.tour-tip.up::before { top:auto; bottom:-8px; border-bottom:0; border-top-color:var(--card); }
+.tour-text { margin:0 0 11px; font-size:15px; font-weight:800; line-height:1.6; }
+.tour-bar { display:flex; align-items:center; gap:10px; }
+.tour-dots { display:flex; gap:5px; margin-right:auto; }
+.tour-dots i { width:6px; height:6px; border-radius:50%; background:var(--line-d); }
+.tour-dots i.on { width:16px; border-radius:999px; background:var(--accent); }
+.tour-bar .primary { padding:7px 15px; font-size:13.5px; border-radius:11px; }
+.tour-bar .linkbtn { font-size:13px; padding:7px 10px; background:none; border:none;
+  box-shadow:none; color:var(--muted-2); font-weight:800; }
+.tour-bar .linkbtn:hover { background:var(--soft); }
+@media (prefers-reduced-motion: reduce) { .tour-hole { transition:none; } }
+
 #overlay { position:fixed; inset:0; background:rgba(255,255,255,.93); display:flex; flex-direction:column;
   align-items:center; justify-content:center; gap:16px; z-index:60; font-size:15px; font-weight:800; }
 .spinner { width:38px; height:38px; border:5px solid var(--line); border-top-color:var(--accent);
@@ -471,30 +656,31 @@ body.quiet #badges-head,
 body.quiet [data-tab="buddy"],
 body.quiet #collection-wrap { display:none; }
 
-/* ===== 世界入口：精灵带着属性，然后进世界 ===== */
-/* 形状语言是 claymorphism —— 一层外投影给体积，两层内投影把它吹鼓起来。
-   2026 年 iPad 上这类「软糖/黏土」质感正是给小孩用的 app 的主流做法，
-   而且它天生是低饱和的，跟我们「颜色别太重」的结论走同一个方向。 */
-#view-world { min-height: calc(100vh - 150px); min-height: calc(100dvh - 150px); margin: -16px -16px 0; padding: 16px 16px 0;
+/* ===== 封面：彩点的世界 =====
+   不放图——试过手画的风景和照片，前者像随手涂的，后者放大了瘆人。
+   这一屏的主角本来就是彩点：一片很淡的底色、一圈它自己的光、一只大彩点。
+   光的颜色 = 它现在的颜色，亮度 = 九项里练到了几项（`--glow` / `--glow-a` 由 JS 给）。
+   整屏按一块 pad 排，封面用 vh 收着，哪个方向都不用往下滚。 */
+#view-world { min-height: calc(100vh - 150px); min-height: calc(100dvh - 150px);
+  margin: -16px -16px 0; padding: 16px 16px 0;
+  display: flex; flex-direction: column; justify-content: center;
   background:
-    radial-gradient(64% 40% at 50% -4%, #fde7d2, rgba(247,148,51,0) 72%),
-    radial-gradient(50% 34% at 102% 16%, #dbf1fc, rgba(77,184,239,0) 74%),
-    radial-gradient(48% 32% at -2% 54%, #e5f4de, rgba(108,194,74,0) 74%); }
-.world { max-width: 560px; margin: 0 auto; }
-.world-card { position: relative; overflow: hidden; text-align: center;
-  padding: 18px 24px 22px; border-radius: 34px;
-  background: linear-gradient(180deg, #fff, #fffdfa);
-  box-shadow: 0 24px 44px -16px rgba(150,115,70,.30),
-              inset 0 -18px 28px -14px rgba(0,0,0,.10),
-              inset 0 20px 28px -12px rgba(255,255,255,.9); }
-.world-glow { position: absolute; inset: -46% -24% auto -24%; height: 78%; pointer-events: none;
-  background: radial-gradient(58% 58% at 50% 42%,
-              rgba(247,148,51,0.26), rgba(247,148,51,0) 70%); }
-.sprite.hero { position: relative; width: clamp(146px, 34vw, 196px); height: clamp(146px, 34vw, 196px);
-  margin: 0 auto; }
-.sprite.grey { filter: grayscale(.9) opacity(.9); }
+    radial-gradient(62% 38% at 50% 2%, #fdecd9, rgba(247,148,51,0) 70%),
+    radial-gradient(46% 30% at 100% 22%, #e2f1fa, rgba(77,184,239,0) 72%),
+    radial-gradient(44% 28% at 0% 58%, #e9f4e3, rgba(108,194,74,0) 72%); }
+.world { max-width: 620px; margin: 0 auto; width: 100%; text-align: center; }
+
+.cover { position: relative; display: flex; align-items: center; justify-content: center;
+  height: 34vh; height: 34dvh; min-height: 180px; }
+.cover-glow { position: absolute; width: min(400px, 74%); aspect-ratio: 1; border-radius: 50%;
+  background: radial-gradient(closest-side, var(--glow, #cfcbc4), rgba(255,255,255,0) 100%);
+  opacity: var(--glow-a, .1); transition: opacity 1s ease, background 1s ease; pointer-events: none; }
+.sprite.hero { position: relative; height: 100%; width: auto; max-width: 62%; aspect-ratio: 1;
+  filter: drop-shadow(0 14px 16px rgba(120,95,60,.22)); }
+.sprite.grey { filter: grayscale(.9) opacity(.95) drop-shadow(0 14px 16px rgba(120,95,60,.16)); }
+
 .world-name { display: flex; justify-content: center; align-items: baseline; gap: 10px;
-  font-size: 25px; font-weight: 800; margin-top: 4px; }
+  font-size: 25px; font-weight: 800; margin-top: 14px; }
 .world-name .lvl { font-size: 13px; color: #fff; background: var(--accent);
   padding: 3px 11px; border-radius: 999px; box-shadow: 0 3px 0 var(--accent-d); }
 .rename { padding: 6px; min-height: 0; border: none; box-shadow: none; background: none;
@@ -502,25 +688,18 @@ body.quiet #collection-wrap { display:none; }
 .rename:hover { background: var(--soft); color: var(--ink); }
 .rename:active { transform: scale(.92); }
 #buddy-name-input { max-width: none; margin-top: 4px; font-size: 17px; }
-.world-say { font-size: 14px; color: var(--muted-2); margin-top: 9px; line-height: 1.65; }
-.world-bar { max-width: 300px; height: 13px; margin: 18px auto 7px; border-radius: 999px;
+.world-say { font-size: 14px; color: var(--muted-2); margin-top: 7px; line-height: 1.6;
+  min-height: 2.4em; }
+.world-bar { max-width: 260px; height: 10px; margin: 12px auto 6px; border-radius: 999px;
   background: var(--line); overflow: hidden; box-shadow: inset 0 2px 5px rgba(0,0,0,.09); }
 .world-bar i { display: block; height: 100%; width: 0; border-radius: 999px;
-  background: linear-gradient(90deg, var(--yellow), var(--accent)); transition: width .7s ease; }
+  background: linear-gradient(90deg, var(--yellow), var(--accent)); transition: width .9s ease; }
 .world-bar-note { font-size: 12px; font-weight: 700; color: var(--muted); }
-.attrs-head { justify-content: center; }
-.attrs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 11px; }
-.world .actions { justify-content: center; }
+.world .actions { justify-content: center; margin-top: 16px; }
 .world .actions button { flex: 0 1 260px; }
-.attr { text-align: center; padding: 12px 10px; border-radius: 20px; background: var(--card);
-  box-shadow: 0 12px 20px -12px rgba(0,0,0,.20),
-              inset 0 -9px 15px -9px rgba(0,0,0,.08),
-              inset 0 11px 16px -9px rgba(255,255,255,.9); }
-.attr-name { font-size: 13px; font-weight: 800; }
-.attr-pips { display: flex; justify-content: center; gap: 3px; margin-top: 8px; }
-.attr-pips i { width: 100%; height: 7px; border-radius: 999px; background: var(--line); }
-.attr-pips i.on { background: var(--ac, var(--accent)); }
-.attr.dim .attr-name { color: var(--muted); }
+.world-hint { margin: 8px 0 0; font-size: 12.5px; font-weight: 700;
+  color: var(--muted); line-height: 1.6; }
+
 /* 黏土按钮：厚、软、按下去会陷 */
 button.clay { border: none; border-radius: 24px; padding: 15px 22px; font-size: 17px;
   box-shadow: 0 16px 28px -12px rgba(247,148,51,0.62),
@@ -549,7 +728,6 @@ button.clay:active { transform: translateY(6px);
   to   { opacity: 1; transform: none; }
 }
 @media (prefers-reduced-motion: reduce) { .view { animation: none !important; } }
-@media (max-width: 420px) { .attrs { grid-template-columns: repeat(2, 1fr); } }
 
 /* ===== iPad：当成 app，而不是一个网页 ===== */
 /* 装到主屏后没有地址栏，所以页面自己要像 app：不回弹、不长按弹菜单、
@@ -580,6 +758,43 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
     background: linear-gradient(180deg, rgba(255,255,255,0), #fff 40%); }
 }
 
+/* 宝藏这一屏也要在一块 pad 上放得下：宽一点的屏幕分两栏——
+   左边是**你的画**（它才是主角，给它整栏的高度），右边是这次练了什么、
+   徽章、能力图和下一步。九项细节默认折起来（点开才展开）。 */
+@media (min-width: 760px) {
+  /* 用**多栏**而不是网格：网格的行高会把两栏锁在一起（左边一张大图能把右边
+     两张卡撑成一样高，白白多出几百像素），多栏是自己流下去、自己配平的。 */
+  #view-final { columns: 2; column-gap: 26px; column-fill: balance; }
+  #view-final > * { break-inside: avoid; margin-top: 12px; margin-bottom: 0; }
+  #view-final > h1 { column-span: all; margin: 0 0 4px; }
+  #view-final .compare.single { max-width: none; margin-inline: 0; }
+  #view-final .compare figure img { max-height: 44vh; max-height: 44dvh; object-fit: contain; }
+  #view-final .rose { max-width: 290px; }
+  #view-final > h2 { margin-top: 16px; }
+  #view-final .rose-wrap { padding: 6px 6px 10px; }
+  #view-final .rose-legend { margin-top: 2px; }
+  #view-final .feedback-card { padding: 12px 14px; }
+  /* 结算页只是**报喜**，不是徽章墙：新点亮的收成一排小章
+     （完整的一墙在「彩点」tab 里）。四枚大卡片会把这一屏顶出去两屏。 */
+  #view-final .badge-row { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+  #view-final .badge { padding: 9px 6px 8px; }
+  #view-final .badge .b-ico { width: 38px; height: 38px; }
+  #view-final .badge .b-name { font-size: 11.5px; margin-top: 6px; }
+  #view-final .badge .b-desc { display: none; }
+  #view-final .badge.new::after { top: 4px; right: 4px; padding: 1px 5px; font-size: 9px; }
+  #view-final .badge-group { margin-top: 10px; }
+}
+@media (min-width: 760px) and (orientation: landscape) {
+  /* 横屏只有 820 高，能给的更少：图还是最大的那块，其余全部收紧 */
+  #view-final .rose { max-width: 212px; }
+  #view-final .rose-legend { font-size: 11px; gap: 4px 10px; }
+  #view-final .feedback-card { padding: 10px 12px; }
+  #view-final .trained { padding: 10px 12px; }
+  #view-final > * { margin-top: 9px; }
+  #view-final > h2 { margin-top: 12px; margin-bottom: 0; font-size: 17px; }
+  #view-final h1 { font-size: 23px; margin-bottom: 0; }
+}
+
 /* ===== 图标 ===== */
 /* 一套图标，不用 emoji：emoji 在每个系统上长得都不一样，而且带着别人的视觉语言。 */
 .ico { display:inline-block; vertical-align:-.18em; flex:none; }
@@ -601,8 +816,14 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
   main { padding:22px 26px 36px; }
   h1 { font-size:27px; }
   .draw-layout { display:grid; grid-template-columns:minmax(0,1fr) 262px; align-items:start; }
-  .toolbox { position:sticky; top:66px; max-height:calc(100vh - 92px); max-height:calc(100dvh - 92px);
-    overflow-y:auto; padding-right:3px; }
+  /* 画画这一屏在横屏 pad 上也只有一屏：整块按视口高度排，
+     画布吃掉左边剩下的高度，工具那一栏自己滚。 */
+  #view-draw { display:flex; flex-direction:column;
+    height:calc(100vh - 126px); height:calc(100dvh - 126px); }
+  #view-draw .draw-layout { flex:1 1 auto; min-height:0; }
+  .canvas-wrap { display:flex; flex-direction:column; min-height:0; max-height:100%; }
+  .canvas-viewport { min-height:0; }
+  .toolbox { max-height:100%; overflow-y:auto; padding-right:3px; }
   #view-draw .actions.sticky { width:262px; margin-left:auto; margin-top:14px; }
   .palette { grid-template-columns:repeat(6,1fr); }
   .result-layout { display:grid; grid-template-columns:1.05fr 1fr; gap:22px; }
@@ -616,16 +837,53 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
 @media (max-width: 700px) {
   .map { aspect-ratio:auto; display:grid; grid-template-columns:1fr 1fr;
     gap:20px 4px; padding:26px 8px 34px; }
-  .map .quest-card { position:static; transform:none; width:auto; }
+  /* 两列排下来，那种大光晕会糊成一团（正是刚删掉的毛病）。
+     窄屏上每家占一块**方地**，边界清楚，颜色还是自己的。 */
+  .map .quest-card::before { left:0; top:0; width:100%; height:100%; margin:0; padding:0;
+    border-radius:24px; background:var(--qc,var(--accent)); opacity:.09; }
+  .map .quest-card.next::before { width:100%; height:100%; margin:0; opacity:.17; }
+  .map .quest-card.done::before { opacity:.05; }
+  /* relative 而不是 static：::before 要按这张卡定位，不然它会铺满整张地图 */
+  .map .quest-card { position:relative; left:auto; top:auto; transform:none; width:auto; }
   .map .quest-card:active { transform:scale(.97); }
   .map .quest-card:nth-child(even) { margin-top:38px; }
 }
 @media (max-width: 899px) {
-  /* 手机上先给工具，说明性的卡片排到后面——画布下面就是笔 */
-  .toolbox .tool-group { order:-1; }
+  /* 手机和竖屏 pad：画画这一屏必须一屏放得下，而画布是主角。
+     工具从「一摞卡片」收成**一条横带**，剩下的高度全给画布；说明性的东西
+     （意图、彩点、计时、下载）在画的时候不占地方，任务本身还留在最上面一行。 */
   .hint-desktop { display:none; }
   .zoombar #btn-hand .lbl { display:none; }
   .compare { grid-template-columns:1fr; }
+
+  #view-draw { display:flex; flex-direction:column;
+    height:calc(100vh - 152px); height:calc(100dvh - 152px); }
+  .draw-layout { flex:1 1 auto; min-height:0; gap:10px; }
+  /* 画布贴着自己的比例走（窄屏上是宽度说了算），剩下的高度全给工具那一条，
+     它自己滚。主按钮不浮在工具上面，占自己一行——挡住调色板就白做了。 */
+  .canvas-wrap { flex:0 1 auto; display:flex; flex-direction:column; padding:8px; }
+  .canvas-viewport { flex:0 1 auto; min-height:0; }
+  #view-draw canvas { max-height:52vh; max-height:52dvh; }
+  .toolbox { flex:1 1 auto; min-height:0; overflow-y:auto; align-content:flex-start; }
+  #view-draw .actions.sticky { position:static; flex:0 0 auto; padding:8px 0 0;
+    background:none; margin-top:4px; }
+  .zoombar { margin-top:7px; }
+  .toolbox { flex-direction:row; flex-wrap:wrap; align-items:center; gap:8px 10px; }
+  .toolbox .tool-group { margin:0; flex:0 0 auto; }
+  .toolbox .tool-group .label { display:none; }
+  .toolbox .intent-card, .toolbox .buddy-mini, .toolbox .historycard { display:none; }
+  .toolbox .quest-card.small { order:-2; flex:1 1 100%; padding:8px 12px; }
+  .toolbox .quest-card.small p { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+    overflow:hidden; margin:2px 0 0; }
+  #tools { display:flex; gap:6px; }
+  #tools button { flex-direction:column; gap:2px; padding:7px 9px; font-size:11px; min-height:0; }
+  .tool-group:has(#size) { flex:1 1 130px; min-width:110px; }
+  .tool-group:has(#palette) { flex:1 1 100%; display:flex; align-items:center; gap:8px; }
+  .palette { display:flex; flex-wrap:wrap; gap:5px; flex:1 1 auto; }
+  .palette div { width:26px; height:26px; }
+  .tool-group.row { gap:6px; }
+  .tool-group.row button { padding:7px 10px; font-size:12px; }
+  .tool-group:has(#btn-download) { display:none; }
 }
 
 /* ===== 彩点的呼吸 ===== */
