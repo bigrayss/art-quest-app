@@ -43,7 +43,7 @@ const SHELL_URLS = [
 // **`/api/study` 故意不在里面**：它说的是这个孩子跑在哪一条实验臂上。
 // 拿一份说不清多旧的实验配置去渲染界面，比转个圈等服务器糟得多。
 // （真正生效的那份条件是 POST /api/sessions 时服务端冻下来的，那条路从不缓存。）
-const PUBLIC_API = ["/api/config", "/api/families", "/api/quests", "/api/achievements"];
+const PUBLIC_API = ["/api/v1/config", "/api/v1/families", "/api/v1/quests", "/api/v1/achievements"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil((async () => {

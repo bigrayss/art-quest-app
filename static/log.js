@@ -16,6 +16,10 @@
   //   outbox  —— 离线时攒下的**整个请求**（建 session、快照、提交、收尾）。
   //              和 queue 里那些逐笔记录不一样，它们各自打到不同的接口上。
   const TICKETS = "tickets", OUTBOX = "outbox";
+  // 同 app.js 开头：iOS 壳注入 window.ArtQuestNative.server，API 在别的源上；网页版同源。
+  const ORIGIN = (window.ArtQuestNative && window.ArtQuestNative.server)
+    ? String(window.ArtQuestNative.server).replace(/\/+$/, "") : "";
+  const API = `${ORIGIN}/api/v1`;
   const FLUSH_MS = 4000, MAX_BATCH = 120;
 
   let db = null, sid = null, flushing = false, timer = null, memKey = 0, quarantined = 0;
@@ -104,7 +108,7 @@
   }
 
   async function post(sessionId, body) {
-    const res = await fetch(`/api/sessions/${sessionId}/log`, {
+    const res = await fetch(`${API}/sessions/${sessionId}/log`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
     });
     if (!res.ok) { const e = new Error("HTTP " + res.status); e.status = res.status; throw e; }
@@ -129,10 +133,10 @@
   // queue 里是一条条记录，全部打到 /log；outbox 里是各自不同的接口
   // （建 session / 快照 / 提交 / 收尾），而且**必须按原来的先后顺序**重放。
   const OUTBOX_URL = {
-    create:   () => "/api/sessions",
-    snapshot: (s) => `/api/sessions/${s}/snapshot`,
-    submit:   (s) => `/api/sessions/${s}/submit`,
-    finalize: (s) => `/api/sessions/${s}/finalize`,
+    create:   () => `${API}/sessions`,
+    snapshot: (s) => `${API}/sessions/${s}/snapshot`,
+    submit:   (s) => `${API}/sessions/${s}/submit`,
+    finalize: (s) => `${API}/sessions/${s}/finalize`,
   };
 
   /** 还没重放的「建 session」是哪些 —— 它们的笔画得等着。 */
@@ -217,7 +221,7 @@
       const bySid = {};
       rows.forEach(r => { (bySid[r.sid] = bySid[r.sid] || { events: [], strokes: [], pending: 0 })[r.stream].push(r.rec); });
       Object.keys(bySid).forEach(s => navigator.sendBeacon(
-        `/api/sessions/${s}/log`, new Blob([JSON.stringify(bySid[s])], { type: "application/json" })));
+        `${API}/sessions/${s}/log`, new Blob([JSON.stringify(bySid[s])], { type: "application/json" })));
     });
   }
 

@@ -1,8 +1,29 @@
 /* ArtQuest Stage 1 front-end: quest → intent → draw → feedback → revise → done. */
 (() => {
   const $ = (s) => document.querySelector(s);
+
+  // ---------- 这份代码跑在哪儿 ----------
+  // 同一套界面有两个壳：浏览器（网页版，API 同源）和 iOS app（外壳打在 app 包里，
+  // 从 artquest://app 载入，API 在别的源上）。iOS 壳在页面开始之前注入
+  // `window.ArtQuestNative = { server, token, version, platform }`，这里据此拼地址。
+  // 没有它就是网页版，所有地址相对于当前源——这一行改动之外，网页版一个字节没变。
+  const NATIVE = window.ArtQuestNative || null;
+  const ORIGIN = (NATIVE && NATIVE.server) ? String(NATIVE.server).replace(/\/+$/, "") : "";
+  const API = `${ORIGIN}/api/v1`;          // 接口从 1.0 起就有版本号，见 main.py 末尾
+  const FILES = `${ORIGIN}/files`;
+  /** 服务器回的图片地址是相对根的（files 开头），网页版直接用，app 里要接上服务器。 */
+  const fileUrl = (p) => (p && p[0] === "/" && ORIGIN) ? ORIGIN + p : p;
+  /** 和原生壳说话（只在 app 里有效；网页版里是空操作）。 */
+  const native = (type, payload) => {
+    try { window.webkit.messageHandlers.artquest.postMessage(Object.assign({ type }, payload || {})); }
+    catch (e) { /* 不在 app 里 */ }
+  };
+
   const api = async (path, opts = {}) => {
-    const r = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts });
+    const headers = { "Content-Type": "application/json" };
+    // 登录着就带上令牌。走请求头不走查询串——URL 会原样进服务器的 access log。
+    const tok = savedToken(); if (tok) headers.Authorization = `Bearer ${tok}`;
+    const r = await fetch(path, { headers, ...opts });
     if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
     return r.json();
   };
@@ -29,19 +50,31 @@
   // 第三个身份：账号。前两个都跟着**设备**走（清一次缓存、换一台 iPad 就没了），
   // 账号跟着人走——孩子自己起的名字 + 四位暗号，在「我的」那一屏里注册。
   // 令牌只是登录态，作品的归属靠 account_id（见后端 accounts.py）。
-  const savedToken = () => { try { return localStorage.getItem("artquest.token") || ""; } catch (e) { return ""; } };
-  const setToken = (t) => { try { t ? localStorage.setItem("artquest.token", t) : localStorage.removeItem("artquest.token"); } catch (e) { /* 无所谓 */ } };
+  // app 里令牌的正本在钥匙串（Keychain）里：删掉重装、清掉网站数据都还在——
+  // 「画跟着人走」这句话在手机上就靠它。localStorage 那份只是网页版的家。
+  const savedToken = () => {
+    if (NATIVE && typeof NATIVE.token === "string") return NATIVE.token;
+    try { return localStorage.getItem("artquest.token") || ""; } catch (e) { return ""; }
+  };
+  const setToken = (t) => {
+    t = t || "";
+    if (NATIVE) { NATIVE.token = t; native("token", { value: t }); }
+    try { t ? localStorage.setItem("artquest.token", t) : localStorage.removeItem("artquest.token"); } catch (e) { /* 无所谓 */ }
+  };
   const accountId = () => (state.account || {}).account_id || "";
   // 服务器上可能不止一个孩子。凡是界面里说「我的」的地方，都只问自己那些。
   const whoQuery = () => `anon_id=${encodeURIComponent(state.anonId)}`
     + `&account_id=${encodeURIComponent(accountId())}`
     + `&participant_id=${encodeURIComponent(savedPid())}`;
-  const mySessions = () => api(`/api/sessions?${whoQuery()}`);
+  const mySessions = () => api(`${API}/sessions?${whoQuery()}`);
   const deviceInfo = () => ({
     ua: navigator.userAgent, platform: navigator.platform || "",
     screen: [screen.width, screen.height], viewport: [innerWidth, innerHeight], dpr: devicePixelRatio || 1,
     pointer_types: [matchMedia("(pointer:fine)").matches ? "fine" : "", matchMedia("(any-pointer:coarse)").matches ? "coarse" : ""].filter(Boolean),
     timezone: (Intl.DateTimeFormat().resolvedOptions() || {}).timeZone || "", language: navigator.language || "",
+    // 哪个壳：浏览器里是空的；app 里记下平台和 app 版本——Pencil 的压感、采样率
+    // 都跟壳有关，分析时它是协变量
+    app: NATIVE ? { platform: NATIVE.platform || "ios", version: NATIVE.version || "" } : {},
   });
   const canvasGeom = () => { const r = canvas.getBoundingClientRect();
     return { width: canvas.width, height: canvas.height, css_width: Math.round(r.width), css_height: Math.round(r.height) }; };
@@ -87,6 +120,7 @@
     medal: '<path d="M8.6 9.4 5.4 3.4M15.4 9.4l3.2-6"/><circle cx="12" cy="15" r="6.2"/><path d="m12 11.5 1.2 2.4 2.6.4-1.9 1.8.5 2.6-2.4-1.3-2.4 1.3.5-2.6-1.9-1.8 2.6-.4Z" fill="currentColor" stroke="none"/>',
     sprout: '<path d="M12 20.8v-7.2"/><path d="M12 14.6C8.2 14.6 5.6 12 5.6 8.2c3.8 0 6.4 2.6 6.4 6.4Z"/><path d="M12 13c0-3.6 2.6-6.2 6.4-6.2 0 3.6-2.6 6.2-6.4 6.2Z"/>',
     pin: '<path d="M9.4 3.4h5.2l-.8 5.4 3.4 3.4H6.8l3.4-3.4Z"/><path d="M12 12.2v8.4"/>',
+    share: '<path d="M12 14.6V3.6"/><path d="m8.2 7.2 3.8-3.8 3.8 3.8"/><path d="M5.4 11.4v6.4a2.6 2.6 0 0 0 2.6 2.6h8a2.6 2.6 0 0 0 2.6-2.6v-6.4"/>',
     grid: '<rect x="3.4" y="3.4" width="7.4" height="7.4" rx="2.2"/><rect x="13.2" y="3.4" width="7.4" height="7.4" rx="2.2"/><rect x="3.4" y="13.2" width="7.4" height="7.4" rx="2.2"/><rect x="13.2" y="13.2" width="7.4" height="7.4" rx="2.2"/>',
     people: '<circle cx="9" cy="8" r="3.6"/><path d="M2.6 20.4c0-3.6 2.9-6.2 6.4-6.2s6.4 2.6 6.4 6.2"/><path d="M16.2 4.9a3.6 3.6 0 0 1 0 6.2"/><path d="M17.6 14.7c2.5.7 3.8 3 3.8 5.7"/>',
     contrast: '<circle cx="12" cy="12" r="8.4"/><path d="M12 3.6a8.4 8.4 0 0 1 0 16.8Z" fill="currentColor"/>',
@@ -196,7 +230,7 @@
     // 登录着就让名字跟着账号走，换台设备它还叫这个名字。推不上去也不要紧，
     // 名字首先是这台设备上的事。
     if (!(opts && opts.push === false) && savedToken()) {
-      api("/api/accounts/profile", { method: "POST",
+      api(`${API}/accounts/profile`, { method: "POST",
         body: JSON.stringify({ token: savedToken(), buddy_name: state.buddyName }) }).catch(() => {});
     }
     paintBuddyName();
@@ -252,8 +286,7 @@
     const token = savedToken();
     if (!token) { state.account = null; cacheAccount(null); return; }
     try {
-      const r = await api(`/api/accounts/me?token=${encodeURIComponent(token)}`
-        + `&anon_id=${encodeURIComponent(state.anonId)}`);
+      const r = await api(`${API}/accounts/me?anon_id=${encodeURIComponent(state.anonId)}`);
       state.account = r.account || null;
       state.unclaimed = r.unclaimed_here || 0;
       cacheAccount(state.account);
@@ -318,7 +351,7 @@
     try {
       const body = { name, pin, anon_id: state.anonId };
       if (acctMode === "register") body.buddy_name = state.buddyName;
-      const r = await api(`/api/accounts/${acctMode}`, { method: "POST", body: JSON.stringify(body) });
+      const r = await api(`${API}/accounts/${acctMode}`, { method: "POST", body: JSON.stringify(body) });
       setToken(r.token); state.account = r.account; cacheAccount(r.account);
       // 换台设备登录进来：伙伴的名字跟着账号回来。这台设备上起过名字而账号还空着，
       // 就反过来把它带上去。
@@ -347,7 +380,7 @@
   $("#btn-acct-claim").onclick = async () => {
     const btn = $("#btn-acct-claim"); btn.disabled = true;
     try {
-      await api("/api/accounts/claim", { method: "POST",
+      await api(`${API}/accounts/claim`, { method: "POST",
         body: JSON.stringify({ token: savedToken(), anon_id: state.anonId }) });
       state.unclaimed = 0;
       await loadAccount(); await loadCollection(); renderQuests(); await loadSessions();
@@ -356,7 +389,7 @@
 
   $("#btn-acct-logout").onclick = async () => {
     if (!confirm("退出之后，这一屏就只剩这台设备上画的画了。\n名字和暗号都还在，随时能再登回来。")) return;
-    try { await api("/api/accounts/logout", { method: "POST", body: JSON.stringify({ token: savedToken() }) }); }
+    try { await api(`${API}/accounts/logout`, { method: "POST", body: JSON.stringify({ token: savedToken() }) }); }
     catch (e) { /* 退出是本地的事，网不通也要退得掉 */ }
     setToken(""); cacheAccount(null); state.account = null; state.unclaimed = 0;
     paintIntentIdentity();
@@ -401,6 +434,7 @@
   const TITLES = { world: "彩点的世界", quest: "创作冒险", dex: "画廊", buddy: "彩点", sessions: "我的" };
   function show(name) {
     VIEWS.forEach(v => $(`#view-${v}`).classList.toggle("hidden", v !== name));
+    native("keepAwake", { on: name === "draw" });     // 画着画的时候屏幕别自己暗下去
     const tab = VIEW_TAB[name];
     document.body.classList.toggle("inflow", !tab);
     // 每块 tab 有自己的空气颜色：切 tab 像换了个房间，而不是换了一页文档。
@@ -454,7 +488,7 @@
   async function checkFeatured() {
     if (state.condition.ui === "quiet") return;
     try {
-      const r = await api(`/api/participants/${encodeURIComponent(savedPid() || " ")}/featured?${whoQuery()}`);
+      const r = await api(`${API}/participants/${encodeURIComponent(savedPid() || " ")}/featured?${whoQuery()}`);
       featuredQueue = r.pending || [];
     } catch (e) { return; }
     showNextFeatured();
@@ -470,7 +504,7 @@
     $("#featured-note").textContent = auto
       ? `你画的《${item.title}》今天轮到挂出去给大家看啦` + (item.note ? `，旁边会写着「${item.note}」。` : "。")
       : item.note ? `老师说：「${item.note}」` : `你画的《${item.title}》被老师挑出来了。`;
-    $("#featured-img").src = item.image;
+    $("#featured-img").src = fileUrl(item.image);
     m.classList.remove("hidden");
   }
   async function answerFeatured(accept) {
@@ -478,7 +512,7 @@
     $("#featured-modal").classList.add("hidden");
     if (!item) return;
     try {
-      await api(`/api/sessions/${item.session_id}/featured`,
+      await api(`${API}/sessions/${item.session_id}/featured`,
         { method: "POST", body: JSON.stringify({ accept: !!accept }) });
     } catch (e) { /* 下次再问 */ }
     showNextFeatured();
@@ -494,7 +528,7 @@
     const sp = $("#world-sprite"); if (!sp) return;
     let g = null;
     try {
-      g = await api(`/api/participants/${encodeURIComponent(savedPid() || " ")}/growth?${whoQuery()}`);
+      g = await api(`${API}/participants/${encodeURIComponent(savedPid() || " ")}/growth?${whoQuery()}`);
     } catch (e) { /* 离线就当还没点亮 */ }
     const lit = !!(g && g.n_tasks);
     const best = lit ? Object.entries(g.dims).sort((a, b) => b[1].practice - a[1].practice)[0] : null;
@@ -1206,6 +1240,17 @@
     if (b.disabled) return;
     applyTool(b.dataset.tool); logEvent(EV.BRUSH_CHANGE, { tool });
   });
+  // Apple Pencil 双击（原生壳转发过来）：橡皮 ↔ 刚才用的那支笔。记成 BRUSH_CHANGE，
+  // 多一个 source 说它是笔杆上来的——和点 dock 是两种不同的动作。
+  let toolBeforeEraser = "pencil";
+  window.addEventListener("artquest:pencilTap", () => {
+    if ($("#view-draw").classList.contains("hidden")) return;
+    const next = tool === "eraser" ? toolBeforeEraser : "eraser";
+    if (tool !== "eraser") toolBeforeEraser = tool;
+    const btn = document.querySelector(`[data-tool="${next}"]`);
+    if (!btn || btn.disabled) return;
+    applyTool(next); logEvent(EV.BRUSH_CHANGE, { tool, source: "pencil_tap" });
+  });
   // 粗细的刻度是**非线性**的：1→2 是把线加粗一倍，40→41 根本看不出来。
   // 滑杆走 0–100 的均匀格子，映射到 1–60 的平方曲线，细的那头才有分辨力。
   // 存进 stroke 的仍然是最终像素值，语义没变。
@@ -1371,7 +1416,7 @@
     }
     const wait = assistSay("……", "wait");
     try {
-      const r = await api(`/api/sessions/${state.sessionId}/assist`, {
+      const r = await api(`${API}/sessions/${state.sessionId}/assist`, {
         method: "POST",
         body: JSON.stringify({ image: canvas.toDataURL("image/png"),
                                elapsed_ms: Math.round(elapsed()), nth: assistNth }),
@@ -1553,7 +1598,7 @@
     if (!state.sessionId || !state.dirtySinceSnapshot) return;
     state.dirtySinceSnapshot = false;
     try {
-      await api(`/api/sessions/${state.sessionId}/snapshot`, { method: "POST", body: JSON.stringify({ image: canvas.toDataURL("image/png"), elapsed_ms: elapsed() }) });
+      await api(`${API}/sessions/${state.sessionId}/snapshot`, { method: "POST", body: JSON.stringify({ image: canvas.toDataURL("image/png"), elapsed_ms: elapsed() }) });
       $("#snap-info").textContent = `已记录 ${new Date().toLocaleTimeString()}`;
     } catch (e) { console.warn("snapshot failed", e); }
   }
@@ -1616,7 +1661,7 @@
       return `<div class="dex-card" style="--qc:${st.c};--tilt:${(tilt * 0.8).toFixed(2)}deg">
         <button class="dex-open" data-sid="${r.session_id}" data-qid="${r.quest_id}">
           <span class="dex-thumb">${r.status === "done"
-            ? `<img src="/files/${r.session_id}/after.png" alt="" loading="lazy"
+            ? `<img src="${FILES}/${r.session_id}/after.png" alt="" loading="lazy"
                  onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'dex-unfinished'}))">`
             : `<span class="dex-unfinished">${icon("pencil", 22)}</span>`}</span>
           <span class="dex-cap"><b>${markOf(st, 14)}${titleOf(r.quest_id)}</b>
@@ -1630,7 +1675,7 @@
     grid.querySelectorAll(".dex-featured").forEach(b => {
       b.onclick = async (e) => {
         e.stopPropagation();
-        await api(`/api/sessions/${b.dataset.sid}/featured`,
+        await api(`${API}/sessions/${b.dataset.sid}/featured`,
           { method: "POST", body: JSON.stringify({ accept: b.dataset.accept === "1" }) });
         await loadCollection(); await renderWall();
       };
@@ -1659,7 +1704,7 @@
     const wrap = $("#growth-wrap");
     if ((state.condition.growth_display || "full") === "none") { wrap.classList.add("hidden"); return; }
     let g;
-    try { g = await api(`/api/participants/${encodeURIComponent(savedPid() || " ")}/growth?${whoQuery()}`); }
+    try { g = await api(`${API}/participants/${encodeURIComponent(savedPid() || " ")}/growth?${whoQuery()}`); }
     catch (e) { return; }
     if (!g || !g.n_tasks) { wrap.classList.add("hidden"); return; }
     wrap.classList.remove("hidden");
@@ -1705,7 +1750,7 @@
     state.condition = { ...state.cfg.default_condition };
     if (!(params.get("study") === "1" || state.cfg.study.active)) return;
     try {
-      state.study = await api("/api/study/assign", { method: "POST",
+      state.study = await api(`${API}/study/assign`, { method: "POST",
         body: JSON.stringify({ participant_id: savedPid(), anon_id: state.anonId, group: params.get("group") || "" }) });
       state.condition = { ...state.condition, ...state.study.condition };
       state.seqIdx = 0;
@@ -1985,7 +2030,7 @@
       const shot = !c.locked && shotOf[fam];
       // 画没加载出来（撤回过、还没传上去）就退回那枚字形，别留一个洞
       const mark = shot
-        ? `<img class="node-shot" src="/files/${shot}/after.png" alt="" loading="lazy"
+        ? `<img class="node-shot" src="${FILES}/${shot}/after.png" alt="" loading="lazy"
              onerror="this.closest('.node-btn').classList.remove('has-shot');this.remove()">`
         : c.locked ? icon("lock", 30) : glyphMark;
       el.innerHTML =
@@ -2124,7 +2169,7 @@
       if (!(await ArtLog.ready())) return;               // 无痕模式没有 IndexedDB，就不假装能离线
       const have = await ArtLog.countTickets();
       if (have >= TICKET_TARGET) return;
-      const r = await api("/api/tickets", { method: "POST", body: JSON.stringify({
+      const r = await api(`${API}/tickets`, { method: "POST", body: JSON.stringify({
         n: TICKET_TARGET - have,
         participant: { anon_id: state.anonId, participant_id: savedPid(), account_id: accountId(),
                        label: "", buddy_name: state.buddyName },
@@ -2137,8 +2182,8 @@
   addEventListener("online", () => { topUpTickets(); ArtLog.flush(); });
 
   async function init() {
-    state.cfg = await api("/api/config"); state.quests = await api("/api/quests");
-    state.families = await api("/api/families");
+    state.cfg = await api(`${API}/config`); state.quests = await api(`${API}/quests`);
+    state.families = await api(`${API}/families`);
     state.anonId = anonId();
     loadBuddyName(); paintBuddyName();
     // 账号要在取任何「我的」数据之前问清楚：画廊、地图上的星都按它来筛
@@ -2147,7 +2192,9 @@
     // 设备上跑的是哪一版外壳。iPad 上「到底更新了没有」以前只能靠猜——
     // 这一行就是答案：和电脑上 `curl .../api/config` 里的 shell 对一下就知道。
     const sb = $("#shell-badge");
-    if (sb) sb.textContent = state.cfg.shell || "—";
+    if (sb) sb.textContent = (state.cfg.shell || "—") + (NATIVE ? ` · app ${NATIVE.version || ""}`.trimEnd() : "");
+    // 「全部记录」= 这台设备 / 这个账号自己的那些。全服的列表要研究员令牌，不是界面上的一个链接。
+    const ex = $("#export-link"); if (ex) ex.href = `${API}/sessions?${whoQuery()}`;
     await setupStudy();
     applyCondition();
     $("#participant").value = savedPid();
@@ -2225,15 +2272,15 @@
       if (save) {
         // a real submission: it goes through the normal scoring + QC path
         logEvent(EV.TASK_SUBMIT, { phase: "before", strokes: visible.length, via: "leave" });
-        await api(`/api/sessions/${state.sessionId}/submit`, { method: "POST",
+        await api(`${API}/sessions/${state.sessionId}/submit`, { method: "POST",
           body: JSON.stringify({ image: canvas.toDataURL("image/png"), elapsed_ms: elapsed(),
                                  phase: "before", pending }) });
-        await api(`/api/sessions/${state.sessionId}/finalize`, { method: "POST",
+        await api(`${API}/sessions/${state.sessionId}/finalize`, { method: "POST",
           body: JSON.stringify({ elapsed_ms: elapsed(), pending }) });
       } else {
         // the strokes are kept, the session is marked — changing your mind is
         // process data, and a silently deleted session makes a task_id lie
-        await api(`/api/sessions/${state.sessionId}/abandon`, { method: "POST",
+        await api(`${API}/sessions/${state.sessionId}/abandon`, { method: "POST",
           body: JSON.stringify({ elapsed_ms: elapsed(), reason: "wrong_task", pending }) });
       }
     } catch (e) { console.warn("leave failed", e); }
@@ -2269,7 +2316,7 @@
     // 那张票上的 id 和条件也是服务端定的，只是定得早一点。设备从不自己编 id。
     let r = null, ticket = null;
     try {
-      r = await api("/api/sessions", { method: "POST", body: JSON.stringify(body) });
+      r = await api(`${API}/sessions`, { method: "POST", body: JSON.stringify(body) });
     } catch (e) {
       ticket = await ArtLog.takeTicket(state.quest.id).catch(() => null);
       if (!ticket) {
@@ -2309,12 +2356,12 @@
     const image = canvas.toDataURL("image/png");
     try {
       const pending = await flushLog();
-      const r = await api(`/api/sessions/${state.sessionId}/submit`, { method: "POST", body: JSON.stringify({ image, elapsed_ms: elapsed(), phase: "before", pending }) });
+      const r = await api(`${API}/sessions/${state.sessionId}/submit`, { method: "POST", body: JSON.stringify({ image, elapsed_ms: elapsed(), phase: "before", pending }) });
       state.before = { image, scores: r.scores };
       if (!r.feedback) {
         // the frozen condition says this session carries no feedback, so there
         // is nothing to read and nothing to revise in response to
-        const done = await api(`/api/sessions/${state.sessionId}/finalize`,
+        const done = await api(`${API}/sessions/${state.sessionId}/finalize`,
           { method: "POST", body: JSON.stringify({ elapsed_ms: elapsed(), pending }) });
         overlay(null);
         return endSession(done.session, image, image, null);
@@ -2349,7 +2396,7 @@
     dismissFeedback("skip");
     overlay("正在保存……");
     const pending = await flushLog();
-    const r = await api(`/api/sessions/${state.sessionId}/finalize`, { method: "POST", body: JSON.stringify({ elapsed_ms: elapsed(), pending }) });
+    const r = await api(`${API}/sessions/${state.sessionId}/finalize`, { method: "POST", body: JSON.stringify({ elapsed_ms: elapsed(), pending }) });
     endSession(r.session, state.before.image, state.before.image, null); overlay(null);
   };
   $("#btn-submit-after").onclick = async () => {
@@ -2357,7 +2404,7 @@
     const image = canvas.toDataURL("image/png");
     try {
       const pending = await flushLog();
-      const r = await api(`/api/sessions/${state.sessionId}/submit`, { method: "POST", body: JSON.stringify({ image, elapsed_ms: elapsed(), phase: "after", pending }) });
+      const r = await api(`${API}/sessions/${state.sessionId}/submit`, { method: "POST", body: JSON.stringify({ image, elapsed_ms: elapsed(), phase: "after", pending }) });
       endSession(r.session, state.before.image, image, r.comparison);
     } catch (e) { alert("提交失败：" + e.message); startTimers(); }
     overlay(null);
@@ -2407,7 +2454,7 @@
     const body = skip ? { t_ms: elapsed() } : { ...answers,
       hardest_part_choice: state.hardestChoice || null,
       hardest_part: $("#survey-hardest").value.trim(), t_ms: elapsed() };
-    try { await api(`/api/sessions/${state.sessionId}/questionnaire`, { method: "POST", body: JSON.stringify(body) }); }
+    try { await api(`${API}/sessions/${state.sessionId}/questionnaire`, { method: "POST", body: JSON.stringify(body) }); }
     catch (e) { console.warn("questionnaire failed", e); }
     const f = state.pendingFinal; if (f) showFinal(f.session, f.beforeImg, f.afterImg, f.comparison);
   }
@@ -2446,7 +2493,14 @@
     // 「这一关练的是」那张卡不再放在结算页：能力图上练的那几项本来就是橙色高亮的，
     // 再摆一张卡说一遍是重复。（伙伴那页的成长面板照旧用它。）
     renderBadges(session);
+    if (earnedNow(session).length) native("haptic", { style: "success" });   // 章亮了，手里也知道
     reportBadges(session).then(() => renderBadges(session));   // rarity needs this session counted
+    // 分享只在 app 里有：浏览器里长按图片就能存，按钮是多的
+    const sh = $("#btn-share");
+    if (sh) {
+      sh.classList.toggle("hidden", !NATIVE);
+      sh.onclick = () => native("share", { image: afterImg, title: titleOf(session.quest_id) || "我的画" });
+    }
     renderPeers(session);
     // What the child is shown of their own growth is its own condition, separate
     // from whether this artwork got feedback: a no-intervention arm can still
@@ -2710,10 +2764,10 @@
     const pool = badgePool(session);
     const earned = earnedNow(session);
     try {
-      await api(`/api/sessions/${session.session_id}/badges`, { method: "POST", body: JSON.stringify({
+      await api(`${API}/sessions/${session.session_id}/badges`, { method: "POST", body: JSON.stringify({
         earned: earned.map(b => b.name), offered: pool.map(b => b.name),
         version: BADGE_RULES_VERSION }) });
-      state.rarity = await api("/api/achievements");
+      state.rarity = await api(`${API}/achievements`);
     } catch (e) { /* a badge is not worth failing a session over */ }
   }
 
@@ -2727,7 +2781,7 @@
     const el = $("#wall-wrap");
     if ((state.condition.gallery_display || "none") !== "always") { el.classList.add("hidden"); return; }
     let data;
-    try { data = await api("/api/gallery/featured?k=8"); } catch (e) { el.classList.add("hidden"); return; }
+    try { data = await api(`${API}/gallery/featured?k=8`); } catch (e) { el.classList.add("hidden"); return; }
     const cards = (data && data.examples) || [];
     // 空墙也说一句。这面墙需要两个人点头（老师挑 + 本人答应），
     // 整块消失会让人以为功能坏了，而它只是还没有人挑过。
@@ -2738,7 +2792,7 @@
       const a = c.approach || {};
       const title = (state.quests.find(q => q.id === c.task_id) || {}).title || c.task_id;
       return `<figure class="peer">
-        <div class="peer-shot"><img src="${c.image}" alt="挂出来的画" loading="lazy"></div>
+        <div class="peer-shot"><img src="${fileUrl(c.image)}" alt="挂出来的画" loading="lazy"></div>
         <figcaption>
           <b>${escapeHtml(title)}</b>
           <div class="peer-chips"><span>${a.strokes} 笔</span><span>${a.colors || 1} 种颜色</span>
@@ -2758,11 +2812,11 @@
     if ((state.condition.gallery_display || "none") !== "after_submit") { el.classList.add("hidden"); return; }
     let data;
     try {
-      data = await api(`/api/gallery/task/${encodeURIComponent(session.quest_id)}?exclude=${session.session_id}&k=3`);
+      data = await api(`${API}/gallery/task/${encodeURIComponent(session.quest_id)}?exclude=${session.session_id}&k=3`);
     } catch (e) { el.classList.add("hidden"); return; }
     let cards = (data && data.examples) || [];
     try {
-      const pinned = await api(`/api/gallery/featured?task_id=${encodeURIComponent(session.quest_id)}&k=2`);
+      const pinned = await api(`${API}/gallery/featured?task_id=${encodeURIComponent(session.quest_id)}&k=2`);
       // a pinned drawing may also be one of the diverse picks — show it once,
       // with the teacher's note rather than the process contrast
       const seen = new Set((pinned.examples || []).map(c => c.session_id));
@@ -2776,7 +2830,7 @@
       const how = [`${a.strokes} 笔`, `${a.colors || 1} 种颜色`, `${a.minutes} 分钟`,
                    a.zoomed ? "放大过" : null].filter(Boolean).join(" · ");
       return `<div class="peer">
-        <img src="${c.image}" alt="别人的作品" loading="lazy">
+        <img src="${fileUrl(c.image)}" alt="别人的作品" loading="lazy">
         <div class="p-why">${escapeHtml(c.why || "另一种做法")}</div>
         <div class="p-how">${how}</div>
         ${c.featured_by ? `<div class="p-pin">${icon("pin", 13)}老师选的</div>` : ""}</div>`;
@@ -2933,7 +2987,7 @@
     // 每次都重新取：徽章是刚刚那一局才上报的，缓存里的名单一定是旧的
     try { state.allSessions = await mySessions(); } catch (e) { /* 离线就先空着 */ }
     const lit = litBadges();
-    try { state.rarity = await api("/api/achievements"); } catch (e) { /* 稀有度是可选的 */ }
+    try { state.rarity = await api(`${API}/achievements`); } catch (e) { /* 稀有度是可选的 */ }
     // 墙上展示的是**已经点亮的**，所以不按当前任务过滤：
     // `badgePool()` 是给「这一局能拿到哪些」用的，拿它筛墙会让「对照高手」
     // 这种要参考图的徽章在没选任务时整枚消失。
@@ -3153,10 +3207,10 @@
     const img = $("#work-img");
     img.classList.remove("hidden");
     img.onerror = () => img.classList.add("hidden");
-    img.src = `/files/${sid}/after.png`;
+    img.src = `${FILES}/${sid}/after.png`;
     const raw = $("#work-raw");
     raw.classList.toggle("hidden", !state.study);
-    if (state.study) raw.innerHTML = `${qid} · ${sid} · <a href="/api/sessions/${sid}" target="_blank">json</a>`;
+    if (state.study) raw.innerHTML = `${qid} · ${sid} · <a href="${API}/sessions/${sid}" target="_blank">json</a>`;
     $("#btn-work-again").classList.toggle("hidden", !q);
     $("#btn-work-again").onclick = () => { workModal.classList.add("hidden"); if (q) chooseQuest(q); };
     workModal.classList.remove("hidden");
@@ -3195,8 +3249,12 @@
       // 一半新一半旧比全旧还糟。
       // 但孩子正画着的时候绝不重载：那会把没提交的一笔直接冲掉。
       // 不重载也不要紧，下次冷启动自然就是齐的。
-      let reloading = false;
+      // 第一次装上（这页之前根本没有 SW 管着）不用重载：没有「旧外壳」可言，页面里
+      // 跑的就是刚从网上拿的这一版。以前这里也重载，结果是第一次打开时页面会在几百毫秒
+      // 到几秒后无缘无故闪一下——要是孩子已经点进了别的 tab，就被拽回地图。
+      let reloading = false, hadController = !!navigator.serviceWorker.controller;
       navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (!hadController) { hadController = true; return; }
         if (reloading || state.sessionId) return;
         reloading = true;
         location.reload();

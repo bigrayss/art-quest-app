@@ -12,7 +12,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from .env import TMP as _TMP  # offline backends, throwaway data dir
+from .env import TMP as _TMP, ADMIN  # offline backends, throwaway data dir
 
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -49,7 +49,7 @@ def _png(strokes):
 
 class FeedbackAndRevision(unittest.TestCase):
     def setUp(self):
-        self.c = TestClient(app)
+        self.c = TestClient(app, headers=ADMIN)
 
     def _session(self):
         r = self.c.post("/api/sessions", json={

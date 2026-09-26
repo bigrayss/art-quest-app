@@ -31,6 +31,9 @@ class Device(BaseModel):
     pointer_types: List[str] = []
     timezone: str = ""
     language: str = ""
+    # 哪个壳发来的：网页版空着；iOS app 记 {platform, version}。Pencil 的压感、
+    # 采样率都跟壳有关，分析时它是协变量而不是噪声。
+    app: Dict[str, Any] = {}
 
 
 class Canvas(BaseModel):

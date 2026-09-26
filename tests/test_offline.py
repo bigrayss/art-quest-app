@@ -17,7 +17,7 @@ import json
 import pathlib
 import unittest
 
-from .env import TMP as _TMP  # noqa: F401  (offline backends, throwaway data dir)
+from .env import TMP as _TMP, ADMIN  # noqa: F401  (offline backends, throwaway data dir)
 
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -173,7 +173,7 @@ class DrawingWithNoNetwork(unittest.TestCase):
         cls.thread.join(timeout=5)
 
     def _get(self, path):
-        return json.load(urllib.request.urlopen(self.base + path))
+        return json.load(urllib.request.urlopen(urllib.request.Request(self.base + path, headers=ADMIN)))
 
     def test_a_drawing_made_offline_arrives_complete_when_the_network_comes_back(self):
         before = {r["session_id"] for r in self._get("/api/sessions")}
@@ -276,7 +276,7 @@ class DrawingWithNoNetwork(unittest.TestCase):
                 }
                 return out;
             }""")
-            for must in ("/api/config", "/api/quests", "/api/families"):
+            for must in ("/api/v1/config", "/api/v1/quests", "/api/v1/families"):
                 self.assertIn(must, cached, f"{must} 没在装 SW 的时候抓下来，冷启动会是空白的")
             page.close()
 

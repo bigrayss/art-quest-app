@@ -9,7 +9,7 @@ import re
 import unittest
 from pathlib import Path
 
-from .env import TMP as _TMP  # sets the offline backends and the test data dir
+from .env import ADMIN, TMP as _TMP  # sets the offline backends and the test data dir
 
 from fastapi.testclient import TestClient  # noqa: E402
 from PIL import Image, ImageDraw  # noqa: E402
@@ -81,7 +81,7 @@ class StageOneLoop(unittest.TestCase):
         s = self.c.post(f"/api/sessions/{sid}/finalize", json={"elapsed_ms": 70000}).json()["session"]
         self.assertEqual(s["status"], "done")
         self.assertFalse(s["revised"])
-        self.assertIn(sid, [x["session_id"] for x in self.c.get("/api/sessions").json()])
+        self.assertIn(sid, [x["session_id"] for x in self.c.get("/api/sessions", headers=ADMIN).json()])
 
     def test_bad_inputs(self):
         self.assertEqual(self.c.post("/api/sessions", json={"quest_id": "nope", "intent": {"emotion": "x"}}).status_code, 400)
@@ -120,8 +120,10 @@ class OneServerManyChildren(unittest.TestCase):
         got = [r["session_id"] for r in self.c.get("/api/sessions?anon_id=anon-solo-1").json()]
         self.assertEqual(got, [solo])
 
-        # 不带参数仍然是研究员的全量视图（导出、教师端靠它）
-        everything = [r["session_id"] for r in self.c.get("/api/sessions").json()]
+        # 不带参数是研究员的全量视图（导出、教师端靠它）——要研究员令牌，
+        # 没有令牌就是 401，不是「顺手给全部」
+        self.assertEqual(self.c.get("/api/sessions").status_code, 401)
+        everything = [r["session_id"] for r in self.c.get("/api/sessions", headers=ADMIN).json()]
         self.assertIn(mine, everything)
         self.assertIn(theirs, everything)
 

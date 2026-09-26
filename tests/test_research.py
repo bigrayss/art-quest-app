@@ -11,7 +11,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from .env import TMP as _TMP  # sets the offline backends and the test data dir
+from .env import TMP as _TMP, ADMIN  # sets the offline backends and the test data dir
 
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -72,7 +72,7 @@ def _png_of(strokes, size=(1024, 704)):
 
 class ResearchDataLayer(unittest.TestCase):
     def setUp(self):
-        self.c = TestClient(app)
+        self.c = TestClient(app, headers=ADMIN)
 
     def _create(self, **over):
         body = {

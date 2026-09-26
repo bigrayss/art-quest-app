@@ -18,7 +18,7 @@ import time
 import unittest
 import urllib.request
 
-from .env import TMP as _TMP  # noqa: F401  (offline backends, throwaway data dir)
+from .env import ADMIN, TMP as _TMP  # noqa: F401  (offline backends, throwaway data dir)
 
 try:
     from playwright.sync_api import TimeoutError as PWTimeout
@@ -75,7 +75,7 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
         cls.thread.join(timeout=5)
 
     def _get(self, path):
-        return json.load(urllib.request.urlopen(self.base + path))
+        return json.load(urllib.request.urlopen(urllib.request.Request(self.base + path, headers=ADMIN)))
 
     def _ids(self):
         return {r["session_id"] for r in self._get("/api/sessions")}

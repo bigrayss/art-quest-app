@@ -13,6 +13,9 @@
 # 所以 Service Worker 能注册——局域网 http 下它根本不注册，
 # 「装到主屏」装得上但断网就是白屏。而且默认只有自己 tailnet 里的设备看得见，
 # 不像 0.0.0.0 那样把孩子的画摊给整个 wifi。这时 HOST 保持 127.0.0.1 就好。
+# 研究员接口（全量列表 /api/v1/sessions、打分、策展）要 ARTQUEST_ADMIN_TOKEN，
+# 不设就全是 401——界面本身不需要它。本机想 curl 全量就往 .env 里写一行：
+#   ARTQUEST_ADMIN_TOKEN=$(python3 -c "import secrets;print(secrets.token_urlsafe(24))")
 set -euo pipefail
 cd "$(dirname "$0")"
 [ -f .env ] && set -a && . ./.env && set +a

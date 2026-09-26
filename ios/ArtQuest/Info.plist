@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>zh_CN</string>
+	<key>CFBundleDisplayName</key>
+	<string>KidsArtQuest</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<!-- 没有第三方加密：出口合规那一问直接答「否」，TestFlight 不用每次填 -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<!-- 正式服务器。构建设置里同名变量覆盖它；运行时「设置」里还能再覆盖一次（见 AppConfig.swift） -->
+	<key>ARTQUEST_SERVER</key>
+	<string>$(ARTQUEST_SERVER)</string>
+	<!-- 启动画面：一块白，和网页外壳的底色一样，切进去看不出缝 -->
+	<key>UILaunchScreen</key>
+	<dict/>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+	</dict>
+	<!-- iPhone 只竖屏：横屏画布反而更小（README「iPhone 和 iPad 不是同一件事」），不劝孩子转屏 -->
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
+	<!-- iPad 四个方向都行：Pencil 画画横竖各有各的用法 -->
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UIStatusBarStyle</key>
+	<string>UIStatusBarStyleDefault</string>
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<true/>
+	<key>UIRequiresFullScreen</key>
+	<false/>
+	<!-- 分享面板里「存储图像」会走相册的「仅添加」权限；没有这句系统直接把 app 杀掉 -->
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>把你画好的画存进相册。</string>
+	<!-- 正式服务器是 HTTPS。开发时连局域网 / Tailscale 里的 http 服务器要放开本地网络这一条 -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+</dict>
+</plist>

@@ -2,13 +2,16 @@
 import hashlib
 import logging
 import re
+import secrets
 from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import APIRouter, FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__
+from . import config as cfg   # 不叫 config：下面 /api/config 那个端点函数就叫这个名字
 from . import events as ev
 from . import gallery as gallery_mod
 from . import history as history_mod
@@ -70,6 +73,16 @@ class Utf8JSON(JSONResponse):
 
 
 app = FastAPI(title="KidsArtQuest", version=__version__, default_response_class=Utf8JSON)
+# 接口全部挂在一个 router 上，文件末尾同时挂到 `/api/v1` 和 `/api`：
+# app 上架之后，孩子手机上的旧版本会一直调着它发布那天的接口，版本号得**先于** 1.0 存在，
+# 不然等要改的时候就得同时伺候两套没名字的接口。网页版和 app 都调 `/api/v1`；
+# 不带版本号的 `/api` 是「当前版本」的别名，给 curl 和旧书签用。
+api = APIRouter()
+# iOS 壳从 `artquest://app` 发请求（外壳打在 app 包里，不是从服务器载入的），
+# 这是跨源；`Authorization` 头要在预检里点名放行。
+app.add_middleware(CORSMiddleware, allow_origins=cfg.CORS_ORIGINS,
+                   allow_methods=["GET", "POST", "OPTIONS"],
+                   allow_headers=["Authorization", "Content-Type"], max_age=600)
 store = SessionStore()
 accounts = AccountStore()
 SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
@@ -196,7 +209,7 @@ def service_worker():
                     headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"})
 
 
-@app.get("/api/config")
+@api.get("/config")
 def config():
     scorer, fb = get_scorer(), get_feedback_engine()
     st = study_mod.load_study()
@@ -224,24 +237,24 @@ def config():
     }
 
 
-@app.get("/api/families")
+@api.get("/families")
 def get_families():
     """Mission families — what the child picks from; a form is assigned below."""
     return task_families()
 
 
-@app.get("/api/quests")
+@api.get("/quests")
 def quests():
     return QUESTS
 
 
 # -- study mode ------------------------------------------------------------
-@app.get("/api/study")
+@api.get("/study")
 def study_config():
     return study_mod.load_study()
 
 
-@app.post("/api/study/assign")
+@api.post("/study/assign")
 def study_assign(body: StudyAssign):
     """Register a participant code and hand back their counterbalanced order."""
     return study_mod.assign(body.participant_id, body.anon_id, body.group)
@@ -267,7 +280,64 @@ def _scope(account_id: str = "") -> Dict[str, Any]:
     return {"account_id": account_id, "device_windows": accounts.device_windows(acc) if acc else {}}
 
 
-@app.post("/api/accounts/register", status_code=201)
+# -- 谁在说话 ------------------------------------------------------------------
+# 网页版一直靠「局域网 + SSH 隧道」这个信任假设兜着，应用层没有一处校验身份。
+# app 直接调公网上的 API，每个请求都得自己证明是谁。三种身份，三条规矩：
+#
+#   * 研究员：`Authorization: Bearer <ARTQUEST_ADMIN_TOKEN>` —— 全量列表、打分、标注、策展。
+#     没设这个环境变量这些接口就是关着的，不是开着的。
+#   * 账号：  `Authorization: Bearer <登录令牌>` —— 凡是把 `account_id` 当筛选或归属参数
+#     的地方，说自己是谁就得拿那个账号的令牌。以前 account_id 谁传谁生效。
+#   * 设备：  只带 `anon_id` / 只知道 `session_id` —— 和以前一样。它们是猜不到的随机串，
+#     相当于「不可猜的分享链接」，这个尺度可接受；要命的从来是全量列表把它们一次发光。
+#
+# 令牌走请求头不走查询串：URL 会原样进 Caddy 的 access log。
+def _bearer(request: Request) -> str:
+    h = request.headers.get("authorization", "")
+    return h[7:].strip() if h[:7].lower() == "bearer " else ""
+
+
+def _is_admin(request: Request) -> bool:
+    tok = cfg.ADMIN_TOKEN
+    return bool(tok) and secrets.compare_digest(_bearer(request), tok)
+
+
+def _require_admin(request: Request) -> None:
+    if _is_admin(request):
+        return
+    if not cfg.ADMIN_TOKEN:
+        raise HTTPException(401, "研究员接口关着：服务器没设 ARTQUEST_ADMIN_TOKEN")
+    raise HTTPException(401, "这个接口只给研究员：Authorization: Bearer <ARTQUEST_ADMIN_TOKEN>")
+
+
+def _token(request: Request, legacy: str = "") -> str:
+    """账号令牌：请求头优先；老客户端还放在 body / 查询串里的也认。"""
+    return _bearer(request) or legacy
+
+
+def _require_account(request: Request, legacy: str = "") -> Dict[str, Any]:
+    try:
+        return accounts.require(_token(request, legacy))
+    except AccountError as e:
+        raise _account_error(e)
+
+
+def _check_owner(request: Request, account_id: str) -> None:
+    """说自己是某个账号，就得拿那个账号的令牌。研究员可以替任何人问。
+
+    401 和 403 分开：令牌本身不认（过期、别处退掉了）是 401，前端据此登出；
+    令牌是好的但不是这个账号是 403——那是缓存里残留的别人的 account_id，不该把人踢下线。
+    """
+    if not account_id or _is_admin(request):
+        return
+    acc = accounts.by_token(_bearer(request))
+    if not acc:
+        raise HTTPException(401, "登录已经过期，再登一次吧")
+    if acc["account_id"] != account_id:
+        raise HTTPException(403, "这不是你的账号")
+
+
+@api.post("/accounts/register", status_code=201)
 def account_register(body: Register):
     try:
         return accounts.register(body.name, body.pin, anon_id=body.anon_id, buddy_name=body.buddy_name)
@@ -275,7 +345,7 @@ def account_register(body: Register):
         raise _account_error(e)
 
 
-@app.post("/api/accounts/login")
+@api.post("/accounts/login")
 def account_login(body: Login):
     try:
         return accounts.login(body.name, body.pin, anon_id=body.anon_id)
@@ -283,58 +353,61 @@ def account_login(body: Login):
         raise _account_error(e)
 
 
-@app.get("/api/accounts/me")
-def account_me(token: str = "", anon_id: str = ""):
+@api.get("/accounts/me")
+def account_me(request: Request, token: str = "", anon_id: str = ""):
     """当前登录的是谁，外加「这台设备上还有几张没归属的画」——
-    那个数字是「收进我的」按钮存在的全部理由，所以在这儿一起给。"""
-    try:
-        acc = accounts.require(token)
-    except AccountError as e:
-        raise _account_error(e)
+    那个数字是「收进我的」按钮存在的全部理由，所以在这儿一起给。
+    令牌从 `Authorization: Bearer` 来；`?token=` 只是给旧客户端留的。"""
+    acc = _require_account(request, token)
     pub = accounts.public(acc)
     claimed = anon_id in accounts.device_windows(acc)
     return {"account": pub, "unclaimed_here": 0 if claimed else len(store.unowned(anon_id)),
             "claimed_here": claimed}
 
 
-@app.post("/api/accounts/claim")
-def account_claim(body: ClaimDevice):
+@api.post("/accounts/claim")
+def account_claim(body: ClaimDevice, request: Request):
     """把这台设备上以前画的收进自己名下。**不改任何 session**：
     记的是「这个账号认领过这台设备，截止到此刻」，旧数据一个字节不动。"""
+    acc = _require_account(request, body.token)
     try:
-        acc = accounts.require(body.token)
         pub = accounts.claim_device(acc["account_id"], body.anon_id)
     except AccountError as e:
         raise _account_error(e)
     return {"ok": True, "account": pub, "claimed": len(store.unowned(body.anon_id))}
 
 
-@app.post("/api/accounts/profile")
-def account_profile(body: ProfileUpdate):
+@api.post("/accounts/profile")
+def account_profile(body: ProfileUpdate, request: Request):
     """伙伴的名字跟着账号走，换台设备它还叫原来那个名字。"""
+    acc = _require_account(request, body.token)
     try:
-        acc = accounts.require(body.token)
         return {"ok": True, "account": accounts.set_buddy_name(acc["account_id"], body.buddy_name)}
     except AccountError as e:
         raise _account_error(e)
 
 
-@app.post("/api/accounts/logout")
-def account_logout(body: TokenOnly):
+@api.post("/accounts/logout")
+def account_logout(body: TokenOnly, request: Request):
     """只退这一台设备。别处仍然登录着——共用 iPad 上退出的那个孩子，
     不该把自己手机上的登录也一起弄掉。"""
-    accounts.logout(body.token)
+    accounts.logout(_token(request, body.token))
     return {"ok": True}
 
 
 # -- sessions --------------------------------------------------------------
-@app.get("/api/sessions")
-def list_sessions(participant_id: str = "", anon_id: str = "", account_id: str = ""):
-    """不带参数 = 研究员看全部；带上身份 = 这个孩子自己的那些（app 永远带）。"""
+@api.get("/sessions")
+def list_sessions(request: Request, participant_id: str = "", anon_id: str = "", account_id: str = ""):
+    """带上身份 = 这个孩子自己的那些（app 永远带）；不带任何身份 = 研究员的全量视图，
+    要研究员令牌——以前这一条不带参数就把全服的 session id 一次发光，
+    而 id 是 `/files/` 和 `/api/sessions/{id}` 唯一的门。"""
+    if not (participant_id or anon_id or account_id):
+        _require_admin(request)
+    _check_owner(request, account_id)
     return store.list(participant_id=participant_id, anon_id=anon_id, **_scope(account_id))
 
 
-@app.get("/api/sessions/{sid}")
+@api.get("/sessions/{sid}")
 def get_session(sid: str):
     try:
         return store.load_full(sid)
@@ -342,7 +415,7 @@ def get_session(sid: str):
         raise HTTPException(404, "session not found")
 
 
-@app.get("/api/sessions/{sid}/strokes")
+@api.get("/sessions/{sid}/strokes")
 def get_strokes(sid: str):
     """Raw stroke log — enough on its own to replay the whole drawing."""
     _session_or_404(sid)
@@ -381,8 +454,8 @@ def _personalize(sid: str, quest: Dict[str, Any], meta: Dict[str, Any]) -> Dict[
     return store.save_personalization(sid, decision)
 
 
-@app.post("/api/tickets", status_code=201)
-def issue_tickets(body: IssueTickets):
+@api.post("/tickets", status_code=201)
+def issue_tickets(body: IssueTickets, request: Request):
     """预发几张票，留着离线用。
 
     一张票 = 服务端生成的 `session_id` + **此刻冻结好的 condition**，目录当场占住。
@@ -393,6 +466,7 @@ def issue_tickets(body: IssueTickets):
     「这个 session 还没建」和「这个 session 根本不存在」。票据把服务端的决定
     **提前**而不是拿掉。
     """
+    _check_owner(request, body.participant.account_id)
     n = max(1, min(20, body.n))
     st = body.study.model_dump()
     quest_ids = body.quest_ids[:n]
@@ -412,11 +486,23 @@ def issue_tickets(body: IssueTickets):
     return {"tickets": out}
 
 
-@app.post("/api/sessions", status_code=201)
-def create_session(body: CreateSession):
+@api.post("/sessions", status_code=201)
+def create_session(body: CreateSession, request: Request):
     quest = QUESTS_BY_ID.get(body.task())
     if quest is None:
         raise HTTPException(400, "unknown quest")
+    who = body.participant_dict()
+    if who.get("account_id"):
+        # 说这幅画是某个账号的，就得拿那个账号的令牌——除了花票：票是联网时拿着令牌
+        # 领的，账号那会儿就核过了；离线画完重放时孩子可能已经退出登录，不能让画丢在半路。
+        ticket = None
+        if body.session_id:
+            try:
+                ticket = store.load(body.session_id)
+            except KeyError:
+                ticket = None
+        if not (ticket and (ticket.get("participant") or {}).get("account_id") == who["account_id"]):
+            _check_owner(request, who["account_id"])
     st = body.study.model_dump()
     condition = study_mod.resolve_condition(body.condition, st.get("group", ""))
     if quest.get("time_limit_sec") and not condition.get("time_limit_sec"):
@@ -467,7 +553,7 @@ def create_session(body: CreateSession):
                                 ("requested_mode", "backend", "available", "shown", "history_used")}}
 
 
-@app.post("/api/sessions/{sid}/log")
+@api.post("/sessions/{sid}/log")
 def ingest_log(sid: str, body: LogBatch):
     """Batched, idempotent ingest of buffered strokes and events.
 
@@ -481,7 +567,7 @@ def ingest_log(sid: str, body: LogBatch):
     return {"ok": True, "streams": out}
 
 
-@app.post("/api/sessions/{sid}/assist")
+@api.post("/sessions/{sid}/assist")
 def assist(sid: str, body: AssistIn):
     """孩子画到一半，点开那扇模糊的窗。
 
@@ -510,7 +596,7 @@ def assist(sid: str, body: AssistIn):
     return {"text": out["text"], "backend": out.get("backend", "")}
 
 
-@app.post("/api/sessions/{sid}/snapshot")
+@api.post("/sessions/{sid}/snapshot")
 def snapshot(sid: str, body: Snapshot):
     _session_or_404(sid)
     try:
@@ -536,7 +622,7 @@ def _score_and_save(sid: str, phase: str, png: bytes, elapsed_ms: int) -> Dict[s
     return {"file": f"{phase}.png", "elapsed_ms": elapsed_ms, "at": now_iso(), "scores": scores}
 
 
-@app.post("/api/sessions/{sid}/submit")
+@api.post("/sessions/{sid}/submit")
 def submit(sid: str, body: Submit):
     meta = _session_or_404(sid)
     try:
@@ -613,7 +699,7 @@ def submit(sid: str, body: Submit):
             "session": store.load_full(sid), "qc": qc}
 
 
-@app.post("/api/sessions/{sid}/finalize")
+@api.post("/sessions/{sid}/finalize")
 def finalize(sid: str, body: Finalize):
     """Finish without revising: `after` is a copy of `before`."""
     meta = _session_or_404(sid)
@@ -640,7 +726,7 @@ def finalize(sid: str, body: Finalize):
     return {"session": store.load_full(sid), "qc": qc}
 
 
-@app.post("/api/sessions/{sid}/abandon")
+@api.post("/sessions/{sid}/abandon")
 def abandon(sid: str, body: Abandon):
     """The child backed out — wrong task, or they want to start over.
 
@@ -660,7 +746,7 @@ def abandon(sid: str, body: Abandon):
     return {"ok": True, "session_id": sid, "status": "abandoned"}
 
 
-@app.post("/api/sessions/{sid}/questionnaire")
+@api.post("/sessions/{sid}/questionnaire")
 def questionnaire(sid: str, body: Questionnaire):
     _session_or_404(sid)
     answers = body.model_dump()
@@ -673,8 +759,9 @@ def questionnaire(sid: str, body: Questionnaire):
             "prediction_error": (scored or {}).get("error")}
 
 
-@app.post("/api/sessions/{sid}/feedback")
-def add_feedback(sid: str, body: FeedbackIn):
+@api.post("/sessions/{sid}/feedback")
+def add_feedback(sid: str, body: FeedbackIn, request: Request):
+    _require_admin(request)
     """Record a teacher's or the child's own feedback next to the AI's.
 
     `target_region` is in canvas pixel space, the same coordinates strokes use,
@@ -685,8 +772,9 @@ def add_feedback(sid: str, body: FeedbackIn):
     return {"ok": True, "feedback": rec}
 
 
-@app.post("/api/sessions/{sid}/rating")
-def add_rating(sid: str, body: Rating):
+@api.post("/sessions/{sid}/rating")
+def add_rating(sid: str, body: Rating, request: Request):
+    _require_admin(request)
     """A teacher's / expert's rating of the artwork — a second rater, not the child."""
     meta = _session_or_404(sid)
     rubric = (meta.get("task") or {}).get("rubric")
@@ -705,8 +793,9 @@ def add_rating(sid: str, body: Rating):
     return {"ok": True, "rating": rec, "featured": featured}
 
 
-@app.get("/api/participants/{pid}/featured")
-def featured_pending(pid: str, anon_id: str = "", account_id: str = ""):
+@api.get("/participants/{pid}/featured")
+def featured_pending(pid: str, request: Request, anon_id: str = "", account_id: str = ""):
+    _check_owner(request, account_id)
     """这个孩子有哪几张被老师挑中、还等着他自己答复。"""
     sc = _scope(account_id)
     out = []
@@ -725,14 +814,14 @@ def featured_pending(pid: str, anon_id: str = "", account_id: str = ""):
     return {"participant_id": pid, "pending": out}
 
 
-@app.post("/api/sessions/{sid}/featured")
+@api.post("/sessions/{sid}/featured")
 def answer_featured(sid: str, body: FeaturedAnswer):
     """孩子自己的答复。答应了才会挂到大家那面墙上；随时可以反悔。"""
     _session_or_404(sid)
     return {"ok": True, "featured": store.answer_featured(sid, body.accept)}
 
 
-@app.get("/api/sessions/{sid}/revision")
+@api.get("/sessions/{sid}/revision")
 def get_revision(sid: str):
     """Feedback → what the child did next, in time and (when targeted) in space.
 
@@ -743,8 +832,9 @@ def get_revision(sid: str):
     return attribute_revision(store.dir(sid))
 
 
-@app.post("/api/sessions/{sid}/annotation")
-def add_annotation(sid: str, body: Annotation):
+@api.post("/sessions/{sid}/annotation")
+def add_annotation(sid: str, body: Annotation, request: Request):
+    _require_admin(request)
     """An expert labelling a stretch of the replay (planning / revision / …)."""
     meta = _session_or_404(sid)
     duration = (meta.get("times") or {}).get("duration_ms")
@@ -754,15 +844,16 @@ def add_annotation(sid: str, body: Annotation):
     return {"ok": True, "annotation": rec}
 
 
-@app.get("/api/sessions/{sid}/annotation")
-def get_annotations(sid: str):
+@api.get("/sessions/{sid}/annotation")
+def get_annotations(sid: str, request: Request):
+    _require_admin(request)
     """Expert process labels, plus the replay boundaries they were drawn against."""
     _session_or_404(sid)
     return {"session_id": sid, "labels": list(PROCESS_LABELS),
             "annotations": store.labels(sid, "process_annotation")}
 
 
-@app.post("/api/sessions/{sid}/badges")
+@api.post("/sessions/{sid}/badges")
 def report_badges(sid: str, body: EarnedBadges):
     """Record which badges this session lit, under which rule set."""
     _session_or_404(sid)
@@ -773,7 +864,7 @@ def report_badges(sid: str, body: EarnedBadges):
 
 
 # -- gallery: other people's approaches, never a ranking of children ----------
-@app.get("/api/gallery/task/{task_id}")
+@api.get("/gallery/task/{task_id}")
 def gallery_for_task(task_id: str, exclude: str = "", k: int = 3):
     """Approaches to this task that differ most from the viewer's.
 
@@ -791,14 +882,15 @@ def gallery_for_task(task_id: str, exclude: str = "", k: int = 3):
                                         k=max(1, min(6, k)), viewer_meta=viewer)
 
 
-@app.get("/api/gallery/featured")
+@api.get("/gallery/featured")
 def gallery_featured(task_id: str = "", k: int = 8):
     """Work that was picked **and** that the child then agreed to show."""
     return gallery_mod.featured_examples(task_id, k=max(1, min(24, k)))
 
 
-@app.post("/api/gallery/curate")
-def gallery_curate(body: Curate):
+@api.post("/gallery/curate")
+def gallery_curate(body: Curate, request: Request):
+    _require_admin(request)
     """今天挂哪几张。一天跑一次（cron → `tools/curate.py`）。
 
     这里只是**提议**，和老师 pin 走同一条路：每一张都要等本人下次打开 app
@@ -816,13 +908,13 @@ def gallery_curate(body: Curate):
     return {"proposed": out, "count": len(out), "by": gallery_mod.CURATOR_ID}
 
 
-@app.get("/api/achievements")
+@api.get("/achievements")
 def achievements():
     """How rare each badge is across everyone — collection, not comparison."""
     return gallery_mod.achievement_stats()
 
 
-@app.get("/api/sessions/{sid}/personalization")
+@api.get("/sessions/{sid}/personalization")
 def get_personalization(sid: str):
     """Exactly what the system knew and decided before this child drew."""
     _session_or_404(sid)
@@ -833,8 +925,9 @@ def get_personalization(sid: str):
 
 
 # -- participants: behavioural history → user representation ------------------
-@app.get("/api/participants/{pid}/history")
-def participant_history(pid: str, anon_id: str = "", account_id: str = "", before: str = ""):
+@api.get("/participants/{pid}/history")
+def participant_history(pid: str, request: Request, anon_id: str = "", account_id: str = "", before: str = ""):
+    _check_owner(request, account_id)
     """A participant's finished tasks, compacted — the input to a representation."""
     sc = _scope(account_id)
     metas = history_mod.sessions_for(pid, anon_id, account_id=sc["account_id"],
@@ -843,8 +936,9 @@ def participant_history(pid: str, anon_id: str = "", account_id: str = "", befor
             "tasks": [history_mod.task_record(m) for m in metas]}
 
 
-@app.get("/api/participants/{pid}/protocol")
-def participant_protocol(pid: str, anon_id: str = ""):
+@api.get("/participants/{pid}/protocol")
+def participant_protocol(pid: str, request: Request, anon_id: str = ""):
+    _require_admin(request)
     """Planned order vs what actually happened.
 
     Task order is a confound, so it is checked rather than assumed: a run that
@@ -866,16 +960,18 @@ def participant_protocol(pid: str, anon_id: str = ""):
     }
 
 
-@app.get("/api/participants/{pid}/growth")
-def participant_growth(pid: str, anon_id: str = "", account_id: str = ""):
+@api.get("/participants/{pid}/growth")
+def participant_growth(pid: str, request: Request, anon_id: str = "", account_id: str = ""):
+    _check_owner(request, account_id)
     """The nine attributes, in two layers: practice (real today) and evaluation
     (asleep until a backend can actually judge that dimension)."""
     sc = _scope(account_id)
     return history_mod.growth(pid, anon_id, account_id=sc["account_id"], windows=sc["device_windows"])
 
 
-@app.get("/api/participants/{pid}/representation")
-def participant_representation(pid: str, anon_id: str = "", account_id: str = "", before: str = ""):
+@api.get("/participants/{pid}/representation")
+def participant_representation(pid: str, request: Request, anon_id: str = "", account_id: str = "", before: str = ""):
+    _check_owner(request, account_id)
     """Rebuilt from the logs on every call — never a stored summary.
 
     `before` (ISO timestamp) reproduces the input a past decision had.
@@ -885,7 +981,14 @@ def participant_representation(pid: str, anon_id: str = "", account_id: str = ""
                              windows=sc["device_windows"], before=before)
 
 
-@app.post("/api/sessions/{sid}/qc")
-def rerun_qc(sid: str):
+@api.post("/sessions/{sid}/qc")
+def rerun_qc(sid: str, request: Request):
+    _require_admin(request)
     _session_or_404(sid)
     return _run_qc(sid)
+
+
+# 同一套接口，两个前缀。`/api/v1` 是正式的名字（网页版和 app 都调它）；
+# `/api` 是当前版本的别名。将来真要改契约就再挂一个 `/api/v2`，v1 原样留着。
+app.include_router(api, prefix="/api/v1")
+app.include_router(api, prefix="/api", generate_unique_id_function=lambda r: "alias_" + r.name)

@@ -6,6 +6,11 @@
 #
 # 应用只监听 127.0.0.1:8010，不对公网开端口；这一段是它唯一的对外入口。
 # 要撤掉：删掉这一段再 `caddy reload`，其余站点不受影响。
+#
+# 鉴权在**应用层**（main.py「谁在说话」）：研究员接口要 `Authorization: Bearer $ARTQUEST_ADMIN_TOKEN`，
+# 服务器 .env 里必须设它。这里不再加 basic_auth——两层各一套口令只会让 curl 更难写，
+# 而且「漏一条 matcher 就漏一个接口」这个问题在应用层不存在。
+# iOS app 从 artquest://app 这个源调 API，CORS 头由应用自己发，Caddy 原样透传。
 
 art.ddhulu.cn {
     # 孩子的画以 base64 PNG 提交，默认上限会把它截断
@@ -13,28 +18,6 @@ art.ddhulu.cn {
         max_size 20MB
     }
 
-    # ---- 研究员接口：挡在口令后面 --------------------------------------
-    # 应用本身还没有鉴权层（见 deploy/服务器接入指南.md 第零部分卡点 3），
-    # 这几条是公网上的最低限度。
-    #
-    # GET /api/sessions 不带参数会返回**全部**孩子的作品列表；
-    # POST /api/sessions 是孩子新建作品，必须放行——所以按方法区分。
-    @research_list {
-        path /api/sessions
-        method GET
-    }
-    @research_paths {
-        path /api/participants/* /api/gallery/curate
-    }
-    basic_auth @research_list {
-        # 用 `caddy hash-password` 生成，贴 bcrypt 那一串（不是明文）
-        researcher REPLACE_WITH_BCRYPT_HASH
-    }
-    basic_auth @research_paths {
-        researcher REPLACE_WITH_BCRYPT_HASH
-    }
-
-    # ---- 其余全部转给应用 ----------------------------------------------
     reverse_proxy 127.0.0.1:8010
 
     log {
@@ -42,4 +25,6 @@ art.ddhulu.cn {
     }
 }
 
-# 这台机器上是 Caddy v2.10.2，`basic_auth` 是对的写法（2.8 以前叫 `basicauth`）。
+# 这台机器上是 Caddy v2.10.2。
+# 上线验收：`curl -I https://art.ddhulu.cn/` 要 200；
+# `curl -I https://art.ddhulu.cn/api/v1/sessions` **必须 401**——返回 200 就立刻停下。
