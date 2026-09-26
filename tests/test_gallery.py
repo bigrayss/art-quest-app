@@ -10,7 +10,7 @@ import io
 import unittest
 from pathlib import Path
 
-from .env import TMP as _TMP
+from .env import TMP as _TMP, ADMIN
 
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -62,7 +62,7 @@ def _png(strokes):
 
 class Gallery(unittest.TestCase):
     def setUp(self):
-        self.c = TestClient(app)
+        self.c = TestClient(app, headers=ADMIN)
 
     def _session(self, *, pid, n, colors=1, tools=1, consent=True, duration=90000, finish=True):
         sid = self.c.post("/api/sessions", json={

@@ -87,9 +87,13 @@ rsync -az aliyun:/opt/artquest/data/ ./backup-$(date +%F)/
 ssh aliyun 'cat > /opt/artquest/.env' <<'ENV'
 ANTHROPIC_API_KEY=sk-ant-...
 ARTQUEST_MODEL=claude-opus-5
+ARTQUEST_ADMIN_TOKEN=<python3 -c "import secrets;print(secrets.token_urlsafe(24))" 生成一串>
 ENV
 ssh aliyun 'chmod 600 /opt/artquest/.env && chown artquest:artquest /opt/artquest/.env && systemctl restart artquest'
 ```
+
+`ARTQUEST_ADMIN_TOKEN` **不是可选的**：全量列表、打分、策展这些研究员接口只认它，
+不设就全是 401。研究员这么用：`curl -H "Authorization: Bearer $TOKEN" https://art.ddhulu.cn/api/v1/sessions`。
 
 ⚠️ systemd 的 `EnvironmentFile` **不认行尾注释**——`KEY=auto  # 说明` 会把整串当成值。
 服务器上的 `.env` 每行只能是干净的 `KEY=VALUE`，别直接拷 `.env.example`。

@@ -12,7 +12,7 @@ import json
 import unittest
 from pathlib import Path
 
-from .env import TMP as _TMP  # sets the offline backends and the test data dir
+from .env import TMP as _TMP, ADMIN  # sets the offline backends and the test data dir
 
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -58,7 +58,7 @@ def _png(strokes):
 
 class PersonalizationPipeline(unittest.TestCase):
     def setUp(self):
-        self.c = TestClient(app)
+        self.c = TestClient(app, headers=ADMIN)
 
     def _run_task(self, task_id, *, pid=PID, n_strokes=4, extra=(), self_report=None,
                   condition=None, elapsed=90000):

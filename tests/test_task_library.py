@@ -13,7 +13,7 @@ import re
 import unittest
 from pathlib import Path
 
-from .env import TMP as _TMP
+from .env import TMP as _TMP, ADMIN
 
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -111,7 +111,7 @@ class TaskLibrary(unittest.TestCase):
 
 class ConditionSnapshot(unittest.TestCase):
     def setUp(self):
-        self.c = TestClient(app)
+        self.c = TestClient(app, headers=ADMIN)
 
     def _create(self, task_id="M4_UMB_UW_TRA_story", **over):
         body = {"task_id": task_id, "intent": {"emotion": "好奇", "text": "t"},
@@ -225,7 +225,7 @@ class Protocol(unittest.TestCase):
         self.assertEqual(a, b)
 
     def test_actual_order_is_checked_against_the_plan(self):
-        c = TestClient(app)
+        c = TestClient(app, headers=ADMIN)
         study_mod.save_study({"active": True, "study_id": "proto", "order": "latin",
                               "protocol": self.PROTO})
         try:

@@ -894,6 +894,16 @@ SW 必须从根目录发出来才管得住整个站（`/static/sw.js` 的作用�
 装新版本时**不 skipWaiting**：孩子正画到一半，脚底下不该被换掉一套 JS。
 新版本等页面全关掉之后再接手。
 
+### iOS app：同一份界面，打进包里
+
+`ios/` 是一个 SwiftUI 工程（XcodeGen 的 `project.yml` 生成 .xcodeproj），里面只有一个 WKWebView。
+`static/` 以文件夹引用整个进包，运行时从 `artquest://app/` 端出去，API 走 `https://art.ddhulu.cn/api/v1`。
+Swift 只做网页做不到的事：令牌进**钥匙串**（删掉重装还在）、Apple Pencil 双击切橡皮、点亮徽章震一下、
+结算页分享到相册、画画时不锁屏、`alert/confirm` 走系统弹窗。**画画引擎故意留在 JS 里**——
+`reconstruct.py` 的 replay 契约是按 Canvas 标定的，换渲染器等于重标整条链。
+JS 端靠页面开始前注入的 `window.ArtQuestNative = {server, token, version, platform}` 判断自己在哪个壳里；
+没有它就是网页版，所有地址相对当前源。细节见 `ios/README.md`。
+
 ### 离线创作：预发的票
 
 **孩子在没网的时候也能开一张新的。** 卡点从来不是"排队重放"——`log.js` 里
@@ -1163,7 +1173,7 @@ python3 tools/curate.py --confirm       # 真的提议
 
 ### 一台服务器上不止一个孩子
 
-`/api/sessions` 不带参数返回**全部** session——那是研究员的视图。app 永远带着自己的
+`/api/sessions` 不带参数返回**全部** session——那是研究员的视图，要研究员令牌（2026-09-26 起）。app 永远带着自己的
 `anon_id` / `account_id` / `participant_id` 问（`mySessions()`），因为「画廊」「小传」
 「地图上的星」读的都是它：一旦服务器上有第二个孩子，不带身份问就会把**别人的画**
 直接放进这个孩子的个人页，绕开上面那三道闸。归属规则只有一份实现
@@ -1369,6 +1379,19 @@ python3 tools/replay.py --all --check                    # 校验每个 session 
 
 ## API
 
+**路径都在 `/api/v1/` 下**（表里省掉前缀）；不带版本号的 `/api/...` 是当前版本的别名，
+给 curl 和旧书签用。版本号先于 1.0 存在，因为 app 上架那天起孩子手机上的旧版本会一直调它发布那天的接口。
+
+**三种身份，三条规矩**（`main.py`「谁在说话」那一节）：
+
+| 谁 | 怎么证明 | 能做什么 |
+|---|---|---|
+| 研究员 | `Authorization: Bearer $ARTQUEST_ADMIN_TOKEN` | 表里标 🔒 的：全量列表、打分、标注、策展、QC、protocol。**不设这个变量这些接口就是关着的** |
+| 账号 | `Authorization: Bearer <登录令牌>` | 凡是拿 `account_id` 当筛选 / 归属参数的地方，说自己是谁就得拿那个账号的令牌（票据例外：票是联网时拿着令牌领的，离线画完重放不用再带） |
+| 设备 | 只带 `anon_id` / 知道 `session_id` | 和以前一样——它们是猜不到的随机串，尺度等同「不可猜的分享链接」 |
+
+跨源：iOS 壳从 `artquest://app` 调这些接口，服务器用 CORS 放行（`ARTQUEST_CORS_ORIGINS`，默认就是它）。
+
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | GET | `/api/config` | 后端、维度定义、快照间隔、默认条件 |
@@ -1376,7 +1399,7 @@ python3 tools/replay.py --all --check                    # 校验每个 session 
 | GET | `/api/quests` | 全部 75 个 form（含 rubric contract 与研究元数据） |
 | GET | `/api/study` · POST `/api/study/assign` | 实验配置；登记被试并返回其平衡顺序与条件 |
 | POST | `/api/accounts/register` · `/api/accounts/login` | 名字 + 四位暗号；返回令牌与账号（暗号只存摘要） |
-| GET | `/api/accounts/me` | 当前登录的是谁 + 这台设备上还有几张没归属的画 |
+| GET | `/api/accounts/me` | 当前登录的是谁 + 这台设备上还有几张没归属的画（令牌在 `Authorization` 头里） |
 | POST | `/api/accounts/claim` | 把这台设备上**此刻之前**没归属的画收进自己名下（不改 session） |
 | POST | `/api/accounts/profile` · `/api/accounts/logout` | 伙伴名字跟着账号走；退出只退这一台设备 |
 | POST | `/api/sessions` | 创建 session（任务、意图、身份、条件、设备、画布、study 上下文） |
@@ -1385,19 +1408,19 @@ python3 tools/replay.py --all --check                    # 校验每个 session 
 | POST | `/api/sessions/{id}/submit` | phase=before：评分 + 反馈；phase=after：评分 + 前后对比 + QC |
 | POST | `/api/sessions/{id}/finalize` | 不修改，直接完成 + QC |
 | POST | `/api/sessions/{id}/questionnaire` | 1–5 自评 |
-| POST | `/api/sessions/{id}/feedback` | 记录老师 / 自评反馈（与 AI 反馈同结构，可带 `target_region`） |
-| POST | `/api/sessions/{id}/rating` | 教师 / 专家评分（append-only，多评分者） |
-| POST · GET | `/api/sessions/{id}/annotation` | 专家过程标注（planning / exploration / revision / organization / turning_point） |
+| POST 🔒 | `/api/sessions/{id}/feedback` | 记录老师反馈（与 AI 反馈同结构，可带 `target_region`） |
+| POST 🔒 | `/api/sessions/{id}/rating` | 教师 / 专家评分（append-only，多评分者） |
+| POST · GET 🔒 | `/api/sessions/{id}/annotation` | 专家过程标注（planning / exploration / revision / organization / turning_point） |
 | GET | `/api/sessions/{id}/revision` | 反馈 → 其后的修改：时间上与（有区域时）空间上的归因 |
-| POST | `/api/sessions/{id}/qc` | 重跑数据质量检查 |
-| GET | `/api/sessions`, `/api/sessions/{id}`, `/api/sessions/{id}/strokes` | 浏览记录 / 原始笔画（`?anon_id=&account_id=&participant_id=` 只看某个孩子自己的；app 永远带） |
+| POST 🔒 | `/api/sessions/{id}/qc` | 重跑数据质量检查 |
+| GET | `/api/sessions`, `/api/sessions/{id}`, `/api/sessions/{id}/strokes` | 浏览记录 / 原始笔画（`?anon_id=&account_id=&participant_id=` 只看某个孩子自己的；app 永远带）。**不带任何身份的 `GET /api/sessions` 🔒** |
 | GET | `/api/sessions/{id}/personalization` | 画之前系统知道什么、决定了什么（冻结） |
 | GET | `/api/gallery/task/{task_id}` | 同一道题里和你做法最不一样的几张（需同意 + 条件允许） |
 | GET | `/api/gallery/featured` | 挂出来的画（跨任务，老师 pin + 每天轮到的，都要本人答应过） |
-| POST | `/api/gallery/curate` | 挑出今天要挂的一批（只提议；轮换 + 差异，不排名） |
+| POST 🔒 | `/api/gallery/curate` | 挑出今天要挂的一批（只提议；轮换 + 差异，不排名） |
 | GET | `/api/achievements` | 每枚徽章的全服稀有度 |
 | POST | `/api/sessions/{id}/badges` | 上报本次点亮的徽章及规则版本 |
-| GET | `/api/participants/{pid}/protocol` | planned vs actual 任务顺序、偏离与重复 |
+| GET 🔒 | `/api/participants/{pid}/protocol` | planned vs actual 任务顺序、偏离与重复 |
 | GET | `/api/participants/{pid}/history` | 该被试已完成的任务（表示的输入） |
 | GET | `/api/participants/{pid}/representation` | 用户表示，**每次从日志现算**；`?before=` 复现历史输入 |
 | GET | `/files/{id}/...` | 图片文件 |
@@ -1423,7 +1446,9 @@ artquest/            后端（FastAPI）
   scoring/           9 维评分接口与后端
   feedback/          AI 文字反馈
   llm.py             Anthropic SDK 封装
-static/              前端（原生 HTML / Canvas / JS，无构建步骤）
+ios/                 iOS app：Swift 壳（WKWebView + 钥匙串 + Pencil 双击 + 分享），界面就是下面这份 static/
+                     整个打进包里。构建方式见 ios/README.md
+static/              前端（原生 HTML / Canvas / JS，无构建步骤；网页版和 iOS app 共用同一份）
   app.js             界面逻辑：四个 tab、关卡地图 renderQuests、流程进度条 renderFlow、图标集 ICONS
   style.css          视觉系统（配色 / 下沿按钮 / 地图 / 徽章 / 手机与桌面两套布局）
   fonts/             Nunito 可变字重子集（SIL OFL 1.1），拉丁字母用
@@ -1438,6 +1463,8 @@ tests/               端到端测试 + 研究数据层测试（离线后端）
   test_process_layer.py 事件词表、null 压感、生命周期、语义关键帧、过程标注、撤回
   test_gallery.py    同意闸、按差异而非质量选、人选 / 自动轮换、稀有度
   test_accounts.py   注册 / 登录 / 冷却、共用设备上谁也看不见谁、认领只收认领前的
+  test_app_api.py    /api/v1 与别名、CORS 预检、研究员令牌、account_id 必须配令牌；
+                     真实 Chrome 里把外壳放到第二个源上跑一遍登录 + 开画（= iOS 壳的 JS 那一半）
   test_browser.py    真实 Chrome：缩放不改坐标、含撤销的 session 能重建、参考图交互、
                      鼠标压感确实是 null（无浏览器则跳过）
 docs/                ART_LIST.md（配图清单：每一处图是什么、在哪、干什么用，带编号，

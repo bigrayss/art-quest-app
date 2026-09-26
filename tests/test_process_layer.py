@@ -13,7 +13,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from .env import TMP as _TMP
+from .env import TMP as _TMP, ADMIN
 
 from fastapi.testclient import TestClient  # noqa: E402
 
@@ -78,7 +78,7 @@ class EventVocabulary(unittest.TestCase):
 
 class HonestSignals(unittest.TestCase):
     def setUp(self):
-        self.c = TestClient(app)
+        self.c = TestClient(app, headers=ADMIN)
 
     def _session(self, task_id="emotion_alone"):
         return self.c.post("/api/sessions", json={
@@ -181,7 +181,7 @@ class HonestSignals(unittest.TestCase):
 
 class Lifecycle(unittest.TestCase):
     def setUp(self):
-        self.c = TestClient(app)
+        self.c = TestClient(app, headers=ADMIN)
 
     def _run(self, pending):
         sid = self.c.post("/api/sessions", json={
@@ -242,7 +242,7 @@ class Lifecycle(unittest.TestCase):
 
 class Withdrawal(unittest.TestCase):
     def test_withdrawing_really_removes_the_data_but_keeps_the_slot(self):
-        c = TestClient(app)
+        c = TestClient(app, headers=ADMIN)
         pid = "P-WITHDRAW"
         sids = []
         for _ in range(2):

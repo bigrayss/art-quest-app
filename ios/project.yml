@@ -1,0 +1,50 @@
+# KidsArtQuest 的 iOS 工程。用 XcodeGen 生成 .xcodeproj：
+#
+#   brew install xcodegen
+#   cd ios && xcodegen generate && open ArtQuest.xcodeproj
+#
+# .xcodeproj 不进仓库（见 ios/.gitignore）：它是这个文件的派生物，两份都改就会打架。
+# 网页外壳 `../static` 以**文件夹引用**（蓝色文件夹）的方式整个打进 app 包，
+# 所以 `static/` 只有一份——改网页版就是改 app，不用同步、不用复制。
+name: ArtQuest
+options:
+  bundleIdPrefix: cn.ddhulu
+  deploymentTarget:
+    iOS: "15.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: false
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: "0.3.0"
+    CURRENT_PROJECT_VERSION: "1"
+    # iPhone + iPad。iPad 是创作设备，iPhone 是看的设备（见 README「iPhone 和 iPad 不是同一件事」）
+    TARGETED_DEVICE_FAMILY: "1,2"
+    SUPPORTS_MACCATALYST: false
+targets:
+  ArtQuest:
+    type: application
+    platform: iOS
+    sources:
+      - path: ArtQuest
+        excludes:
+          - "**/.DS_Store"
+      # 网页外壳：整个目录原样进包，运行时由 BundleSchemeHandler 从 artquest://app/ 端出去
+      - path: ../static
+        type: folder
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: cn.ddhulu.artquest
+        PRODUCT_NAME: KidsArtQuest
+        INFOPLIST_FILE: ArtQuest/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        CODE_SIGN_STYLE: Automatic
+        # 在 Xcode 的 Signing & Capabilities 里选自己的 Team，或者在这里填 Team ID
+        DEVELOPMENT_TEAM: ""
+        # 正式服务器。调试时不用改这里——系统「设置 → KidsArtQuest → 服务器地址」能临时覆盖
+        ARTQUEST_SERVER: "https://art.ddhulu.cn"
+    info:
+      path: ArtQuest/Info.plist
+      properties: {}

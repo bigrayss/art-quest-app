@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- 系统「设置 → KidsArtQuest」里的一页。只放一样东西：服务器地址。
+	     测试的人可以把 app 指到 Tailscale 上的开发机（https://<机器名>.<tailnet>.ts.net），
+	     不用改代码重新打包。空着 = 用 Info.plist 里的正式地址。 -->
+	<key>StringsTable</key>
+	<string>Root</string>
+	<key>PreferenceSpecifiers</key>
+	<array>
+		<dict>
+			<key>Type</key>
+			<string>PSGroupSpecifier</string>
+			<key>Title</key>
+			<string>服务器</string>
+			<key>FooterText</key>
+			<string>留空就是正式服务器。开发时可以填 Tailscale 里那台机器的 https 地址。改完要重开 app。</string>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSTextFieldSpecifier</string>
+			<key>Title</key>
+			<string>服务器地址</string>
+			<key>Key</key>
+			<string>artquest_server</string>
+			<key>DefaultValue</key>
+			<string></string>
+			<key>IsSecure</key>
+			<false/>
+			<key>KeyboardType</key>
+			<string>URL</string>
+			<key>AutocapitalizationType</key>
+			<string>None</string>
+			<key>AutocorrectionType</key>
+			<string>No</string>
+		</dict>
+	</array>
+</dict>
+</plist>

@@ -14,7 +14,7 @@ import time
 import unittest
 import urllib.request
 
-from .env import TMP as _TMP  # noqa: F401  (offline backends, throwaway data dir)
+from .env import ADMIN, TMP as _TMP  # noqa: F401  (offline backends, throwaway data dir)
 from .test_browser import _chrome_available, _free_port, sync_playwright  # noqa: E402
 
 
@@ -57,9 +57,11 @@ class AccountsInARealBrowser(unittest.TestCase):
         cls.thread.join(timeout=5)
 
     def _post(self, path, body):
+        # 这里是**研究员**在服务端直接造数据（替某个账号记一幅画），所以带研究员令牌；
+        # 界面里的孩子发同样的请求要拿自己账号的令牌
         req = urllib.request.Request(self.base + path, method="POST",
                                      data=json.dumps(body).encode(),
-                                     headers={"Content-Type": "application/json"})
+                                     headers={"Content-Type": "application/json", **ADMIN})
         return json.load(urllib.request.urlopen(req))
 
     def _finished_drawing(self, *, anon_id="", account_id=""):
