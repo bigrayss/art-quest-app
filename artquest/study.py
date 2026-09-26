@@ -34,6 +34,14 @@ DEFAULT_CONDITION: Dict[str, Any] = {
     "zoom_allowed": True,      # zooming/panning the canvas at all
     "questionnaire": False,    # 1–5 self-report before the final screen
     "feedback_source": "ai",   # ai | teacher | none
+    # 创作**进行中**那扇窗：none 完全不出现（对照组，等于改版之前的设计），
+    # on_demand 蒙着一层模糊、孩子点一下才揭开。这条必须真的决定点什么——
+    # 声明了不执行是最坏的情况，所以 /assist 在 none 下直接 403。
+    #
+    # 为什么 none 这一臂不能删：before 那张图的全部价值在于它是**未受干预的
+    # 基线**，「一次反馈带来多少提升」是照着它算的。创作途中就被指导过的话，
+    # 这个量没法归因。
+    "dialogue_mode": "on_demand",  # none | on_demand
     "history_mode": "none",    # none | history | personalized — the personalisation arm
     "growth_display": "full",  # none | badges | full — what the child sees of their own growth
     # Seeing other people's work is an influence on what a child draws, so it is

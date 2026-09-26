@@ -12,9 +12,11 @@ class Intent(BaseModel):
 
 
 class Participant(BaseModel):
-    """Two ids, both anonymous: a device-local one, plus a researcher code."""
+    """Three ids, all anonymous: a device-local one, an account, a researcher code."""
     anon_id: str = Field("", description="设备本地生成的匿名 id，日常也能跨任务对齐")
     participant_id: str = Field("", description="研究员分配的代号，如 P007（不要用真名）")
+    # 注册过就有；它跟着**人**走，换台设备仍是同一个孩子（见 accounts.py）
+    account_id: str = Field("", max_length=64, description="账号 id（孩子自己注册的，不含真名）")
     label: str = ""
     # 孩子给创作伙伴起的名字。存下来是因为「有没有给它起名」本身就是投入程度的信号
     buddy_name: str = Field("", max_length=16, description="孩子给创作伙伴起的名字")
@@ -48,9 +50,25 @@ class StudyContext(BaseModel):
     sequence_id: str = ""
 
 
+class IssueTickets(BaseModel):
+    """联网时一次领几张票，留着离线用。
+
+    票上带的是**服务端这一刻算出来的条件**，孩子离线画的时候跑的就是它。
+    `quest_ids` 给了就一张票绑一个任务（protocol 模式按 planned_order 发），
+    不给就是任务无关的票，花的时候才填任务。
+    """
+    n: int = 3
+    participant: Participant = Participant()
+    study: StudyContext = StudyContext()
+    quest_ids: List[str] = []
+
+
 class CreateSession(BaseModel):
     quest_id: str = ""
     task_id: str = ""  # research-facing alias for quest_id
+    # 花掉一张预发的票。离线时客户端是先画后发的，这一条就是它当时用的那张票；
+    # 空的话服务端当场生成一个 id，和以前一样。
+    session_id: str = ""
     intent: Intent
     participant: Union[Participant, str] = Participant()
     condition: Dict[str, Any] = {}
@@ -136,6 +154,19 @@ class LogBatch(BaseModel):
     pending: int = Field(0, description="records still queued locally on the client")
 
 
+class AssistIn(BaseModel):
+    """孩子画到一半，点开那扇模糊的窗。
+
+    `image` 是**点击那一刻**的画布——不带它，陪伴只能说空话；定时上传又太贵，
+    所以只在他主动点的时候截这一次。`nth` 是这次创作里的第几次点开，
+    引擎靠它轮换，不至于连着两下说同一句。
+    """
+    image: str = Field(..., description="canvas dataURL (image/png;base64)")
+    elapsed_ms: int = 0
+    nth: int = 1
+    events: List[DrawEvent] = []
+
+
 class Snapshot(BaseModel):
     image: str = Field(..., description="canvas dataURL (image/png;base64)")
     elapsed_ms: int
@@ -174,6 +205,18 @@ HARDEST_PARTS = [
     ("other", "其他"),
 ]
 HARDEST_PART_KEYS = [k for k, _ in HARDEST_PARTS]
+# 给孩子看的那份：六个 + 「其他」，「没有特别难的」放第一——它是最常见的答案，
+# 也是最不该让孩子在一堆「难」里找的答案。「线条」「时间不够」不再摆出来
+# （倒计时已经不显示了），但旧数据里的 key 照旧合法，见上面那张全表。
+HARDEST_PARTS_SHOWN = [
+    ("none", "没有特别难的"),
+    ("idea", "想不出要画什么"),
+    ("shape", "形状画不准"),
+    ("proportion", "大小和比例"),
+    ("color", "颜色"),
+    ("layout", "画面怎么安排"),
+    ("other", "其他"),
+]
 
 
 class EarnedBadges(BaseModel):
@@ -351,3 +394,31 @@ class StudyAssign(BaseModel):
     participant_id: str = ""
     anon_id: str = ""
     group: str = ""
+
+
+# -- 账号：让画跟着人走，不是跟着一台设备（见 accounts.py） ------------------
+class Register(BaseModel):
+    """注册要的全部东西：一个自己起的名字，四位数字暗号。没有邮箱、没有真名。"""
+    name: str = Field(..., max_length=32, description="孩子自己起的名字（不是真名）")
+    pin: str = Field(..., max_length=8, description="四位数字暗号")
+    anon_id: str = Field("", description="当前这台设备的代号")
+    buddy_name: str = Field("", max_length=16, description="伙伴的名字，跟着账号走")
+
+
+class Login(BaseModel):
+    name: str = Field(..., max_length=32)
+    pin: str = Field(..., max_length=8)
+    anon_id: str = Field("", description="当前这台设备的代号")
+
+
+class TokenOnly(BaseModel):
+    token: str = Field("", max_length=128)
+
+
+class ClaimDevice(TokenOnly):
+    """把这台设备上以前画的、还没有归属的画收进自己名下。要孩子自己点。"""
+    anon_id: str = Field("", description="当前这台设备的代号")
+
+
+class ProfileUpdate(TokenOnly):
+    buddy_name: str = Field("", max_length=16)

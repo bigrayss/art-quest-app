@@ -10,7 +10,7 @@
   const state = { cfg: null, quests: [], families: [], allSessions: [], rarity: null, quest: null, emotion: null, sessionId: null, phase: "before", feedback: null,
     startedAt: null, dirtySinceSnapshot: false, timers: [], before: null, color: "#f79433", buddyTick: 0,
     anonId: "", condition: {}, study: null, seqIdx: 0, lastActivity: 0, idle: false, timeUp: false, pendingFinal: null,
-    entered: false, worldColor: "", buddyName: "" };
+    entered: false, worldColor: "", buddyName: "", account: null, unclaimed: 0 };
 
   // ---------- research identity & environment ----------
   // Two anonymous ids: one the device keeps by itself (so free play still lines
@@ -25,10 +25,18 @@
     return id;
   }
   const savedPid = () => localStorage.getItem("artquest.participant_id") || "";
-  // 服务器上可能不止一个孩子。凡是界面里说「我的」的地方，都只问自己那些。
-  const mySessions = () => api(`/api/sessions?anon_id=${encodeURIComponent(state.anonId)}`
-    + `&participant_id=${encodeURIComponent(savedPid())}`);
   const setPid = (pid) => pid ? localStorage.setItem("artquest.participant_id", pid) : localStorage.removeItem("artquest.participant_id");
+  // 第三个身份：账号。前两个都跟着**设备**走（清一次缓存、换一台 iPad 就没了），
+  // 账号跟着人走——孩子自己起的名字 + 四位暗号，在「我的」那一屏里注册。
+  // 令牌只是登录态，作品的归属靠 account_id（见后端 accounts.py）。
+  const savedToken = () => { try { return localStorage.getItem("artquest.token") || ""; } catch (e) { return ""; } };
+  const setToken = (t) => { try { t ? localStorage.setItem("artquest.token", t) : localStorage.removeItem("artquest.token"); } catch (e) { /* 无所谓 */ } };
+  const accountId = () => (state.account || {}).account_id || "";
+  // 服务器上可能不止一个孩子。凡是界面里说「我的」的地方，都只问自己那些。
+  const whoQuery = () => `anon_id=${encodeURIComponent(state.anonId)}`
+    + `&account_id=${encodeURIComponent(accountId())}`
+    + `&participant_id=${encodeURIComponent(savedPid())}`;
+  const mySessions = () => api(`/api/sessions?${whoQuery()}`);
   const deviceInfo = () => ({
     ua: navigator.userAgent, platform: navigator.platform || "",
     screen: [screen.width, screen.height], viewport: [innerWidth, innerHeight], dpr: devicePixelRatio || 1,
@@ -55,6 +63,7 @@
     brush: '<g transform="rotate(-45 12 12)"><rect x="9.4" y="3.4" width="5.2" height="8" rx="2.4"/><path d="M8 11.4h8v2.4a4 4 0 0 1-.6 2.1l-2.2 3.5a1.4 1.4 0 0 1-2.4 0l-2.2-3.5a4 4 0 0 1-.6-2.1Z"/></g>',
     marker: '<g transform="rotate(-45 12 12)"><rect x="7.6" y="3.4" width="8.8" height="8.6" rx="2.6"/><path d="M9.2 12h5.6l-.8 6.4a1.3 1.3 0 0 1-1.3 1.1h-1.4a1.3 1.3 0 0 1-1.3-1.1Z"/></g>',
     eraser: '<g transform="rotate(-30 12 12)"><rect x="3.6" y="8.6" width="16.8" height="7.4" rx="1.6"/><path d="M11.4 8.6V16"/></g>',
+    dropper: '<path d="m17.4 3.4 3.2 3.2"/><path d="m15 5.8 3.2 3.2"/><path d="M13.4 7.4 16.6 10.6 8.2 19a2.2 2.2 0 0 1-3.1 0l-.1-.1a2.2 2.2 0 0 1 0-3.1Z"/><path d="m4.2 19.8-1 1"/>',
     undo: '<path d="M4.2 8.8h9.6a5.4 5.4 0 0 1 0 10.8H9.2"/><path d="M8 4.4 3.4 8.8 8 13.2"/>',
     redo: '<path d="M19.8 8.8h-9.6a5.4 5.4 0 0 0 0 10.8h4.6"/><path d="M16 4.4l4.6 4.4L16 13.2"/>',
     trash: '<path d="M3.6 6.4h16.8"/><path d="M9.4 6.4V4.8a1.4 1.4 0 0 1 1.4-1.4h2.4a1.4 1.4 0 0 1 1.4 1.4v1.6"/><path d="m5.9 6.4.9 12.6a2 2 0 0 0 2 1.9h6.4a2 2 0 0 0 2-1.9l.9-12.6"/><path d="M10 10.6v6M14 10.6v6"/>',
@@ -93,6 +102,20 @@
     dense: '<circle cx="6.4" cy="6.4" r="1.9" fill="currentColor" stroke="none"/><circle cx="12" cy="6.4" r="1.9" fill="currentColor" stroke="none"/><circle cx="17.6" cy="6.4" r="1.9" fill="currentColor" stroke="none"/><circle cx="6.4" cy="12" r="1.9" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.9" fill="currentColor" stroke="none"/><circle cx="17.6" cy="12" r="1.9" fill="currentColor" stroke="none"/><circle cx="6.4" cy="17.6" r="1.9" fill="currentColor" stroke="none"/><circle cx="12" cy="17.6" r="1.9" fill="currentColor" stroke="none"/><circle cx="17.6" cy="17.6" r="1.9" fill="currentColor" stroke="none"/>',
     swap: '<path d="M4.4 8.6h13.4"/><path d="m14.2 5 3.6 3.6-3.6 3.6"/><path d="M19.6 15.4H6.2"/><path d="M9.8 11.8 6.2 15.4 9.8 19"/>',
     pause: '<rect x="6.4" y="4.4" width="4" height="15.2" rx="1.8"/><rect x="13.6" y="4.4" width="4" height="15.2" rx="1.8"/>',
+    // 后来那批「奇遇」徽章用的：它们记的是画法的**形状**和**时机**，
+    // 图标也跟着具体一点——月亮就是夜里画的，羽毛就是轻轻一笔。
+    moon: '<path d="M20 14.6A8.6 8.6 0 0 1 9.4 4a8.6 8.6 0 1 0 10.6 10.6Z"/>',
+    sun: '<circle cx="12" cy="12" r="4.4"/><path d="M12 2.8v2.4M12 18.8v2.4M4.5 4.5l1.7 1.7M17.8 17.8l1.7 1.7M2.8 12h2.4M18.8 12h2.4M4.5 19.5l1.7-1.7M17.8 6.2l1.7-1.7"/>',
+    feather: '<path d="M19.4 4.6c-6 0-10.8 2.4-10.8 8.4 0 1.5.4 2.7 1 3.6l9.8-12Z"/><path d="M4.6 19.4 12 12"/><path d="M8.6 15.4h4.8"/>',
+    fire: '<path d="M12 21c3.6 0 6-2.3 6-5.6 0-4.2-4.2-5.6-3.4-10.4-2.6 1-4.6 3.4-4.6 6 0 1-.6 1.6-1.2 1.6-.8 0-1.4-.7-1.4-2C5.6 12 6 13 6 15.4 6 18.7 8.4 21 12 21Z"/>',
+    rainbow: '<path d="M3.4 19.6a8.6 8.6 0 0 1 17.2 0"/><path d="M7 19.6a5 5 0 0 1 10 0"/><path d="M10.6 19.6a1.4 1.4 0 0 1 2.8 0"/>',
+    ghost: '<path d="M5.4 20.4V10a6.6 6.6 0 0 1 13.2 0v10.4l-2.2-1.8-2.2 1.8-2.2-1.8-2.2 1.8-2.2-1.8Z"/><circle cx="9.6" cy="10" r="1.2" fill="currentColor" stroke="none"/><circle cx="14.4" cy="10" r="1.2" fill="currentColor" stroke="none"/>',
+    crown: '<path d="M3.6 7.4 7 11l5-6.6 5 6.6 3.4-3.6-1.6 11.2H5.2Z"/><path d="M5.2 20.6h13.6"/>',
+    key: '<circle cx="8" cy="12" r="4.4"/><path d="M12.4 12h8"/><path d="M17.6 12v3.4M20.4 12v2.4"/>',
+    target: '<circle cx="12" cy="12" r="8.4"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/>',
+    heart: '<path d="M12 20.4S3.6 15.6 3.6 9.6A4.6 4.6 0 0 1 12 7a4.6 4.6 0 0 1 8.4 2.6c0 6-8.4 10.8-8.4 10.8Z"/>',
+    gift: '<rect x="3.6" y="9.4" width="16.8" height="11" rx="2.4"/><path d="M2.6 9.4h18.8M12 9.4v11"/><path d="M12 9.4S10.6 4 8 4a2.4 2.4 0 0 0 0 5.4M12 9.4S13.4 4 16 4a2.4 2.4 0 0 1 0 5.4"/>',
+    question: '<circle cx="12" cy="12" r="8.6"/><path d="M9.4 9.6a2.7 2.7 0 0 1 5.2.9c0 1.8-2.6 2.1-2.6 3.9"/><circle cx="12" cy="17.4" r="1.1" fill="currentColor" stroke="none"/>',
   };
   /** 一枚图标，size px，颜色跟随 currentColor（或显式给 color）。 */
   function icon(name, size = 20, color = "") {
@@ -111,6 +134,19 @@
   hydrateIcons();   // 脚本在 </body> 前，静态标记此刻已经在了
 
   // 每个任务的图标 + 主题色（首页卡片用）
+  /** 一张画该用哪个颜色、哪枚图标：老的五关有自己的，其余跟着**任务家族**走
+   *  （家族色写在 missions.py，地图圆钮、画廊卡片、chip 用的是同一份）。
+   *  漏掉家族这一档的话，75 个 form 里有 70 个会退成同一个橙色。 */
+  const styleOf = (qid) => {
+    if (QUEST_STYLE[qid]) return QUEST_STYLE[qid];
+    const q = (state.quests || []).find(x => x.id === qid);
+    const f = q && (state.families || []).find(x => x.id === q.family);
+    // 家族在 missions.py 里挂的 icon 是个 emoji，这个 app 不用 emoji——
+    // 画的是 GLYPHS 里那枚线条字形，和地图圆钮上是同一枚。
+    return f ? { fam: f.id, c: f.color || "#f79433" } : { icon: "palette", c: "#f79433" };
+  };
+  /** 一张画的小标记：老五关用自己的图标，其余用家族字形。 */
+  const markOf = (st, size) => st.fam ? glyph(st.fam, "currentColor", size) : icon(st.icon, size);
   const QUEST_STYLE = {
     emotion_alone:        { icon: "contrast", c: "#f79433" },
     imagine_animal:       { icon: "sparkle",  c: "#b98cf0" },
@@ -151,12 +187,18 @@
   function loadBuddyName() {
     try { state.buddyName = localStorage.getItem("artquest.buddy_name") || ""; } catch (e) { /* 无所谓 */ }
   }
-  function setBuddyName(name) {
+  function setBuddyName(name, opts) {
     state.buddyName = (name || "").trim().slice(0, 8);
     try {
       if (state.buddyName) localStorage.setItem("artquest.buddy_name", state.buddyName);
       else localStorage.removeItem("artquest.buddy_name");
     } catch (e) { /* 无所谓 */ }
+    // 登录着就让名字跟着账号走，换台设备它还叫这个名字。推不上去也不要紧，
+    // 名字首先是这台设备上的事。
+    if (!(opts && opts.push === false) && savedToken()) {
+      api("/api/accounts/profile", { method: "POST",
+        body: JSON.stringify({ token: savedToken(), buddy_name: state.buddyName }) }).catch(() => {});
+    }
     paintBuddyName();
   }
   /** 界面上所有出现名字的地方，一处改全处改。 */
@@ -174,6 +216,153 @@
     m.classList.remove("hidden");
     setTimeout(() => input.focus(), 50);
   }
+
+  // ===== 账号：一个名字，四位数字暗号 =====
+  // 在这之前，「我」就是浏览器里的一串 anon_id：清一次缓存、换一台设备，
+  // 画过的一切就不认得你了。而这个 app 想要的恰恰是「在 iPad 上画、在 iPhone 上看」。
+  // 所以账号只解决这一件事——它不收邮箱、不收真名，也不是登录墙：
+  // 不注册照样能画，注册了那些画才跟着人走。
+  const ACCT_KEY = "artquest.account";
+  function cachedAccount() {
+    try { return JSON.parse(localStorage.getItem(ACCT_KEY) || "null"); } catch (e) { return null; }
+  }
+  function cacheAccount(acc) {
+    try { acc ? localStorage.setItem(ACCT_KEY, JSON.stringify(acc)) : localStorage.removeItem(ACCT_KEY); }
+    catch (e) { /* 无所谓 */ }
+  }
+  /** 后端的 detail 是写给孩子看的一句话，别把状态码丢给他。 */
+  function errText(e) {
+    const m = /\{[\s\S]*\}/.exec((e && e.message) || "");
+    try {
+      const d = JSON.parse(m[0]).detail;       // 422 的 detail 是一串校验对象，不是话
+      return typeof d === "string" && d ? d : "再试一次吧";
+    } catch (x) { return "连不上服务器，等会儿再试"; }
+  }
+  const sinceText = (iso) => {
+    const t = new Date(iso);
+    if (isNaN(t)) return "";
+    const y = t.getFullYear() === new Date().getFullYear() ? "" : `${t.getFullYear()}年`;
+    return `${y}${t.getMonth() + 1}月${t.getDate()}日`;
+  };
+
+  async function loadAccount() {
+    // 先用本机存着的那份：离线时「我的」也该知道自己是谁，
+    // 不然一断网，画过的画看起来就像丢了。
+    state.account = cachedAccount();
+    const token = savedToken();
+    if (!token) { state.account = null; cacheAccount(null); return; }
+    try {
+      const r = await api(`/api/accounts/me?token=${encodeURIComponent(token)}`
+        + `&anon_id=${encodeURIComponent(state.anonId)}`);
+      state.account = r.account || null;
+      state.unclaimed = r.unclaimed_here || 0;
+      cacheAccount(state.account);
+      if (state.account && state.account.buddy_name && !state.buddyName) {
+        setBuddyName(state.account.buddy_name, { push: false });
+      }
+    } catch (e) {
+      // 401 = 令牌过期或在别处退掉了，那就真的退出；其它错误多半只是离线，
+      // 这时候把人踢下线是在帮倒忙。
+      if (/^401/.test((e && e.message) || "")) { setToken(""); cacheAccount(null); state.account = null; }
+    }
+  }
+
+  function paintAccount() {
+    const out = $("#acct-out"), inBox = $("#acct-in"); if (!out || !inBox) return;
+    const acc = state.account;
+    out.classList.toggle("hidden", !!acc);
+    inBox.classList.toggle("hidden", !acc);
+    // 名字就写在卡片上，标题旁边再写一遍是重复的；登录之后那个位置改说设备
+    $("#acct-chip").textContent = acc && acc.devices > 1 ? `${acc.devices} 台设备` : "";
+    if (!acc) return;
+    $("#acct-initial").textContent = Array.from(acc.name || "?")[0] || "?";
+    $("#acct-name").textContent = acc.name;
+    const n = acc.devices || 1;
+    $("#acct-sub").textContent = `${sinceText(acc.created_at)}起`
+      + (n > 1 ? ` · 在 ${n} 台设备上用过` : " · 只在这台设备上用过");
+    const claim = $("#acct-claim");
+    claim.classList.toggle("hidden", !state.unclaimed);
+    $("#acct-claim-text").textContent = state.unclaimed
+      ? `这台设备上还有 ${state.unclaimed} 张画没写名字，是你画的吗？` : "";
+  }
+
+  const acctModal = $("#acct-modal");
+  let acctMode = "register";
+  function openAcct(mode) {
+    acctMode = mode;
+    const reg = mode === "register";
+    $("#acct-modal-title").textContent = reg ? "起个名字" : "用名字找回";
+    $("#acct-modal-sub").textContent = reg
+      ? "名字是给你自己看的，不用写真名。暗号是四位数字，记住它就行。"
+      : "输入你起过的名字和那四位数字，画过的画就跟过来了。";
+    $("#btn-acct-go").textContent = reg ? "就用这个" : "进去";
+    $("#btn-acct-switch").textContent = reg ? "我已经有名字了" : "还没有，我要起一个";
+    $("#acct-err").classList.add("hidden");
+    $("#acct-name-input").value = "";
+    $("#acct-pin-input").value = "";
+    acctModal.classList.remove("hidden");
+    setTimeout(() => $("#acct-name-input").focus(), 50);
+  }
+  const closeAcct = () => acctModal.classList.add("hidden");
+  function acctError(text) {
+    const el = $("#acct-err"); el.textContent = text; el.classList.remove("hidden");
+  }
+  $("#acct-pin-input").oninput = (e) => { e.target.value = e.target.value.replace(/\D/g, "").slice(0, 4); };
+
+  async function submitAcct() {
+    const name = $("#acct-name-input").value.trim();
+    const pin = $("#acct-pin-input").value.trim();
+    if (!name) { acctError("先起个名字吧"); return; }
+    if (!/^\d{4}$/.test(pin)) { acctError("暗号是四位数字"); return; }
+    const btn = $("#btn-acct-go"); btn.disabled = true;
+    try {
+      const body = { name, pin, anon_id: state.anonId };
+      if (acctMode === "register") body.buddy_name = state.buddyName;
+      const r = await api(`/api/accounts/${acctMode}`, { method: "POST", body: JSON.stringify(body) });
+      setToken(r.token); state.account = r.account; cacheAccount(r.account);
+      // 换台设备登录进来：伙伴的名字跟着账号回来。这台设备上起过名字而账号还空着，
+      // 就反过来把它带上去。
+      if (r.account.buddy_name) setBuddyName(r.account.buddy_name, { push: false });
+      else if (state.buddyName) setBuddyName(state.buddyName);
+      closeAcct();
+      paintIntentIdentity();        // 心愿页那句「起个名字」现在不用再说了
+      await loadAccount();          // 顺便问一句这台设备上有没有还没写名字的画
+      await loadCollection(); renderQuests();
+      await loadSessions();
+    } catch (e) {
+      acctError(errText(e));
+    } finally { btn.disabled = false; }
+  }
+  $("#btn-acct-register").onclick = () => openAcct("register");
+  $("#btn-acct-login").onclick = () => openAcct("login");
+  $("#btn-acct-switch").onclick = () => openAcct(acctMode === "register" ? "login" : "register");
+  $("#btn-acct-go").onclick = submitAcct;
+  $("#btn-acct-cancel").onclick = closeAcct;
+  acctModal.onclick = (e) => { if (e.target === acctModal) closeAcct(); };
+  $("#acct-pin-input").onkeydown = (e) => { if (e.key === "Enter") submitAcct(); };
+  $("#acct-name-input").onkeydown = (e) => { if (e.key === "Enter") $("#acct-pin-input").focus(); };
+
+  // 认领：把这台设备上以前画的收进自己名下。**要孩子自己点**——
+  // 一台共用的 iPad 上，上一个孩子的画不该因为设备相同就自动归了下一个人。
+  $("#btn-acct-claim").onclick = async () => {
+    const btn = $("#btn-acct-claim"); btn.disabled = true;
+    try {
+      await api("/api/accounts/claim", { method: "POST",
+        body: JSON.stringify({ token: savedToken(), anon_id: state.anonId }) });
+      state.unclaimed = 0;
+      await loadAccount(); await loadCollection(); renderQuests(); await loadSessions();
+    } catch (e) { alert(errText(e)); } finally { btn.disabled = false; }
+  };
+
+  $("#btn-acct-logout").onclick = async () => {
+    if (!confirm("退出之后，这一屏就只剩这台设备上画的画了。\n名字和暗号都还在，随时能再登回来。")) return;
+    try { await api("/api/accounts/logout", { method: "POST", body: JSON.stringify({ token: savedToken() }) }); }
+    catch (e) { /* 退出是本地的事，网不通也要退得掉 */ }
+    setToken(""); cacheAccount(null); state.account = null; state.unclaimed = 0;
+    paintIntentIdentity();
+    await loadCollection(); renderQuests();
+    await loadSessions();
+  };
 
   // ===== 做一幅画的六步：顶栏上一条细进度条 =====
   // 闯关地图搬到首页去了——那儿才该热闹。一次创作的过程条只需要回答一件事：还剩几步。
@@ -209,7 +398,7 @@
   const VIEWS = ["world", "quest", "dex", "buddy", "sessions", "intent", "draw", "result", "survey", "final"];
   const TAB_VIEW = { map: "quest", dex: "dex", buddy: "buddy", me: "sessions" };
   const VIEW_TAB = { world: "map", quest: "map", dex: "dex", buddy: "buddy", sessions: "me" };
-  const TITLES = { world: "彩点的世界", quest: "创作冒险", dex: "创作图鉴", buddy: "彩点", sessions: "我的" };
+  const TITLES = { world: "彩点的世界", quest: "创作冒险", dex: "画廊", buddy: "彩点", sessions: "我的" };
   function show(name) {
     VIEWS.forEach(v => $(`#view-${v}`).classList.toggle("hidden", v !== name));
     const tab = VIEW_TAB[name];
@@ -233,6 +422,14 @@
       : name === "survey" ? "final" : name;
     renderFlow(stage);
     window.scrollTo(0, 0);
+    // 画布的像素上限和笔尖预览都只有在这一屏真的显示出来之后才量得到
+    // （hidden 的时候 clientWidth/Height 全是 0）。上面那行 classList 已经把它
+    // 显示出来了，所以这里**同步**量——不能丢给 rAF：那样画布会在创作屏画出来
+    // 之后再改一次尺寸，那一帧里落的笔坐标就是偏的。机器慢的时候这个窗口是真的
+    // 能被撞上（满负载跑测试时抓到过一次，第一笔从 200 偏到了 172.5）。
+    if (name === "draw") { fitCanvas(); paintNib(); }
+    // 地图藏着的时候 getBoundingClientRect 全是 0，小路要在它真的显示出来之后画
+    if (name === "quest") paintMapPath();
   }
   async function openTab(tab) {
     let view = TAB_VIEW[tab] || "quest";
@@ -243,7 +440,7 @@
     show(view);
     // 每块界面自己去取自己的数据，进哪块取哪块
     if (view === "dex") { await loadCollection(); await renderWall(); }
-    else if (view === "buddy") { await renderGrowth(); await renderBadgeWall(); }
+    else if (view === "buddy") { await renderBadgeWall(); await renderGrowth(); }
     else if (view === "sessions") await loadSessions();
   }
   document.querySelectorAll(".tab").forEach(b => { b.onclick = () => openTab(b.dataset.tab); });
@@ -257,8 +454,7 @@
   async function checkFeatured() {
     if (state.condition.ui === "quiet") return;
     try {
-      const r = await api(`/api/participants/${encodeURIComponent(savedPid() || " ")}/featured`
-        + `?anon_id=${encodeURIComponent(state.anonId)}`);
+      const r = await api(`/api/participants/${encodeURIComponent(savedPid() || " ")}/featured?${whoQuery()}`);
       featuredQueue = r.pending || [];
     } catch (e) { return; }
     showNextFeatured();
@@ -298,26 +494,14 @@
     const sp = $("#world-sprite"); if (!sp) return;
     let g = null;
     try {
-      g = await api(`/api/participants/${encodeURIComponent(savedPid() || " ")}/growth`
-        + `?anon_id=${encodeURIComponent(state.anonId)}`);
+      g = await api(`/api/participants/${encodeURIComponent(savedPid() || " ")}/growth?${whoQuery()}`);
     } catch (e) { /* 离线就当还没点亮 */ }
     const lit = !!(g && g.n_tasks);
-    const byKey = Object.fromEntries((state.cfg.dimensions || []).map(d => [d.key, d]));
     const best = lit ? Object.entries(g.dims).sort((a, b) => b[1].practice - a[1].practice)[0] : null;
     const col = lit && best && best[1].practice ? FAMILIES[DIM_FAMILY[best[0]]].color : "#cfcbc4";
     state.worldColor = col;
     sp.innerHTML = spriteInner(col, lit && g.total_level >= 9 ? "happy" : "normal");
     sp.classList.toggle("grey", !lit);
-
-    const lv = lit ? 1 + Math.floor(g.total_level / 3) : 1;
-    $("#world-level").textContent = `Lv.${lv}`;
-    $("#world-say").textContent = !lit
-      ? (state.buddyName
-          ? "我现在还是灰的。你画画用什么颜色，我就变成什么颜色。"
-          : "我还没有名字呢。点一下旁边那支笔，给我起一个吧。")
-      : best && best[1].practice
-        ? `我在「${(byKey[best[0]] || {}).zh || best[0]}」上长得最快！`
-        : "再画几幅，我就开始长啦～";
 
     // 封面这张照片的饱和度就是进度：九处里还原了几处，颜色就回来几成。
     // 数据还是九维（dims[key].level > 0 算一处），只是门口不再摆成九个东西。
@@ -330,21 +514,27 @@
       cover.style.setProperty("--glow-a", (0.1 + 0.34 * p).toFixed(2));
     }
     $(".world").classList.toggle("lit", on > 0);
-    $("#world-bar-fill").style.width = Math.round(100 * p) + "%";
-    $("#world-total").textContent = lit
-      ? `${g.n_tasks} 幅作品 · 颜色回来了 ${on}/${CHART_ORDER.length}` : "颜色还没回来";
+    // 封面不再有等级、进度条和说明文字（2026-09-26 用户定的简约风）：
+    // 进度只体现在精灵的颜色和身后那圈光的亮度上，九维数据一个字段没少。
   }
 
   // ---------- 第一次进来的导览 ----------
   // 不是一页一页讲完再放人进来：**暗掉全屏，只把正在说的那个东西留在亮处**，
   // 旁边一句话指着它。一句一个按钮，说完就走。
   // 说明只说一次，所以界面上不再挂常驻的小字。
+  // 彩点在别处一直是第一人称（「我还没有名字呢…」「选个颜色，我就变成它！」），
+  // 导览原来却用第三人称介绍它——一上来就把角色说没了。统一成它自己开口。
   const TOUR = [
-    { sel: "#world-sprite",    text: "这是彩点。你用什么颜色，它就变什么颜色。" },
-    { sel: "#btn-rename",      text: "点这支笔，给它起个名字。" },
-    { sel: "#btn-enter-world", text: "从这儿进地图。", after: () => enterWorld() },
-    { sel: "#quest-grid .quest-card", text: "一个钮是一类任务。挑想画的就行。" },
-    { sel: ".tab[data-tab='dex']", text: "画完的都收在图鉴里。" },
+    { sel: "#world-sprite",    text: "我是彩点。你用什么颜色，我就变什么颜色。" },
+    { sel: "#btn-rename",      text: "点这支笔，给我起个名字。" },
+    { sel: "#btn-enter-world", text: "走，进地图看看。", after: () => enterWorld() },
+    { sel: "#quest-grid .quest-card", text: "一个钮是一类任务，挑你想画的。" },
+    { sel: ".tab[data-tab='dex']", text: "画过的都挂在画廊里，归你。",
+      after: () => openTab("buddy") },
+    // 指着**真的那一枚**，不是画一个例子给他看。这一枚一打开就有，
+    // 所以第一次进来的孩子在这一步一定看得到东西。
+    { sel: "#badge-wall .badge", text: "徽章在我这儿。你已经有一枚了——它们只看你怎么画，不看画得好不好。",
+      after: () => openTab("map") },
   ];
   let tourAt = 0, tourOn = false;
   const tourEl = $("#tour");
@@ -402,6 +592,12 @@
   $("#btn-tour-skip").onclick = endTour;
   $("#btn-guide-again").onclick = () => { show("world"); renderWorld().then(startTour); };
   window.addEventListener("resize", () => { if (tourOn) placeTour(); });
+  // 转屏、分屏、收起侧栏——地方都挪了，小路得跟着重画
+  let mapPathTimer = 0;
+  window.addEventListener("resize", () => {
+    clearTimeout(mapPathTimer);
+    mapPathTimer = setTimeout(() => { if (!$("#view-quest").classList.contains("hidden")) paintMapPath(); }, 120);
+  });
   // 记录带版本号：导览换过一次（从一叠讲解页换成聚光灯），那些在旧版本上点过
   // 「看过了」的设备必须再看一次新的——否则改了等于没改。
   const TOUR_KEY = "artquest.tour/2";
@@ -431,8 +627,11 @@
   // emoji that meant the right thing. These are drawn in the family's own
   // colour via currentColor, so the map reads as one set.
   const GLYPHS = {
-    // palette: choose anything
-    M0: ICONS.palette,
+    // 一张纸，一道从纸里画到纸外的笔迹——「想画什么画什么」。
+    // 这儿原来直接借用了 ICONS.palette，但那是**工具箱里的图标**：
+    // 三颗实心圆点在一圈描边里，摆进这十个字形中间一眼就看得出不是一套
+    // （其余九个都是轮廓为主、最多一两个小实心点的「地方」）。
+    M0: '<path d="M5.4 4.4a1 1 0 0 1 1-1h6.6l4.6 4.6v11.6a1 1 0 0 1-1 1H6.4a1 1 0 0 1-1-1Z"/><path d="M12.8 3.6v4.2h4.6"/><path d="M8.2 16.2c1.5-4.4 3.1-4.4 4.3 0 .8 2.8 1.9 2.8 2.7 0"/>',
     // a framed picture with a crack through it
     M1: '<rect x="3.6" y="4.6" width="16.8" height="14.8" rx="1.6"/><path d="M9.2 19.4 11 13.2 8.6 11.4 12.6 4.6"/>',
     // a field pad: horizon, peaks, sun
@@ -468,6 +667,7 @@
     STROKE_START: "STROKE_START", STROKE_END: "STROKE_END", ERASE: "ERASE",
     UNDO: "UNDO", REDO: "REDO", CLEAR: "CLEAR",
     BRUSH_CHANGE: "BRUSH_CHANGE", COLOR_CHANGE: "COLOR_CHANGE", SIZE_CHANGE: "SIZE_CHANGE",
+    OPACITY_CHANGE: "OPACITY_CHANGE",
     ZOOM: "ZOOM", PAN: "PAN",
     REFERENCE_SHOW: "REFERENCE_SHOW", REFERENCE_OPEN: "REFERENCE_OPEN",
     REFERENCE_CLOSE: "REFERENCE_CLOSE", REFERENCE_ZOOM: "REFERENCE_ZOOM",
@@ -476,6 +676,7 @@
     PAUSE_START: "PAUSE_START", PAUSE_END: "PAUSE_END",
     TIME_LIMIT_REACHED: "TIME_LIMIT_REACHED", CANVAS_GEOMETRY: "CANVAS_GEOMETRY",
     STROKE_CANCELLED: "STROKE_CANCELLED",
+    ASSIST_OPEN: "ASSIST_OPEN",
     FEEDBACK_DISMISS: "FEEDBACK_DISMISS", REVISION_START: "REVISION_START",
     TASK_SUBMIT: "TASK_SUBMIT", DOWNLOAD: "DOWNLOAD",
   };
@@ -488,7 +689,7 @@
     marker: { size: 6, alpha: 0.35, cap: "square", pressure: 0 },
     eraser: { size: 6, alpha: 1, cap: "round", pressure: 0, color: "#ffffff" },
   };
-  let tool = "pencil", color = "#222222", size = 4, drawing = false, last = null, strokeCount = 0, curStroke = null;
+  let tool = "pencil", color = "#222222", size = 4, opacity = 1, drawing = false, last = null, strokeCount = 0, curStroke = null;
   const undoStack = [], redoStack = [], MAX_UNDO = 40;
   // The document behind the pixels: which strokes are currently on the canvas.
   // `undoDoc` / `redoDoc` stay index-aligned with the pixel stacks, so every
@@ -557,6 +758,14 @@
     if (undoStack.length > MAX_UNDO) { undoStack.shift(); undoDoc.shift(); }
     redoStack.length = redoDoc.length = 0;
   }
+  /** 这一笔用多浓的颜色。
+   *
+   *  原来是 `TOOLS[tool].alpha`——浓淡是工具的属性，孩子动不了。
+   *  但 stroke 一直在记 `opacity`，`reconstruct.py` 也一直是**按这个字段**合成的
+   *  （连同一笔自我重叠的 1-(1-a)^k 都算），并不是查工具表。
+   *  所以把它放开给孩子，重建和 QC 一行都不用改。
+   *  橡皮例外：它擦回初始画布，半透明的橡皮只会擦出一团脏东西。 */
+  const toolAlpha = () => tool === "eraser" ? 1 : opacity;
   function strokeStyle(p) {
     const t = TOOLS[tool];
     const w = size * t.size * (t.pressure ? (1 - t.pressure + t.pressure * 2 * p) : 1);
@@ -564,7 +773,7 @@
     // the eraser paints back the starting canvas, so it removes the child's
     // marks and never the task's printed stimulus
     ctx.strokeStyle = (tool === "eraser" && eraserPattern) ? eraserPattern : (t.color || color);
-    ctx.globalAlpha = t.alpha;
+    ctx.globalAlpha = toolAlpha();
   }
   // -- stroke recording: the core process datum. Raw points only —
   //    speed / length / hesitation / rhythm are derived offline, never here.
@@ -598,7 +807,7 @@
   function beginStroke(e) {
     const t0 = elapsed();
     const id = "s" + String(++strokeCount).padStart(5, "0");
-    curStroke = { id, t0, tool, color: TOOLS[tool].color || color, size, opacity: TOOLS[tool].alpha,
+    curStroke = { id, t0, tool, color: TOOLS[tool].color || color, size, opacity: toolAlpha(),
       erase: tool === "eraser", pointer_type: e.pointerType || "",
       // the stroke says whether these channels were measured at all
       pressure_supported: hasPen(e), tilt_supported: hasPen(e),
@@ -647,12 +856,17 @@
     logEvent(EV.STROKE_CANCELLED, { stroke_id: s.id, reason, n: s.points.length });
   }
 
+  /** 手指的坐标是 clientX/clientY（整页的），而 view.tx/ty 量的是**框内**的位移。
+   *  两者差着框的左上角——滚轮那条路早就减掉了 r.left/r.top，捏合这条路没减，
+   *  于是「手指按住的那一点不动」根本没做到：一捏，画面整个往上跳一个顶栏的高度
+   *  （iPad 上大约 150px）。触摸屏才走这条路，所以这个毛病只在 pad 上犯。
+   *  这里在手势开始时就把中点折进框内坐标，后面全程用同一套单位。 */
   function startGesture() {
     const pts = [...touches.values()];
     if (pts.length < 2) return;
-    const m = _mid(pts[0], pts[1]);
+    const m = _mid(pts[0], pts[1]), r = viewport.getBoundingClientRect();
     gesture = { n: touches.size, t0: elapsed(), moved: 0,
-                d0: _dist(pts[0], pts[1]), z0: view.z, mx0: m.x, my0: m.y,
+                d0: _dist(pts[0], pts[1]), z0: view.z, mx0: m.x - r.left, my0: m.y - r.top,
                 tx0: view.tx, ty0: view.ty,
                 panFrom: [Math.round(view.tx), Math.round(view.ty)], points: [] };
   }
@@ -660,17 +874,18 @@
     const pts = [...touches.values()];
     if (!gesture || pts.length < 2) return;
     gesture.n = Math.max(gesture.n, touches.size);
-    const m = _mid(pts[0], pts[1]), d = _dist(pts[0], pts[1]);
+    const r = viewport.getBoundingClientRect();
+    const _m = _mid(pts[0], pts[1]), d = _dist(pts[0], pts[1]);
+    const m = { x: _m.x - r.left, y: _m.y - r.top };     // 和 view.tx/ty 同一套坐标
     gesture.moved = Math.max(gesture.moved, Math.hypot(m.x - gesture.mx0, m.y - gesture.my0),
                              Math.abs(d - gesture.d0));
     const prev = view.z;
     // 一步算完：让「手指落下时那个中点下面的画布位置」始终待在当前中点下面
     const z = clamp(gesture.d0 > 0 ? gesture.z0 * (d / gesture.d0) : view.z, MIN_ZOOM, MAX_ZOOM);
     const lx = (gesture.mx0 - gesture.tx0) / gesture.z0, ly = (gesture.my0 - gesture.ty0) / gesture.z0;
-    const r = viewport.getBoundingClientRect();
     view.z = z;
-    view.tx = (m.x - r.left) - lx * z;
-    view.ty = (m.y - r.top) - ly * z;
+    view.tx = m.x - lx * z;
+    view.ty = m.y - ly * z;
     applyView();
     if (Math.abs(z - prev) > 1e-4) noteZoom(prev, "pinch");
     if (gesture.points.length < MAX_GESTURE_STEPS)
@@ -694,6 +909,7 @@
 
   canvas.addEventListener("pointerdown", (e) => {
     if (e.pointerType === "pen") penSeen = true;
+    if (eyedrop) { e.preventDefault(); canvas.setPointerCapture(e.pointerId); dropping = true; sampleAt(e); return; }
     if (e.pointerType === "touch") {
       touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (touches.size >= 2) {
@@ -714,6 +930,7 @@
     markActive();
   });
   canvas.addEventListener("pointermove", (e) => {
+    if (dropping) { sampleAt(e); return; }
     if (e.pointerType === "touch" && touches.has(e.pointerId)) {
       touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (gesture) { e.preventDefault(); return moveGesture(); }
@@ -730,6 +947,7 @@
     state.dirtySinceSnapshot = true; markActive();
   });
   const endStroke = (e) => {
+    if (dropping) { if (!e || e.type !== "pointerleave") commitDrop(); return; }
     if (e && e.pointerType === "touch") {
       touches.delete(e.pointerId);
       if (gesture && touches.size < 2) { endGesture(); return; }
@@ -759,6 +977,68 @@
   const zoomAllowed = () => state.condition.zoom_allowed !== false;
   const drawViewOpen = () => !$("#view-draw").classList.contains("hidden");
   const wantsPan = (e) => zoomAllowed() && (handMode || spaceDown || e.button === 1);
+
+  /** 画布必须整张看得见。
+   *
+   *  样式表里写的是 `canvas { max-height:100% }`，它**解析不出值**：
+   *  .canvas-viewport 的高度是 flex 收缩出来的，specified height 还是 auto，
+   *  百分比没有可依的高度，于是 max-height 计算成 none——画布按宽度撑满、
+   *  比框高出一截，被 overflow:hidden 切掉。iPad 横屏上下各切 22px（整幅画的
+   *  7.7%），桌面各切 16px。孩子看不到自己画到了边上没有，而构图这一维评的
+   *  正是他从来没看全过的那个框。
+   *
+   *  所以上限按**像素**写进 style：先松开让布局自己说有多少地方，再按量到的
+   *  高度封顶。画布小于框的那一边留白是白的，和画布同色，看不出来。 */
+  function fitCanvas() {
+    if (!viewport) return;
+    const studio = $("#view-draw .studio"), stage = $("#view-draw .stage");
+    if (studio) { studio.style.gridTemplateRows = ""; studio.style.gridTemplateColumns = ""; }   // 先松开再量
+    canvas.style.maxHeight = "";                 // 先松开，否则量到的是上一次的结果
+    // 画布的高度上限**只能问 viewport**：它是 flex 子项，画布的自然高度一旦
+    // 超过能给的空间就会被压缩，压缩后的 clientHeight 正是画布该有的上限。
+    // 换成 stage.clientHeight 就是拿了压缩**前**的空间，画布照着长出去，
+    // 再被 overflow:hidden 切掉——test_no_edge_of_the_canvas_is_cut_off 守的就是这个。
+    const avail = viewport.clientHeight;
+    if (avail > 0) canvas.style.maxHeight = avail + "px";
+    // 画布是 1024:704（1.45），画布区通常比这更扁，于是画布总是**宽度先到顶**、
+    // 高度余出一截。那一截不处理的话：居中会让三列的顶边各错开一半，
+    // 全甩到底下又会在画布和 dock 之间裂出一条空带。
+    // 所以把第一行收到画布的实高——顶边齐，dock 也贴着画布。
+    // 右栏跨这两行，跟着一起收，它底部的主按钮就和 dock 落在同一条线上。
+    // 窄屏是 flex 单列，这个属性不起作用，设了也无害。
+    // 收行高是另一回事，那要问 stage —— 它才知道这一行**本来**有多少高度。
+    const h = canvas.offsetHeight, room = stage ? stage.clientHeight : avail;
+    if (studio && h > 0 && h < room - 1) studio.style.gridTemplateRows = h + "px auto";
+    // 左边细条和画布等高：撤销/重做各占一头，两根槽把剩下的高度平分。
+    // 槽 = 轨道 --sl-len + 22px 的圆头余量；元素之间 10px。
+    const rail = $("#view-draw .railbar");
+    if (rail && h > 0 && getComputedStyle(rail).flexDirection === "column") {
+      const btns = [...rail.querySelectorAll(".railbtn")].filter(b => !b.classList.contains("hidden"));
+      const btnH = btns.reduce((a, b) => a + b.offsetHeight, 0), items = btns.length + 2;
+      const sl = Math.floor((h - btnH - 10 * (items - 1) - 44) / 2);
+      rail.style.setProperty("--sl-len", clamp(sl, 100, 320) + "px");
+    }
+    // 视口矮的时候（真 iPad 的 Safari 有工具栏，比模拟器矮一截）画布是**高度**先到顶，
+    // 宽度占不满中间那一列：画布在列里居中，dock 和右栏却还按整列排——
+    // dock 比画框宽出一截，右栏离画布比离 dock 远。把中间那一列收到画布的实宽，
+    // 三列一起在屏幕里居中，细条、画布、dock、右栏就永远贴在一起。
+    // 宽度先到顶的时候实宽就是整列，等于没改。
+    const w = canvas.offsetWidth, grid = studio && getComputedStyle(studio).display === "grid";
+    if (grid && stage && w > 0 && w < stage.clientWidth - 1) {
+      const cols = getComputedStyle(studio).gridTemplateColumns.split(" ");
+      if (cols.length === 3) studio.style.gridTemplateColumns = `${cols[0]} ${w}px ${cols[2]}`;
+    }
+    applyView();                                  // 框变了，平移的边界跟着变
+  }
+  let fitPending = false;
+  const scheduleFit = () => {
+    if (fitPending) return;
+    fitPending = true;
+    requestAnimationFrame(() => { fitPending = false; if (drawViewOpen()) fitCanvas(); });
+  };
+  addEventListener("resize", scheduleFit);
+  addEventListener("orientationchange", scheduleFit);
+  if (window.visualViewport) visualViewport.addEventListener("resize", scheduleFit);
 
   function applyView() {
     const w = viewport.clientWidth, h = viewport.clientHeight;
@@ -844,7 +1124,7 @@
   $("#btn-zoom-reset").onclick = () => resetView("button");
   $("#btn-hand").onclick = () => {
     handMode = !handMode;
-    $("#btn-hand").classList.toggle("active", handMode); applyView();
+    $("#btn-hand").classList.toggle("active", handMode); applyView(); syncName();
   };
 
   function undo() {
@@ -862,8 +1142,17 @@
     logEvent(EV.REDO, docDiff(prev, visible)); state.dirtySinceSnapshot = true;
   }
   $("#btn-undo").onclick = undo; $("#btn-redo").onclick = redo;
+  const clearModal = $("#clear-modal");
   $("#btn-clear").onclick = () => {
-    if (!confirm("确定清空整张画布？")) return;
+    const n = visible.length;
+    $("#clear-body").textContent = n
+      ? `这张画上的 ${n} 笔都会被擦掉。想反悔的话，撤销键能找回来。`
+      : "画布上还没有笔画。";
+    clearModal.classList.remove("hidden");
+  };
+  $("#btn-clear-keep").onclick = () => clearModal.classList.add("hidden");
+  $("#btn-clear-go").onclick = () => {
+    clearModal.classList.add("hidden");
     pushUndo(); ctx.globalAlpha = 1; ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
     const prev = visible; visible = [];
     logEvent(EV.CLEAR, docDiff(prev, visible)); state.dirtySinceSnapshot = true;
@@ -882,24 +1171,361 @@
     if (e.code === "Space" && spaceDown) { spaceDown = false; applyView(); }
   });
   window.addEventListener("blur", () => { spaceDown = false; applyView(); });
+  // ---------- dock 上那一个小框：现在手里是什么 ----------
+  // 图标底下不放字。选中的工具名常驻在这儿；按一下就发生的按钮（缩放、清空、
+  // 撤销……）和拖滑块的时候，它闪一下那个名字，一秒后回到当前工具。
+  const TOOL_NAMES = { pencil: "铅笔", brush: "笔刷", marker: "马克笔", eraser: "橡皮" };
+  let nameTimer = null;
+  function syncName() {
+    const el = $("#dock-name"); if (!el) return;
+    clearTimeout(nameTimer); el.classList.remove("flash");
+    el.textContent = handMode ? "移动" : (eyedrop ? "吸色" : TOOL_NAMES[tool]);
+  }
+  function flashName(text) {
+    const el = $("#dock-name"); if (!el) return;
+    clearTimeout(nameTimer); el.textContent = text; el.classList.add("flash");
+    nameTimer = setTimeout(syncName, 1000);
+  }
+  document.querySelectorAll(".dock [data-name], .railbar [data-name]").forEach(b =>
+    b.addEventListener("pointerdown", () => { if (!b.disabled) flashName(b.dataset.name); }));
+
+  /** 把界面调到某个工具的状态。不记事件——记事件是点击那一步的事。 */
+  function applyTool(name) {
+    tool = name;
+    document.querySelectorAll("#tools button").forEach(x => x.classList.toggle("active", x.dataset.tool === name));
+    handMode = false; $("#btn-hand").classList.remove("active"); applyView();
+    // 橡皮永远 100%、也没有颜色：浓淡那根滑块变灰、色块变成空心，别让孩子拖了半天没反应
+    const erasing = tool === "eraser";
+    document.body.classList.toggle("erasing", erasing);
+    $("#opacity").disabled = erasing; $("#opacity").closest(".vsl").classList.toggle("off", erasing);
+    setEyedrop(false);
+    syncName();
+    paintNib();     // 换了工具，笔尖的粗细倍率和浓淡都变了
+  }
   document.querySelectorAll("#tools button").forEach(b => b.onclick = () => {
     if (b.disabled) return;
-    tool = b.dataset.tool; document.querySelectorAll("#tools button").forEach(x => x.classList.toggle("active", x === b)); logEvent(EV.BRUSH_CHANGE, { tool });
+    applyTool(b.dataset.tool); logEvent(EV.BRUSH_CHANGE, { tool });
   });
-  $("#size").oninput = (e) => { size = +e.target.value; $("#size-val").textContent = size; logEvent(EV.SIZE_CHANGE, { size }); };
+  // 粗细的刻度是**非线性**的：1→2 是把线加粗一倍，40→41 根本看不出来。
+  // 滑杆走 0–100 的均匀格子，映射到 1–60 的平方曲线，细的那头才有分辨力。
+  // 存进 stroke 的仍然是最终像素值，语义没变。
+  const SIZE_MIN = 1, SIZE_MAX = 60;
+  const posToSize = (v) => Math.max(SIZE_MIN, Math.round(SIZE_MIN + (SIZE_MAX - SIZE_MIN) * Math.pow(v / 100, 2)));
+  const sizeToPos = (px) => Math.round(100 * Math.sqrt(Math.max(0, (px - SIZE_MIN) / (SIZE_MAX - SIZE_MIN))));
+
+  /** 笔尖预览：按当前粗细和浓淡画一个**真实大小**的点。
+   *  滑杆上的「24」说不清 24px 有多粗，一个点说得清。 */
+  function paintNib() {
+    const dot = $("#nib-dot"); if (!dot) return;
+    // 初始化时创作屏还是 hidden，clientHeight 是 0——直接减 8 会得到负宽度，
+    // 预览框就一直是空的。量不到就按样式里的 48px 算。
+    const box = ($("#nib").clientHeight || 74) - 10;
+    const w = Math.min(box, Math.max(2, size * (TOOLS[tool].size || 1)));
+    dot.style.width = dot.style.height = w + "px";
+    dot.style.opacity = toolAlpha();
+    dot.style.background = tool === "eraser" ? "#fff" : color;
+    dot.style.boxShadow = tool === "eraser" ? "inset 0 0 0 2px var(--line)" : "none";
+  }
+
+  /** 拖滑块的那几秒把笔尖预览浮在滑块边上，松手九百毫秒后收走。
+   *  原来它常驻在画笔条里占着 48px；现在细条上只有滑块本身，
+   *  真实大小的点在需要的时候才出现——这比一个「粗细 24」的标签直观。 */
+  let nibTimer = null;
+  function flashNib(input) {
+    const nib = $("#nib"); if (!nib) return;
+    paintNib();
+    const r = input.getBoundingClientRect(), S = 74, gap = 10;
+    // 滑块立着的时候浮在它右边，躺着的时候浮在它上方
+    const vertical = r.height > r.width;
+    const left = vertical ? r.right + gap : r.left + r.width / 2 - S / 2;
+    const top = vertical ? r.top + r.height / 2 - S / 2 : r.top - S - gap;
+    nib.style.left = clamp(left, 8, innerWidth - S - 8) + "px";
+    nib.style.top = clamp(top, 8, innerHeight - S - 8) + "px";
+    nib.classList.add("show");
+    clearTimeout(nibTimer);
+    nibTimer = setTimeout(() => nib.classList.remove("show"), 900);
+  }
+
+  /** 竖排里那颗看得见的拇指是我们自己画的（原生的居中各家算法不同），按 value 摆位置。 */
+  function placeThumb(input) {
+    const well = input.closest(".vsl"); if (!well) return;
+    const lo = +input.min || 0, hi = +input.max || 100;
+    well.style.setProperty("--pos", String((+input.value - lo) / (hi - lo)));
+  }
+  $("#size").oninput = (e) => {
+    placeThumb(e.target);
+    size = posToSize(+e.target.value);
+    $("#size-val").textContent = size; flashNib(e.target); flashName("粗细");
+    logEvent(EV.SIZE_CHANGE, { size });
+  };
+  $("#opacity").oninput = (e) => {
+    placeThumb(e.target);
+    opacity = Math.round(+e.target.value) / 100;
+    $("#opacity-val").textContent = Math.round(opacity * 100) + "%"; flashNib(e.target); flashName("浓淡");
+    logEvent(EV.OPACITY_CHANGE, { opacity: R(opacity, 2) });
+  };
+
+  /** 点开才浮出、点别处就收。这是 Procreate 那套简约真正的来源——
+   *  不是把面板挪到哪条边上，是**默认一个面板都不展开**。 */
+  let popOpen = null;
+  const closePop = () => { if (popOpen) { popOpen.classList.add("hidden"); popOpen = null; } };
+  function openPop(pop, anchor) {
+    closePop();
+    pop.classList.remove("hidden");
+    popOpen = pop;
+    // 先放到触发它的按钮上方；上面塞不下就翻到下方。左右都夹在屏幕里。
+    const a = anchor.getBoundingClientRect(), r = pop.getBoundingClientRect(), gap = 10;
+    let top = a.top - r.height - gap;
+    if (top < 8) top = Math.min(a.bottom + gap, innerHeight - r.height - 8);
+    pop.style.top = clamp(top, 8, Math.max(8, innerHeight - r.height - 8)) + "px";
+    pop.style.left = clamp(a.left + a.width / 2 - r.width / 2, 8,
+                           Math.max(8, innerWidth - r.width - 8)) + "px";
+  }
+  // 捕获阶段监听：面板里的点击照常走自己的 handler，外面的一律先收面板。
+  document.addEventListener("pointerdown", (e) => {
+    if (!popOpen || popOpen.contains(e.target) || e.target.closest("#btn-color")) return;
+    closePop();
+  }, true);
+  addEventListener("resize", closePop);
   const PALETTE = ["#222222", "#7a7a7a", "#ffffff", "#e63946", "#f4a261", "#ffd166", "#2a9d8f", "#4caf50", "#1d6fe0", "#7b4fd6", "#f28cb1", "#8d5524"];
   const pal = $("#palette");
-  PALETTE.forEach(c => { const d = document.createElement("div"); d.style.background = c; d.title = c; d.onclick = () => setColor(c, d); pal.appendChild(d); });
+  PALETTE.forEach(c => { const d = document.createElement("div"); d.style.background = c; d.title = c;
+    d.onclick = () => { setColor(c, d, "palette"); closePop(); }; pal.appendChild(d); });
+  // ---------- 彩点的窗 ----------
+  // 第一次创作时蒙着一层模糊，孩子点一下才揭开。不做输入框是有意的：
+  // 8–14 岁打一句话要半分钟，输入法还盖住画布；而**他什么时候点**本身
+  // 就是这个研究要的信号，一次点击比一段聊天记录好编码得多。
+  const ASSIST_COOLDOWN_MS = 30000;
+  let assistNth = 0, assistAt = 0, assistLast = "";
+
+  // 对照组（dialogue_mode=none）整扇窗都不出现——后端也会 403，两头一致。
+  const assistOn = () => (state.condition.dialogue_mode || "on_demand") !== "none";
+
+  const INTENT_LEADS = ["我想要画", "我想画", "我要画", "我想要", "我想", "我要", "想画", "画一个", "画"];
+  function bareIntent(t) {
+    t = String(t || "").trim();
+    for (const lead of INTENT_LEADS) if (t.startsWith(lead) && t.length > lead.length) { t = t.slice(lead.length); break; }
+    return t.replace(/^[。！!，,、\s]+|[。！!，,、\s]+$/g, "");
+  }
+
+  function assistSay(text, cls) {
+    const log = $("#assist-log");
+    const d = document.createElement("div");
+    d.className = "assist-msg" + (cls ? " " + cls : "");
+    d.textContent = text;
+    log.appendChild(d); log.scrollTop = log.scrollHeight;
+    return d;
+  }
+
+  function assistReset(intent) {
+    const box = $("#assist"); if (!box) return;
+    box.classList.toggle("hidden", !assistOn());
+    // 计时器：有窗的时候坐进窗的标题行右侧，窗的底边才能和画布底边对齐；
+    // 对照组没有窗，它就还是右栏里自己的一行。
+    const timer = $(".timer");
+    if (timer) (assistOn() ? box.querySelector(".assist-head") : $(".brief-spacer").parentNode)
+      .insertBefore(timer, assistOn() ? null : $(".brief-spacer"));
+    if (!assistOn()) return;
+    $("#assist-log").innerHTML = "";
+    box.classList.add("veiled"); box.classList.remove("open-fb");
+    $("#btn-assist").classList.remove("hidden");
+    $(".assist-veil-t").textContent = `听听${buddyName()}怎么说`;
+    assistNth = 0; assistAt = 0; assistLast = "";
+    // 心情那张卡去掉了，但他自己写的意图还给他：画到一半最容易忘的
+    // 就是本来要画什么。蒙着的时候看不见，揭开第一眼就是这句。
+    const want = ((intent && intent.text) || "").trim();
+    // 孩子写的几乎都从「我想画」起头，直接拼是「你说你想画我想画……」。剥掉起头和句号再嵌。
+    if (want) assistSay(`你说想画的是「${bareIntent(want)}」。`);
+  }
+
+  /** 第二阶段：那份正式反馈直接摊开，**不再蒙**——他正要照着改，得能反复看。
+   *  这时也不用再调接口，反馈早就在手里了。 */
+  function assistShowFeedback(text) {
+    const box = $("#assist"); if (!box || !assistOn()) return;
+    box.classList.remove("hidden", "veiled");
+    $("#assist-log").innerHTML = "";
+    if (text) assistSay(text, "fb");
+    // 正式反馈比过程中的一句话长得多，给它整块地方，别让孩子在小窗里滚着读
+    box.classList.add("open-fb");
+    // 这里用 .hidden 类而不是 hidden 属性：全局的 `button { display:inline-flex }`
+    // 压过 UA 样式表里的 `[hidden] { display:none }`，属性对按钮根本不生效。
+    $("#btn-assist").classList.add("hidden");
+  }
+
+  const btnAssist = $("#btn-assist");
+  if (btnAssist) btnAssist.onclick = async () => {
+    const box = $("#assist");
+    // 连点命中冷却时也照记（cached=true）：否则「想看」的次数会被吃掉，
+    // 而那正是他卡住的强度。
+    const cached = Date.now() - assistAt < ASSIST_COOLDOWN_MS && !!assistLast;
+    assistNth++;
+    logEvent(EV.ASSIST_OPEN, { nth: assistNth, cached, phase: state.phase });
+    box.classList.remove("veiled");
+    $(".assist-veil-t").textContent = `${buddyName()}，帮帮我`;
+    if (cached) {
+      // 冷却里再点，不追加一条一模一样的（那看着像坏了）——让最后那条闪一下，
+      // 他就知道「就是刚才那句」。点击本身照样记了账，上面那行。
+      const last = $("#assist-log").lastElementChild;
+      if (last) { last.classList.remove("again"); void last.offsetWidth; last.classList.add("again"); }
+      return;
+    }
+    const wait = assistSay("……", "wait");
+    try {
+      const r = await api(`/api/sessions/${state.sessionId}/assist`, {
+        method: "POST",
+        body: JSON.stringify({ image: canvas.toDataURL("image/png"),
+                               elapsed_ms: Math.round(elapsed()), nth: assistNth }),
+      });
+      wait.remove();
+      assistLast = r.text; assistAt = Date.now();
+      assistSay(r.text);
+    } catch (e) {
+      // 陪伴挂了绝不能挡住画画
+      wait.remove(); assistSay("我在这儿呢，接着画。");
+    }
+  };
+
   const BUDDY_LINES = ["选个颜色，我就变成它！", "这个颜色真好看～", "大胆画，画错也没关系！", "多试几种颜色，我陪你！", "你画什么，我就变什么～"];
   function updateBuddy() {
     state.color = color;
     const sp = $("#draw-sprite"); if (sp) sp.innerHTML = spriteInner(color, "normal");
-    const say = $("#draw-buddy-say"); if (say) say.textContent = BUDDY_LINES[state.buddyTick % BUDDY_LINES.length];
+    // 那行「选个颜色，我就变成它！」的静态台词退役了：彩点现在在窗里真的说话。
+    // sprite 还留着（窗的头像），所以它仍然跟着当前颜色变。
     if (!$("#view-draw").classList.contains("hidden")) renderFlow(state.phase === "after" ? "evolve" : "draw");
   }
-  function setColor(c, el) { color = c; $("#color-custom").value = c; pal.querySelectorAll("div").forEach(x => x.classList.toggle("active", x === el)); if (tool === "eraser") document.querySelector('[data-tool="pencil"]').click(); logEvent(EV.COLOR_CHANGE, { color: c }); state.buddyTick++; updateBuddy(); }
+  // 刚用过的颜色。重复挑同一个色本身就是过程信号，别让孩子每次重新找。
+  const RECENT_MAX = 8;
+  let recent = [];
+  function pushRecent(c) {
+    c = String(c).toLowerCase();
+    if (PALETTE.includes(c)) return;              // 预设本来就在手边，不占这几格
+    recent = [c, ...recent.filter(x => x !== c)].slice(0, RECENT_MAX);
+    const wrap = $("#pk-recent-wrap"), box = $("#pk-recent");
+    if (!wrap || !box) return;
+    wrap.classList.toggle("hidden", !recent.length);
+    box.innerHTML = "";
+    recent.forEach(x => {
+      const b = document.createElement("button");
+      b.style.background = x; b.title = x;
+      b.onclick = () => { setPickerColor(x); };
+      box.appendChild(b);
+    });
+  }
+
+  // source：palette / picker / eyedropper——同一个 COLOR_CHANGE，多一个字段说它从哪儿来。
+  // 从自己画里吸出来的颜色和从色板上点的，在「他怎么用色」这件事上不是一回事。
+  function setColor(c, el, source) {
+    color = c;
+    document.documentElement.style.setProperty("--cur", c);
+    pal.querySelectorAll("div").forEach(x => x.classList.toggle("active", x === el));
+    if (tool === "eraser") document.querySelector('[data-tool="pencil"]').click();
+    logEvent(EV.COLOR_CHANGE, source ? { color: c, source } : { color: c });
+    state.buddyTick++; updateBuddy(); paintNib();
+  }
   pal.firstChild.classList.add("active");
-  $("#color-custom").oninput = (e) => setColor(e.target.value, null);
+
+  // ---------- 取色器 ----------
+  // 饱和度/明度面板是两层 CSS 渐变叠出来的，不用 canvas：任何尺寸都清晰，
+  // 也不用管 devicePixelRatio。横轴饱和度、纵轴明度、下面一条色相。
+  const hex2 = (n) => n.toString(16).padStart(2, "0");
+  function hsv2hex(h, sv, v) {
+    const f = (n) => { const k = (n + h / 60) % 6; return v - v * sv * Math.max(0, Math.min(k, 4 - k, 1)); };
+    return "#" + hex2(Math.round(f(5) * 255)) + hex2(Math.round(f(3) * 255)) + hex2(Math.round(f(1) * 255));
+  }
+  function hex2hsv(hx) {
+    const m = /^#?([0-9a-f]{6})$/i.exec(hx || "");
+    if (!m) return { h: 0, s: 0, v: 0.13 };
+    const n = parseInt(m[1], 16), r = (n >> 16) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+    let h = 0;
+    if (d) h = mx === r ? 60 * (((g - b) / d) % 6) : mx === g ? 60 * ((b - r) / d + 2) : 60 * ((r - g) / d + 4);
+    return { h: (h + 360) % 360, s: mx ? d / mx : 0, v: mx };
+  }
+
+  const pkModal = $("#color-modal"), pkSv = $("#pk-sv"), pkCur = $("#pk-cur"), pkHue = $("#pk-hue");
+  let pk = { h: 0, s: 0, v: 0.13 };
+  function paintPicker() {
+    const hx = hsv2hex(pk.h, pk.s, pk.v);
+    document.documentElement.style.setProperty("--pk-h", String(Math.round(pk.h)));
+    pkCur.style.left = (pk.s * 100) + "%";
+    pkCur.style.top = ((1 - pk.v) * 100) + "%";
+    pkCur.style.background = hx;
+    $("#pk-now-hex").textContent = hx.toUpperCase();
+    $("#pk-now-dot").style.background = hx;
+    pkHue.value = Math.round(pk.h);
+    return hx;
+  }
+  function setPickerColor(hx) { pk = hex2hsv(hx); paintPicker(); }
+  function pickAt(e) {
+    const r = pkSv.getBoundingClientRect();
+    pk.s = clamp((e.clientX - r.left) / r.width, 0, 1);
+    pk.v = 1 - clamp((e.clientY - r.top) / r.height, 0, 1);
+    paintPicker();
+  }
+  let picking = false;
+  pkSv.addEventListener("pointerdown", (e) => { picking = true; pkSv.setPointerCapture(e.pointerId); pickAt(e); e.preventDefault(); });
+  pkSv.addEventListener("pointermove", (e) => { if (picking) pickAt(e); });
+  pkSv.addEventListener("pointerup", () => { picking = false; });
+  pkSv.addEventListener("pointercancel", () => { picking = false; });
+  pkHue.oninput = (e) => { pk.h = +e.target.value; paintPicker(); };
+
+  $("#btn-color").onclick = () => {
+    if (popOpen === $("#pop-color")) { closePop(); return; }
+    openPop($("#pop-color"), $("#btn-color"));
+  };
+  $("#btn-more-color").onclick = () => {
+    closePop(); setPickerColor(color); pkModal.classList.remove("hidden");
+  };
+  $("#pk-ok").onclick = () => {
+    const hx = paintPicker();
+    pkModal.classList.add("hidden");
+    setColor(hx, null, "picker"); pushRecent(hx);
+  };
+  $("#pk-cancel").onclick = () => pkModal.classList.add("hidden");
+  pkModal.onclick = (e) => { if (e.target === pkModal) pkModal.classList.add("hidden"); };
+
+  // ---------- 吸管：从自己的画里取颜色 ----------
+  // 取色器整个盖住画布，孩子想要「刚才那个蓝」只能凭记忆。吸管让他直接去画里指。
+  // 按住可以拖，笔尖那个泡泡跟着指尖显示当前颜色，松手才算数——
+  // 手指本身就挡住了要吸的那个点，不预览的话吸到哪儿全靠运气。
+  let eyedrop = false, dropping = false, dropHex = null;
+  function setEyedrop(on) {
+    eyedrop = on; dropping = false; dropHex = null;
+    document.body.classList.toggle("eyedrop", on);
+    $("#eyedrop-tip").classList.toggle("hidden", !on);
+    if (typeof syncName === "function") syncName();
+    if (!on) $("#nib").classList.remove("show");
+  }
+  function sampleAt(e) {
+    const p = pos(e);
+    const x = clamp(Math.floor(p.x), 0, canvas.width - 1), y = clamp(Math.floor(p.y), 0, canvas.height - 1);
+    const d = ctx.getImageData(x, y, 1, 1).data;
+    dropHex = "#" + [d[0], d[1], d[2]].map(v => v.toString(16).padStart(2, "0")).join("");
+    const nib = $("#nib"), dot = $("#nib-dot"), S = 74;
+    dot.style.width = dot.style.height = "40px"; dot.style.opacity = 1; dot.style.background = dropHex;
+    dot.style.boxShadow = "inset 0 0 0 2px rgba(0,0,0,.08)";
+    nib.style.left = clamp(e.clientX - S / 2, 8, innerWidth - S - 8) + "px";
+    nib.style.top = clamp(e.clientY - S - 26, 8, innerHeight - S - 8) + "px";
+    nib.classList.add("show"); clearTimeout(nibTimer);
+  }
+  function commitDrop() {
+    const hx = dropHex; setEyedrop(false);
+    if (!hx) return;
+    const el = [...pal.querySelectorAll("div")].find(d => d.title === hx) || null;
+    setColor(hx, el, "eyedropper"); pushRecent(hx);
+  }
+  $("#btn-eyedrop").onclick = () => { closePop(); setEyedrop(true); };
+  $("#btn-eyedrop-cancel").onclick = () => setEyedrop(false);
+
+  // 两根滑杆的初始位置得从状态反推，不能写死在 HTML 里——粗细的刻度是非线性的，
+  // 写死一个 value 就意味着「滑块在哪」和「size 是多少」从第一帧起就对不上。
+  $("#size").value = sizeToPos(size);
+  $("#size-val").textContent = size;
+  $("#opacity").value = Math.round(opacity * 100);
+  $("#opacity-val").textContent = Math.round(opacity * 100) + "%";
+  placeThumb($("#size")); placeThumb($("#opacity"));
+  document.documentElement.style.setProperty("--cur", color);
+  paintNib();
   $("#btn-download").onclick = () => { const a = document.createElement("a"); a.download = `artquest-${state.sessionId || "draft"}.png`; a.href = canvas.toDataURL("image/png"); a.click(); logEvent(EV.DOWNLOAD); };
 
   // ---------- process recording ----------
@@ -944,8 +1570,8 @@
     const limit = state.condition.time_limit_sec;
     if (!limit || state.timeUp) return;
     const left = Math.max(0, limit - Math.floor(elapsed() / 1000));
-    $("#limit-info").textContent = `· 剩 ${String(Math.floor(left / 60)).padStart(2, "0")}:${String(left % 60).padStart(2, "0")}`;
-    $("#limit-info").classList.toggle("low", left <= 30);
+    // 不在孩子眼前倒数（原来这里写「· 剩 08:59」）：倒计时本身就是压力，
+    // 到点自动交卷的逻辑照旧。研究要的 TIME_LIMIT_REACHED 一条不少。
     if (left === 0) {
       state.timeUp = true; logEvent("TIME_LIMIT_REACHED", { limit_sec: limit });
       const btn = state.phase === "after" ? $("#btn-submit-after") : $("#btn-submit");
@@ -954,45 +1580,69 @@
   }
   function stopTimers() { state.timers.forEach(clearInterval); state.timers = []; }
 
-  // ===== 首页：创作图鉴（收藏 + 集齐进度）=====
+  // ===== 画廊：自己的画（画完的和没画完的都在）=====
   async function loadCollection() {
-    let rows = []; try { rows = await mySessions(); } catch (e) { return; }
-    state.allSessions = rows;          // 地图的星、跨作品徽章、成长视图都读它
-    const done = rows.filter(r => r.status === "done");
     const wrap = $("#collection-wrap"), grid = $("#collection"), empty = $("#dex-empty");
-    if (empty) empty.classList.toggle("hidden", !!done.length);
-    if (!done.length) { wrap.classList.add("hidden"); return; }
+    // 一张画都没有的时候也**把墙挂在那儿**，只是墙上空着——
+    // 整块消失会让人以为这一屏坏了，而它只是还在等第一张画。
+    // 和下面「大家的画廊」是同一个做法。连不上服务器时同理：宁可挂一面空墙。
     wrap.classList.remove("hidden");
+    let rows = [];
+    try { rows = await mySessions(); }
+    catch (e) { if (empty) empty.classList.remove("hidden"); return; }
+    state.allSessions = rows;          // 地图的星、跨作品徽章、成长视图都读它
+    // 撤回是真删，界面里也不留痕；没画完的**留着**——半张画也是画过的证据，
+    // 把它藏起来等于说「没画完就不算」。
+    const mine = rows.filter(r => r.status !== "withdrawn");
+    const done = mine.filter(r => r.status === "done");
+    if (empty) empty.classList.toggle("hidden", !!mine.length);
     const titleOf = (qid) => (state.quests.find(q => q.id === qid) || {}).title || qid;
-    const styleOf = (qid) => QUEST_STYLE[qid] || { icon: "palette", c: "#f79433" };
-    grid.innerHTML = done.slice(0, 12).map(r => {
+    grid.innerHTML = mine.map((r, i) => {
       const st = styleOf(r.quest_id);
       const feat = (r.featured || {}).state;
       const flag = feat === "accepted"
         ? `<button class="dex-featured on" data-sid="${r.session_id}" data-accept="0"
-             title="收回来，不再给大家看">${icon("pin", 12)}在大家的图鉴里</button>`
+             title="收回来，不再给大家看">${icon("pin", 12)}挂在大家的墙上</button>`
         : feat === "declined"
           ? `<button class="dex-featured" data-sid="${r.session_id}" data-accept="1"
                title="老师选过它，你当时说先不要">${icon("pin", 12)}老师选过它</button>`
           : "";
-      return `<div class="dex-card" style="--qc:${st.c}">
-        <a class="dex-open" href="/api/sessions/${r.session_id}" target="_blank">
-          <div class="dex-thumb"><img src="/files/${r.session_id}/after.png" alt="" loading="lazy"></div>
-          <div class="dex-cap"><b>${icon(st.icon, 14)}${titleOf(r.quest_id)}</b>
-            <span>${whenText(r.created_at)}</span></div>
-        </a>${flag}</div>`;
+      const flagName = WORK_STATUS[r.status];
+      const tags = (flagName ? `<span class="work-chip ${flagName.cls}">${flagName.zh}</span>` : "")
+        + (r.revised ? `<span class="work-chip evolve">改过一次</span>` : "");
+      // 贴在墙上的照片没有一张是绝对正的。角度按 id 定死，不随机——
+      // 每次打开都换一个角度就成了晃动，不是手贴的感觉。
+      const tilt = ((r.session_id || "").charCodeAt(0) + i) % 5 - 2;
+      return `<div class="dex-card" style="--qc:${st.c};--tilt:${(tilt * 0.8).toFixed(2)}deg">
+        <button class="dex-open" data-sid="${r.session_id}" data-qid="${r.quest_id}">
+          <span class="dex-thumb">${r.status === "done"
+            ? `<img src="/files/${r.session_id}/after.png" alt="" loading="lazy"
+                 onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'dex-unfinished'}))">`
+            : `<span class="dex-unfinished">${icon("pencil", 22)}</span>`}</span>
+          <span class="dex-cap"><b>${markOf(st, 14)}${titleOf(r.quest_id)}</b>
+            <span class="dex-when">${whenText(r.created_at)}</span>
+            ${tags ? `<span class="dex-tags">${tags}</span>` : ""}</span>
+        </button>${flag}</div>`;
     }).join("");
+    grid.querySelectorAll(".dex-open").forEach(b => {
+      b.onclick = () => openWork(b.dataset.sid, b.dataset.qid);
+    });
     grid.querySelectorAll(".dex-featured").forEach(b => {
-      b.onclick = async () => {
+      b.onclick = async (e) => {
+        e.stopPropagation();
         await api(`/api/sessions/${b.dataset.sid}/featured`,
           { method: "POST", body: JSON.stringify({ accept: b.dataset.accept === "1" }) });
         await loadCollection(); await renderWall();
       };
     });
-    const types = new Set(done.map(r => r.quest_id)), total = state.quests.length;
+    // 右上角说的是「你画了多少」，不是「还差多少」。
+    // 「3/75 种」看着永远像还差得远，而把 75 个 form 摊给孩子本来也没意义。
+    const fams = new Set(done.map(r => familyOf(r.task_id || r.quest_id)).filter(Boolean));
+    const allFams = (state.families || []).length;
     const dp = $("#dex-progress");
-    dp.classList.toggle("done", types.size >= total);
-    dp.textContent = types.size >= total ? `${total} 种全画过了` : `${types.size}/${total} 种`;
+    const every = allFams > 0 && fams.size >= allFams;
+    dp.classList.toggle("done", every);
+    dp.textContent = !mine.length ? "" : every ? "每个地方都画过了" : `${mine.length} 张`;
   }
 
   /** 彩点's nine attributes, grown from what the child actually practised.
@@ -1009,8 +1659,8 @@
     const wrap = $("#growth-wrap");
     if ((state.condition.growth_display || "full") === "none") { wrap.classList.add("hidden"); return; }
     let g;
-    try { g = await api(`/api/participants/${encodeURIComponent(savedPid() || " ")}/growth`
-      + `?anon_id=${encodeURIComponent(state.anonId)}`); } catch (e) { return; }
+    try { g = await api(`/api/participants/${encodeURIComponent(savedPid() || " ")}/growth?${whoQuery()}`); }
+    catch (e) { return; }
     if (!g || !g.n_tasks) { wrap.classList.add("hidden"); return; }
     wrap.classList.remove("hidden");
 
@@ -1099,15 +1749,17 @@
     drawStimulus(q.stimulus);
     const ref = q.reference, allowRef = state.condition.reference_allowed && !!ref;
     $("#refpanel").classList.toggle("hidden", !allowRef);
-    $("#ref-wrap").classList.add("hidden");
+    $("#ref-modal").classList.add("hidden");
     refView.z = 1; refView.tx = refView.ty = 0; refViewedMs = 0; refOpenedAt = null; attention = "canvas";
     if (allowRef) {
-      $("#ref-img").src = ref.file || `/static/refs/${ref.id}.png`;
+      const src = ref.file || `/static/refs/${ref.id}.png`;
+      $("#ref-img").src = src; $("#ref-thumb-img").src = src;
+      // always：缩略图一直在右栏里；on_demand：只有一颗钮，画面要他自己点开
+      $("#refpanel").classList.toggle("peek", ref.mode !== "always");
       applyRefView();
       // presented by the task, as distinct from the child choosing to open it
       logEvent(EV.REFERENCE_SHOW, { reference_id: ref.id, mode: ref.mode,
         placeholder: !!(q.stimulus && q.stimulus.placeholder), task_id: q.id });
-      if (ref.mode === "always") toggleRef(true);
     }
     state.timeUp = false; $("#limit-info").textContent = ""; $("#limit-info").classList.remove("low");
     const allowed = q.allowed_tools;
@@ -1150,15 +1802,26 @@
       { reference_id: refId(), zoom: R(refView.z, 3) });
   }
 
+  /** 大图的框按图片的长宽比撑到 86vw × 74vh 里最大的那个尺寸。
+   *  框和图严丝合缝，applyRefView 的平移边界才是对的（和画布 viewport 同一个道理）。 */
+  function sizeRefStage() {
+    const vp = $("#ref-viewport"), img = $("#ref-img");
+    const nw = img.naturalWidth || 4, nh = img.naturalHeight || 3;
+    const maxW = innerWidth * 0.86, maxH = innerHeight * 0.66;   // 卡里还有工具栏和内衬
+    const w = Math.min(maxW, maxH * nw / nh);
+    vp.style.width = Math.round(w) + "px"; vp.style.height = Math.round(w * nh / nw) + "px";
+  }
   function toggleRef(open) {
-    const wrap = $("#ref-wrap"), willOpen = open !== undefined ? open : wrap.classList.contains("hidden");
-    wrap.classList.toggle("hidden", !willOpen);
-    $("#btn-ref-toggle").innerHTML = icon("image", 17) + (willOpen ? "收起参考图" : "看看参考图");
+    const modal = $("#ref-modal"), willOpen = open !== undefined ? open : modal.classList.contains("hidden");
+    modal.classList.toggle("hidden", !willOpen);
     const now = elapsed();
     if (willOpen) {
       refOpenedAt = now;
       logEvent(EV.REFERENCE_OPEN, { reference_id: refId(), task_id: state.quest && state.quest.id });
-      applyRefView();
+      const img = $("#ref-img");
+      if (img.complete && img.naturalWidth) { sizeRefStage(); applyRefView(); }
+      else img.onload = () => { sizeRefStage(); applyRefView(); };
+      noteAttention("reference");
     } else {
       const dur = refOpenedAt != null ? Math.round(now - refOpenedAt) : null;
       if (dur != null) refViewedMs += dur;
@@ -1168,7 +1831,10 @@
         view_duration_ms: dur, viewed_total_ms: refViewedMs, zoom: R(refView.z, 3) });
     }
   }
-  $("#btn-ref-toggle").onclick = () => toggleRef();
+  $("#btn-ref-toggle").onclick = () => toggleRef(true);
+  $("#btn-ref-close").onclick = () => toggleRef(false);
+  $("#ref-modal").onclick = (e) => { if (e.target === $("#ref-modal")) toggleRef(false); };
+  addEventListener("resize", () => { if (!$("#ref-modal").classList.contains("hidden")) { sizeRefStage(); applyRefView(); } });
 
   (function wireReference() {
     const vp = $("#ref-viewport");
@@ -1178,19 +1844,40 @@
       const r = vp.getBoundingClientRect();
       refZoomAt(refView.z * Math.pow(1.0015, -e.deltaY), e.clientX - r.left, e.clientY - r.top, "wheel");
     }, { passive: false });
+    // 第二根手指落下就是捏合：两指距离的比值直接当缩放倍率，焦点在两指中间
+    const fingers = new Map(); let pinch = null;
     vp.addEventListener("pointerdown", (e) => {
       vp.setPointerCapture(e.pointerId);
+      if (e.pointerType === "touch") {
+        fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (fingers.size === 2) {
+          const [a, b] = [...fingers.values()];
+          pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: refView.z };
+          refDrag = null; vp.classList.remove("dragging");
+          return;
+        }
+      }
       refDrag = { id: e.pointerId, x: e.clientX, y: e.clientY, t0: elapsed(),
                   from: [Math.round(refView.tx), Math.round(refView.ty)], moved: false };
       vp.classList.add("dragging");
     });
     vp.addEventListener("pointermove", (e) => {
+      if (e.pointerType === "touch" && fingers.has(e.pointerId)) {
+        fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (pinch && fingers.size === 2) {
+          const [a, b] = [...fingers.values()], r = vp.getBoundingClientRect();
+          const d = Math.hypot(a.x - b.x, a.y - b.y);
+          refZoomAt(pinch.z * d / pinch.d, (a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top, "pinch");
+          return;
+        }
+      }
       if (!refDrag || e.pointerId !== refDrag.id) return;
       refView.tx += e.clientX - refDrag.x; refView.ty += e.clientY - refDrag.y;
       refDrag.x = e.clientX; refDrag.y = e.clientY; refDrag.moved = true;
       applyRefView();
     });
-    const endRefDrag = () => {
+    const endRefDrag = (e) => {
+      if (e && e.pointerType === "touch") { fingers.delete(e.pointerId); if (fingers.size < 2) pinch = null; }
       if (!refDrag) return;
       const g = refDrag; refDrag = null; vp.classList.remove("dragging");
       if (!g.moved) return;
@@ -1267,10 +1954,18 @@
           key: f.id, icon: f.icon, color: f.color, kind: `${f.n_forms} 种玩法`,
           title: f.name, locked: false, family: f.id }));
 
-    const doneFam = new Set((state.allSessions || []).filter(r => r.status === "done")
-      .map(r => familyOf(r.task_id)).filter(Boolean));
+    const doneRows2 = (state.allSessions || []).filter(r => r.status === "done");
+    const doneFam = new Set(doneRows2.map(r => familyOf(r.task_id)).filter(Boolean));
+    // 去过的地方挂**自己画的那张画**当地标：服务端按时间倒序给，所以第一张就是最近的。
+    // 这是这张地图上唯一不需要美术资源、而且只有这个 app 才有的素材——
+    // 一排一模一样的图标谁都做得出来，十扇开着自己画的窗做不到。
+    const shotOf = {};
+    doneRows2.forEach(r => {
+      const f = familyOf(r.task_id || r.quest_id);
+      if (f && !shotOf[f]) shotOf[f] = r.session_id;
+    });
     const spots = mapSpots(cards.length);
-    let nextMarked = false, nDone = 0;
+    let nextMarked = false, nDone = 0, nextCard = null;
     cards.forEach((c, i) => {
       const fam = c.family || (c.task && c.task.family) || "";
       const done = !c.locked && doneFam.has(fam);
@@ -1286,21 +1981,103 @@
       const spot = spots[i] || [50, 50];
       el.style.setProperty("--mx", spot[0] + "%");
       el.style.setProperty("--my", spot[1] + "%");
-      const mark = glyph(fam, "currentColor", 34) || `<span class="qc-icon">${c.icon || ""}</span>`;
+      const glyphMark = glyph(fam, "currentColor", 34) || `<span class="qc-icon">${c.icon || ""}</span>`;
+      const shot = !c.locked && shotOf[fam];
+      // 画没加载出来（撤回过、还没传上去）就退回那枚字形，别留一个洞
+      const mark = shot
+        ? `<img class="node-shot" src="/files/${shot}/after.png" alt="" loading="lazy"
+             onerror="this.closest('.node-btn').classList.remove('has-shot');this.remove()">`
+        : c.locked ? icon("lock", 30) : glyphMark;
       el.innerHTML =
         (isNext ? `<svg class="sprite node-here" viewBox="0 0 200 200">${spriteInner(buddyColor(), "normal")}</svg>` : "")
-        + `<div class="node-btn">${c.locked ? icon("lock", 30) : mark}`
-        + (done ? `<span class="node-star">${icon("star", 14)}</span>` : "")
+        + `<div class="node-btn${shot ? " has-shot" : ""}">${mark}`
+        // 挂着自己画的画的时候不用再盖一颗星：那张画本身就是「来过」
+        + (done && !shot ? `<span class="node-star">${icon("star", 14)}</span>` : "")
         + `</div><h3>${c.title}</h3>`
         + `<div class="node-sub">${c.locked ? "稍后解锁" : c.kind}</div>`;
       if (!c.locked) el.onclick = () => {
         const q = c.task || randomForm(c.family);
         if (q) chooseQuest(q);
       };
+      if (isNext) nextCard = c;
       grid.appendChild(el);
     });
-    const prog = $("#map-progress");
-    if (prog) prog.textContent = cards.length ? `走过 ${nDone}/${cards.length} 关` : "";
+    paintToday(nextCard, nDone, cards.length);
+    paintMapPath();
+  }
+
+  /** 十个地方之间那条小路。
+   *
+   *  按**渲染之后各个钮的真实位置**算，不按布局的那张坐标表——宽屏是一张
+   *  绝对定位的图，窄屏是交错的两列，两套布局共用这一段代码。
+   *  地图藏着的时候量出来全是 0，所以 `show("quest")` 里还会再画一次。
+   *
+   *  它不带箭头、不编号、粗细也不变：家族之间没有先后，这条路说的是
+   *  「这十个地方连在一起」，不是「按这个顺序走」。 */
+  function paintMapPath() {
+    const map = $("#quest-grid"), svg = $("#map-path");
+    if (!map || !svg) return;
+    const nodes = [...map.querySelectorAll(".quest-card .node-btn")];
+    const mb = map.getBoundingClientRect();
+    if (nodes.length < 2 || !mb.width || !mb.height) { svg.innerHTML = ""; return; }
+    const pts = nodes.map(n => {
+      const r = n.getBoundingClientRect();
+      return [r.left + r.width / 2 - mb.left, r.top + r.height / 2 - mb.top];
+    });
+    svg.setAttribute("viewBox", `0 0 ${Math.round(mb.width)} ${Math.round(mb.height)}`);
+    svg.innerHTML = `<path d="${smoothPath(pts)}"/>`;
+  }
+  /** 一条穿过所有点的平滑曲线（Catmull-Rom 折成三次贝塞尔）。
+   *  直接连直线的话十个点会连成一张折线图；这条要像一条散步道。 */
+  function smoothPath(pts) {
+    if (pts.length < 2) return "";
+    const d = [`M ${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+      const c1 = [p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6];
+      const c2 = [p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6];
+      d.push(`C ${c1[0].toFixed(1)} ${c1[1].toFixed(1)}, ${c2[0].toFixed(1)} ${c2[1].toFixed(1)},`
+        + ` ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`);
+    }
+    return d.join(" ");
+  }
+
+  /** 「今天从这儿开始」——地图上那个默认入口。
+   *
+   *  十个家族一样大、一样亮地平铺着，孩子得一次评估十个陌生的名字才敢下手。
+   *  这张卡不替他决定（十个仍然全开着，下面那片地图一个没少），它做的是
+   *  **让「不想决定」也能开始**：彩点站在这儿，说清楚今天画什么，一个按钮进去。
+   *  走完一轮之后它会变成下一个没走过的家族；全走完了就收起来，
+   *  那时候孩子已经认识这十个地方了，不需要人再领路。 */
+  /** 地图顶上那一条。**一条，不是一张海报**。
+   *
+   *  它只回答一个问题：「不想挑的话，从哪儿开始」。所以上面不再有
+   *  「8 种玩法」（那是个数量，不是给孩子的话——地图上的同一行字早就删了，
+   *  这儿是漏网的那份），进度也并了进来，中间那条说明灰带整条去掉。
+   *  十个地方都走过之后它不消失，换句话继续站在那儿：整块消失会让人
+   *  以为这一屏坏了。 */
+  function paintToday(card, nDone, nTotal) {
+    const box = $("#today"); if (!box) return;
+    const all = !card && nTotal > 0 && nDone >= nTotal;
+    if (!card && !all) { box.classList.add("hidden"); box.innerHTML = ""; return; }
+    const c = (card && card.color) || buddyColor();
+    box.style.setProperty("--tc-l", mixHex(c, 14, "#fff"));   // 14% 家族色兑白，一层淡底不是一块色卡
+    box.style.setProperty("--tc-d", mixHex(c, 72, "#000"));
+    // 这张卡上不写小字（原来有一行「从这儿开始 · 走过 n/10 关」）：精灵、家族名、按钮，够了。
+    // 走过几关，地图上的圆钮亮着就是答案。
+    box.innerHTML =
+      `<svg class="sprite t-sprite" viewBox="0 0 200 200">${spriteInner(buddyColor(), all ? "happy" : "normal")}</svg>`
+      + `<div class="t-body">`
+      +   `<div class="t-title">${all ? "再挑一个" : card.title}</div>`
+      + `</div>`
+      + `<div class="t-go"><button class="primary big" id="btn-today">`
+      +   `${all ? "随便一个" : "开始画"}${icon("arrowRight", 17)}</button></div>`;
+    box.classList.remove("hidden");
+    $("#btn-today").onclick = () => {
+      const q = card ? (card.task || randomForm(card.family))
+        : randomForm(((state.families || [])[Math.floor(Math.random() * (state.families || []).length)] || {}).id);
+      if (q) chooseQuest(q);
+    };
   }
 
   /** One child-facing line per family — never the research goal. */
@@ -1317,20 +2094,82 @@
     M9: "一个故事的开头，接下来由你来画。",
   };
   const familyBlurb = (f) => FAMILY_BLURB[f.id] || "";
+  // ---------- 左侧导航栏：收起 / 展开 ----------
+  // 上一轮我反对过做这个，理由是「它在创作流程里本来就已经收起来了」。
+  // 那条现在只对了一半：字号调到 135% 之后，这一栏要装下「KidsArtQuest」
+  // 得比原来宽不少，而它在四块 tab 界面上是一直占着的。能收起来，
+  // 展开时才敢给够宽度。收起的状态记在这台设备上。
+  const RAIL_KEY = "artquest.rail_off";
+  function paintRail() {
+    const off = document.body.classList.contains("rail-off");
+    const b = $("#btn-rail");
+    if (b) { b.title = off ? "展开这一栏" : "收起这一栏"; b.setAttribute("aria-label", b.title); }
+  }
+  try { document.body.classList.toggle("rail-off", localStorage.getItem(RAIL_KEY) === "1"); } catch (e) { /* 无所谓 */ }
+  if ($("#btn-rail")) $("#btn-rail").onclick = () => {
+    const off = document.body.classList.toggle("rail-off");
+    try { off ? localStorage.setItem(RAIL_KEY, "1") : localStorage.removeItem(RAIL_KEY); } catch (e) { /* 无所谓 */ }
+    paintRail();
+    scheduleFit();      // 栏宽变了，画布能用的地方也变了
+  };
+  paintRail();
+
+  // ---------- 备用创作名额（票）----------
+  // 有网的时候把设备上的票补满，断网时才有得花。一张票 = 服务端发的
+  // session_id + 冻好的 condition；设备从不自己编 id，理由见 README「离线创作」。
+  const TICKET_TARGET = 3;
+  async function topUpTickets() {
+    if (!navigator.onLine) return;
+    try {
+      if (!(await ArtLog.ready())) return;               // 无痕模式没有 IndexedDB，就不假装能离线
+      const have = await ArtLog.countTickets();
+      if (have >= TICKET_TARGET) return;
+      const r = await api("/api/tickets", { method: "POST", body: JSON.stringify({
+        n: TICKET_TARGET - have,
+        participant: { anon_id: state.anonId, participant_id: savedPid(), account_id: accountId(),
+                       label: "", buddy_name: state.buddyName },
+        study: state.study ? { active: !!state.study.active, study_id: state.study.study_id,
+                               group: state.study.group || "" } : {},
+      }) });
+      await ArtLog.saveTickets(r.tickets || []);
+    } catch (e) { /* 领不到票只是不能离线开新的，不该挡住任何事 */ }
+  }
+  addEventListener("online", () => { topUpTickets(); ArtLog.flush(); });
+
   async function init() {
     state.cfg = await api("/api/config"); state.quests = await api("/api/quests");
     state.families = await api("/api/families");
     state.anonId = anonId();
     loadBuddyName(); paintBuddyName();
+    // 账号要在取任何「我的」数据之前问清楚：画廊、地图上的星都按它来筛
+    await loadAccount();
     $("#backend-badge").textContent = `${state.cfg.scorer} · ${state.cfg.feedback}` + (state.cfg.claude_available ? "" : "（离线）");
+    // 设备上跑的是哪一版外壳。iPad 上「到底更新了没有」以前只能靠猜——
+    // 这一行就是答案：和电脑上 `curl .../api/config` 里的 shell 对一下就知道。
+    const sb = $("#shell-badge");
+    if (sb) sb.textContent = state.cfg.shell || "—";
     await setupStudy();
     applyCondition();
     $("#participant").value = savedPid();
     renderQuests();
     const chips = $("#emotion-chips"); chips.innerHTML = "";
-    state.cfg.emotions.forEach(em => { const b = document.createElement("button"); b.textContent = em; b.onclick = () => { state.emotion = em; chips.querySelectorAll("button").forEach(x => x.classList.toggle("active", x === b)); }; chips.appendChild(b); });
+    // 每个心情配一个表情：孩子扫一眼表情比读两个字快，存下来的仍然是那两个字。
+    // （这个 app 别处不用 emoji，心情这一排是用户拍板的唯一例外：表情比字快。）
+    const EMOJI = { "开心": "😊", "平静": "😌", "兴奋": "🤩", "好奇": "🤔", "期待": "😃",
+                    "紧张": "😬", "难过": "😢", "生气": "😠", "累了": "😴", "难说": "😶" };
+    state.cfg.emotions.forEach(em => {
+      const b = document.createElement("button");
+      b.innerHTML = (EMOJI[em] ? `<span class="emo">${EMOJI[em]}</span>` : "") + `<span>${em}</span>`;
+      // 不是必选：再点一下就取消
+      b.onclick = () => {
+        state.emotion = state.emotion === em ? "" : em;
+        chips.querySelectorAll("button").forEach(x => x.classList.toggle("active", x === b && !!state.emotion));
+      };
+      chips.appendChild(b);
+    });
     await loadCollection();          // 地图要知道哪几关走过了
     renderQuests();
+    topUpTickets();                  // 不 await：领票慢也不该让界面等着
     try { state.entered = sessionStorage.getItem("artquest.entered") === "1"; } catch (e) { /* 无所谓 */ }
     if (state.entered || state.condition.ui === "quiet") { show("quest"); }
     else { await renderWorld(); show("world"); }
@@ -1338,7 +2177,29 @@
     else checkFeatured();
   }
   function chooseQuest(q) {
-    state.quest = q; $("#intent-quest-title").textContent = q.title; $("#intent-quest-prompt").textContent = q.prompt; $("#intent-quest-hint").textContent = "提示：" + q.hint; show("intent");
+    state.quest = q;
+    // 任务自带参考图、而且是「一直可见」那种的，心愿屏的任务卡里就先给他看：
+    // 写心愿之前知道要照着什么画。on_demand 的不放——画面要等他自己点开。
+    const ref = q.reference, showRef = ref && state.condition.reference_allowed && ref.mode === "always";
+    const refImg = showRef ? `<img class="intent-ref" src="${ref.file || `/static/refs/${ref.id}.png`}" alt="参考图">` : "";
+    $("#intent-quest-card").innerHTML = `<div class="type">${q.type}</div><h3 id="intent-quest-title">${q.title}</h3><p id="intent-quest-prompt">${q.prompt}</p>${refImg}`;
+    paintIntentIdentity();
+    show("intent");
+  }
+
+  /** 画之前这一屏上的「我是谁」。
+   *
+   *  以前这儿摆着一个「给自己起个代号（别用真名）」的输入框，每个孩子都看得见。
+   *  那是**研究员的把手**——代号由研究员分配（`?pid=P007` 带进来），
+   *  和这个项目里其他把手（后端名、本机代号、导出 JSON）是一类东西，
+   *  它们该折起来，不该摆在孩子的创作流程里。现在它只在实验模式下出现。
+   *
+   *  孩子自己的身份是**账号**：注册过就跟着人走，没注册也照样画——所以这里
+   *  只留一句可选的提示，而且点它就地注册，不用离开这一屏、不用重挑任务。 */
+  function paintIntentIdentity() {
+    const box = $("#pidbox");
+    if (box) box.classList.toggle("hidden", !state.study);
+    // 「起个名字」的提示不再出现在这一屏：起名在「我的」里，画画的入口只问两件事。
   }
   $("#btn-back-quest").onclick = () => show("quest");
 
@@ -1387,36 +2248,54 @@
   $("#btn-leave-save").onclick = () => leaveTask(true);
   $("#btn-leave-drop").onclick = () => leaveTask(false);
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !leaveModal.classList.contains("hidden")) leaveModal.classList.add("hidden");
+    if (e.key !== "Escape") return;
+    [leaveModal, clearModal, pkModal].forEach(m => m.classList.add("hidden"));
+    if (!$("#ref-modal").classList.contains("hidden")) toggleRef(false);
+    if (eyedrop) setEyedrop(false);
   });
   $("#btn-start-draw").onclick = async () => {
-    if (!state.emotion) { alert("先选一个现在的心情吧"); return; }
-    const intent = { emotion: state.emotion, text: $("#intent-text").value.trim() };
+    const intent = { emotion: state.emotion || "", text: $("#intent-text").value.trim() };   // 心情不是必选
     const pid = $("#participant").value.trim();
     if (pid && pid !== savedPid()) setPid(pid);
-    const r = await api("/api/sessions", { method: "POST", body: JSON.stringify({
+    const body = {
       quest_id: state.quest.id, intent,
-      participant: { anon_id: state.anonId, participant_id: savedPid(), label: "", buddy_name: state.buddyName },
+      participant: { anon_id: state.anonId, participant_id: savedPid(), account_id: accountId(),
+                     label: "", buddy_name: state.buddyName },
       condition: state.condition, device: deviceInfo(), canvas: canvasGeom(),
       study: state.study ? { active: !!state.study.active, study_id: state.study.study_id, group: state.study.group || "",
         order_index: state.seqIdx, sequence_id: (state.study.sequence || []).join(">") } : {},
-    }) });
+    };
+    // 联网就照旧：服务端当场发 id、冻条件。连不上就花一张**预领的票**——
+    // 那张票上的 id 和条件也是服务端定的，只是定得早一点。设备从不自己编 id。
+    let r = null, ticket = null;
+    try {
+      r = await api("/api/sessions", { method: "POST", body: JSON.stringify(body) });
+    } catch (e) {
+      ticket = await ArtLog.takeTicket(state.quest.id).catch(() => null);
+      if (!ticket) {
+        alert("连不上网，备用名额也用完了。\n连上再试——画过的都还在。");
+        return;
+      }
+      body.session_id = ticket.session_id;
+      await ArtLog.defer("create", ticket.session_id, body);
+      r = { session_id: ticket.session_id, session: { condition: ticket.condition || {} }, personalization: {} };
+    }
     state.sessionId = r.session_id; state.phase = "before"; state.before = null; state.revised = null;
-    state.feedback = null;
+    state.feedback = null; state.offlineSession = !!ticket;
     renderHistory(r.personalization);
     state.condition = { ...state.condition, ...(r.session.condition || {}) };  // the server froze it; mirror it back
     resetCanvas(); state.startedAt = Date.now(); state.dirtySinceSnapshot = false;
     strokeCount = 0; state.lastActivity = 0; state.idle = false;
-    handMode = false; $("#btn-hand").classList.remove("active");
-    resetView(null); applyCondition();   // a fresh canvas starts at 100 %, pen in hand
+    applyTool("pencil");                 // 上一张用橡皮收的尾，不该带进下一张
+    resetView(null); applyCondition(); syncName();   // a fresh canvas starts at 100 %, pen in hand
     await ArtLog.start(state.sessionId);
     applyTask(state.quest);
     $("#draw-quest-card").innerHTML = `<div class="type">${state.quest.type}</div><h3>${state.quest.title}</h3><p>${state.quest.prompt}</p>`;
-    $("#draw-intent-card").innerHTML = `心情：<b>${intent.emotion}</b><br>我想表达：${intent.text || "（没写）"}`;
+    assistReset(intent);
     $("#revision-banner").classList.add("hidden"); $("#btn-submit").classList.remove("hidden"); $("#snap-info").textContent = "";
     // 不承诺走不到的站：条件里没有 AI 反馈时，这颗按钮后面根本没有「支招」那一步。
-    $("#btn-submit").textContent = state.condition.feedback_source === "ai"
-      ? "画好了，听听反馈" : "画好了，交上去";
+    // 「画好了」什么都不许诺，两臂用同一句；有没有反馈是后面那一屏的事。
+    $("#btn-submit").innerHTML = "画好了" + icon("arrowRight", 18);
     state.buddyTick = 0; updateBuddy();
     startTimers(); show("draw");
     // the canvas has a real size only once the view is visible
@@ -1443,7 +2322,7 @@
       $("#result-img").src = image; renderScores($("#scores"), r.scores, null); $("#score-summary").textContent = r.scores.summary || "";
       const fbSp = $("#fb-sprite"); if (fbSp) fbSp.innerHTML = spriteInner(buddyColor(), "happy");
       // remember which feedback this is, so the revision can be attributed to it
-      state.feedback = { id: r.feedback.feedback_id || "", shown_ms: elapsed() };
+      state.feedback = { id: r.feedback.feedback_id || "", text: r.feedback.text || "", shown_ms: elapsed() };
       $("#feedback-text").textContent = r.feedback.text; show("result");
     } catch (e) { alert("提交失败：" + e.message); startTimers(); }
     overlay(null);
@@ -1463,6 +2342,7 @@
     // feedback, and the child sat with it this long before acting
     logEvent("REVISION_START", { feedback_id: fb.id || null,
       latency_ms: fb.shown_ms != null ? Math.round(elapsed() - fb.shown_ms) : null });
+    assistShowFeedback(fb.text || "");
     $("#btn-submit").classList.add("hidden"); $("#revision-banner").classList.remove("hidden"); startTimers(); show("draw");
   };
   $("#btn-skip-revise").onclick = async () => {
@@ -1484,32 +2364,40 @@
   };
   // ---------- self-report ----------
   const SURVEY = [
-    { key: "difficulty", q: "这次画起来难不难？", lo: "很简单", hi: "很难" },
-    { key: "confidence", q: "你觉得自己画得怎么样？", lo: "还差点", hi: "挺满意" },
-    { key: "enjoyment", q: "画的过程开心吗？", lo: "一般", hi: "很开心" },
+    { key: "difficulty", q: "难不难？", lo: "很简单", hi: "很难" },
+    { key: "confidence", q: "画得怎么样？", lo: "还差点", hi: "挺满意" },
+    { key: "enjoyment", q: "开心吗？", lo: "一般", hi: "很开心" },
   ];
   const answers = {};
   function renderSurvey() {
     SURVEY.forEach(i => delete answers[i.key]);
-    $("#survey-hardest").value = "";
     // a closed set makes the answer comparable across tasks and children; the
     // text box stays beside it, because a list that fits nobody is worse
     state.hardestChoice = null;
     const chips = $("#survey-hardest-choices"); chips.innerHTML = "";
+    const paintHard = () => chips.querySelectorAll("button").forEach(x =>
+      x.classList.toggle("active", x.dataset.key === state.hardestChoice));
     (state.cfg.hardest_parts || []).forEach(opt => {
+      if (opt.key === "other") {
+        // 「其他」不是一颗钮，就是那格输入框：写了字 = 选了其他，清空 = 取消
+        const inp = document.createElement("input");
+        inp.type = "text"; inp.id = "survey-hardest"; inp.placeholder = opt.label + "…"; inp.autocomplete = "off";
+        inp.oninput = () => { state.hardestChoice = inp.value.trim() ? "other" : (state.hardestChoice === "other" ? null : state.hardestChoice); paintHard(); };
+        chips.appendChild(inp); return;
+      }
       const b = document.createElement("button");
-      b.textContent = opt.label;
+      b.textContent = opt.label; b.dataset.key = opt.key;
       b.onclick = () => {
         state.hardestChoice = state.hardestChoice === opt.key ? null : opt.key;
-        chips.querySelectorAll("button").forEach(x => x.classList.toggle("active", x === b && state.hardestChoice));
+        if (state.hardestChoice !== "other") $("#survey-hardest").value = "";
+        paintHard();
       };
       chips.appendChild(b);
     });
+    const sp = $("#survey-sprite"); if (sp) sp.innerHTML = spriteInner(buddyColor(), "happy");
     $("#survey").innerHTML = SURVEY.map(item => `<div class="sq" data-key="${item.key}">
       <div class="sq-q">${item.q}</div>
-      <div class="sq-scale"><span class="muted small">${item.lo}</span>
-        ${[1, 2, 3, 4, 5].map(v => `<button data-v="${v}">${v}</button>`).join("")}
-        <span class="muted small">${item.hi}</span></div></div>`).join("");
+      <div class="sq-scale"><span class="sq-end">${item.lo}</span>${[1, 2, 3, 4, 5].map(v => `<button data-v="${v}">${v}</button>`).join("")}<span class="sq-end">${item.hi}</span></div></div>`).join("");
     $("#survey").querySelectorAll(".sq").forEach(row => row.querySelectorAll("button").forEach(b => b.onclick = () => {
       answers[row.dataset.key] = +b.dataset.v;
       row.querySelectorAll("button").forEach(x => x.classList.toggle("active", x === b));
@@ -1554,8 +2442,9 @@
     const quiet = state.condition.feedback_source !== "ai";
     $("#comparison-text").textContent = quiet
       ? "画完啦！你的创作已经保存下来了。"
-      : (comparison ? comparison.text : "这次没有走进化关～下次试试根据我的话改一小处，就能解锁 🔁 进化大师徽章！");
-    renderTrained(session);
+      : (comparison ? comparison.text : "下次照我的话改一小处，就能点亮进化大师。");
+    // 「这一关练的是」那张卡不再放在结算页：能力图上练的那几项本来就是橙色高亮的，
+    // 再摆一张卡说一遍是重复。（伙伴那页的成长面板照旧用它。）
     renderBadges(session);
     reportBadges(session).then(() => renderBadges(session));   // rarity needs this session counted
     renderPeers(session);
@@ -1622,7 +2511,47 @@
   };
   const familyOf = (taskId) => (state.quests.find(q => q.id === taskId) || {}).family || "";
 
+  // -- 后来那批「奇遇」徽章要的信号 --------------------------------------
+  // 阈值类的条件（5 种颜色、30 笔）能点亮，但点亮的时候没人惊讶。
+  // 下面这些看的是画法的**形状**（只用黑白、擦得比画得多、全是小点）
+  // 和**时机**（半夜画的、同一关又来一次），点亮的那一下才像被发现。
+  const hourOf = (s) => {
+    const t = new Date(s.created_at || (s.times || {}).created_at || Date.now());
+    return isNaN(t) ? -1 : t.getHours();          // 本地时间：孩子经历的那个「几点」
+  };
+  const isGrey = (hex) => {
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ""));
+    if (!m) return false;
+    const n = parseInt(m[1], 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+    return Math.max(r, g, b) - Math.min(r, g, b) <= 18;   // 三分量挨得很近 = 灰阶
+  };
+  const strokeSizes = (s) => payloads(s, ["STROKE_END"], "size").map(Number).filter(n => n > 0);
+  const strokePoints = (s) => payloads(s, ["STROKE_END"], "n").map(Number).filter(n => n > 0);
+  const strokeTimes = (s) => evOf(s, ["STROKE_END"]).map(e => Number(e.t_ms) || 0);
+  const zoomMin = (s) => Math.min(1, ...payloads(s, ["ZOOM"], "to").map(Number));
+  const paletteHits = (s) => [...colorsUsed(s)].filter(c => PALETTE.includes(c)).length;
+  const dayOf = (iso) => (iso || "").slice(0, 10);
+  const doneDays = () => [...new Set(doneRows().map(r => dayOf(r.created_at)).filter(Boolean))].sort();
+  const backToBackDays = () => {
+    const d = doneDays();
+    return d.some((x, i) => i > 0 && (new Date(x) - new Date(d[i - 1])) === 86400000);
+  };
+  const twoInOneDay = () => {
+    const c = {};
+    doneRows().forEach(r => { const k = dayOf(r.created_at); if (k) c[k] = (c[k] || 0) + 1; });
+    return Math.max(0, ...Object.values(c)) >= 2;
+  };
+  const timesAtTask = (taskId) => doneRows().filter(r => (r.task_id || r.quest_id) === taskId).length;
+  const onTheWall = () => doneRows().some(r => (r.featured || {}).state === "accepted");
+
   const ALL_BADGES = [
+    // -- 开始 --
+    // 第一枚徽章，一打开就有。它**不读任何东西**——不读过程也不读质量，
+    // 只是一句「你来了」。所以它不会变成对孩子的判决，而墙上从第一天起
+    // 就有东西可看：空墙加上一句「画一幅试试」，读起来像还没及格。
+    // 说明写的是事实（你和彩点认识了），不是夸奖。
+    { g: "开始", icon: "sprout", name: "加入家庭", desc: "你和彩点认识了",
+      welcome: true, earned: () => true },
     // -- 颜色与工具 --
     { g: "色彩与工具", icon: "palette", name: "缤纷调色", desc: "用了 5 种以上颜色",
       earned: s => colorsUsed(s).size >= 5 },
@@ -1690,18 +2619,96 @@
       earned: () => doneRows().length >= 10 },
     { g: "探索与坚持", icon: "layers", name: "专攻一门", desc: "同一个任务家族完成 3 次以上",
       earned: () => deepestFamily() >= 3 },
+
+    // ================= 奇遇 =================
+    // 这一组的条件都不是「做够多少」，而是「做了件特别的事」。
+    // 它们不写在任何地方，只能自己撞上——所以墙上那张「?」卡说的是实话。
+    // 白卷的彩蛋：一笔没画也交了，那就只给这一枚，别的都不给（见 earnedNow）。
+    { g: "奇遇", icon: "image", name: "一片空白", desc: "交了一张什么都没画的画",
+      earned: s => nStrokes(s) === 0, blank: true },
+    { g: "奇遇", icon: "moon", name: "夜猫子", desc: "夜里九点以后还在画",
+      earned: s => { const h = hourOf(s); return h >= 21 || (h >= 0 && h < 4); } },
+    { g: "奇遇", icon: "sun", name: "早起的鸟", desc: "太阳刚出来就开画了",
+      earned: s => { const h = hourOf(s); return h >= 4 && h < 7; } },
+    { g: "奇遇", icon: "contrast", name: "黑白世界", desc: "整幅画只用了黑白灰",
+      earned: s => { const c = [...colorsUsed(s)]; return c.length > 0 && nStrokes(s) >= 12 && c.every(isGrey); } },
+    { g: "奇遇", icon: "rainbow", name: "把调色板搬空", desc: "调色板上的颜色用了 10 种以上",
+      earned: s => paletteHits(s) >= 10 },
+    { g: "奇遇", icon: "eraser", name: "橡皮朋友", desc: "擦的次数比留下的笔还多",
+      earned: s => { const e = evOf(s, ["ERASE"]).length; return e >= 8 && e > nStrokes(s); } },
+    { g: "奇遇", icon: "ghost", name: "幽灵画家", desc: "两次推翻重来，最后还是画完了",
+      earned: s => evOf(s, ["CLEAR"]).length >= 2 && nStrokes(s) >= 8 },
+    { g: "奇遇", icon: "wave", name: "一笔到底", desc: "整幅画只有几笔，每一笔都很长",
+      earned: s => { const n = nStrokes(s); const pts = strokePoints(s);
+        return n > 0 && n <= 3 && Math.min(...pts) >= 150; } },
+    { g: "奇遇", icon: "dense", name: "点点点", desc: "30 笔以上，每一笔都只是一小点",
+      earned: s => { const pts = strokePoints(s);
+        return pts.length >= 30 && Math.max(...pts) <= 12; } },
+    { g: "奇遇", icon: "feather", name: "越画越轻", desc: "笔越换越细，收尾轻轻的",
+      earned: s => { const z = strokeSizes(s);
+        if (z.length < 10) return false;
+        const head = z.slice(0, 5), tail = z.slice(-5);
+        return Math.max(...tail) < Math.min(...head); } },
+    { g: "奇遇", icon: "fire", name: "最后冲刺", desc: "结尾十笔一口气画完",
+      earned: s => { const t = strokeTimes(s);
+        return t.length >= 15 && (t[t.length - 1] - t[t.length - 10]) <= 30000; } },
+    { g: "奇遇", icon: "target", name: "贴着画布看", desc: "放大到 6 倍还在画",
+      earned: s => zoomMax(s) >= 6 },
+    { g: "奇遇", icon: "compass", name: "退后一步", desc: "缩小到看得见整张画，再接着画",
+      earned: s => zoomMin(s) <= 0.8 && nStrokes(s) >= 10 },
+    { g: "奇遇", icon: "loop", name: "故地重游", desc: "同一个任务又画了一次",
+      earned: s => timesAtTask(s.quest_id) >= 2 },
+    { g: "奇遇", icon: "gift", name: "一天两张", desc: "同一天里画完了两幅",
+      earned: () => twoInOneDay() },
+    { g: "奇遇", icon: "fire", name: "连着两天", desc: "昨天画了，今天又来了",
+      earned: () => backToBackDays() },
+    { g: "奇遇", icon: "heart", name: "起了名字", desc: "给伙伴起了自己的名字",
+      earned: () => !!state.buddyName },
+    { g: "奇遇", icon: "key", name: "有名字的人", desc: "有了自己的名字和暗号，画跟着你走",
+      earned: () => !!(state.account && state.account.account_id) },
+    { g: "奇遇", icon: "people", name: "两处都画过", desc: "在两台设备上画过画",
+      earned: () => !!(state.account && (state.account.devices || 0) >= 2) },
+    { g: "奇遇", icon: "pin", name: "挂上了墙", desc: "有一幅画挂在大家的墙上",
+      earned: () => onTheWall() },
+    { g: "奇遇", icon: "crown", name: "满墙的画", desc: "画廊里攒够了 20 幅",
+      earned: () => doneRows().length >= 20 },
   ];
   // 每组一个颜色，徽章不再是一片一样的黄
   const BADGE_COLORS = { "色彩与工具": "#f79433", "过程与节奏": "#4db8ef",
-                         "观察与细节": "#6cc24a", "探索与坚持": "#b98cf0" };
-  const BADGE_RULES_VERSION = "badges/1";
+                         "观察与细节": "#6cc24a", "探索与坚持": "#b98cf0",
+                         "奇遇": "#f2706e", "开始": "#f5c243" };
+  // 规则集变了就换版本号：旧 session 上报的那批仍按旧规则算，
+  // 已经拿到手的徽章不会因为后来加了新规则而被收回去。
+  const BADGE_RULES_VERSION = "badges/3";   // 3：白卷什么都不点亮；结算页只报这次新点亮的
 
   /** Tell the server what this session lit, so rarity can be counted.
    *  Stored with the rule-set version: tightening a rule later must not take a
    *  badge off a child who already had it. */
+  /** 这一局点亮了哪些：白卷一枚都不给——「夜猫子」「起了名字」这类看状态不看画的章，
+   *  不该被一张空画布领走。 */
+  function earnedNow(session) {
+    const pool = badgePool(session);
+    if (!nStrokes(session)) return pool.filter(b => b.blank);      // 白卷只有那一枚彩蛋
+    return pool.filter(b => !b.blank && (() => { try { return !!b.earned(session); } catch (e) { return false; } })());
+  }
+  /** 这一局之前就已经亮着的：别的 session 上报过的名单。结算页只报**新**点亮的，
+   *  不然「常来的人」「有名字的人」这些跨作品的章每一局都会再报一遍。 */
+  /** 这枚章以前亮过几次（别的 session 上报过的次数）。 */
+  let curSessionId = null;
+  function timesLit(name) {
+    return (state.allSessions || []).filter(r => r.session_id !== curSessionId)
+      .filter(r => ((r.badges || {}).earned || []).includes(name)).length;
+  }
+  function litBefore(session) {
+    curSessionId = session.session_id;
+    const lit = new Set();
+    (state.allSessions || []).filter(r => r.session_id !== session.session_id)
+      .forEach(r => ((r.badges || {}).earned || []).forEach(n => lit.add(n)));
+    return lit;
+  }
   async function reportBadges(session) {
     const pool = badgePool(session);
-    const earned = pool.filter(b => { try { return !!b.earned(session); } catch (e) { return false; } });
+    const earned = earnedNow(session);
     try {
       await api(`/api/sessions/${session.session_id}/badges`, { method: "POST", body: JSON.stringify({
         earned: earned.map(b => b.name), offered: pool.map(b => b.name),
@@ -1812,38 +2819,64 @@
    *
    *  **Only lit badges are shown.** A wall of greyed-out ones tells the child
    *  exactly what is coming, which is the opposite of a surprise — and it reads
-   *  as a list of things they have failed to do. What is left is told as a
-   *  number instead, so there is still something to go and find.
+   *  as a list of things they have failed to do.
+   *
+   *  剩下多少枚也**不说**。报个数听着无害，其实把发现变回了进度条：
+   *  「还有 31 枚」是一张待办清单，孩子会开始数，而不是继续画。
+   *  墙尾只留一张「?」——它说还有，但不说有多少。
    */
-  function badgeGroupsHtml(pool, isOn, { newTag = false } = {}) {
-    const lit = pool.filter(isOn);
-    const groups = [];
-    lit.forEach(b => {
-      let g = groups.find(x => x.name === b.g);
-      if (!g) groups.push(g = { name: b.g, items: [] });
-      g.items.push(b);
-    });
-    const html = groups.map(g => {
-      const c = BADGE_COLORS[g.name] || "#f79433";
+  const BADGE_ORDER = ["开始", "色彩与工具", "过程与节奏", "观察与细节", "探索与坚持", "奇遇"];
+  function badgeGroupsHtml(pool, isOn, { newTag = false, mystery = false, count = false } = {}) {
+    // 组的顺序是固定的，不跟着「谁先点亮」走：同一面墙每次打开都该长一个样，
+    // 孩子才记得住自己的章排在哪儿。
+    //
+    // **组的名字不写出来。** 「开始」「色彩与工具」这些是给大人分类用的词，
+    // 对着一墙章的孩子只是几行灰字；每枚章底下本来就有名字和说明。
+    // 颜色已经把组分出来了（同一组一个色），不用再标一遍。
+    const lit = pool.filter(isOn)
+      .sort((a, b) => BADGE_ORDER.indexOf(a.g) - BADGE_ORDER.indexOf(b.g));
+    const html = lit.map(b => {
+      const c = BADGE_COLORS[b.g] || "#f79433";
       const style = `--bc:${c};--bc-l:${mixHex(c, 62, "#fff")};--bc-d:${mixHex(c, 66, "#000")}`;
-      return `<div class="badge-group"><h4>${g.name}</h4><div class="badge-row">` + g.items.map(b => {
-        // Rarity is about the badge, not about you: "8 % of people have lit this"
-        // gives the collecting feeling without comparing anyone's drawing.
-        const st = ((state.rarity || {}).badges || {})[b.name];
-        const pct = st && st.rarity !== null ? Math.round(st.rarity * 100) : null;
-        const rare = pct !== null && pct <= 15;
-        const line = pct === null ? ""
-          : `<div class="rarity">${pct <= 0 ? "还没有人点亮过" : `${pct}% 的人点亮过`}</div>`;
-        return `<div class="badge on${newTag ? " new" : ""}${b.evo ? " evo" : ""}${rare ? " rare" : ""}"
-          style="${style}" title="${b.desc}">
-          <div class="b-ico">${icon(b.icon, 30)}</div><div class="b-name">${b.name}</div>
-          <div class="b-desc">${b.desc}</div>${line}</div>`;
-      }).join("") + "</div></div>";
+      // Rarity is about the badge, not about you: "8 % of people have lit this"
+      // gives the collecting feeling without comparing anyone's drawing.
+      const st = ((state.rarity || {}).badges || {})[b.name];
+      const pct = st && st.rarity !== null ? Math.round(st.rarity * 100) : null;
+      const rare = pct !== null && pct <= 15;
+      // 只有**真的少见**的那几枚才写一句。常见的也挂上百分比的话，
+      // 每枚章底下都拖着一行数字，一面墙就读成了统计表。
+      const line = !rare ? ""
+        : `<div class="rarity">${pct <= 0 ? "还没有人点亮过" : `只有 ${pct}% 的人点亮过`}</div>`;
+      const isNew = typeof newTag === "function" ? newTag(b) : !!newTag;
+      // 角标写第几次：结算页是「以前的次数 + 这一次」，墙上是总次数（count）
+      const n = count ? timesLit(b.name)
+        : (typeof newTag === "function" && !isNew ? timesLit(b.name) + 1 : 0);
+      return `<div class="badge on${isNew ? " new" : ""}${n > 1 ? " again" : ""}${b.evo ? " evo" : ""}${rare ? " rare" : ""}"${n > 1 ? ` data-n="${n}"` : ""}
+        style="${style}" title="${b.desc}">
+        <div class="b-ico">${icon(b.icon, 30)}</div><div class="b-name">${b.name}</div>
+        <div class="b-desc">${b.desc}</div>${line}</div>`;
     }).join("");
-    const left = pool.length - lit.length;
-    return html + (left > 0
-      ? `<p class="badge-left">还有 ${left} 枚等你发现——它们长什么样，点亮了才知道。</p>`
-      : lit.length ? `<p class="badge-left">全部 ${lit.length} 枚都点亮了。</p>` : "");
+    // 墙尾那一枚：说还有，不说有多少。一句话，不再多解释一行。
+    const q = mystery ? `<div class="badge mystery">
+      <div class="b-ico">${icon("question", 30)}</div>
+      <div class="b-name">更多等你发现</div></div>` : "";
+    return `<div class="badge-row">${html}${q}</div>`;
+  }
+
+  /** 徽章的说明不常驻：点一枚，贴着它浮出一句（名字、条件、亮了几次、稀有度）。 */
+  function wireBadgePops(root) {
+    root.querySelectorAll(".badge:not(.mystery)").forEach(bd => bd.onclick = (e) => {
+      e.stopPropagation();
+      const pop = $("#pop-badge"); if (!pop) return;
+      const name = bd.querySelector(".b-name").textContent;
+      if (popOpen === pop && pop.dataset.for === name) { closePop(); return; }
+      pop.dataset.for = name;
+      const n = +bd.dataset.n || 0;
+      pop.innerHTML = `<b>${name}</b><p>${bd.title}</p>`
+        + (n > 1 ? `<span class="muted small">亮了 ${n} 次</span>` : "")
+        + (bd.querySelector(".rarity") ? `<span class="muted small">${bd.querySelector(".rarity").textContent}</span>` : "");
+      openPop(pop, bd);
+    });
   }
 
   function renderBadges(session) {
@@ -1851,12 +2884,25 @@
     // A badge the condition makes unreachable is not shown as "not earned":
     // greying it out tells the child they missed something never on offer.
     const pool = badgePool();
-    const got = pool.filter(b => { try { return !!b.earned(session); } catch (e) { return false; } });
+    // 入门徽章不在结算页出现：它不是这一局做到的事，每次都挂个「新」上去
+    // 就成了噪音，也冲淡了真正刚点亮的那几枚。
+    // 这一局做到的都亮出来（一张认真画的画总该有几枚）；第一次亮的才挂「NEW」，
+    // 以前亮过又做到的照样算——只有跨作品看状态的那几枚（起了名字、常来的人……）
+    // 亮过一次就不再重复报。白卷照旧一枚都没有。
+    const before = litBefore(session);
+    const got = earnedNow(session).filter(b => !b.welcome && (b.earned.length > 0 || !before.has(b.name)));
     const gotSet = new Set(got);
+    // 一行放六枚；多出来的先收着，一颗钮展开——一局点亮十几枚的时候卡不该撑成一面墙
+    const FOLD_AT = 6;
+    el.classList.toggle("folded", got.length > FOLD_AT);
     el.innerHTML = got.length
-      ? badgeGroupsHtml(pool, b => gotSet.has(b), { newTag: true })
-      : `<p class="badge-left">这次没点亮新的。换个画法再来一张，它们都藏在过程里。</p>`;
+      ? badgeGroupsHtml(pool, b => gotSet.has(b), { newTag: b => !before.has(b.name) })
+        + (got.length > FOLD_AT ? `<button class="ghost badge-more" id="btn-badge-more">还有 ${got.length - FOLD_AT} 枚，展开</button>` : "")
+      : `<p class="badge-left">这次没点亮新的。换个画法再来一张。</p>`;
+    wireBadgePops(el);
     $("#badges-count").textContent = got.length ? `点亮了 ${got.length} 枚` : "";
+    const more = $("#btn-badge-more");
+    if (more) more.onclick = () => { el.classList.remove("folded"); more.remove(); };
     if (got.length) {
       // one beat of delight, then back to breathing
       document.querySelectorAll("#view-final .sprite").forEach(el => {
@@ -1865,19 +2911,38 @@
     }
   }
 
-  /** 徽章墙：把每次结算时上报给服务器的徽章并起来，看看还差哪几枚。
+  /** 我点亮过哪些章。两个地方要用（徽章墙、「我的」小传），所以只算一次。
+   *
+   *  两个来源：**上报记录**（每次结算时存到服务器的那份名单，规则以后收紧
+   *  也不会把拿到的收回去），加上**不挂在任何一次创作上**的那几枚——
+   *  起了名字、有了账号、连着两天来、挂上了墙。后者只读当下的状态，
+   *  随时算得出来，不然孩子得再画一张才看得见它们。 */
+  function litBadges() {
+    const lit = new Set();
+    (state.allSessions || []).forEach(r => ((r.badges || {}).earned || []).forEach(n => lit.add(n)));
+    ALL_BADGES.filter(b => b.earned.length === 0).forEach(b => {
+      try { if (b.earned()) lit.add(b.name); } catch (e) { /* 算不出来就当没有 */ }
+    });
+    return lit;
+  }
+
+  /** 徽章墙：把每次结算时上报给服务器的徽章并起来。
    *  读的是那份上报记录本身，不重算——规则以后收紧，也不会把已经拿到的从孩子手上取走。 */
   async function renderBadgeWall() {
     const el = $("#badge-wall"); if (!el) return;
     // 每次都重新取：徽章是刚刚那一局才上报的，缓存里的名单一定是旧的
     try { state.allSessions = await mySessions(); } catch (e) { /* 离线就先空着 */ }
-    const lit = new Set();
-    (state.allSessions || []).forEach(r => ((r.badges || {}).earned || []).forEach(n => lit.add(n)));
+    const lit = litBadges();
     try { state.rarity = await api("/api/achievements"); } catch (e) { /* 稀有度是可选的 */ }
-    const pool = badgePool();
+    // 墙上展示的是**已经点亮的**，所以不按当前任务过滤：
+    // `badgePool()` 是给「这一局能拿到哪些」用的，拿它筛墙会让「对照高手」
+    // 这种要参考图的徽章在没选任务时整枚消失。
+    const pool = ALL_BADGES;
     const n = pool.filter(b => lit.has(b.name)).length;
-    el.innerHTML = n ? badgeGroupsHtml(pool, b => lit.has(b.name))
-      : `<p class="badge-left">还一枚都没有。画一幅试试——徽章只看你怎么画，不看画得好不好。</p>`;
+    curSessionId = null;                      // 墙上数的是全部次数
+    el.innerHTML = n ? badgeGroupsHtml(pool, b => lit.has(b.name), { mystery: true, count: true })
+      : `<p class="badge-left">画一幅试试。徽章只看你怎么画，不看画得好不好。</p>`;
+    wireBadgePops(el);
     $("#badge-wall-count").textContent = n ? `${n} 枚` : "";
   }
 
@@ -2030,46 +3095,51 @@
     if (t.getFullYear() === new Date().getFullYear()) return `${t.getMonth() + 1}月${t.getDate()}日`;
     return `${t.getFullYear()}年${t.getMonth() + 1}月${t.getDate()}日`;
   }
+  /** 「我的」这一屏说的是**你**，不是你的画——画全在画廊里。
+   *  这里只有三样：你和伙伴是谁、这些画归在谁名下、以及这台设备的情况。 */
   async function loadSessions() {
     let rows = []; try { rows = await mySessions(); } catch (e) { /* 离线也要画得出壳 */ }
-    state.allSessions = rows;
-    const mine = rows.filter(r => r.status !== "withdrawn");   // 撤回是真删，界面里也不留痕
-    const titleOf = (qid) => (state.quests.find(q => q.id === qid) || {}).title || qid;
-    const styleOf = (qid) => QUEST_STYLE[qid] || { icon: "palette", c: "#f79433" };
+    if (rows.length || !state.allSessions) state.allSessions = rows;
+    const mine = (state.allSessions || []).filter(r => r.status !== "withdrawn");
 
-    $("#me-sprite").innerHTML = spriteInner(buddyColor(), mine.length ? "happy" : "normal");
+    paintAccount();
+    const done = mine.filter(r => r.status === "done");
+    $("#me-sprite").innerHTML = spriteInner(buddyColor(), done.length ? "happy" : "normal");
     $("#me-name").textContent = state.buddyName || "彩点";
-    const done = mine.filter(r => r.status === "done").length;
-    $("#me-sub").textContent = done ? `和你一起画了 ${done} 张` : "还没一起画过";
-    $("#works-count").textContent = mine.length ? `${mine.length} 张` : "";
-
-    const list = $("#worklist");
-    $("#works-empty").classList.toggle("hidden", !!mine.length);
-    list.innerHTML = mine.map(r => {
-      const st = styleOf(r.quest_id), flag = WORK_STATUS[r.status];
-      const chips = (flag ? `<span class="work-chip ${flag.cls}">${flag.zh}</span>` : "")
-        + (r.revised ? `<span class="work-chip evolve">改过一次</span>` : "");
-      return `<button class="work" data-sid="${r.session_id}" data-qid="${r.quest_id}" style="--qc:${st.c}">
-        <span class="work-thumb">${r.status === "done"
-          ? `<img src="/files/${r.session_id}/after.png" alt="" loading="lazy"
-               onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'no-shot'}))">`
-          : icon("pencil", 18)}</span>
-        <span class="work-main">
-          <b>${icon(st.icon, 15)}${titleOf(r.quest_id)}</b>
-          <span class="work-meta">${whenText(r.created_at)}${chips}</span>
-        </span>${icon("arrowRight", 16)}
-      </button>`;
-    }).join("");
-    list.querySelectorAll(".work").forEach(b => { b.onclick = () => openWork(b.dataset.sid, b.dataset.qid); });
+    renderStory(mine, done);
 
     $("#anon-badge").textContent = state.anonId + (savedPid() ? ` · ${savedPid()}` : "");
     paintSync(await ArtLog.pending().catch(() => 0), navigator.onLine);
   }
+
+  /** 小传：四个数字 + 一句话。都是**做过的事**，没有一个是对画的评价。 */
+  function renderStory(mine, done) {
+    const el = $("#story"); if (!el) return;
+    const days = new Set(done.map(r => (r.created_at || "").slice(0, 10)).filter(Boolean)).size;
+    const fams = new Set(done.map(r => familyOf(r.task_id || r.quest_id)).filter(Boolean)).size;
+    const lit = litBadges();
+    // 三块数字是**门**，不只是数字：点「画完的画」去画廊，点「点亮的徽章」
+    // 去徽章墙。数字后面站着东西，就该让人走过去看。
+    const tiles = [
+      { icon: "image",    v: done.length, unit: "张", label: "画完的画",   c: "blue",   go: "dex" },
+      { icon: "compass",  v: fams,        unit: "个", label: "去过的地方", c: "orange", go: "map" },
+      { icon: "calendar", v: days,        unit: "天", label: "画画的日子", c: "green" },
+      { icon: "medal",    v: lit.size,    unit: "枚", label: "点亮的徽章", c: "purple", go: "buddy" },
+    ];
+    el.innerHTML = `<div class="story-tiles">` + tiles.map(t =>
+      `<${t.go ? "button" : "div"} class="stile${t.go ? " jump" : ""}"${t.go ? ` data-go="${t.go}"` : ""}
+         style="--tc:var(--${t.c});--tc-l:var(--${t.c}-l)">
+         <span class="stile-ico">${icon(t.icon, 18)}</span>
+         <b>${t.v}<i>${t.unit}</i></b><span>${t.label}</span>
+       </${t.go ? "button" : "div"}>`).join("") + `</div>`;
+    el.querySelectorAll(".stile.jump").forEach(b => { b.onclick = () => openTab(b.dataset.go); });
+  }
+
   // 「画还在不在这台设备上」——和顶栏的 recstat 是同一件事，换成孩子看得懂的话
   function paintSync(pending, online) {
     const me = $("#me-sync"); if (!me) return;
     me.classList.toggle("warn", !online || pending > 0);
-    me.innerHTML = `<b></b>${!online ? "离线，先存在这台设备上" : pending ? "正在保存…" : "都保存好了"}`;
+    me.innerHTML = `<b></b>${!online ? "没网，先记在这台设备里" : pending ? "正在收好…" : "都收好啦"}`;
   }
 
   // 点开一张：先看画，再说它是哪个任务。原始文件只在实验模式下露出来。
@@ -2097,13 +3167,42 @@
   ArtLog.onstatus(({ pending, online }) => {
     const el = $("#recstat");
     if (el) {
+      // 没在画、没有待传、网也通着的时候它不说话：「等你开画」不携带任何信息，
+      // 只是顶栏上常驻的一块灰。真有事的三种情况（正在记、还没传完、断网）
+      // 它自己会回来。
+      el.classList.toggle("hidden", !state.sessionId && !pending && online);
       el.classList.toggle("warn", !online || pending > 0);
-      $("#recstat-text").textContent = !online ? `离线 · ${pending} 条待上传`
-        : pending ? `同步中 ${pending}` : state.sessionId ? "记录中" : "就绪";
+      $("#recstat-text").textContent = !online ? `没网 · 先记在这儿 ${pending}`
+        : pending ? `收着 ${pending}` : "我看着呢";
     }
     paintSync(pending, online);
   });
   window.addEventListener("beforeunload", (e) => { if (state.sessionId && !$("#view-draw").classList.contains("hidden")) { e.preventDefault(); e.returnValue = ""; } });
+
+  // ---------- 装到主屏之后：外壳存在设备上 ----------
+  // Service Worker 只在 HTTPS（或 localhost）下注册，这是浏览器的规矩，不是选择——
+  // 所以局域网 http:// 那条路上「装到主屏」装得上，图标点开也能用，
+  // 但外壳不会被存下来，断网就是白屏。真要离线得先有域名和证书。
+  // 它存的只有外壳；孩子画的每一笔仍然走 ArtLog 的 IndexedDB 队列，两件事不重叠。
+  if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")) {
+    window.addEventListener("load", async () => {
+      let reg;
+      try { reg = await navigator.serviceWorker.register("/sw.js"); }
+      catch (e) { console.warn("sw:", e.message); return; }
+
+      // 新 SW 装好就自己接手了（见 sw.js 里 install 末尾那句）。这边只管一件事：
+      // 接手之后**整页重载一次**，让页面和它的外壳回到同一个版本上——
+      // 一半新一半旧比全旧还糟。
+      // 但孩子正画着的时候绝不重载：那会把没提交的一笔直接冲掉。
+      // 不重载也不要紧，下次冷启动自然就是齐的。
+      let reloading = false;
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (reloading || state.sessionId) return;
+        reloading = true;
+        location.reload();
+      });
+    });
+  }
 
   init().catch(e => alert("初始化失败：" + e.message));
 })();

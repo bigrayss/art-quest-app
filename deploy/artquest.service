@@ -1,0 +1,27 @@
+# 用户级服务：装在 ~/.config/systemd/user/，用 `systemctl --user` 管。
+#
+# 这台机器上没有 sudo，所以不走 /opt + 系统级 systemd 那条路。
+# 靠 `loginctl enable-linger` 让它在登出之后照样跑着（已经开好了）。
+# 整套东西都在家目录里，对这台机器零侵入——不装系统包、不碰 /etc、
+# 不建系统用户，要撤掉就是 `systemctl --user disable --now artquest` 加 rm -rf。
+
+[Unit]
+Description=KidsArtQuest
+After=network.target
+
+[Service]
+Type=exec
+WorkingDirectory=%h/artquest
+# 不存在也不报错。注意：systemd 不认行尾注释，.env 里每行只能是 KEY=VALUE
+EnvironmentFile=-%h/artquest/.env
+# 绑 127.0.0.1：不直接对公网开放，对外由这台机器上已有的 Caddy 反代。
+ExecStart=%h/artquest/.venv/bin/python -m uvicorn artquest.main:app --host 127.0.0.1 --port 8010
+Restart=always
+RestartSec=3
+
+# 用户级 systemd 认的那几条加固
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target

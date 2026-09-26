@@ -9,6 +9,34 @@
 
 /* Nunito（SIL OFL 1.1）：拉丁字母的圆体，中文自动落到 Noto Sans CJK。
    可变字重，一个文件覆盖 200–1000。 */
+/* 圆体中文。iOS 上没有预装的圆体中文字，不自带一个，界面上占绝大多数的中文
+   就只能落到 PingFang SC——那是几何黑体，整屏看着就是「方正」。
+
+   两份分开裁，加起来 759KB（比单带一个字重还小），Service Worker 装的时候一起存：
+
+     400 这一份 593KB / 3924 字：**正文**。孩子自己打的字（心愿、代号、
+         给伙伴起的名）也要显示，所以带着 GB2312 一级的全量覆盖。
+     700 这一份 166KB / 1169 字：**标题和按钮**。这些文案全是仓库里写死的，
+         孩子输入的东西永远不会加粗，所以只装仓库里出现过的字就够了。
+
+   字重区间是按 body 的 600 划的：600 落进 400 那一份（正文，全覆盖），
+   700/800 落进 700 那一份（标题）。划错的后果不是排版乱，是**孩子打的某个字
+   没在子集里，那一个字会突然变成 PingFang**。 */
+@font-face {
+  font-family: "RHR SC";
+  src: url("/static/fonts/rhr-sc-400.woff2") format("woff2");
+  font-weight: 100 650;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "RHR SC";
+  src: url("/static/fonts/rhr-sc-700.woff2") format("woff2");
+  font-weight: 651 1000;
+  font-style: normal;
+  font-display: swap;
+}
+
 @font-face {
   font-family: "Nunito";
   src: url("/static/fonts/nunito-latin.woff2") format("woff2");
@@ -38,10 +66,25 @@
   --bg:#fff; --soft:#f8f8f7; --card:#fff;
   --r:14px; --r-lg:20px; --edge:3px;
 
-  --font: "Nunito", -apple-system, "PingFang SC", "Noto Sans CJK SC",
+  /* 拉丁字符走 Nunito（它的 unicode-range 把自己限死在拉丁），
+     中文走 Yozai——iOS 上没有预装的圆体中文，`-apple-system` 之后的
+     PingFang SC 是几何黑体，整屏看着就是「方正」。 */
+  --font: "Nunito", "RHR SC", -apple-system, "PingFang SC", "Noto Sans CJK SC",
           "Microsoft YaHei", system-ui, sans-serif;
 }
 * { box-sizing: border-box; }
+/* ===== 字号旋钮（全站只有这一处）=====
+   全站 103 个字号原本是写死的 px，散在各处，最常见的是 11 和 12px——
+   这是给小孩在 iPad 上用的 app，而 iOS 给正文的建议是 17pt，12px 只有它的七成。
+   现在它们全是 rem，基准就在这儿：**要整体大一点小一点，只改下面这一个数。**
+
+   用百分比而不是 px：px 会把用户在系统里调大的默认字号直接盖掉，
+   百分比是在他的设置上再乘一档，把选择权留给他。
+   手机维持 100%（小屏幕本来就挤，再放大就装不下了），760px 以上放大到 125%：
+   正文 12px → 15px，标题 24px → 30px。 */
+html { font-size: 100%; }
+@media (min-width: 760px) { html { font-size: 135%; } }
+
 html, body { height: 100%; }
 body { margin:0; font-family:var(--font); background:var(--bg); color:var(--ink);
   font-weight:600; -webkit-font-smoothing:antialiased; -webkit-tap-highlight-color:transparent; }
@@ -54,13 +97,13 @@ body { margin:0; font-family:var(--font); background:var(--bg); color:var(--ink)
   backdrop-filter:blur(22px) saturate(1.5); -webkit-backdrop-filter:blur(22px) saturate(1.5);
   border-bottom:1px solid var(--line); min-height:52px; }
 .appbar-main { flex:1; min-width:0; }
-.appbar-title { font-weight:800; font-size:17px; letter-spacing:-.01em; }
+.appbar-title { font-weight:800; font-size:1.0625rem; letter-spacing:-.01em; }
 .appbar-right { display:flex; align-items:center; gap:8px; }
 .iconbtn { border:none; box-shadow:none; background:none; padding:6px; border-radius:50%;
   color:var(--muted-2); }
 .iconbtn:hover { background:var(--soft); color:var(--ink); }
 .iconbtn:active { transform:none; }
-.recstat { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:800;
+.recstat { display:inline-flex; align-items:center; gap:6px; font-size:0.6875rem; font-weight:800;
   color:var(--muted-2); background:var(--soft); border-radius:999px; padding:5px 11px; }
 .recstat i { width:8px; height:8px; border-radius:50%; background:var(--green); }
 .recstat.warn { background:var(--orange-l); color:var(--orange-d); }
@@ -74,10 +117,13 @@ main { flex:1; width:100%; max-width:960px; margin:0 auto; padding:16px 16px 28p
 .tabbar { order:2; display:flex; gap:2px; background:#fff; border-top:1px solid var(--line);
   position:sticky; bottom:0; z-index:6; padding:4px 6px calc(4px + env(safe-area-inset-bottom)); }
 .tab { flex:1; flex-direction:column; gap:2px; border:none; box-shadow:none; background:none;
-  font-size:11px; font-weight:800; color:var(--muted); padding:7px 0 5px; border-radius:12px; }
+  font-size:0.6875rem; font-weight:800; color:var(--muted); padding:7px 0 5px; border-radius:12px; }
 .tab:hover { background:var(--soft); }
 .tab:active { transform:none; }
 .tab.active { color:var(--accent-d); background:var(--accent-l); }
+.tab .ico { transition:transform .2s cubic-bezier(.34,1.56,.64,1); }
+.tab.active .ico { transform:translateY(-2px) scale(1.08); }
+@media (prefers-reduced-motion: reduce) { .tab.active .ico { transform:none; } }
 .rail-brand { display:none; }
 /* 做任务的时候把导航收起来：这一屏只有画画 */
 body.inflow .tabbar { display:none; }
@@ -98,7 +144,8 @@ button.go { background:var(--green); border-color:var(--green); color:#fff;
 button.go:hover { filter:brightness(1.04); background:var(--green); }
 button.secondary { color:var(--blue-d); }
 button.secondary:hover { background:var(--blue-l); }
-button.big { padding:13px 20px; font-size:16px; }
+button.big { padding:13px 20px; font-size:1.0625rem; }
+button.pill { border-radius:999px; padding-inline:26px; }
 button.grow { flex:1; }
 button.ghost { background:transparent; border-color:transparent; box-shadow:none; color:var(--muted-2); }
 button.ghost:hover { background:var(--soft); color:var(--ink); }
@@ -107,21 +154,15 @@ button.ghost.danger:hover { color:var(--red-d); background:var(--red-l); }
 button:disabled { opacity:.45; cursor:not-allowed; }
 button:disabled:active { transform:none; }
 
-h1 { font-size:24px; font-weight:800; margin:4px 0 8px; letter-spacing:-.02em; }
-h2 { font-size:17px; font-weight:800; margin:24px 0 10px; display:flex; align-items:center; gap:8px; }
+h1 { font-size:1.5rem; font-weight:800; margin:4px 0 8px; letter-spacing:-.02em; }
+h2 { font-size:1.0625rem; font-weight:800; margin:24px 0 10px; display:flex; align-items:center; gap:8px; }
 h2:first-child { margin-top:4px; }
 h2 .muted { font-weight:700; }
 .muted { color:var(--muted-2); font-weight:600; }
-.small { font-size:12px; }
-.empty { color:var(--muted); font-size:14px; text-align:center; padding:48px 20px; }
+.small { font-size:0.75rem; }
+.empty { color:var(--muted); font-size:0.875rem; text-align:center; padding:48px 20px; }
 
 /* ===== 地图：竖着蜿蜒下去的一串关卡 ===== */
-.unit { position:relative; z-index:2; display:flex; align-items:center; gap:12px;
-  background:var(--soft); border-radius:var(--r-lg); padding:12px 16px; margin-bottom:12px; }
-.unit-l { flex:1; min-width:0; }
-.unit-l b { display:block; font-size:15px; }
-.unit-l span { font-size:12px; color:var(--muted-2); font-weight:600; }
-.unit-r { font-size:12px; font-weight:800; color:var(--accent-d); white-space:nowrap; }
 #view-quest { max-width:1000px; margin:0 auto; width:100%; }
 /* 一张地图上的十个地方。任务家族之间没有先后，所以不画那条线——
    有顺序的那件事在顶栏的进度条上。地块是几团很淡的色，像从上面看一片地。 */
@@ -136,6 +177,12 @@ h2 .muted { font-weight:700; }
     radial-gradient(70% 50% at 50% -6%, #fdf6ec, rgba(255,255,255,0) 70%),
     linear-gradient(180deg, #fefdfb, #f5f3ee);
   box-shadow: inset 0 2px 0 rgba(255,255,255,.9), 0 20px 40px -24px rgba(90,70,40,.5); }
+/* 十个地方之间的小路：不带箭头、不编号、粗细不变——家族之间没有先后，
+   它说的是「这十个地方连在一起」，不是「按这个顺序走」。 */
+.map-path { position:absolute; inset:0; width:100%; height:100%; z-index:0; pointer-events:none; }
+.map-path path { fill:none; stroke:var(--line-d); stroke-width:4; stroke-linecap:round;
+  stroke-dasharray:2 15; opacity:.9; }
+
 .map .quest-card { position:absolute; left:var(--mx,50%); top:var(--my,50%);
   transform:translate(-50%,-50%); z-index:1; width:150px; text-align:center; cursor:pointer;
   background:none; border:none; padding:0; box-shadow:none; transition:transform .15s; }
@@ -143,16 +190,37 @@ h2 .muted { font-weight:700; }
 .map .quest-card::before { content:""; position:absolute; left:50%; top:38px; z-index:-1;
   width:172px; height:172px; margin:-86px 0 0 -86px; border-radius:50%;
   background:radial-gradient(closest-side, var(--qc,var(--accent)), rgba(255,255,255,0));
-  opacity:.3; transition:opacity .2s, transform .2s; }
+  /* 十个光晕一样亮，等于十个都不亮——整片地图糊成一袋糖。
+     底色压到很淡，把对比全留给「下一关」那一个。 */
+  opacity:.13; transition:opacity .2s, transform .2s; }
 .map .quest-card:hover::before { opacity:.26; transform:scale(1.06); }
 .map .quest-card:active { transform:translate(-50%,-50%) scale(.97); }
 .node-btn { position:relative; width:76px; height:76px; margin:0 auto; border-radius:50%;
   background:var(--qc, var(--accent)); color:#fff; display:flex; align-items:center; justify-content:center;
   box-shadow:0 6px 0 var(--qc-edge, var(--accent-d)), 0 14px 22px -10px rgba(60,45,25,.45);
   transition:transform .1s, box-shadow .1s; }
+/* ===== 去过的地方挂着自己画的那张画 =====
+   一排一模一样的图标谁都做得出来；十扇开着自己画的窗做不到。而且这张地图
+   会**跟着画画长出内容**：第一天十块空地，画过三次之后地图上就有三扇窗。
+   白边 + 家族色的外圈，让它读起来像一枚纪念章，不像一张贴上去的截图。 */
+.node-btn.has-shot { background:#fff; overflow:hidden;
+  box-shadow:0 0 0 4px var(--qc, var(--accent)), 0 6px 0 var(--qc-edge, var(--accent-d)),
+             0 14px 22px -10px rgba(60,45,25,.45); }
+.node-shot { width:100%; height:100%; object-fit:cover; display:block; }
+/* 没去过的地方是**一块空地**：一圈虚线、颜色还没填上。它要读起来像
+   「这儿还没画」，不是像「这个按钮被禁用了」——所以留着自己的颜色，
+   只是淡，而且没有那层厚厚的下沿（那是给能按下去的东西的）。 */
+.map .quest-card:not(.done):not(.next):not(.locked) .node-btn { background:var(--qc-soft, #fdeacf);
+  color:var(--qc, var(--accent)); border:2.5px dashed var(--qc, var(--accent));
+  box-shadow:0 4px 0 var(--qc-soft, #fdeacf), 0 10px 18px -12px rgba(60,45,25,.3); }
+.map .quest-card:not(.done):not(.next):not(.locked):active .node-btn { transform:translateY(3px);
+  box-shadow:0 0 0 var(--qc-soft, #fdeacf); }
 .map .quest-card:active .node-btn { transform:translateY(5px);
   box-shadow:0 0 0 var(--qc-edge, var(--accent-d)), 0 8px 14px -10px rgba(60,45,25,.4); }
-.map .quest-card h3 { margin:12px 0 0; font-size:14px; font-weight:800; }
+/* 关卡名**不许串行**：两行的卡片会把下面那一圈顶乱，而且十个名字长短不一，
+   有的一行有的两行看着就不齐。最长的「变异物体实验室」占 132/150，
+   留着 12% 余量给不同设备的字形宽度差异。 */
+.map .quest-card h3 { margin:12px 0 0; font-size:0.875rem; font-weight:800; white-space:nowrap; }
 .node-sub { display:none; }          /* 「N 种玩法」是个数量，不是给孩子的话 */
 /* 走过的关：盖一颗星 */
 .node-star { position:absolute; right:-4px; top:-4px; width:26px; height:26px; border-radius:50%;
@@ -168,22 +236,49 @@ h2 .muted { font-weight:700; }
 /* 下一关：彩点站在这儿，头上一个小气泡 */
 .node-here { position:absolute; left:calc(50% + 28px); top:-12px; width:40px; height:40px; z-index:2; }
 .node-tip { position:absolute; left:50%; top:-26px; transform:translateX(-50%);
-  background:var(--accent); color:#fff; font-size:11px; font-weight:800; padding:3px 10px;
+  background:var(--accent); color:#fff; font-size:0.6875rem; font-weight:800; padding:3px 10px;
   border-radius:999px; white-space:nowrap; box-shadow:0 2px 0 var(--accent-d); }
 /* 下一关：地块更大更亮，钮外面一圈呼吸的光——该往哪儿走不用文字说 */
 .map .quest-card.next .node-btn { box-shadow:0 6px 0 var(--qc-edge, var(--accent-d)),
   0 14px 22px -10px rgba(60,45,25,.45), 0 0 0 5px var(--qc-soft, #fdeacf); }
-.map .quest-card.next::before { opacity:.46; width:208px; height:208px; margin:-104px 0 0 -104px; }
+.map .quest-card.next::before { opacity:.52; width:208px; height:208px; margin:-104px 0 0 -104px; }
 @media (prefers-reduced-motion: no-preference) {
   .map .quest-card.next::before { animation: land-breathe 3.4s ease-in-out infinite; }
   @keyframes land-breathe { 50% { opacity:.58; transform:scale(1.06); } }
 }
 /* 大屏上地图铺满整块屏幕，不要上面一张图下面一片空白——
-   十个地方本来就该占住一整片地。（窄屏走的是下面那套两列，不受影响。） */
-@media (min-width: 701px) {
+   十个地方本来就该占住一整片地。（窄屏和矮屏走的是下面那套两列，不受影响。）
+   **必须同时看高度**：横过来的手机宽 852 却只有 393 高，只看宽度就会把十个
+   关卡钮塞进一条 164px 的窄带里，它们会互相压住——点「探险家速写」会点到
+   「融合发明家」。地图是一片地，不是一条线，矮屏上就该滚。 */
+@media (min-width: 701px) and (min-height: 600px) {
   #view-quest { display:flex; flex-direction:column;
     height:calc(100vh - 168px); height:calc(100dvh - 168px); }
   #view-quest .map { flex:1 1 auto; aspect-ratio:auto; min-height:0; max-width:none; }
+}
+
+/* ===== 「今天从这儿开始」 ===== */
+/* 十个平级的彩球没有主次，孩子得一次评估十个陌生的名字才敢点。
+   这张卡是**默认的入口**：不替他决定（十个仍然全开着），
+   但让「不想决定」也是一条能走通的路。 */
+.today { display:flex; align-items:center; gap:13px; margin:0 0 14px;
+  background:linear-gradient(135deg, var(--tc-l, var(--accent-l)), var(--card) 78%);
+  border:2px solid var(--tc-l, var(--accent-l)); border-radius:var(--r-lg);
+  padding:11px 13px; box-shadow:0 var(--edge) 0 var(--tc-d, var(--accent-d)); }
+.today .t-sprite { width:44px; height:44px; flex:none; overflow:visible; }
+.today .t-body { flex:1 1 auto; min-width:0; }
+/* 中文不做 uppercase，letter-spacing 也只会把字拆散 */
+.today .t-kicker { font-size:0.6875rem; font-weight:800; color:var(--tc-d, var(--accent-d)); }
+.today .t-title { font-size:1.125rem; font-weight:800; margin:1px 0 0; letter-spacing:-.01em;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.today .t-go { flex:none; }
+@media (max-width: 420px) {
+  /* 最窄的那批手机：按钮收成一枚圆钮，字让给任务名 */
+  .today { gap:10px; padding:10px 11px; }
+  .today .t-sprite { width:38px; height:38px; }
+  .today .t-title { font-size:1.0625rem; }
+  .today .t-go button { padding:9px 12px; }
+  .today .t-go button .ico { margin:0; }
 }
 
 /* ===== 流程进度条：做一幅画的六步 ===== */
@@ -191,24 +286,71 @@ h2 .muted { font-weight:700; }
 .flow-track { position:relative; flex:1; height:12px; border-radius:999px; background:var(--line); overflow:hidden; }
 .flow-fill { height:100%; border-radius:999px; background:var(--green); width:0; transition:width .35s ease; }
 .flow-sprite { width:30px; height:30px; flex:none; overflow:visible; }
-.flow-step { font-size:12px; font-weight:800; color:var(--muted-2); white-space:nowrap; }
+.flow-step { font-size:0.75rem; font-weight:800; color:var(--muted-2); white-space:nowrap; }
 
 /* ===== 任务卡（画画时侧边那张小卡） ===== */
 .quest-card.small { background:var(--card); border:2px solid var(--line); border-radius:var(--r);
   padding:12px 14px; cursor:default; }
-.quest-card.small .type { font-size:11px; font-weight:800; color:var(--muted); }
-.quest-card.small h3 { margin:3px 0 5px; font-size:15px; font-weight:800; }
-.quest-card.small p { margin:0; font-size:12px; color:var(--muted-2); line-height:1.6; font-weight:600; }
-.qc-icon { font-size:22px; line-height:1; }
+.quest-card.small .type { font-size:0.6875rem; font-weight:800; color:var(--muted); }
+.quest-card.small h3 { margin:3px 0 5px; font-size:0.9375rem; font-weight:800; }
+.quest-card.small p { margin:0; font-size:0.75rem; color:var(--muted-2); line-height:1.6; font-weight:600; }
+.qc-icon { font-size:1.375rem; line-height:1; }
 
-.quest-prompt { font-size:16px; line-height:1.7; background:var(--soft); border-radius:var(--r);
+.quest-prompt { font-size:1rem; line-height:1.7; background:var(--soft); border-radius:var(--r);
   padding:14px 16px; font-weight:700; }
-.hint { color:var(--muted-2); font-size:14px; }
-label { display:block; margin:18px 0 7px; font-weight:800; font-size:14px; }
-textarea, input[type=text] { width:100%; max-width:560px; padding:12px 14px; border:2px solid var(--line);
+.hint { color:var(--muted-2); font-size:0.875rem; }
+
+/* ===== 心愿屏：两张卡 ===== */
+.intent-grid { display:grid; grid-template-columns:1fr; gap:12px; align-items:stretch; }
+/* 左边这张是任务本身，是这一屏要读的东西，字比创作屏侧栏那张大一号 */
+/* 选择器要压过 .quest-card.small 那三条（两个类），所以写全 */
+.quest-card.small.intent-task { padding:26px 28px; position:relative; }
+.quest-card.small.intent-task .type { font-size:1rem; color:var(--room-d, var(--muted-2)); }
+.quest-card.small.intent-task h3 { font-size:2rem; margin:10px 0 16px; line-height:1.25; }
+.quest-card.small.intent-task p { font-size:1.1875rem; line-height:1.85; color:var(--ink); }
+.intent-ref { display:block; width:100%; max-height:38vh; object-fit:contain; margin-top:18px;
+  border-radius:12px; background:#fff; box-shadow:0 0 0 2px rgba(0,0,0,.06); }
+.intent-form { background:var(--card); border:2px solid var(--line); border-radius:var(--r);
+  padding:22px 24px; display:flex; flex-direction:column; }
+.intent-form label { margin:0 0 10px; font-size:1.0625rem; }
+/* 十个心情，固定一行五个：格子等宽，两行对得整整齐齐 */
+.intent-form .chips { margin-bottom:22px; gap:10px; display:grid; grid-template-columns:repeat(5, 1fr); }
+.intent-form .chips button { font-size:1rem; padding:10px 6px; gap:5px; }
+.intent-form .chips .emo { font-size:1.375rem; line-height:1; }
+.intent-form textarea { max-width:none; font-size:1.125rem; padding:14px 16px; flex:1 1 auto; min-height:5.5rem; resize:none; }
+.intent-form .actions button { font-size:1.0625rem; }
+.intent-form .pidbox { margin-top:14px; }
+.intent-form .pidbox label { margin-top:0; }
+.intent-form .actions { margin-top:auto; padding-top:18px; }
+@media (min-width:900px) and (min-height:600px) {
+  /* 和创作屏一样占满一屏：两张卡撑到底，右卡里输入框吃掉多出来的高度 */
+  #view-intent { display:flex; flex-direction:column; height:calc(100vh - 126px); height:calc(100dvh - 126px); }
+  .intent-grid { grid-template-columns:1fr 1.25fr; flex:1 1 auto; min-height:0; }
+  .intent-task { overflow-y:auto; }
+}
+@media (max-width:520px) {
+  .intent-form .chips { grid-template-columns:repeat(2, 1fr); }
+}
+label { display:block; margin:18px 0 7px; font-weight:800; font-size:0.875rem; }
+/* 35rem 而不是 560px：这个上限管的是**一行放多少字**，是跟着字号走的量。
+   写死 px 的话，平板上字大了一档、框还是那么宽，一行反而装得更少。 */
+textarea, input[type=text] { width:100%; max-width:35rem; padding:12px 14px; border:2px solid var(--line);
   border-radius:var(--r); font:inherit; font-weight:600; background:var(--card); color:var(--ink); }
 textarea:focus, input[type=text]:focus { outline:none; border-color:var(--blue); }
 textarea::placeholder, input::placeholder { color:var(--muted); font-weight:600; }
+/* ===== 画之前这一屏上的「我是谁」 =====
+   代号那个框是研究员的把手，只有实验模式下才在。留给孩子的是一句可选的提示：
+   一行小字，不是一张卡——它不该和「开始画」抢注意力。 */
+.pidbox { display:contents; }
+.intent-tip { display:flex; align-items:flex-start; gap:8px; margin:14px 0 0; padding:11px 13px;
+  border-radius:var(--r); background:var(--soft); color:var(--muted-2);
+  font-size:0.8125rem; font-weight:600; line-height:1.65; }
+.intent-tip .ico { flex:none; margin-top:2px; color:var(--purple-d); }
+.intent-tip .linkbtn { display:inline; padding:0; min-height:0; background:none; border:none;
+  box-shadow:none; font:inherit; font-weight:800; color:var(--purple-d); text-decoration:underline; }
+.intent-tip .linkbtn:hover { background:none; filter:brightness(1.15); }
+.intent-tip .linkbtn:active { transform:none; }
+
 .chips { display:flex; flex-wrap:wrap; gap:8px; }
 .chips button { border-radius:var(--r); padding:8px 15px; }
 .chips button.active { background:var(--blue-l); border-color:var(--blue); color:var(--blue-d);
@@ -219,36 +361,195 @@ textarea::placeholder, input::placeholder { color:var(--muted); font-weight:600;
 .actions.sticky { position:sticky; bottom:0; margin-top:20px; padding:12px 0 calc(12px + env(safe-area-inset-bottom));
   background:linear-gradient(180deg, rgba(255,255,255,0), #fff 35%); }
 
-/* ===== 画画界面 ===== */
-.draw-layout { display:flex; flex-direction:column; gap:14px; }
-.toolbox { display:flex; flex-direction:column; gap:12px; }
-.intent-card { background:var(--yellow-l); border-radius:var(--r); padding:11px 13px; font-size:12px; line-height:1.6; }
-.tool-group { background:var(--card); border:2px solid var(--line); border-radius:var(--r); padding:11px; }
-.tool-group.row { display:flex; gap:7px; }
-.tool-group.row button { flex:1; padding:7px 4px; font-size:12px; gap:4px; }
-.tool-group .label { font-size:11px; font-weight:800; color:var(--muted); letter-spacing:.04em; margin-bottom:8px; }
-.tools { display:grid; grid-template-columns:repeat(4,1fr); gap:7px; }
-.tools button { flex-direction:column; gap:3px; padding:9px 4px; font-size:12px; }
-.tools button.active { background:var(--accent); border-color:var(--accent); color:#fff;
+/* ===== 画画界面 =====
+   Procreate 的路子，三条：画布铺满、工具退到边上、面板一律点开才浮出。
+   左边一根细条（粗细/浓淡两根滑块，两端撤销重做），底下一条只有图标的 dock，
+   右边只留「这次画什么」和彩点说的话。常驻的面板越少，孩子看到的画布越大。
+
+   窄屏是基础样式：细条横着摆在画布上方。宽屏（>=900px）才转成竖的左栏。 */
+.studio { display:flex; flex-direction:column; gap:11px; min-height:0; }
+
+/* -- 左边那根细条 -- */
+.railbar { display:flex; align-items:center; gap:10px; flex:0 0 auto; }
+.railbtn { width:42px; height:42px; padding:0; flex:0 0 auto; }
+.vsl { flex:1 1 auto; min-width:0; display:flex; align-items:center; gap:7px; }
+.vsl-thumb { display:none; }       /* 横排用原生拇指；竖排（宽屏）才画自己的 */
+.vsl::before { content:attr(data-name); flex:0 0 auto;
+  font-size:0.6875rem; font-weight:800; color:var(--muted); }
+.vsl input[type=range] { flex:1 1 auto; min-width:0; }
+.vsl-v { flex:0 0 3.2em; text-align:right; font-size:0.6875rem; font-weight:800;
+  color:var(--muted-2); font-variant-numeric:tabular-nums; }
+
+/* -- 画布 -- */
+/* align-items:center 是有讲究的，不是为了好看：它让 .canvas-viewport **按内容收缩**，
+   于是 viewport 和画布严丝合缝。`applyView()` 的平移边界是按 viewport.clientHeight
+   算的，viewport 只要比画布高出一截，缩放后画面就会被甩出视野——
+   给 viewport 一个 flex:1 让它撑满 stage，正是这个 bug。 */
+.stage { display:flex; flex-direction:column; gap:10px; min-height:0;
+  align-items:center; justify-content:flex-start; }
+
+/* -- 底下那条 dock：只有图标，没有标签，也没有展开着的面板 -- */
+.dock { display:flex; align-items:center; justify-content:center; gap:7px; flex-wrap:wrap;
+  flex:0 0 auto; max-width:100%; background:var(--card); border:2px solid var(--line);
+  border-radius:var(--r); padding:7px 9px; }
+.dock .tools { display:flex; gap:6px; }
+/* 唯一的文字：固定四个字的宽度，名字长短变了 dock 不会跟着跳 */
+.dock-name { flex:0 0 auto; min-width:4.6em; text-align:center; font-size:0.75rem; font-weight:800;
+  color:var(--muted-2); background:var(--soft); border-radius:999px; padding:7px 10px; margin-right:4px;
+  font-variant-numeric:tabular-nums; transition:background .15s, color .15s; }
+.dock-name.flash { background:var(--yellow-l); color:var(--ink); }
+.dock .tools button, .dockbtn { width:44px; height:44px; padding:0; flex:0 0 auto; }
+.dock .tools button.active { background:var(--accent); border-color:var(--accent); color:#fff;
   box-shadow:0 var(--edge) 0 var(--accent-d); }
-.palette { display:grid; grid-template-columns:repeat(12,1fr); gap:6px; margin-bottom:8px; }
-.palette div { aspect-ratio:1; border-radius:8px; border:3px solid transparent; cursor:pointer;
+.dock-sep { flex:0 0 auto; width:2px; height:26px; border-radius:2px; background:var(--line); }
+
+/* -- 右栏：只剩任务和彩点 -- */
+.brief { display:flex; flex-direction:column; gap:10px; min-height:0; }
+.brief-spacer { display:none; }
+
+/* -- 彩点的窗 --------------------------------------------------------------
+   模糊不是装饰，是句话：这儿有东西，但要你来揭。孩子因此既不会忘了有人能问，
+   也不会被打断——**他什么时候点**正是这个研究要的信号。
+   所以不做成聊天输入框：8–14 岁打一句话要半分钟，输入法还盖住画布，
+   心流当场断掉；而一次点击是干净得多的因变量，和 stroke 流对得上。 */
+.assist { position:relative; background:var(--card); border:2px solid var(--line);
+  border-radius:var(--r); padding:11px; }
+.assist.hidden { display:none; }
+.assist-head { display:flex; align-items:center; gap:7px; margin-bottom:9px;
+  font-size:0.75rem; font-weight:800; color:var(--muted-2); }
+.assist-head .sprite { width:26px; height:26px; flex:0 0 auto; }
+.assist-head .timer { margin:0 0 0 auto; font-size:0.75rem; color:var(--muted-2); }
+.assist-log { display:flex; flex-direction:column; gap:7px;
+  font-size:0.8125rem; line-height:1.65;
+  max-height:15rem; overflow-y:auto; }        /* 说得多了自己滚，别把右栏撑长 */
+@keyframes assist-again { 0%,100% { background:var(--soft); } 42% { background:var(--yellow-l); } }
+.assist-msg.again { animation:assist-again .7s ease; }
+.assist-msg { background:var(--soft); border-radius:12px; padding:9px 11px; }
+.assist-msg.fb { background:var(--yellow-l); }   /* 第二阶段摊开的那份正式反馈 */
+/* 正式反馈比过程中的一句话长得多，第二阶段给它整块地方 */
+.assist.open-fb .assist-log { max-height:26rem; }
+
+/* 全局的 `button { display:inline-flex }` 压过了 UA 样式表里的
+   `[hidden] { display:none }`，于是 hidden 属性对按钮悄悄失效——
+   它不报错，只是那颗按钮还在。补一条兜底，省得以后再咬人一次。 */
+[hidden] { display:none !important; }
+.assist-msg.wait { color:var(--muted); }
+
+/* 蒙着的时候：底下垫三行假文字，糊掉。空白一片的话「有东西」这个意思就没了。 */
+.assist.veiled .assist-log { filter:blur(5px); user-select:none; pointer-events:none; }
+.assist.veiled .assist-log::before { content:""; display:block; height:58px; flex:1 1 auto; border-radius:10px;
+  background:linear-gradient(var(--line) 0 0) 0 4px / 92% 11px no-repeat,
+             linear-gradient(var(--line) 0 0) 0 27px / 76% 11px no-repeat,
+             linear-gradient(var(--line) 0 0) 0 50px / 54% 11px no-repeat,
+             linear-gradient(var(--line) 0 0) 0 84px / 88% 11px no-repeat,
+             linear-gradient(var(--line) 0 0) 0 107px / 64% 11px no-repeat,
+             linear-gradient(var(--line) 0 0) 0 130px / 40% 11px no-repeat; }
+.assist.veiled .assist-log > * { display:none; }
+
+.assist-veil { width:100%; }
+/* 蒙着时它盖住整扇窗；揭开之后缩成底下一颗「再听一句」。 */
+.assist.veiled .assist-veil { position:absolute; inset:0; border-radius:calc(var(--r) - 2px);
+  background:rgba(255,255,255,.35); box-shadow:none; border:none;
+  display:flex; align-items:center; justify-content:center; }
+.assist.veiled .assist-veil .assist-veil-t { background:var(--card); border:2px solid var(--line);
+  border-radius:999px; padding:7px 13px; font-size:0.75rem; font-weight:800;
+  box-shadow:0 var(--edge) 0 var(--line-d); }
+.assist:not(.veiled) .assist-veil { margin-top:9px; font-size:0.75rem; padding:7px 10px; }
+
+/* -- 点开才浮出的面板。位置由 app.js 贴着触发它的那个按钮算。 -- */
+.pop { position:fixed; z-index:40; background:var(--card); border:2px solid var(--line);
+  border-radius:var(--r-lg); padding:12px; box-shadow:0 14px 36px rgba(0,0,0,.18);
+  width:min(21rem, calc(100vw - 2rem)); }
+.pop.hidden { display:none; }
+.pop-badge { width:auto; max-width:16rem; padding:10px 14px; text-align:center; }
+.pop-badge b { display:block; font-size:0.9375rem; }
+.pop-badge p { margin:4px 0 0; font-size:0.8125rem; color:var(--muted-2); font-weight:600; line-height:1.55; }
+.pop-badge .small { display:block; margin-top:4px; }
+.pop > button { width:100%; margin-top:10px; }
+.palette { display:grid; grid-template-columns:repeat(6,1fr); gap:7px; }
+.palette div { aspect-ratio:1; border-radius:9px; border:3px solid transparent; cursor:pointer;
   box-shadow:inset 0 0 0 1px rgba(0,0,0,.06); }
 .palette div.active { border-color:var(--ink); }
-input[type=color] { width:100%; height:34px; padding:2px; border:2px solid var(--line);
-  border-radius:10px; background:var(--card); cursor:pointer; }
+/* ===== 色块钮与笔尖预览 ===== */
+/* 当前色是一颗大圆钮：它既是"现在画什么颜色"的指示，也是取色器的入口。
+   40px 起步，手指按得着（触摸屏上还会被 44pt 那条规则再撑一次）。 */
+.swatch { flex:0 0 auto; width:44px; height:44px; padding:0; border-radius:50%;
+  border:3px solid #fff; background:var(--cur, #222);
+  box-shadow:0 0 0 2px var(--line), 0 var(--edge) 0 var(--line-d); }
+.swatch:hover { background:var(--cur, #222); }
+/* 橡皮没有颜色也没有浓淡：色块变空心、浓淡那根滑块变灰。它们照旧亮着的话，
+   孩子会拖着浓淡等一个永远不来的变化。 */
+body.erasing .swatch, body.erasing .swatch:hover { background:#fff;
+  box-shadow:inset 0 0 0 2px var(--line-d), 0 0 0 2px var(--line), 0 var(--edge) 0 var(--line-d); }
+.vsl.off { opacity:.38; pointer-events:none; }
+
+/* -- 吸管：从画里取色 -- */
+body.eyedrop canvas { cursor:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='26' height='26' viewBox='0 0 24 24' fill='white' stroke='%234a4a4a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m17.4 3.4 3.2 3.2'/><path d='m15 5.8 3.2 3.2'/><path d='M13.4 7.4 16.6 10.6 8.2 19a2.2 2.2 0 0 1-3.1 0l-.1-.1a2.2 2.2 0 0 1 0-3.1Z'/></svg>") 4 22, crosshair; }
+.eyedrop-tip { position:absolute; z-index:3; top:10px; left:50%; transform:translateX(-50%);
+  display:flex; align-items:center; gap:6px; white-space:nowrap;
+  background:var(--card); border:2px solid var(--line); border-radius:999px;
+  padding:5px 6px 5px 12px; font-size:0.8125rem; font-weight:800; color:var(--ink);
+  box-shadow:0 6px 18px rgba(0,0,0,.12); }
+.eyedrop-tip.hidden { display:none; }
+.eyedrop-tip .linkbtn { min-height:0; padding:4px 10px; border-radius:999px; background:var(--soft);
+  border:none; box-shadow:none; font-size:0.75rem; color:var(--muted-2); }
+.eyedrop-tip .linkbtn:hover { color:var(--ink); }
+/* 笔尖预览：按当前粗细和浓淡画一个真实大小的点。滑杆上的数字说不清 24px 有多粗。
+   原来它常驻在画笔条里；现在只在**拖滑块的那几秒**浮在细条旁边，拖完就收。 */
+.nib { position:fixed; z-index:41; width:74px; height:74px; border-radius:16px;
+  background:var(--card); border:2px solid var(--line); box-shadow:0 10px 26px rgba(0,0,0,.16);
+  display:flex; align-items:center; justify-content:center; overflow:hidden;
+  opacity:0; pointer-events:none; transition:opacity .12s; }
+.nib.show { opacity:1; }
+.nib i { display:block; border-radius:50%; background:var(--cur, #222); }
+
+/* ===== 取色器 ===== */
+.modal-card.picker { max-width:26rem; }
+/* 饱和度/明度面板：两层渐变叠出来，不用 canvas——任何尺寸都清晰，
+   也不用操心 devicePixelRatio。横轴是饱和度，纵轴是明度。 */
+.pk-sv { position:relative; height:11rem; border-radius:var(--r); margin:10px 0 14px;
+  touch-action:none; cursor:crosshair;
+  background:
+    linear-gradient(to top, #000, rgba(0,0,0,0)),
+    linear-gradient(to right, #fff, hsl(var(--pk-h, 0) 100% 50%)); }
+.pk-cur { position:absolute; width:22px; height:22px; margin:-11px 0 0 -11px; border-radius:50%;
+  border:3px solid #fff; box-shadow:0 0 0 2px rgba(0,0,0,.35); pointer-events:none; }
+input[type=range].hue { background:linear-gradient(to right,
+  #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%); }
+.pk-recent-wrap { margin-top:14px; }
+.pk-recent { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+.pk-recent button { width:32px; height:32px; min-height:0; padding:0; border-radius:9px;
+  border:2px solid var(--line); box-shadow:none; }
+.pk-foot { display:flex; align-items:center; gap:12px; margin-top:16px; }
+.pk-now { display:flex; align-items:center; gap:8px; font-size:0.8125rem; font-weight:800;
+  color:var(--muted-2); font-variant-numeric:tabular-nums; }
+.pk-now i { width:26px; height:26px; border-radius:50%; background:var(--cur, #222);
+  border:2px solid #fff; box-shadow:0 0 0 2px var(--line); }
 input[type=range] { width:100%; appearance:none; height:12px; border-radius:999px; background:var(--line); }
-input[type=range]::-webkit-slider-thumb { appearance:none; width:26px; height:26px; border-radius:50%;
+/* margin-top：量出来拇指的中心比轨道低 2px（appearance:none 之后 Chrome 不是按轨道中心放的），拉回来 */
+input[type=range]::-webkit-slider-thumb { appearance:none; width:26px; height:26px; border-radius:50%; margin-top:-2px;
   background:var(--accent); border:3px solid #fff; box-shadow:0 2px 0 var(--accent-d); cursor:pointer; }
 input[type=range]::-moz-range-thumb { width:22px; height:22px; border-radius:50%; background:var(--accent);
   border:3px solid #fff; cursor:pointer; }
-.timer { display:flex; align-items:center; gap:6px; font-size:14px; font-weight:800; margin-bottom:10px; }
+.timer { display:flex; align-items:center; gap:6px; font-size:0.875rem; font-weight:800; margin-bottom:10px; }
 .timer .limit { color:var(--muted-2); font-variant-numeric:tabular-nums; }
 .timer .limit.low { color:var(--red-d); }
-.tool-group > button { width:100%; margin-top:8px; }
-.banner { margin-top:10px; background:var(--purple-l); border-radius:var(--r); padding:12px; font-size:13px; font-weight:700; }
+.banner { margin-top:10px; background:var(--purple-l); border-radius:var(--r); padding:12px; font-size:0.8125rem; font-weight:700; }
 .banner button { margin-top:10px; width:100%; }
-.canvas-wrap { background:var(--card); border:2px solid var(--line); border-radius:var(--r-lg); padding:10px; }
+/* 原来画布外面裹着一层带边框和 10px 内边距的卡片，加上 section 自己的 padding，
+   画布四周有三层留白。现在只留画布本身的圆角和一道极淡的描边。
+   **这里绝不能出现 transform**：缩放靠的是 canvas 自己的 transform，取点走
+   getBoundingClientRect()，祖先上多一个 transform 落笔坐标就歪了。 */
+/* 画布**贴顶**，不在 stage 里居中。画布是 1024:704（1.45），画布区通常比这更扁，
+   于是画布总是宽度先到顶、高度余出一截。这一截居中的话就劈成上下两半，
+   右栏和细条的顶边跟着各错开一半——那正是看起来「哪儿都没对齐」的来源。
+   全部甩到下面去，三列的顶边就齐了。 */
+/* 这道描边**只能用 box-shadow，不能用 border**：border 会进 clientHeight，
+   于是 fitCanvas 量到的可用高度比 viewport 的内容区多出上下各 1px，
+   画布照着长高 2px，再被 overflow:hidden 切掉——就是那条
+   「画布 top 被切掉 2px」的测试在守的东西。box-shadow 不占布局。 */
+.stage > .canvas-viewport { min-height:0; flex:0 1 auto;
+  box-shadow:0 0 0 1px var(--line), 0 2px 10px rgba(0,0,0,.05); }
 /* Zoom/pan is a CSS transform on the canvas element, never a change to the
    drawing context: pointer coordinates are mapped through getBoundingClientRect(),
    which already reports the transformed box, so stroke points stay in canvas
@@ -256,23 +557,29 @@ input[type=range]::-moz-range-thumb { width:22px; height:22px; border-radius:50%
 .canvas-viewport { position:relative; overflow:hidden; border-radius:11px; background:#fff; }
 /* 画布按**能放下的那一边**缩：宽度不够按宽度，高度不够按高度。
    1024x704 的比例自己守住，缩放/取点走的还是 getBoundingClientRect，数据不受影响。 */
+/* max-height:100% 在这里**是解析不出值的**：.canvas-viewport 的高度是 flex 收缩
+   出来的（specified height 仍是 auto），百分比没有可依的高度，于是 max-height
+   计算成 none，画布按宽度撑满、比框高出一截，被 overflow:hidden 切掉——
+   iPad 横屏上下各切 22px，桌面各切 16px。真正管用的上限由 app.js 的
+   fitCanvas() 按像素写进 style，这里这条只是没 JS 时的兜底。 */
 canvas { width:auto; height:auto; max-width:100%; max-height:100%; display:block; background:#fff;
   border-radius:11px; touch-action:none; cursor:crosshair; transform-origin:0 0; }
 .canvas-viewport { display:flex; align-items:center; justify-content:center; }
 .canvas-viewport.grab canvas { cursor:grab; }
 .canvas-viewport.panning canvas { cursor:grabbing; }
-.zoombar { display:flex; align-items:center; gap:7px; margin-top:9px; flex-wrap:wrap; }
-.zoombar button { padding:6px 11px; font-size:13px; }
-.zoombar #btn-zoom-reset { min-width:64px; font-variant-numeric:tabular-nums; }
+.zoombar { display:flex; align-items:center; gap:6px; }
+.zoombar button { width:42px; height:42px; padding:0; font-size:0.8125rem; }
+.zoombar #btn-zoom-reset { width:auto; min-width:62px; padding:0 9px;
+  font-variant-numeric:tabular-nums; }
 .zoombar #btn-hand.active { background:var(--blue); border-color:var(--blue); color:#fff;
   box-shadow:0 var(--edge) 0 var(--blue-d); }
 .zoombar.hidden { display:none; }
-#tools button.off, .toolbox button:disabled { opacity:.35; cursor:not-allowed; }
+#tools button.off, .dock button:disabled, .railbar button:disabled { opacity:.35; cursor:not-allowed; }
 
 /* What the personalisation arm decided to show this child. Shown only when the
    frozen `history_mode` is not "none" — the control arm renders nothing. */
-.historycard { background:var(--blue-l); border-radius:var(--r); padding:11px 13px; font-size:13px; line-height:1.7; }
-.historycard h4 { margin:0 0 4px; font-size:12px; font-weight:800; color:var(--blue-d);
+.historycard { background:var(--blue-l); border-radius:var(--r); padding:11px 13px; font-size:0.8125rem; line-height:1.7; }
+.historycard h4 { margin:0 0 4px; font-size:0.75rem; font-weight:800; color:var(--blue-d);
   display:flex; align-items:center; gap:6px; }
 .historycard p { margin:0 0 2px; }
 .historycard.hidden { display:none; }
@@ -280,28 +587,50 @@ canvas { width:auto; height:auto; max-width:100%; max-height:100%; display:block
 /* The reference gets its own viewport: how long a child looks, how far they
    zoom in, and when attention moves between reference and canvas are all
    process signals, and none of them exist if the image is a flat thumbnail. */
-.refpanel > button { width:100%; }
-.refpanel .ref-img { margin-top:8px; border:2px solid var(--line); border-radius:var(--r); padding:6px; background:#fff; }
-.refpanel .ref-img img { display:block; width:100%; }
-.ref-viewport { position:relative; overflow:hidden; border-radius:10px; background:#fff; max-height:260px; cursor:grab; }
+/* 右栏里的缩略图：一张固定高度的卡，点开才是大图 */
+.ref-thumb { position:relative; width:100%; height:8rem; padding:0; overflow:hidden; border-radius:var(--r);
+  background:var(--soft); display:flex; align-items:center; justify-content:center; }
+.ref-thumb img { display:block; width:100%; height:100%; object-fit:cover; }
+.ref-thumb-t { position:absolute; left:50%; bottom:10px; transform:translateX(-50%); white-space:nowrap;
+  display:inline-flex; align-items:center; gap:5px; padding:6px 12px; border-radius:999px;
+  background:rgba(255,255,255,.92); border:2px solid var(--line); font-size:0.8125rem; font-weight:800; }
+/* on_demand：不露画面，只有一颗钮——孩子没主动要看之前，参考图不该在眼前 */
+.refpanel.peek .ref-thumb { height:auto; padding:11px; background:var(--card); }
+.refpanel.peek .ref-thumb img { display:none; }
+.refpanel.peek .ref-thumb-t { position:static; transform:none; border:none; background:none; padding:0; }
+/* 大图：整屏深底 */
+.ref-modal { align-items:center; background:rgba(30,28,26,.86); }
+/* 图和工具栏装在同一张白卡里：卡的宽度由图（sizeRefStage 写的像素）决定，
+   工具栏撑满卡宽、按钮居中。不靠任何 shrink-to-fit——那条在 Safari 上包不住按钮。 */
+.ref-stage { display:block; background:var(--card); border-radius:16px; padding:10px;
+  box-shadow:0 20px 60px rgba(0,0,0,.4); }
+.ref-viewport { position:relative; overflow:hidden; border-radius:10px; background:#fff; cursor:grab;
+  touch-action:none; }
 .ref-viewport.dragging { cursor:grabbing; }
 .ref-viewport img { display:block; width:100%; height:auto; transform-origin:0 0; user-select:none; -webkit-user-drag:none; }
-.refbar { display:flex; align-items:center; gap:6px; margin-top:8px; flex-wrap:wrap; }
-.refbar button { padding:4px 9px; font-size:12px; }
-.refbar #btn-ref-reset { min-width:56px; font-variant-numeric:tabular-nums; }
+/* 大图底下那条工具栏装进一个白色胶囊里：深底上散着几颗白钮，会和底下创作屏的按钮混在一起 */
+/* 工具栏是一个按内容收缩的白色胶囊，四颗钮都在里面。
+   width:max-content + nowrap：Safari 里 column flex 的子项用 auto 宽会被拉成整行，
+   胶囊就包不住按钮了（真机上看到过）。 */
+.refbar { display:flex; flex-wrap:nowrap; align-items:center; justify-content:center; gap:8px;
+  width:100%; padding:12px 0 2px; }
+.refbar button { flex:0 0 auto; min-height:44px; white-space:nowrap; }
+.refbar #btn-ref-close { padding-inline:18px; }
+.refbar #btn-ref-reset { min-width:66px; font-variant-numeric:tabular-nums; }
+.refbar-gap { flex:0 0 14px; }
 
 /* ===== 反馈 / 结算 ===== */
 .result-layout { display:flex; flex-direction:column; gap:16px; }
 .artwork { width:100%; border:2px solid var(--line); border-radius:var(--r-lg); background:#fff; }
 .feedback-card { background:var(--card); border:2px solid var(--line); border-radius:var(--r-lg); padding:18px; }
-.feedback-text { white-space:pre-wrap; line-height:1.9; font-size:15px; font-weight:600; }
+.feedback-text { white-space:pre-wrap; line-height:1.9; font-size:0.9375rem; font-weight:600; }
 .scores { margin-top:16px; }
 .compare { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:12px 0; }
 /* One artwork instead of an unchanged before/after pair. */
 .compare.single { grid-template-columns:minmax(0,1fr); max-width:620px; margin-inline:auto; }
 .compare figure.hidden { display:none; }
 figure { margin:0; }
-figcaption { text-align:center; color:var(--muted-2); font-size:12px; font-weight:800; margin-top:7px; }
+figcaption { text-align:center; color:var(--muted-2); font-size:0.75rem; font-weight:800; margin-top:7px; }
 
 /* ===== 能力值扇形图 ===== */
 .rose-wrap { background:var(--soft); border-radius:var(--r-lg); padding:10px 8px 14px; }
@@ -310,77 +639,108 @@ figcaption { text-align:center; color:var(--muted-2); font-size:12px; font-weigh
 .rose-focus { filter:drop-shadow(0 0 4px rgba(247,148,51,.4)); }
 .rose-before { fill:none; stroke-width:3; stroke-dasharray:3 4; stroke-opacity:.9; stroke-linecap:round; }
 .rose-hub { fill:#fff; stroke:var(--line); stroke-width:2; }
-.rose-label { font-size:11px; font-weight:800; fill:var(--muted-2); }
+.rose-label { font-size:0.6875rem; font-weight:800; fill:var(--muted-2); }
 .rose-label.focus { fill:var(--accent-d); }
 .rose-label.na { fill:var(--muted); font-style:italic; font-weight:700; }
 .rose-legend { display:flex; flex-wrap:wrap; justify-content:center; gap:6px 14px; margin-top:6px;
-  font-size:12px; font-weight:700; color:var(--muted-2); }
+  font-size:0.75rem; font-weight:700; color:var(--muted-2); }
 .rose-leg { display:inline-flex; align-items:center; gap:5px; }
 .rose-leg i { width:11px; height:11px; border-radius:4px; display:inline-block; }
 .rose-leg.dash i { width:16px; height:0; border-top:3px dashed var(--muted); border-radius:0; }
 .rose-arw.up { fill:var(--green-d); } .rose-arw.dn { fill:var(--red-d); }
 
 /* ===== 九维说明 ===== */
-.ability-head { display:flex; align-items:center; gap:7px; font-size:14px; font-weight:800; margin-bottom:10px; }
-.ability-head .muted { font-weight:600; font-size:12px; }
+.ability-head { display:flex; align-items:center; gap:7px; font-size:0.875rem; font-weight:800; margin-bottom:10px; }
+.ability-head .muted { font-weight:600; font-size:0.75rem; }
 .dim-notes { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:10px 16px; margin-top:16px; }
-.dim { font-size:12px; }
+.dim { font-size:0.75rem; }
 .dim .name { display:flex; justify-content:space-between; align-items:center; color:var(--muted-2); font-weight:700; }
 .dim .name .dot { width:9px; height:9px; border-radius:50%; display:inline-block; margin-right:6px; vertical-align:middle; }
 .dim .sval { font-weight:800; color:var(--ink); }
 .dim.focus .name { color:var(--accent-d); }
-.dim .delta { color:var(--green-d); font-weight:800; font-size:11px; }
+.dim .delta { color:var(--green-d); font-weight:800; font-size:0.6875rem; }
 .dim .delta.neg { color:var(--red-d); }
-.dim .note { color:var(--muted); font-size:11px; margin-top:2px; line-height:1.4; }
-.dim .sval .st { color:var(--yellow-d); letter-spacing:1px; font-size:13px; }
+.dim .note { color:var(--muted); font-size:0.6875rem; margin-top:2px; line-height:1.4; }
+.dim .sval .st { color:var(--yellow-d); letter-spacing:1px; font-size:0.8125rem; }
 .dim .sval .st u { color:var(--line); text-decoration:none; }
-.dim .sval .wait { color:var(--muted); font-size:11px; font-weight:700; }
+.dim .sval .wait { color:var(--muted); font-size:0.6875rem; font-weight:700; }
 .dim.ph .name span:first-child { color:var(--muted); }
 /* A dimension the task cannot elicit: greyed and spelled out, never a low bar. */
 .dim.na .name span:first-child { color:var(--muted); }
-.dim.na .wait { font-size:12px; color:var(--muted); }
+.dim.na .wait { font-size:0.75rem; color:var(--muted); }
 
 /* ===== 彩点 ===== */
 .sprite { width:54px; height:54px; display:block; overflow:visible; }
 .sprite.lg { width:62px; height:62px; }
 .sprite.big { width:120px; height:120px; margin:0 auto; }
-.buddy-mini { display:flex; align-items:center; gap:10px; background:var(--soft); border-radius:var(--r); padding:9px 11px; }
-.buddy-mini .sprite { width:46px; height:46px; flex:none; }
-.buddy-say { font-size:12px; line-height:1.55; color:var(--muted-2); font-weight:700; }
+.buddy-say { font-size:0.75rem; line-height:1.55; color:var(--muted-2); font-weight:700; }
 .buddy-card .buddy-head { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
-.buddy-name { font-weight:800; font-size:15px; }
+.buddy-name { font-weight:800; font-size:0.9375rem; }
 
 /* ===== 徽章 ===== */
-.badge-group { margin-top:16px; }
-.badge-group h4 { margin:0 0 10px; font-size:12px; font-weight:800; letter-spacing:.04em; color:var(--muted); }
-.badge-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(128px,1fr)); gap:11px; }
-.badge { background:var(--card); border:2px solid var(--line); border-radius:var(--r-lg);
-  padding:15px 9px 12px; text-align:center; position:relative;
-  box-shadow:0 var(--edge) 0 var(--line-d); }
-/* 一枚真的章：捏出来的圆盘、内圈高光、底下一层影。每组自己的颜色，不再一片黄。
-   没点亮的根本不展示——摆一墙灰的等于提前把惊喜说完，还像一张没做到的清单。 */
-.badge .b-ico { width:60px; height:60px; margin:0 auto; border-radius:50%; display:flex;
-  align-items:center; justify-content:center; color:#fff;
+/* ===== 徽章 =====
+   一枚章就该长得像一枚章：一块捏出来的圆盘、一圈虚线托盘、底下写着名字。
+   所以它**不再装在白卡片里**——一堆卡片里再放一堆卡片，看着像表格；
+   现在整面墙是一张「收藏册内页」，章直接别在上面。
+   没点亮的根本不展示：摆一墙灰的等于提前把惊喜说完，还像一张没做到的清单。
+   剩下多少枚也不说——报个数就把「发现」变回了进度条。 */
+#badges { background:none; border:0; box-shadow:none; padding:0; background-image:none; }
+.badges { background:var(--card); border:2px solid var(--line); border-radius:var(--r-lg);
+  padding:6px 14px 16px; box-shadow:0 var(--edge) 0 var(--line);
+  background-image:radial-gradient(circle at 1px 1px, var(--line) 1px, transparent 0);
+  background-size:18px 18px; background-position:9px 9px; }
+/* 一整墙章，不分段也不加小标题：「开始」「色彩与工具」那些词是给大人分类用的，
+   对着一墙章的孩子只是几行灰字。颜色已经把组分出来了（同一组一个色）。 */
+.badge-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(104px,1fr)); gap:18px 8px;
+  justify-items:center; padding-top:12px; }
+.badge { position:relative; width:100%; max-width:150px; padding:4px 2px 2px; text-align:center;
+  background:none; border:0; }
+.badge .b-ico { position:relative; width:62px; height:62px; margin:0 auto; border-radius:50%;
+  display:flex; align-items:center; justify-content:center; color:#fff;
   background:radial-gradient(120% 120% at 50% 14%, var(--bc-l, #fbc48a), var(--bc, #f79433));
   box-shadow:0 10px 18px -8px var(--bc, #f79433),
              0 4px 0 var(--bc-d, #a5621f),
              inset 0 -7px 11px -6px rgba(0,0,0,.34),
-             inset 0 8px 11px -5px rgba(255,255,255,.55),
-             inset 0 0 0 3px rgba(255,255,255,.26); }
-.badge .b-name { font-size:13px; font-weight:800; margin-top:11px; }
-.badge .b-desc { font-size:11px; color:var(--muted-2); margin-top:3px; line-height:1.45; font-weight:600; }
-.badge.new::after { content:"NEW"; position:absolute; top:8px; right:8px; background:var(--red); color:#fff;
-  font-size:9px; font-weight:800; padding:2px 7px; border-radius:999px; }
-.badge.evo { border-color:var(--purple-l); }
-.badge.rare { border-color:var(--yellow); box-shadow:0 var(--edge) 0 var(--yellow-d); }
+             inset 0 8px 11px -5px rgba(255,255,255,.55);
+  transition:transform .18s cubic-bezier(.22,1,.36,1); }
+/* 一圈虚线托盘，像别针别上去的那圈缝线 */
+.badge .b-ico::after { content:""; position:absolute; inset:-7px; border-radius:50%;
+  border:2px dashed var(--bc-l, #fbc48a); }
+.badge:hover .b-ico { transform:translateY(-3px) rotate(-4deg); }
+.badge .b-name { font-size:0.8125rem; font-weight:800; margin-top:14px; }
+/* 说明不常驻在章底下（点一枚才浮出），这条只给 title 之外的读屏用 */
+.badge .b-desc { display:none; font-size:0.6875rem; color:var(--muted-2); margin-top:4px; line-height:1.5; font-weight:600;
+  text-wrap:pretty; }
+/* 刚点亮的那几枚：一个小红点，外加落下来的一下 */
+.badge.new .b-ico { animation:badge-pop .5s cubic-bezier(.34,1.56,.64,1) backwards; }
+.badge.new::after { content:"NEW"; position:absolute; top:-2px; right:50%; margin-right:-40px;
+  background:var(--red); color:#fff; font-size:0.5625rem; font-weight:800; padding:2px 7px;
+  border-radius:999px; box-shadow:0 2px 6px rgba(0,0,0,.18); }
+/* 以前亮过、这次又做到：角标写第几次（×2、×3……），收藏的感觉就有了 */
+.badge.again::after { content:"×" attr(data-n); position:absolute; top:-2px; right:50%; margin-right:-40px;
+  background:var(--ink); color:#fff; font-size:0.5625rem; font-weight:800; padding:2px 7px;
+  border-radius:999px; box-shadow:0 2px 6px rgba(0,0,0,.18); }
+@keyframes badge-pop {
+  from { transform:scale(.4) rotate(-18deg); opacity:0; }
+  to   { transform:scale(1) rotate(0); opacity:1; }
+}
+@media (prefers-reduced-motion: reduce) { .badge.new .b-ico { animation:none; } }
+.badge.evo .b-ico::after { border-style:solid; }
+/* 少见的那几枚镶一圈金边 —— 稀有度说的是**这枚章**，不是这个孩子 */
 .badge.rare .b-ico { box-shadow:0 10px 18px -8px var(--bc, #f79433), 0 4px 0 var(--bc-d, #a5621f),
              inset 0 -7px 11px -6px rgba(0,0,0,.34),
              inset 0 8px 11px -5px rgba(255,255,255,.55),
              inset 0 0 0 3px var(--yellow); }
+.badge.rare .b-ico::after { border-color:var(--yellow); }
 .badge.rare .b-name::after { content:" ✦"; color:var(--yellow-d); }
-.rarity { font-size:11px; color:var(--muted); margin-top:4px; font-weight:700; }
-/* 没点亮的只报个数——留着惊喜，也留个奔头 */
-.badge-left { font-size:13px; color:var(--muted-2); font-weight:700; margin:14px 2px 0; }
+/* 墙尾那张「?」：它说还有，但不说有多少 */
+.badge.mystery .b-ico { color:var(--muted); background:var(--soft);
+  box-shadow:inset 0 0 0 2px var(--line); }
+.badge.mystery .b-ico::after { border-color:var(--line); }
+.badge.mystery .b-name { color:var(--muted-2); }
+.badge.mystery:hover .b-ico { transform:translateY(-3px) rotate(4deg); }
+.rarity { font-size:0.6875rem; color:var(--muted); margin-top:4px; font-weight:700; }
+.badge-left { font-size:0.8125rem; color:var(--muted-2); font-weight:700; margin:14px 2px 0; }
 
 /* ===== 房间：每块 tab 自己的空气颜色 =====
    之前整个 app 只有一种表面——白卡片、灰边框、圆角全一样，颜色只在按钮上，
@@ -408,8 +768,8 @@ body[data-room="flow"]  { --room:var(--yellow); --room-d:var(--yellow-d); --room
 /* 主角卡：作品、伙伴、当前任务——它们该有颜色，别的还是白卡。
    一屏里最多两三块有色的，剩下留白，才看得出主次。 */
 .hero-card,
-.unit,                      /* 地图顶上「今天画哪一个」 */
 #draw-quest-card,           /* 画画时钉在手边的任务 */
+#intent-quest-card,         /* 心愿屏上的同一张 */
 .feedback-card.buddy-card,  /* 彩点说的话 */
 .mecard,                    /* 「我的」那张伙伴卡 */
 .growth                     /* 成长面板 */
@@ -437,37 +797,51 @@ body[data-room="flow"]  { --room:var(--yellow); --room-d:var(--yellow-d); --room
   width:40px; height:40px; border-radius:13px; color:#fff;
   background:var(--sc,var(--accent)); box-shadow:0 4px 0 var(--sc-d,var(--accent-d)); }
 .sechead-t { min-width:0; display:flex; flex-direction:column; gap:1px; }
-.sechead-t b { font-size:17px; font-weight:800; letter-spacing:.01em; }
-.sechead-t span { font-size:12px; font-weight:700; color:var(--muted); line-height:1.5; }
+.sechead-t b { font-size:1.0625rem; font-weight:800; letter-spacing:.01em; }
+.sechead-t span { font-size:0.75rem; font-weight:700; color:var(--muted); line-height:1.5; }
 .sechead-chip { margin-left:auto; flex:none; padding:6px 12px; border-radius:999px;
-  background:var(--soft); color:var(--muted-2); font-size:12px; font-weight:800; white-space:nowrap; }
+  background:var(--soft); color:var(--muted-2); font-size:0.75rem; font-weight:800; white-space:nowrap; }
 .sechead-chip:empty { display:none; }
 .sechead-chip.done { background:#fef1e2; color:#b26a24; }
 
 /* ===== 图鉴 =====
    一张画就是一张**拍立得**：白边、厚一点的下沿、下面写着是哪一关、哪天画的。
    一格格排开才像「收藏」，而不像文件列表。 */
-.dex { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:14px; }
+.dex { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:16px 14px; padding:4px 2px; }
+/* 贴在墙上的照片没有一张是绝对正的：每张按自己的 id 歪一点点（--tilt，定死的，
+   不随机——每次打开都换个角度那是晃动，不是手贴的）。指上去它就被「拿正」了。 */
 .dex-card { position:relative; display:block; border-radius:16px; overflow:hidden;
   border:2px solid var(--line); background:var(--card); text-decoration:none; color:inherit;
-  box-shadow:0 var(--edge) 0 var(--line-d);
-  transition:transform .16s cubic-bezier(.22,1,.36,1), box-shadow .16s, border-color .16s; }
+  box-shadow:0 var(--edge) 0 var(--line-d); transform:rotate(var(--tilt,0deg));
+  transition:transform .18s cubic-bezier(.22,1,.36,1), box-shadow .16s, border-color .16s; }
 .dex-card::before { content:""; display:block; height:5px; background:var(--qc,var(--accent)); }
-.dex-card:hover { transform:translateY(-2px); border-color:var(--qc,var(--accent));
+.dex-card:hover { transform:rotate(0deg) translateY(-3px); border-color:var(--qc,var(--accent));
   box-shadow:0 calc(var(--edge) + 2px) 0 var(--qc,var(--accent)); }
-.dex-card:active { transform:translateY(var(--edge)); box-shadow:none; }
+.dex-card:active { transform:rotate(0deg) translateY(var(--edge)); box-shadow:none; }
+@media (prefers-reduced-motion: reduce) { .dex-card { transform:none; } }
 .dex-thumb { height:104px; margin:8px 8px 0; border-radius:10px; background:#fff;
   border:1px solid var(--line); display:flex; align-items:center; justify-content:center; overflow:hidden; }
 .dex-thumb img { width:100%; height:100%; object-fit:cover; }
 .dex-cap { padding:9px 11px 11px; }
-.dex-cap b { display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:800;
+.dex-cap b { display:flex; align-items:center; gap:6px; font-size:0.7812rem; font-weight:800;
   color:var(--qc,var(--ink)); }
 .dex-cap span { display:inline-block; margin-top:5px; padding:2px 8px; border-radius:999px;
-  background:var(--soft); font-size:10.5px; color:var(--muted-2); font-weight:800; }
-.dex-open { display:block; text-decoration:none; color:inherit; }
+  background:var(--soft); font-size:0.6562rem; color:var(--muted-2); font-weight:800; }
+.dex-open { display:block; width:100%; padding:0; text-align:left; text-decoration:none; color:inherit;
+  background:none; border:0; border-radius:0; box-shadow:none; font:inherit; min-height:0; }
+.dex-open:hover { background:none; }
+.dex-open:active { transform:none; }
+/* 没画完的那几张也挂着——半张画也是画过的证据。缩略图位置放一支铅笔，
+   一眼就看得出它和画完的不是一类，但它在墙上有位置。 */
+.dex-unfinished { display:flex; align-items:center; justify-content:center; width:100%; height:100%;
+  color:var(--muted); background:repeating-linear-gradient(135deg,
+    var(--soft) 0 7px, transparent 7px 14px); }
+.dex-when { display:inline-block; }
+.dex-tags { display:flex; flex-wrap:wrap; gap:4px; margin-top:5px; }
+.dex-tags .work-chip { margin:0; }
 /* 自己的画挂没挂在大家的图鉴里，本人随时能改 */
 .dex-featured { position:absolute; top:16px; left:14px; gap:4px; padding:4px 9px; min-height:0;
-  font-size:10px; border:none; border-radius:999px; background:rgba(255,255,255,.92);
+  font-size:0.625rem; border:none; border-radius:999px; background:rgba(255,255,255,.92);
   color:var(--muted-2); box-shadow:0 2px 8px rgba(0,0,0,.14); backdrop-filter:blur(6px); }
 .dex-featured.on { background:var(--accent); color:#fff; box-shadow:0 2px 8px rgba(0,0,0,.18); }
 .dex-featured:hover { background:rgba(255,255,255,.98); }
@@ -484,25 +858,25 @@ body[data-room="flow"]  { --room:var(--yellow); --room-d:var(--yellow-d); --room
 .growth-buddy { text-align:center; }
 .growth-rings { display:flex; justify-content:center; gap:3px; color:var(--yellow); margin:4px 0 2px; min-height:18px; }
 .growth-dims { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px 18px; }
-.gdim { font-size:13px; }
+.gdim { font-size:0.8125rem; }
 .gdim .gtop { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
 .gdim .gname { font-weight:800; }
-.gdim .gnext { color:var(--muted); font-size:11px; font-weight:700; }
+.gdim .gnext { color:var(--muted); font-size:0.6875rem; font-weight:700; }
 .gpips { display:flex; gap:4px; margin-top:5px; }
 .gpips i { width:100%; height:9px; border-radius:999px; background:var(--line); }
 .gpips i.on { background:var(--gc,var(--accent)); }
-.gdim .gsleep { color:var(--muted); font-size:11px; margin-top:4px; font-weight:600; }
-.gdim .gawake { color:var(--green-d); font-size:11px; margin-top:4px; font-weight:700; }
+.gdim .gsleep { color:var(--muted); font-size:0.6875rem; margin-top:4px; font-weight:600; }
+.gdim .gawake { color:var(--green-d); font-size:0.6875rem; margin-top:4px; font-weight:700; }
 
 /* "What this mission trained" — the task's own rubric, said back to the child as
    practice rather than as a verdict on the drawing. */
 .trained { background:var(--card); border:2px solid var(--line); border-radius:var(--r-lg); padding:14px 16px; margin-top:16px; }
-.trained h4 { margin:0 0 10px; font-size:13px; font-weight:800; display:flex; align-items:center; gap:7px; }
+.trained h4 { margin:0 0 10px; font-size:0.8125rem; font-weight:800; display:flex; align-items:center; gap:7px; }
 .trained .tchips { display:flex; flex-wrap:wrap; gap:8px; }
-.trained .tchip { display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:800;
+.trained .tchip { display:inline-flex; align-items:center; gap:7px; font-size:0.8125rem; font-weight:800;
   padding:6px 13px; border-radius:999px; background:var(--tc-bg, #fef1e2); color:var(--tc-fg, #b26a24); }
 .trained .tchip i { width:9px; height:9px; border-radius:50%; background:var(--tc,var(--accent)); }
-.trained .tnote { color:var(--muted-2); font-size:12px; margin-top:10px; line-height:1.6; }
+.trained .tnote { color:var(--muted-2); font-size:0.75rem; margin-top:10px; line-height:1.6; }
 
 /* Other people's approaches. Shown only after the child has submitted their own,
    and only for sessions whose consent allows it. No score, no name, no order
@@ -517,16 +891,23 @@ body[data-room="flow"]  { --room:var(--yellow); --room-d:var(--yellow-d); --room
   overflow:hidden; background:#fff; }
 .peer img { width:100%; height:100%; display:block; object-fit:contain; background:#fff; }
 .peer figcaption { padding:10px 12px 12px; text-align:left; }
-.peer figcaption > b { display:block; font-size:13.5px; font-weight:800; color:var(--ink); }
+.peer figcaption > b { display:block; font-size:0.8438rem; font-weight:800; color:var(--ink); }
 .peer-chips { display:flex; flex-wrap:wrap; gap:5px; margin-top:7px; }
 .peer-chips span { padding:2px 8px; border-radius:999px; background:var(--soft);
-  font-size:10.5px; font-weight:800; color:var(--muted-2); }
+  font-size:0.6562rem; font-weight:800; color:var(--muted-2); }
 .peer-why { margin:9px 0 0; padding:8px 10px; border-radius:11px; background:var(--yellow-l);
-  font-size:12px; font-weight:700; color:var(--ink); line-height:1.6; }
-.peer .p-pin { display:flex; align-items:center; gap:5px; margin-top:9px; font-size:11px;
+  font-size:0.75rem; font-weight:700; color:var(--ink); line-height:1.6; }
+.peer .p-pin { display:flex; align-items:center; gap:5px; margin-top:9px; font-size:0.6875rem;
   font-weight:800; color:var(--accent-d); }
-.wall-empty { margin:0; padding:22px 16px; border:2px dashed var(--line); border-radius:18px;
-  color:var(--muted); font-size:13px; font-weight:700; text-align:center; line-height:1.7; }
+.wall-empty { position:relative; margin:0; padding:74px 16px 24px; border:2px dashed var(--line);
+  border-radius:18px; color:var(--muted); font-size:0.8125rem; font-weight:700;
+  text-align:center; line-height:1.7; }
+/* 墙上两个空相框，一个歪左一个歪右——「还没挂画」是一幅画得出来的画面，
+   而一行灰字只是一句话。 */
+.wall-empty::before, .wall-empty::after { content:""; position:absolute; top:22px;
+  width:38px; height:31px; border:2px dashed var(--line-d); border-radius:7px; }
+.wall-empty::before { left:50%; margin-left:-46px; transform:rotate(-6deg); }
+.wall-empty::after { left:50%; margin-left:8px; transform:rotate(5deg); }
 
 
 /* ===== 我的 =====
@@ -538,68 +919,129 @@ body[data-room="flow"]  { --room:var(--yellow); --room-d:var(--yellow-d); --room
   border:2px solid var(--line); border-radius:var(--r-lg); box-shadow:0 var(--edge) 0 var(--line); }
 .mecard .sprite { width:48px; height:48px; flex:0 0 auto; }
 .me-text { display:flex; flex-direction:column; gap:2px; min-width:0; }
-.me-text b { font-size:16px; font-weight:800; }
-.me-text span { font-size:12.5px; color:var(--muted-2); font-weight:600; }
-.me-sync { margin-left:auto; flex:0 0 auto; display:flex; align-items:center; gap:5px; font-size:11.5px;
+.me-text b { font-size:1rem; font-weight:800; }
+.me-text span { font-size:0.7812rem; color:var(--muted-2); font-weight:600; }
+.me-sync { margin-left:auto; flex:0 0 auto; display:flex; align-items:center; gap:5px; font-size:0.7188rem;
   font-weight:800; color:var(--muted-2); background:var(--soft); border-radius:999px; padding:5px 10px; }
 .me-sync b { width:7px; height:7px; border-radius:50%; background:#3fbf6a; }
 .me-sync.warn { color:#b26a24; background:#fef1e2; }
 .me-sync.warn b { background:#f79433; }
 
-.worklist { display:grid; grid-template-columns:1fr; gap:10px; }
-/* 宽屏上一行一条会拉出一条又空又长的带子：排成格子，缩略图也给大一点 */
-@media (min-width: 700px) { .worklist { grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); } }
-.work { display:flex; align-items:center; gap:12px; width:100%; text-align:left; padding:10px 12px;
-  background:var(--card); border:2px solid var(--line); border-radius:var(--r); font:inherit;
-  box-shadow:0 var(--edge) 0 var(--line); transition:transform .06s, box-shadow .06s, border-color .12s; }
-.work:hover { border-color:var(--qc,var(--accent)); }
-.work:active { transform:translateY(var(--edge)); box-shadow:none; }
-.work-thumb { width:66px; height:52px; flex:0 0 auto; border-radius:9px; overflow:hidden; background:var(--soft);
-  display:flex; align-items:center; justify-content:center; color:var(--muted); }
-.work-thumb img { width:100%; height:100%; object-fit:cover; }
-/* a finished session whose png never made it to disk: say "no picture", not a blank hole */
-.work-thumb .no-shot { width:100%; height:100%;
-  background:repeating-linear-gradient(45deg, var(--soft) 0 6px, var(--line) 6px 7px); }
-.work-main { min-width:0; flex:1; }
-.work-main b { display:flex; align-items:center; gap:6px; font-size:14.5px; font-weight:800;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.work-main b i { color:var(--qc,var(--accent)); flex:0 0 auto; }
-.work-meta { display:flex; align-items:center; gap:7px; flex-wrap:wrap; margin-top:3px;
-  font-size:12px; font-weight:700; color:var(--muted-2); }
-.work-chip { padding:2px 8px; border-radius:999px; background:var(--soft); font-size:11px; font-weight:800; }
+/* ===== 账号：名字 + 四位暗号 =====
+   「我的」这一屏上唯一一处研究味道之外的身份。没登录时它是一段邀请，
+   登录之后缩成一行——名字、从哪天起、几台设备，剩下的地方留给画。 */
+.acct { background:var(--card); border:2px solid var(--line); border-radius:var(--r);
+  box-shadow:0 var(--edge) 0 var(--line); padding:14px 16px; display:flex; flex-direction:column; gap:12px; }
+.acct-copy { margin:0; font-size:0.8125rem; line-height:1.65; color:var(--muted-2); }
+.acct-btns { display:flex; gap:10px; flex-wrap:wrap; }
+.acct-btns .primary { flex:1 1 auto; }
+.acct-row { display:flex; align-items:center; gap:12px; }
+.acct-badge { width:42px; height:42px; flex:0 0 auto; border-radius:14px; display:flex; align-items:center;
+  justify-content:center; font-size:1.125rem; font-weight:800; color:var(--purple-d); background:var(--purple-l);
+  border:2px solid var(--purple); }
+.acct-text { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.acct-text b { font-size:1rem; font-weight:800; overflow-wrap:anywhere; }
+.acct-text span { font-size:0.7812rem; color:var(--muted-2); font-weight:600; }
+.acct-row .linkbtn { margin-left:auto; flex:0 0 auto; background:none; border:none; box-shadow:none;
+  color:var(--muted-2); text-decoration:underline; font-size:0.8125rem; font-weight:800; padding:6px 4px; }
+.acct-row .linkbtn:hover { background:none; color:var(--ink); }
+/* 「这台设备上以前画的要不要一起算进来」——只在真的有那几张画时出现 */
+.acct-claim { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding-top:12px;
+  border-top:1px solid var(--line); font-size:0.8125rem; color:var(--muted-2); font-weight:600; }
+.acct-claim button { margin-left:auto; }
+.acct-err { margin:10px 0 0; font-size:0.8125rem; font-weight:700; color:var(--red-d); }
+/* 暗号：四个数字，写大一点、分开一点，按错了自己看得见 */
+#acct-modal input + input { margin-top:10px; }
+#acct-pin-input.pin { letter-spacing:.6em; text-align:center; font-size:1.25rem; font-weight:800; }
+#acct-pin-input.pin::placeholder { letter-spacing:normal; font-size:0.9375rem; font-weight:600; }
+
+/* 「画过的画」那张列表没有了——画全在画廊里，同一批东西不摆两处。
+   留下的只有这三个小标签：画廊卡片上「还没画完 / 中途换了任务 / 改过一次」用它。 */
+.work-chip { padding:2px 8px; border-radius:999px; background:var(--soft); font-size:0.6875rem; font-weight:800; }
 .work-chip.evolve { background:#efe7fb; color:#6b45b8; }
 .work-chip.open { background:#fef1e2; color:#b26a24; }
 
+/* ===== 我的：小传 =====
+   四个数字，说的都是**做过的事**——画完了几张、去过几个地方、画了几天、
+   点亮了几枚。没有一个是对画的评价，这一屏不给任何人打分。 */
+.story { display:flex; flex-direction:column; gap:12px; }
+#btn-guide-again { margin-top:14px; }
+.story-tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; }
+.stile { position:relative; background:var(--card); border:2px solid var(--line); border-radius:var(--r);
+  box-shadow:0 var(--edge) 0 var(--line); padding:13px 14px 12px; display:flex; flex-direction:column; gap:1px; }
+.stile-ico { position:absolute; top:11px; right:11px; width:28px; height:28px; border-radius:9px;
+  display:flex; align-items:center; justify-content:center; color:var(--tc,var(--accent));
+  background:var(--tc-l,var(--accent-l)); }
+/* 能点的那三块要看得出能点：右下角一枚小箭头，按下去和别处一样陷进去 */
+.stile.jump { cursor:pointer; text-align:left; font:inherit; align-items:stretch;
+  transition:transform .06s, box-shadow .06s, border-color .12s; }
+.stile.jump:hover { border-color:var(--tc,var(--accent)); background:var(--card); }
+.stile.jump:active { transform:translateY(var(--edge)); box-shadow:none; }
+.stile.jump::after { content:""; position:absolute; right:13px; bottom:13px; width:7px; height:7px;
+  border-right:2px solid var(--muted); border-top:2px solid var(--muted); transform:rotate(45deg);
+  border-radius:1px; opacity:.5; }
+.stile b { font-size:1.5rem; font-weight:800; line-height:1.1; color:var(--tc,var(--ink));
+  font-variant-numeric:tabular-nums; }
+.stile b i { font-style:normal; font-size:0.8125rem; font-weight:800; margin-left:2px; }
+.stile > span { font-size:0.75rem; color:var(--muted-2); font-weight:700; }
+.story-line { margin:0; padding:13px 15px; border-radius:var(--r); background:var(--soft);
+  font-size:0.8125rem; line-height:1.7; color:var(--muted-2); font-weight:600; }
+.story-line b { color:var(--ink); font-weight:800; }
+
 .techbox { margin-top:26px; border:2px solid var(--line); border-radius:var(--r); background:var(--card); }
 .techbox summary { display:flex; align-items:center; gap:7px; padding:12px 14px; cursor:pointer;
-  font-size:13px; font-weight:800; color:var(--muted-2); list-style:none; }
+  font-size:0.8125rem; font-weight:800; color:var(--muted-2); list-style:none; }
 .techbox summary::-webkit-details-marker { display:none; }
 .techbox[open] summary { border-bottom:1px solid var(--line); }
 .techbox .infolist { border:0; border-radius:0; }
 .techbox .info b { max-width:60%; overflow-wrap:anywhere; text-align:right; }
 .infolist { border:2px solid var(--line); border-radius:var(--r); overflow:hidden; }
-.info { display:flex; justify-content:space-between; gap:12px; padding:11px 14px; font-size:13px; }
+.info { display:flex; justify-content:space-between; gap:12px; padding:11px 14px; font-size:0.8125rem; }
 .info + .info { border-top:1px solid var(--line); }
 .info span { color:var(--muted-2); }
 
 .dim-fold { margin-top: 12px; border-top: 1px solid var(--line); }
 .dim-fold summary { display: flex; align-items: center; gap: 7px; padding: 11px 2px 9px;
-  cursor: pointer; font-size: 13px; font-weight: 800; color: var(--muted-2); list-style: none; }
+  cursor: pointer; font-size:0.8125rem; font-weight: 800; color: var(--muted-2); list-style: none; }
 .dim-fold summary::-webkit-details-marker { display: none; }
 
 /* ===== 研究数据层：实验模式 / 自评 ===== */
-.studybar { display:flex; align-items:center; gap:12px; padding:7px 16px; font-size:12px; font-weight:700;
+.studybar { display:flex; align-items:center; gap:12px; padding:7px 16px; font-size:0.75rem; font-weight:700;
   background:#4a4a4a; color:#fff; flex-wrap:wrap; }
 .studybar .tag { font-weight:800; letter-spacing:.08em; background:var(--red); color:#fff; padding:2px 8px; border-radius:6px; }
 .studybar .seq { font-family:ui-monospace, SFMono-Regular, Menlo, monospace; opacity:.75; letter-spacing:.06em; }
 .studybar .linkbtn { margin-left:auto; background:none; border:none; box-shadow:none; color:#fff;
-  text-decoration:underline; cursor:pointer; font-size:12px; padding:0; }
+  text-decoration:underline; cursor:pointer; font-size:0.75rem; padding:0; }
 .studybar .linkbtn:hover { background:none; }
-.survey { margin:16px 0 6px; }
-.sq { padding:14px 0; border-bottom:1px solid var(--line); }
-.sq-q { font-weight:800; margin-bottom:10px; }
-.sq-scale { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
-.sq-scale button { width:46px; height:44px; border-radius:13px; font-size:16px; padding:0; }
+/* ===== 画完之后问三句：一张卡 ===== */
+.survey-card { background:var(--card); border:2px solid var(--line); border-radius:var(--r);
+  padding:22px 24px; max-width:44rem; margin:0 auto; }
+.survey-head { display:flex; align-items:center; gap:10px; font-size:1.375rem; font-weight:800; margin-bottom:6px; }
+.survey-head .sprite { width:40px; height:40px; }
+.survey { margin:0; }
+/* 每行：问题在左、五颗钮在右，两端的词贴在钮的下面 */
+.sq { display:grid; grid-template-columns:1fr auto; column-gap:16px; align-items:center;
+  padding:14px 0; border-bottom:1px solid var(--line); }
+.sq-q { font-weight:800; font-size:1.0625rem; }
+.sq-scale { display:flex; align-items:center; gap:8px; }
+.sq-scale button { width:44px; height:42px; border-radius:12px; font-size:1rem; padding:0; }
+.sq-end { font-size:0.75rem; font-weight:700; color:var(--muted); width:3.2em; }
+.sq-end:first-child { text-align:right; }
+/* 哪里最难：九个格子三三排，等宽；最后一格就是「其他」的输入框 */
+.sq-hard { grid-template-columns:1fr; row-gap:12px; border-bottom:none; padding-bottom:4px; }
+.hard-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; }
+.hard-grid button { padding:10px 8px; font-size:0.9375rem; white-space:nowrap; }
+.hard-grid button.active { background:var(--blue-l); border-color:var(--blue); color:var(--blue-d);
+  box-shadow:0 var(--edge) 0 var(--blue); }
+.hard-grid input { max-width:none; padding:10px 12px; font-size:0.9375rem; font-weight:800; text-align:center;
+  grid-column:1 / -1; }      /* 「其他」独占最后一整行 */
+.survey-card .actions { margin-top:8px; }
+@media (max-width:700px) {
+  .sq { grid-template-columns:1fr; row-gap:8px; }
+  .sq-scale { justify-content:space-between; }
+  .sq-scale button { width:auto; flex:1 1 0; }
+  .hard-grid { grid-template-columns:repeat(2, 1fr); }
+}
 .sq-scale button.active { background:var(--blue-l); border-color:var(--blue); color:var(--blue-d);
   box-shadow:0 var(--edge) 0 var(--blue); }
 
@@ -611,7 +1053,7 @@ body[data-room="flow"]  { --room:var(--yellow); --room-d:var(--yellow-d); --room
 .modal.hidden { display:none; }
 .modal-card { background:var(--card); border-radius:var(--r-lg) var(--r-lg) 0 0; padding:22px 20px calc(22px + env(safe-area-inset-bottom));
   max-width:460px; width:100%; box-shadow:0 -8px 40px rgba(0,0,0,.14); }
-.modal-card h3 { margin:0 0 8px; font-size:18px; font-weight:800; }
+.modal-card h3 { margin:0 0 8px; font-size:1.125rem; font-weight:800; }
 .modal-card .actions.column { margin-top:16px; }
 
 /* ===== 第一次进来的导览 =====
@@ -629,19 +1071,19 @@ body[data-room="flow"]  { --room:var(--yellow); --room-d:var(--yellow-d); --room
 .tour-tip::before { content:""; position:absolute; top:-8px; left:var(--arrow,50%); margin-left:-9px;
   border:9px solid transparent; border-top:0; border-bottom-color:var(--card); }
 .tour-tip.up::before { top:auto; bottom:-8px; border-bottom:0; border-top-color:var(--card); }
-.tour-text { margin:0 0 11px; font-size:15px; font-weight:800; line-height:1.6; }
+.tour-text { margin:0 0 11px; font-size:0.9375rem; font-weight:800; line-height:1.6; }
 .tour-bar { display:flex; align-items:center; gap:10px; }
 .tour-dots { display:flex; gap:5px; margin-right:auto; }
 .tour-dots i { width:6px; height:6px; border-radius:50%; background:var(--line-d); }
 .tour-dots i.on { width:16px; border-radius:999px; background:var(--accent); }
-.tour-bar .primary { padding:7px 15px; font-size:13.5px; border-radius:11px; }
-.tour-bar .linkbtn { font-size:13px; padding:7px 10px; background:none; border:none;
+.tour-bar .primary { padding:7px 15px; font-size:0.8438rem; border-radius:11px; }
+.tour-bar .linkbtn { font-size:0.8125rem; padding:7px 10px; background:none; border:none;
   box-shadow:none; color:var(--muted-2); font-weight:800; }
 .tour-bar .linkbtn:hover { background:var(--soft); }
 @media (prefers-reduced-motion: reduce) { .tour-hole { transition:none; } }
 
 #overlay { position:fixed; inset:0; background:rgba(255,255,255,.93); display:flex; flex-direction:column;
-  align-items:center; justify-content:center; gap:16px; z-index:60; font-size:15px; font-weight:800; }
+  align-items:center; justify-content:center; gap:16px; z-index:60; font-size:0.9375rem; font-weight:800; }
 .spinner { width:38px; height:38px; border:5px solid var(--line); border-top-color:var(--accent);
   border-radius:50%; animation:spin .8s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
@@ -649,10 +1091,11 @@ body[data-room="flow"]  { --room:var(--yellow); --room-d:var(--yellow-d); --room
 /* 安静条件（study condition ui=quiet）：收起游戏化外观，评估与记录不受影响 */
 body.quiet .flow,
 body.quiet .node-here, body.quiet .node-tip, body.quiet .node-star,
-body.quiet .buddy-mini,
+body.quiet .assist,
 body.quiet .buddy-head,
 body.quiet #badges,
 body.quiet #badges-head,
+body.quiet #badges-card,
 body.quiet [data-tab="buddy"],
 body.quiet #collection-wrap { display:none; }
 
@@ -680,28 +1123,27 @@ body.quiet #collection-wrap { display:none; }
 .sprite.grey { filter: grayscale(.9) opacity(.95) drop-shadow(0 14px 16px rgba(120,95,60,.16)); }
 
 .world-name { display: flex; justify-content: center; align-items: baseline; gap: 10px;
-  font-size: 25px; font-weight: 800; margin-top: 14px; }
-.world-name .lvl { font-size: 13px; color: #fff; background: var(--accent);
+  font-size:1.5625rem; font-weight: 800; margin-top: 14px; }
+.world-name .lvl { font-size:0.8125rem; color: #fff; background: var(--accent);
   padding: 3px 11px; border-radius: 999px; box-shadow: 0 3px 0 var(--accent-d); }
 .rename { padding: 6px; min-height: 0; border: none; box-shadow: none; background: none;
   color: var(--muted); border-radius: 50%; }
 .rename:hover { background: var(--soft); color: var(--ink); }
 .rename:active { transform: scale(.92); }
-#buddy-name-input { max-width: none; margin-top: 4px; font-size: 17px; }
-.world-say { font-size: 14px; color: var(--muted-2); margin-top: 7px; line-height: 1.6;
-  min-height: 2.4em; }
+#buddy-name-input { max-width: none; margin-top: 4px; font-size:1.0625rem; }
+.world-say { font-size:0.9375rem; color: var(--muted-2); margin-top: 6px; line-height: 1.6; font-weight:700; }
 .world-bar { max-width: 260px; height: 10px; margin: 12px auto 6px; border-radius: 999px;
   background: var(--line); overflow: hidden; box-shadow: inset 0 2px 5px rgba(0,0,0,.09); }
 .world-bar i { display: block; height: 100%; width: 0; border-radius: 999px;
   background: linear-gradient(90deg, var(--yellow), var(--accent)); transition: width .9s ease; }
-.world-bar-note { font-size: 12px; font-weight: 700; color: var(--muted); }
+.world-bar-note { font-size:0.75rem; font-weight: 700; color: var(--muted); }
 .world .actions { justify-content: center; margin-top: 16px; }
 .world .actions button { flex: 0 1 260px; }
-.world-hint { margin: 8px 0 0; font-size: 12.5px; font-weight: 700;
+.world-hint { margin: 8px 0 0; font-size:0.7812rem; font-weight: 700;
   color: var(--muted); line-height: 1.6; }
 
 /* 黏土按钮：厚、软、按下去会陷 */
-button.clay { border: none; border-radius: 24px; padding: 15px 22px; font-size: 17px;
+button.clay { border: none; border-radius: 24px; padding: 15px 22px; font-size:1.0625rem;
   box-shadow: 0 16px 28px -12px rgba(247,148,51,0.62),
               0 6px 0 var(--accent-d),
               inset 0 -9px 15px -9px rgba(0,0,0,.20),
@@ -744,7 +1186,7 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
   .hint-touch { display: inline; }
   .hint-desktop { display: none; }
   button { min-height: 44px; }
-  .zoombar button, .refbar button, .tool-group.row button { min-height: 42px; }
+  .zoombar button, .refbar button, .dock button, .railbtn { min-height: 40px; }
   .tab { min-height: 48px; }
   .palette div { border-radius: 10px; }
   button:hover { background: var(--card); }
@@ -758,41 +1200,80 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
     background: linear-gradient(180deg, rgba(255,255,255,0), #fff 40%); }
 }
 
-/* 宝藏这一屏也要在一块 pad 上放得下：宽一点的屏幕分两栏——
-   左边是**你的画**（它才是主角，给它整栏的高度），右边是这次练了什么、
-   徽章、能力图和下一步。九项细节默认折起来（点开才展开）。 */
+/* 宝藏这一屏：宽屏是一张明确的网格，不再用 CSS 多栏（多栏各自流、两边永远对不齐）。
+   左窄右宽：左边是画（缩小了，不再独占整栏高度）、这一关练的是、徽章；
+   右边第一块就是彩点的评价——它是这一屏的正文，给它和「画 + 练的是」一样高的位置；
+   下面是能力图。每一行左右顶边对齐，靠 grid-template-areas 保证。 */
 @media (min-width: 760px) {
-  /* 用**多栏**而不是网格：网格的行高会把两栏锁在一起（左边一张大图能把右边
-     两张卡撑成一样高，白白多出几百像素），多栏是自己流下去、自己配平的。 */
-  #view-final { columns: 2; column-gap: 26px; column-fill: balance; }
-  #view-final > * { break-inside: avoid; margin-top: 12px; margin-bottom: 0; }
-  #view-final > h1 { column-span: all; margin: 0 0 4px; }
-  #view-final .compare.single { max-width: none; margin-inline: 0; }
-  #view-final .compare figure img { max-height: 44vh; max-height: 44dvh; object-fit: contain; }
-  #view-final .rose { max-width: 290px; }
-  #view-final > h2 { margin-top: 16px; }
-  #view-final .rose-wrap { padding: 6px 6px 10px; }
-  #view-final .rose-legend { margin-top: 2px; }
-  #view-final .feedback-card { padding: 12px 14px; }
+  #view-final { display:grid; column-gap:12px; row-gap:12px; align-items:stretch;
+    grid-template-columns:minmax(0, 5fr) minmax(0, 7fr);
+    /* 右栏：评价卡和画同一行（同高），能力图紧接着从「练的是」那一行开始，跨到徽章那行。
+       第五行 1fr 吃掉右栏比左栏多出来的高度，徽章那块贴着自己上面的标题，不会被推到底。 */
+    /* 左：画、能力图。右：彩点的评价（长文，占大头）、底下一行徽章。
+       「再来一个任务」在右上，和标题同一行。
+       fb 跨 2–3 行、scores 跨 3–4 行：第 3 行是两边的公共余量，两栏的底边因此永远同一条线。 */
+    grid-template-rows:auto auto 1fr auto auto auto;
+    grid-template-areas:
+      "title   act"
+      "art     fb"
+      "scores  fb"
+      "scores  badges"
+      "peers   peers"
+      "meta    meta"; }
+  #view-final > * { margin:0; min-width:0; }
+  #view-final > h1 { grid-area:title; margin-bottom:2px; }
+  #view-final .compare { grid-area:art; margin:0; align-self:start; }
+  #view-final .compare.single { max-width:none; margin-inline:0; }
+  #view-final .compare figure { margin:0; }
+  #view-final .compare.single figcaption { display:none; }     /* 标题已经说了这是你的作品 */
+  /* 每一块都是同一种卡：同样的边、圆角、内衬，标题在卡里。裸露的标题和卡混排，边线就永远对不上。 */
+  #view-final .fcard, #view-final .scores, #view-final .feedback-card.buddy-card {
+    background:var(--card); border:2px solid var(--line); border-radius:var(--r-lg); padding:14px 16px;
+    box-shadow:none; }
+  #view-final .fcard > h2, #view-final .ability-head, #view-final .buddy-head {
+    margin:0 0 10px; font-size:0.9375rem; font-weight:800; display:flex; align-items:center; gap:7px; }
+  /* 彩点那张卡和别的三张一模一样：头像缩成和别的标题图标一个尺寸，名字就是标题 */
+  #view-final .buddy-head .sprite { width:22px; height:22px; }
+  #view-final .buddy-name { font-size:0.9375rem; }
+  #view-final .feedback-text { font-size:1rem; line-height:1.8; }
+  .badges .badge:not(.mystery) { cursor:pointer; }
+  #view-final .badge-left { margin:0; }
+  #view-final .rose-wrap { background:var(--soft); }
+  #view-final .compare figure img { max-height:34vh; max-height:34dvh; object-fit:contain; }
+  #view-final .feedback-card { grid-area:fb; padding:16px 18px; align-self:stretch; }
+  /* 徽章默认只露一行（六枚）；更多的收起来，点一下展开 */
+  #badges.folded .badge-row > .badge:nth-child(n+7) { display:none; }
+  .badge-more { margin-top:8px; }
+  #view-final .feedback-card .feedback-text { font-size:1rem; line-height:1.8; }
+  #view-final #badges-card { grid-area:badges; align-self:end; }
+  #view-final .scores { grid-area:scores; margin:0; align-self:stretch; }
+  #view-final .peers { grid-area:peers; }
+  #view-final #final-meta { grid-area:meta; }
+  #view-final .actions.sticky { grid-area:act; position:static; padding:0; background:none; margin:0;
+    justify-self:end; align-self:center; }
+  #view-final .actions.sticky button.grow { flex:0 0 auto; }
+  #view-final > h1 { align-self:center; }
+  #view-final .rose { max-width:250px; }     /* 左栏窄一些，图跟着收 */
+  #view-final .rose-wrap { padding:6px 6px 10px; }
+  #view-final .rose-legend { margin-top:2px; }
   /* 结算页只是**报喜**，不是徽章墙：新点亮的收成一排小章
      （完整的一墙在「彩点」tab 里）。四枚大卡片会把这一屏顶出去两屏。 */
-  #view-final .badge-row { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
-  #view-final .badge { padding: 9px 6px 8px; }
-  #view-final .badge .b-ico { width: 38px; height: 38px; }
-  #view-final .badge .b-name { font-size: 11.5px; margin-top: 6px; }
-  #view-final .badge .b-desc { display: none; }
-  #view-final .badge.new::after { top: 4px; right: 4px; padding: 1px 5px; font-size: 9px; }
-  #view-final .badge-group { margin-top: 10px; }
+  #view-final .badge-row { grid-template-columns:repeat(auto-fill, minmax(92px, 1fr)); gap:8px; }
+  #view-final .badge { padding:9px 6px 8px; }
+  #view-final .badge .b-ico { width:38px; height:38px; }
+  #view-final .badge .b-name { font-size:0.7188rem; margin-top:6px; }
+  #view-final .badge .b-desc { display:none; }
+  #view-final .badge .b-ico::after { inset:-4px; border-width:1.5px; }
+  #view-final .badge.new::after, #view-final .badge.again::after { top:0; right:50%; margin-right:-30px; padding:1px 5px; font-size:0.5625rem; }
+  #view-final .badge-row { padding-top:6px; }
 }
 @media (min-width: 760px) and (orientation: landscape) {
   /* 横屏只有 820 高，能给的更少：图还是最大的那块，其余全部收紧 */
   #view-final .rose { max-width: 212px; }
-  #view-final .rose-legend { font-size: 11px; gap: 4px 10px; }
+  #view-final .rose-legend { font-size:0.6875rem; gap: 4px 10px; }
   #view-final .feedback-card { padding: 10px 12px; }
-  #view-final .trained { padding: 10px 12px; }
-  #view-final > * { margin-top: 9px; }
-  #view-final > h2 { margin-top: 12px; margin-bottom: 0; font-size: 17px; }
-  #view-final h1 { font-size: 23px; margin-bottom: 0; }
+  #view-final > h2 { font-size:1.0625rem; }
+  #view-final h1 { font-size:1.4375rem; margin-bottom: 0; }
 }
 
 /* ===== 图标 ===== */
@@ -801,31 +1282,174 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
 .glyph { display:block; }
 
 /* ===== 平板 / 桌面：tab 变成左侧导航，画画变成两栏 ===== */
-@media (min-width: 900px) {
+/* 和地图那条一样，**必须同时看高度**：横过来的 iPhone Pro Max 是 932x430，
+   只看宽度就会给它左边一条 216px 的导航栏和右边一栏 262px 的工具，
+   中间只剩 136px 高给画布——画布缩成 198x136，比竖着拿小一半。
+   矮屏走下面那套「工具收成一条横带」的排法。 */
+@media (min-width: 900px) and (min-height: 600px) {
   .app { flex-direction:row; }
+  /* 宽度**用 rem**：里面装的字全是 rem，栏宽写死 px 的话，字号旋钮一调
+     （现在是 135%）「KidsArtQuest」就会顶穿栏边撞上顶栏的标题——实测溢出 12px。
+     跟输入框 max-width 那处是同一类错：容器按 px、内容按 rem。 */
+  /* 变量要落在**同一个元素**上：写成 `body.rail-off { --rail-w }` 不管用——
+     .app 自己也声明了一份，子树里赢的是它，收起状态会被原样盖回去。 */
+  .app { --rail-w: 10.25rem; }
+  body.rail-off .app { --rail-w: 3.6rem; }
   .tabbar { order:-1; flex-direction:column; justify-content:flex-start; gap:4px;
-    width:216px; height:100vh; height:100dvh; position:sticky; top:0; border-top:none;
-    border-right:1px solid var(--line); padding:16px 12px; }
+    width:var(--rail-w); height:100vh; height:100dvh; position:sticky; top:0; border-top:none;
+    border-right:1px solid var(--line); padding:16px 12px;
+    transition:width .18s ease; }
+  /* 收起键跟品牌同一行，靠右——不单占一行。28px 是视觉尺寸，
+     ::before 把可点区域撑到 44pt，手指够得着而布局不受影响。 */
+  /* 一个很小的描边方框，不是实心按钮——它是次要控件，不该比品牌还响。
+     margin-top 把它往下压一点，跟品牌文字的视线对齐，而不是跟整行居中。 */
+  .rail-toggle { position:relative; flex:none; margin-left:auto; margin-top:5px;
+    display:flex; align-items:center; justify-content:center;
+    width:22px; height:22px; min-height:0; padding:0; border-radius:6px;
+    background:var(--card); border:1px solid var(--line); box-shadow:none; color:var(--muted); }
+  .rail-toggle::before { content:""; position:absolute; left:50%; top:50%;
+    width:44px; height:44px; transform:translate(-50%,-50%); }
+  .rail-toggle:hover { background:var(--soft); border-color:var(--line-d); }
+  /* 选择器要对着 `.ico`：`hydrateIcons()` 是 `el.outerHTML = icon(...)`，
+     那个 <i data-icon> 已经被整个换成 <svg class="ico"> 了，
+     写 `.rail-toggle i` 永远匹配不上——箭头不会翻。 */
+  .rail-toggle .ico { transition:transform .18s ease; }
+  body.rail-off .rail-toggle .ico { transform:rotate(180deg); }
+  /* 收起：只剩图标。名字和标题让位，图标留着——小孩靠位置和形状记路。 */
+  body.rail-off .rail-brand b,
+  body.rail-off .tab span { display:none; }
+  /* 收起之后只有 78px 宽，品牌章和收起键并排放不下——改成上下叠，
+     这时候没有文字跟它们抢地方，叠起来也不显得挤。 */
+  /* 收起之后这一栏就是**六个图标一条竖线**，所以六个必须共用同一条节奏。
+     原来是三套盒模型：品牌块有自己的内衬、收起键是裸的、tab 有 11px 上下内衬——
+     量出来间距是 28 / 48 / 50 / 50 / 50，第一段差了 22px，一眼看得出。
+     统一成「46px 的格子 + 4px 间距」= 中心间距一律 50。
+     tab 本来就是 11+24+11=46，所以只需要把另外两个撑到同一格。 */
+  body.rail-off .rail-brand { flex-direction:column; align-items:center; gap:4px; padding:0; }
+  body.rail-off .rail-brand .mark { margin:10px 0; }            /* 26 + 20 = 46 */
+  body.rail-off .rail-toggle { margin:12px 0; }                 /* 22 + 24 = 46 */
+  body.rail-off .tab { justify-content:center; padding:11px 0; }
   .tab { flex:0 0 auto; flex-direction:row; justify-content:flex-start; gap:12px;
-    font-size:15px; padding:11px 14px; border-radius:var(--r); }
-  .rail-brand { display:flex; align-items:center; gap:9px; font-size:19px; font-weight:800;
-    padding:4px 10px 18px; }
-  .rail-brand .mark { display:flex; align-items:center; justify-content:center; width:32px; height:32px;
-    border-radius:10px; background:var(--accent); color:#fff; flex:none; }
+    font-size:0.9375rem; padding:11px 14px; border-radius:var(--r); }
+  /* 收起键要跟品牌挤同一行，就得给它腾出 28px。与其把整栏拉宽（那会吃掉画布），
+     不如三处各收一点：品牌章小一号、间距收紧、字号降一档。
+     现在 28+7+148+28 = 211，内容区 235，还剩 24px 余量。 */
+  /* 左内衬跟 `.tab` 一样是 14px：品牌章和四个 tab 图标要在**同一条左线**上，
+     差一点点就会看出来。收起之后全部改成居中（见下面 body.rail-off），
+     那时候对齐的是同一条**中轴**。 */
+  /* 左内衬 14px 是为了跟 `.tab` 的图标对齐；右边只有那个小方框，不用跟谁对齐，
+     所以左右不对称——两边都给 14 的话品牌就被挤成「KidsArtQue…」了。 */
+  .rail-brand { display:flex; align-items:flex-start; gap:6px; font-size:0.875rem; font-weight:800;
+    padding:4px 2px 14px 14px; min-width:0; }
+  /* 兜底：万一将来字号再调大，宁可省略号也不要顶穿栏边 */
+  .rail-brand b { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .rail-brand .mark { display:flex; align-items:center; justify-content:center; width:26px; height:26px;
+    border-radius:8px; background:var(--accent); color:#fff; flex:none; }
   body.inflow .tabbar { display:none; }
   main { padding:22px 26px 36px; }
-  h1 { font-size:27px; }
-  .draw-layout { display:grid; grid-template-columns:minmax(0,1fr) 262px; align-items:start; }
+  h1 { font-size:1.6875rem; }
   /* 画画这一屏在横屏 pad 上也只有一屏：整块按视口高度排，
-     画布吃掉左边剩下的高度，工具那一栏自己滚。 */
+     细条 | 画布 | 任务栏 三栏并排，画布吃掉中间剩下的全部高度。 */
   #view-draw { display:flex; flex-direction:column;
     height:calc(100vh - 126px); height:calc(100dvh - 126px); }
-  #view-draw .draw-layout { flex:1 1 auto; min-height:0; }
-  .canvas-wrap { display:flex; flex-direction:column; min-height:0; max-height:100%; }
+  /* 四个格子：细条 | 画布 | 右栏，dock 单独占第二行的中间列。
+     dock 不嵌在画布那一格里，细条和画布才可能真的对齐（见 index.html 的注释）。 */
+  .studio { flex:1 1 auto; min-height:0; display:grid; gap:12px;
+    grid-template-columns:46px minmax(0,1fr) 256px;
+    grid-template-rows:minmax(0,1fr) auto;
+    justify-content:center;                 /* 中间列被 fitCanvas 收窄后，三列整体居中 */
+    /* 第一行被 fitCanvas 收到画布实高之后，两行加起来通常不满一屏。
+       不写这条的话剩下的空间会被 auto 那行（dock）吸收，dock 就被拉成
+       一个两百多高的空盒子。贴顶，富余留在最底下。 */
+    align-content:start; }
+  .railbar { grid-area:1 / 1; }
+  .stage   { grid-area:1 / 2; min-height:0; }
+  .dock    { grid-area:2 / 2; }
+  .brief   { grid-area:1 / 3 / 3 / 4; }
   .canvas-viewport { min-height:0; }
-  .toolbox { max-height:100%; overflow-y:auto; padding-right:3px; }
-  #view-draw .actions.sticky { width:262px; margin-left:auto; margin-top:14px; }
-  .palette { grid-template-columns:repeat(6,1fr); }
+  /* 不设 overflow:auto——右栏的内容本来就靠彩点的窗自己伸缩，设了只会把主按钮
+     底下那道 3px 硬边裁掉，看着像按钮被截断。 */
+  /* contain:size：右栏的尺寸不由内容决定。不然彩点多说几句、窗一长，
+     右栏把 grid 第二行（auto）撑高，dock 被推下去、整屏被拉长要滚动。
+     右栏的高度只能来自 grid（画布行 + dock 行），窗在里面自己滚。 */
+  .brief { max-height:100%; overflow:visible; min-height:0; contain:size; }
+  /* Safari 再加两道保险（本机跑不了 Safari，Chrome 上复现不出「拉长」）：
+     窗自己 overflow:hidden，长了也只能在窗里滚，绝不撑出去。 */
+  .brief .assist { overflow:hidden; }
+  /* 彩点的窗吃掉右栏剩下的全部高度：顶上接着任务卡，底下顶着计时和主按钮，
+     右栏于是和画布、dock 一样是一整块，不再是一张小卡片下面吊着一大片空白。
+     对照组没有这扇窗（.hidden），那时由 spacer 把主按钮推到底。 */
+  .brief .assist { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; }
+  .brief .assist .assist-log, .brief .assist.open-fb .assist-log { flex:1 1 auto; min-height:0; max-height:none; }
+  .brief .assist-head { flex:0 0 auto; }
+  .brief .assist:not(.veiled) .assist-veil { flex:0 0 auto; }
+  .brief-spacer { display:none; }
+  .assist.hidden ~ .brief-spacer { display:block; flex:1 1 auto; min-height:6px; }
+  .brief > .actions { margin-top:0; }          /* 窗的底边对画布底边，按钮对 dock */
+  /* 主按钮和 dock 是同一条线上的两块：同样的圆角、同样的高度。
+     原来字是 1rem 加粗撑满，看着像一块绿砖；字收一号、带个箭头，边缘照旧。 */
+  /* 和心愿屏的「开始画」同一颗：橙色、同样的圆角和字号，只是高度对齐 dock */
+  #btn-submit { border-radius:var(--r); font-size:1.0625rem; gap:8px; min-height:62px; padding:0 22px; }
+
+  /* 细条转竖。原生竖滑块的兼容性是个泥潭：`appearance:slider-vertical` Safari
+     不认，`writing-mode` 竖滑块要 Chrome 119+ / Safari 17.4+，而前者还会把
+     自定义样式整个禁掉（滑块变回系统蓝）。所以这里把横滑块**转 90 度**——
+     样式全保留，所有浏览器都认，上头是大值。
+     它只转滑块自己：**画布的祖先上绝不能出现 transform**，那会让
+     getBoundingClientRect 报出偏移的盒子，落笔坐标当场就歪。
+     两端的按钮靠 auto margin 顶到头，两根滑块因此在中间聚成一组。 */
+  /* 细条按内容高度居中，不撑满整列——撑满的话两根滑块会孤零零吊在空白里。
+     这里**不给它卡片外壳**：46px 宽、四百多高的一根白柱子比没有还显眼。
+     靠间距成组就够了，轨道自己有形状，读起来就是一个控件。 */
+  /* 细条和画布**等高**：撤销贴画布顶边、重做贴画布底边，两根槽把中间分完。
+     槽的长度 --sl-len 由 fitCanvas() 按画布实高算出来写在 .railbar 上，
+     这里的值只是没 JS 时的兜底。 */
+  .railbar { flex-direction:column; align-items:center; justify-content:space-between;
+    align-self:stretch; gap:10px; --sl-len:min(196px, 23vh); --well:34px; }
+  /* 每根滑块各坐在一条浅色的槽里。一根裸露的灰线看着像装饰，一条槽才像能拨的东西；
+     槽是 34px 的圆头胶囊，比 46px 的列窄一圈，所以整根条仍然是「细」的。 */
+  .vsl { flex:0 0 auto; width:var(--well); height:calc(var(--sl-len) + 22px); position:relative;
+    border-radius:999px; background:var(--soft); box-shadow:inset 0 0 0 1.5px var(--line); }
+  /* 粗细默认在下端、浓淡默认在上端，两颗拇指本来只隔 10px，看着像一根双头滑块。 */
+  .vsl::before, .vsl-v { display:none; }
+  .vsl input[type=range] { position:absolute; z-index:1; top:50%; left:50%; flex:none;
+    width:var(--sl-len); height:22px; min-width:0; background:transparent;
+    transform:translate(-50%, -50%) rotate(-90deg); }
+  /* 拇指那道「立体边」本来在下面，跟着 rotate(-90deg) 一起转到右边去了。
+     转回来：转之前放在左边（-x），转完就落在下面。 */
+  /* appearance:none 之后 Chrome 把拇指的顶边对齐轨道的顶边，不是居中：22px 的轨道、
+     26px 的拇指，中心差 2px，转 90 度之后就是拇指偏右 2px。拉回来。 */
+  /* 竖排里**不用原生拇指**：它在槽里居中与否各家浏览器各有各的算法（Chrome 低 2px，
+     Safari 又是另一个数），而这台机器上跑不了 Safari。原生 input 只负责接手指
+     （透明但仍可点），看得见的那颗拇指是我们自己的 .vsl-thumb，按 --pos 算位置，
+     left:50% 在任何引擎里都是槽的正中。 */
+  .vsl input[type=range] { opacity:0; z-index:2; }
+  /* 拇指压在楔子/渐变（::after，z 0）上面、透明的 input（z 2）下面。
+     和 ::after 同层的话按 DOM 顺序 ::after 后画，半透明的灰会把橙色糊成淡的。 */
+  .vsl-thumb { display:block; position:absolute; z-index:1; left:50%; width:26px; height:26px;
+    margin-left:-13px; border-radius:50%; background:var(--accent); border:3px solid #fff;
+    box-shadow:0 0 0 1px rgba(0,0,0,.06); pointer-events:none;
+    /* 原生拇指的行程：从轨道底端 13px 到顶端 13px。轨道长 --sl-len，在槽里上下各留 11px。 */
+    top:calc(11px + (var(--sl-len) - 26px) * (1 - var(--pos, 0)) ); }
+
+  /* 两根滑块长得一模一样，孩子分不出哪根管什么——而 Procreate 那种
+     「什么标签都不要」的克制是给成人用的。所以让**轨道自己说话**：
+     粗细是一个从细到粗的楔子，浓淡是从透明到当前颜色的渐变。
+     转 90 度之后上头是大值，楔子的粗端和渐变的实端都朝上，对得上。 */
+  .vsl::after { content:''; position:absolute; z-index:0; top:50%; left:50%;
+    width:var(--sl-len); height:16px; pointer-events:none; opacity:.55;
+    transform:translate(-50%, -50%) rotate(-90deg); }
+  /* 楔子要够陡才看得出是楔子：细端 3px、粗端 18px。40%–60% 那种
+     只差 3.6px，在一根两百像素长的轨道上根本读不出方向。 */
+  /* 楔子两头都是圆的：一个 SVG 拉伸到轨道那么长（preserveAspectRatio=none），
+     细端半径 1.5、粗端半径 8。原来的 clip-path 多边形是尖的，看着扎手。
+     颜色是 --muted (#a8a8a8) 写死在 data URI 里，CSS 变量进不了 url()。 */
+  .vsl[data-name="粗细"]::after { background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 16' preserveAspectRatio='none'%3E%3Cpath fill='%23a8a8a8' d='M1.5 6.5 L192 0 A8 8 0 0 1 192 16 L1.5 9.5 A1.5 1.5 0 0 1 1.5 6.5 Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat; }
+  /* 浓淡**不跟当前色走**：跟着走的话，孩子选了黑就是一根压过旁边楔子的黑柱，
+     选了白或浅黄又整根消失。固定成灰阶，两根轨道的视觉重量才配得上，
+     区分它们的是**形状**（一个是楔子、一个是等宽的渐变），不是颜色。 */
+  .vsl[data-name="浓淡"]::after { border-radius:999px;
+    background:linear-gradient(to right, rgba(168,168,168,.1), var(--muted)); }
   .result-layout { display:grid; grid-template-columns:1.05fr 1fr; gap:22px; }
   .growth { grid-template-columns:minmax(170px,210px) 1fr; }
   .actions.sticky { position:static; padding:0; background:none; }
@@ -833,23 +1457,28 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
   .modal { align-items:center; }
   .modal-card { border-radius:var(--r-lg); width:90%; }
 }
-/* 窄屏放不下一张地图：改成交错两列，仍然不是一条线 */
-@media (max-width: 700px) {
+/* 窄屏（和横过来的手机那种矮屏）放不下一张地图：改成交错两列，仍然不是一条线 */
+@media (max-width: 700px), (max-height: 599px) {
   .map { aspect-ratio:auto; display:grid; grid-template-columns:1fr 1fr;
     gap:20px 4px; padding:26px 8px 34px; }
-  /* 两列排下来，那种大光晕会糊成一团（正是刚删掉的毛病）。
-     窄屏上每家占一块**方地**，边界清楚，颜色还是自己的。 */
+  /* 两列排下来，那种大光晕会糊成一团（正是曾经删掉的毛病）。窄屏上曾经给
+     每家铺一块**方地**——边界是清楚了，但十块浅色方块并排，整页就读成了
+     一张格子表，而这里本来是一片地。
+     现在只有**下一关**那一块有底色：一屏里最多两三块有色的，主次才出得来。
+     其余的靠圆钮自己的颜色和交错的位置分开。 */
   .map .quest-card::before { left:0; top:0; width:100%; height:100%; margin:0; padding:0;
-    border-radius:24px; background:var(--qc,var(--accent)); opacity:.09; }
-  .map .quest-card.next::before { width:100%; height:100%; margin:0; opacity:.17; }
-  .map .quest-card.done::before { opacity:.05; }
+    border-radius:24px; background:var(--qc,var(--accent)); opacity:0; }
+  .map .quest-card.next::before { width:100%; height:100%; margin:0; opacity:.15; }
+  .map .quest-card.done::before { opacity:0; }
+  /* 方地没了，点击区跟着圆钮走——别让手指落在一块看不见的空白上 */
+  .map .quest-card { padding:10px 4px 12px; }
   /* relative 而不是 static：::before 要按这张卡定位，不然它会铺满整张地图 */
   .map .quest-card { position:relative; left:auto; top:auto; transform:none; width:auto; }
   .map .quest-card:active { transform:scale(.97); }
   .map .quest-card:nth-child(even) { margin-top:38px; }
 }
-@media (max-width: 899px) {
-  /* 手机和竖屏 pad：画画这一屏必须一屏放得下，而画布是主角。
+@media (max-width: 899px), (max-height: 599px) {
+  /* 手机（含横过来的）和竖屏 pad：画画这一屏必须一屏放得下，而画布是主角。
      工具从「一摞卡片」收成**一条横带**，剩下的高度全给画布；说明性的东西
      （意图、彩点、计时、下载）在画的时候不占地方，任务本身还留在最上面一行。 */
   .hint-desktop { display:none; }
@@ -858,32 +1487,70 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
 
   #view-draw { display:flex; flex-direction:column;
     height:calc(100vh - 152px); height:calc(100dvh - 152px); }
-  .draw-layout { flex:1 1 auto; min-height:0; gap:10px; }
-  /* 画布贴着自己的比例走（窄屏上是宽度说了算），剩下的高度全给工具那一条，
-     它自己滚。主按钮不浮在工具上面，占自己一行——挡住调色板就白做了。 */
-  .canvas-wrap { flex:0 1 auto; display:flex; flex-direction:column; padding:8px; }
-  .canvas-viewport { flex:0 1 auto; min-height:0; }
-  #view-draw canvas { max-height:52vh; max-height:52dvh; }
-  .toolbox { flex:1 1 auto; min-height:0; overflow-y:auto; align-content:flex-start; }
-  #view-draw .actions.sticky { position:static; flex:0 0 auto; padding:8px 0 0;
-    background:none; margin-top:4px; }
-  .zoombar { margin-top:7px; }
-  .toolbox { flex-direction:row; flex-wrap:wrap; align-items:center; gap:8px 10px; }
-  .toolbox .tool-group { margin:0; flex:0 0 auto; }
-  .toolbox .tool-group .label { display:none; }
-  .toolbox .intent-card, .toolbox .buddy-mini, .toolbox .historycard { display:none; }
-  .toolbox .quest-card.small { order:-2; flex:1 1 100%; padding:8px 12px; }
-  .toolbox .quest-card.small p { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+  .studio { flex:1 1 auto; min-height:0; gap:9px; }
+  /* 画布按自己的比例走（窄屏上是宽度说了算），dock 和任务栏分剩下的高度。
+     主按钮占自己一行，不浮在 dock 上面——挡住工具就白做了。 */
+  /* 画布区**不参与压缩**。它参与的话会绕成一个圈：fitCanvas 把画布的上限
+     设成框当前的高度 → 画布变高 → 这一列的总内容跟着变高 → flex 又把框
+     压小几个像素 → 画布就露在框外，被 overflow:hidden 切掉。
+     该让位的是右栏——它本来就是可滚动的。画布的上限交给下面那条 46dvh。 */
+  .stage, .stage > .canvas-viewport { flex:0 0 auto; min-height:0; }
+  #view-draw canvas { max-height:46vh; max-height:46dvh; }
+  .brief { flex:1 1 auto; min-height:0; overflow-y:auto; }
+  /* 画的时候，说明性的东西不占地方：意图、彩点、历史卡都收起来，
+     任务本身留着（一行标题 + 两行描述），它是随时要瞄一眼的。 */
+  .brief .historycard { display:none; }
+  /* 那扇窗在窄屏上留着——它是这一屏的核心，不是装饰。只把消息区压矮。 */
+  .assist-log { max-height:8.5rem; }
+  .brief .quest-card.small { padding:8px 12px; }
+  .brief .quest-card.small p { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
     overflow:hidden; margin:2px 0 0; }
-  #tools { display:flex; gap:6px; }
-  #tools button { flex-direction:column; gap:2px; padding:7px 9px; font-size:11px; min-height:0; }
-  .tool-group:has(#size) { flex:1 1 130px; min-width:110px; }
-  .tool-group:has(#palette) { flex:1 1 100%; display:flex; align-items:center; gap:8px; }
-  .palette { display:flex; flex-wrap:wrap; gap:5px; flex:1 1 auto; }
-  .palette div { width:26px; height:26px; }
-  .tool-group.row { gap:6px; }
-  .tool-group.row button { padding:7px 10px; font-size:12px; }
-  .tool-group:has(#btn-download) { display:none; }
+  /* 标题夹成一行：任务名长短不一，两行和一行差着一整行的高度。
+     完整描述在上一屏刚读过，这儿只是备查。 */
+  .brief .quest-card.small h3 { display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical;
+    overflow:hidden; }
+  /* 画布不再参与压缩之后，右栏分到的高度变少，内容一长主按钮就滚出屏幕了。
+     它是这一屏的主操作，必须一直看得见：钉在右栏底部，其余内容在它后面滚。 */
+  .brief > .actions { position:sticky; bottom:0; z-index:2; flex:0 0 auto;
+    padding:8px 0 2px; margin-top:2px;
+    background:linear-gradient(180deg, rgba(255,255,255,0), var(--bg) 42%); }
+  .dock { gap:5px; padding:6px; }
+  .dock .tools button, .dockbtn, .zoombar button { width:40px; height:40px; }
+  .dock-sep { display:none; }
+  #btn-download { display:none; }
+  .dock-name { display:none; }          /* 手机上 dock 已经两行了，别再撑第三行 */
+  .palette div { border-radius:8px; }
+}
+
+/* 竖屏 pad 有 800 宽，dock 一行绰绰有余，下载按钮不必藏。 */
+@media (min-width: 701px) and (max-width: 899px) {
+  #btn-download { display:inline-flex; }
+}
+
+
+/* ===== 手机上的创作屏：能给画布的宽度一寸都不留 ===== */
+/* 竖着拿手机时画布是**宽度**说了算的——1024×704 塞进 393 宽的屏幕，高度最多
+   259，屏幕下面那几百像素再怎么腾也变不出画布来。**省宽度**才有用：页面
+   左右 16、画布卡片的边框和内衬 12，加起来 52px，是屏幕宽度的 13%。
+   横过来更糟（852×393 的视口只剩 241 高给整个创作区，画布反而更小），
+   所以这里不劝孩子转屏——手机上竖着画就是最好的那个方向。 */
+@media (max-width: 700px) {
+  #view-draw { margin-inline:-16px; }                  /* 抵掉 main 的左右 padding */
+  #view-draw .studio { padding-inline:10px; }
+  /* 画布顶到屏幕两边：手机上每一像素宽度都算数。左右没有边可画了，
+     但上下必须留线——不然一整块白画布和白背景糊成一片，孩子看不出
+     哪儿是能画的地方。用 box-shadow 而不是 border，理由同上（不占布局）。 */
+  .stage > .canvas-viewport { border-radius:0; margin-inline:-10px;
+    box-shadow:0 -1px 0 var(--line), 0 1px 0 var(--line), 0 3px 9px rgba(0,0,0,.05); }
+  .railbar { gap:7px; }
+  .railbtn { width:38px; height:38px; }
+  /* 两根滑块在 393 宽的屏上并排会各剩三十几像素，谁也拖不准——
+     拆成上下两行，每根占满一整行。 */
+  .railbar { flex-wrap:wrap; }
+  .vsl { flex:1 1 100%; order:1; }
+  .railbtn { order:0; }
+  /* 调色板浮出来的那张面板本来就贴着屏幕宽度，6 列正好 */
+  .pop { width:calc(100vw - 2rem); }
 }
 
 /* ===== 彩点的呼吸 ===== */
@@ -914,7 +1581,6 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
   60%  { transform:translateY(0) scale(1.08,.92); }
   100% { transform:translateY(0) scale(1,1); }
 }
-.buddy-mini .sprite .cd-body { animation-duration:4.2s; }
 @media (prefers-reduced-motion: reduce) {
   .sprite .cd-body, .sprite .cd-shadow, .sprite .cd-eyes, .sprite.cheer .cd-body,
   .flow-sprite .cd-body, .node-here .cd-body { animation:none; }

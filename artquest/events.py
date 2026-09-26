@@ -39,6 +39,9 @@ CLEAR = "CLEAR"
 BRUSH_CHANGE = "BRUSH_CHANGE"
 COLOR_CHANGE = "COLOR_CHANGE"
 SIZE_CHANGE = "SIZE_CHANGE"
+# 浓淡原本是工具写死的属性，孩子动不了；放开成一个滑杆之后它也成了一个选择，
+# 和换颜色、换粗细同级。不是改名，是新词——旧日志里本来就没有它。
+OPACITY_CHANGE = "OPACITY_CHANGE"
 
 # -- view --------------------------------------------------------------------
 ZOOM = "ZOOM"
@@ -57,6 +60,13 @@ CANVAS_FOCUS = "CANVAS_FOCUS"            # …and back to the canvas
 PAUSE_START = "PAUSE_START"
 PAUSE_END = "PAUSE_END"
 TIME_LIMIT_REACHED = "TIME_LIMIT_REACHED"
+
+# -- 创作进行中的陪伴 ---------------------------------------------------------
+# 孩子主动点开那扇模糊的窗，听彩点说一句话。**他点的那一刻**才是信号：
+# 点了几次、第一次点在创作进行到多久、点的时候画布是什么样——这些和 stroke
+# 流对得上，是「AI 什么时候被需要」的直接证据，比一段聊天记录好编码得多。
+# 连点命中冷却时也照记（带 cached=true），否则「想看」的次数会被吃掉。
+ASSIST_OPEN = "ASSIST_OPEN"
 
 # -- feedback / revision -----------------------------------------------------
 FEEDBACK_SHOW = "FEEDBACK_SHOW"
@@ -86,10 +96,11 @@ ALIASES: Dict[str, str] = {
 VOCABULARY: Set[str] = {
     SESSION_START, TASK_SHOW, CANVAS_GEOMETRY, TASK_SUBMIT, SESSION_ABANDONED, SESSION_END,
     STROKE_START, STROKE_CANCELLED, STROKE_END, ERASE, UNDO, REDO, CLEAR,
-    BRUSH_CHANGE, COLOR_CHANGE, SIZE_CHANGE, ZOOM, PAN,
+    BRUSH_CHANGE, COLOR_CHANGE, SIZE_CHANGE, OPACITY_CHANGE, ZOOM, PAN,
     REFERENCE_SHOW, REFERENCE_OPEN, REFERENCE_CLOSE, REFERENCE_ZOOM,
     REFERENCE_PAN, REFERENCE_FOCUS, CANVAS_FOCUS,
     PAUSE_START, PAUSE_END, TIME_LIMIT_REACHED,
+    ASSIST_OPEN,
     FEEDBACK_SHOW, FEEDBACK_DISMISS, REVISION_START, REVISION_SKIPPED,
     HISTORY_SHOWN, RATING_ADDED, QUESTIONNAIRE_SUBMITTED, DOWNLOAD,
     FEATURED_PROPOSED, FEATURED_ACCEPTED, FEATURED_DECLINED,

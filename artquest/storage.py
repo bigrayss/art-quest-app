@@ -45,7 +45,11 @@ SCHEMA_VERSION = 3
 # Where a session is in its journey from the child's screen to a verified row.
 # Separate from `status` (which says where the *child* is): a finished drawing
 # whose last batch never uploaded is done for the child and not done for the data.
-LIFECYCLE = ("recording", "completed_local", "pending_upload", "uploaded", "server_verified")
+# `issued` 是一张**预发的票**：id 和条件已经由服务端定死，但孩子还没开始画。
+# 它排在 recording 前面，所以「只进不退」那条规则原样成立（比的是序号）。
+# 票据存在的理由见 README「离线创作」：设备离线时不能自己编一个 session_id，
+# 更不能自己编一条实验臂——那两样都是后面每张表的地基。
+LIFECYCLE = ("issued", "recording", "completed_local", "pending_upload", "uploaded", "server_verified")
 _DATAURL_RE = re.compile(r"^data:image/(png|jpeg);base64,(.+)$", re.DOTALL)
 # Logical streams a caller asks for -> the physical file they live in. Feedback
 # is an event; a rating and an expert span are both human labels.
@@ -116,10 +120,32 @@ class SessionStore:
                condition: Optional[Dict[str, Any]] = None,
                device: Optional[Dict[str, Any]] = None,
                study: Optional[Dict[str, Any]] = None,
-               canvas: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        sid = uuid.uuid4().hex[:12]
-        d = self.root / sid
-        d.mkdir(parents=True)
+               canvas: Optional[Dict[str, Any]] = None,
+               sid: Optional[str] = None) -> Dict[str, Any]:
+        """开一次创作。
+
+        `sid` 给了就是**花掉一张预发的票**（见 `issue`）：目录和 id 早就占住了，
+        条件也早就冻好了。两条规矩：
+
+        - **条件以票上的为准**，不是这一刻再算一遍。票是联网时发的，孩子离线
+          画的时候跑的就是票上那条臂；重放时再 resolve 一次可能得到另一个答案
+          （study.json 中间被改过），那样记下来的就不是孩子实际经历的东西。
+        - **已经用过的票原样返回**。离线队列会重发，重发不能把一个已经有笔画的
+          session 抹回空的。
+        """
+        ticket = None
+        if sid:
+            prev = self.load(sid)                    # 没发过这张票就 KeyError，不认
+            if prev.get("lifecycle") != "issued":
+                return prev                          # 用过了：幂等，绝不覆盖
+            ticket = prev
+            d = self.root / sid
+        else:
+            sid = uuid.uuid4().hex[:12]
+            d = self.root / sid
+            d.mkdir(parents=True)
+        if ticket and ticket.get("condition"):
+            condition = ticket["condition"]
         p = dict(participant or {})
         meta = {
             "schema_version": SCHEMA_VERSION,
@@ -131,6 +157,9 @@ class SessionStore:
             "participant": {
                 "anon_id": p.get("anon_id", ""),
                 "participant_id": p.get("participant_id", ""),
+                # 孩子注册过就带上账号 id——「这些画是同一个人画的」在换设备之后
+                # 唯一还成立的那根线。空着就是没登录，那时只有设备认得他。
+                "account_id": p.get("account_id", ""),
                 "label": p.get("label", ""),
                 # 孩子给创作伙伴起的名字；有没有起名本身就是投入程度的信号
                 "buddy_name": p.get("buddy_name", ""),
@@ -179,12 +208,50 @@ class SessionStore:
             "revised": None,
             "questionnaire": None,
             "lifecycle": "recording",
+            # 这个 id 是当场生成的，还是花掉一张预发的票——离线创作的 session
+            # 全是后者，分析时要分得开
+            "id_source": "ticket" if ticket else "server",
+            "issued_at": (ticket or {}).get("issued_at"),
             "streams": {s: {"last_seq": 0, "count": 0} for s in _STREAMS},
             "counts": {"strokes": 0, "points": 0, "events": 0, "snapshots": 0},
             # everything that used to be its own small file lives here now
             "personalization": None,
             "self_report": None,
             "qc": None,
+        }
+        self._write(sid, meta)
+        return meta
+
+    def issue(self, *, condition: Optional[Dict[str, Any]] = None,
+              participant: Optional[Dict[str, Any]] = None,
+              study: Optional[Dict[str, Any]] = None,
+              quest_id: str = "") -> Dict[str, Any]:
+        """预发一张票：把 id 和条件在**联网的时候**定死。
+
+        离线创作要的不是「让客户端自己发 id」——那会一次性毁掉三样东西：
+        id 的可信性（它是后面每张表的外键）、条件冻结（孩子到底跑在哪条臂上）、
+        以及重放时分不清「这个 session 还没建」和「这个 session 不存在」。
+        票据把服务端的决定**提前**而不是拿掉，三个一起解决。
+
+        目录在这时就占住，所以 id 不可能撞车；`create` 花掉它时不会再 mkdir。
+        """
+        sid = uuid.uuid4().hex[:12]
+        (self.root / sid).mkdir(parents=True)
+        p = dict(participant or {})
+        meta = {
+            "schema_version": SCHEMA_VERSION,
+            "session_id": sid,
+            "lifecycle": "issued",
+            "issued_at": now_iso(),
+            "id_source": "ticket",
+            "condition": dict(condition or {}),
+            "participant": {"anon_id": p.get("anon_id", ""), "participant_id": p.get("participant_id", ""),
+                            "account_id": p.get("account_id", ""),
+                            "label": p.get("label", ""), "buddy_name": p.get("buddy_name", "")},
+            "study": {"active": bool((study or {}).get("active")), "study_id": (study or {}).get("study_id", ""),
+                      "group": (study or {}).get("group", "")},
+            "quest_id": quest_id,
+            "app": {"version": __version__, "schema": SCHEMA_VERSION},
         }
         self._write(sid, meta)
         return meta
@@ -307,14 +374,19 @@ class SessionStore:
     def _write(self, sid: str, meta: Dict[str, Any]) -> None:
         write_json(self._meta_path(sid), meta)
 
-    def list(self, *, participant_id: str = "", anon_id: str = "") -> List[Dict[str, Any]]:
+    def list(self, *, participant_id: str = "", anon_id: str = "", account_id: str = "",
+             device_windows: Optional[Dict[str, str]] = None) -> List[Dict[str, Any]]:
         """Every session, or just one child's.
 
         Unfiltered is the researcher's view. The app always asks for its own
-        two ids: once a server has more than one child on it — which is the
+        ids: once a server has more than one child on it — which is the
         whole point of putting it on a phone — an unfiltered list would put
-        other children's drawings into this child's 图鉴 and 作品记录, with no
+        other children's drawings into this child's 画廊 and 小传, with no
         consent gate anywhere near it.
+
+        `account_id` 是注册之后的那根线（见 `accounts.py`），
+        `device_windows` 是 `{anon_id: 认领截止时刻}`：认领过的设备上、
+        **认领之前**画的那些无主作品也算这个账号的。
         """
         keys = ("session_id", "created_at", "quest_id", "status", "revised", "badges", "featured")
         out = []
@@ -324,20 +396,45 @@ class SessionStore:
             m = read_json(d / "session.json") or read_json(d / "metadata.json")
             if not m:
                 continue
-            if participant_id or anon_id:
-                p = m.get("participant")
-                p = p if isinstance(p, dict) else {"participant_id": p or ""}
-                if not ((participant_id and p.get("participant_id") == participant_id)
-                        or (anon_id and p.get("anon_id") == anon_id)):
+            # 没花掉的票不是作品：它没有画、没有时间、没有任务，
+            # 出现在画廊里就是一个空壳
+            if m.get("lifecycle") == "issued":
+                continue
+            if participant_id or anon_id or account_id:
+                if not belongs_to(m, participant_id=participant_id, anon_id=anon_id,
+                             account_id=account_id, windows=device_windows or {}):
                     continue
             row = {k: m.get(k) for k in keys}
             row["session_id"] = sid_of(m) or d.name
             p = m.get("participant")
-            row["participant"] = p if isinstance(p, str) else (p or {}).get("participant_id") or (p or {}).get("anon_id", "")
+            # 一行里只放一个「谁」：强的那个优先（代号 > 账号 > 设备），和别处一致
+            row["participant"] = p if isinstance(p, str) else ((p or {}).get("participant_id")
+                or (p or {}).get("account_id") or (p or {}).get("anon_id", ""))
             row["task_id"] = m.get("quest_id")
             row["qc_ok"] = (m.get("qc") or {}).get("ok")
             out.append(row)
         return sorted(out, key=lambda r: r.get("created_at") or "", reverse=True)
+
+    def unowned(self, anon_id: str) -> List[str]:
+        """这台设备上还没有归属的作品（anon_id 对得上、没有 account_id）。
+
+        「把这台设备上以前画的收进我的」要先知道有几张——而这件事只有孩子
+        自己点得下去，所以这里只数，不改任何东西。
+        """
+        if not anon_id:
+            return []
+        out = []
+        for d in self.root.iterdir():
+            if not d.is_dir():
+                continue
+            m = read_json(d / "session.json") or read_json(d / "metadata.json")
+            if not m or m.get("lifecycle") == "issued":
+                continue
+            p = m.get("participant")
+            p = p if isinstance(p, dict) else {}
+            if p.get("anon_id") == anon_id and not p.get("account_id"):
+                out.append(sid_of(m) or d.name)
+        return out
 
     # -- log streams -------------------------------------------------------
     def append_client(self, sid: str, stream: str, records: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -638,6 +735,32 @@ _PART_FILES = {
     "self_report": ("self_report.json", "questionnaire.json"),
     "qc": ("quality.json",),
 }
+
+
+def belongs_to(meta: Dict[str, Any], *, participant_id: str, anon_id: str,
+          account_id: str, windows: Dict[str, str]) -> bool:
+    """这条 session 算不算「我的」。
+
+    三条，顺序就是优先级：
+
+    1. **带账号的作品只归那个账号**。同一台 iPad 上换个孩子登录，
+       上一个孩子的画不会因为设备相同就漏过去——这是账号存在的意义之一。
+    2. 没有账号的作品，可以被**认领过这台设备**的账号收走，但只收
+       认领时刻之前的（`windows`）。之后在同一台设备上无账号画的画不算，
+       共用设备的教室里那是别人的。
+    3. 都不沾边，就回到原来那两个 id：研究员代号、设备代号。
+    """
+    p = meta.get("participant")
+    p = p if isinstance(p, dict) else {"participant_id": p or ""}
+    owner = p.get("account_id") or ""
+    if owner:
+        return bool(account_id) and owner == account_id
+    if account_id:
+        until = windows.get(p.get("anon_id") or "")
+        if until and (meta.get("created_at") or "") <= until:
+            return True
+    return bool((participant_id and p.get("participant_id") == participant_id)
+                or (anon_id and p.get("anon_id") == anon_id))
 
 
 def sid_of(meta: Dict[str, Any]) -> str:
