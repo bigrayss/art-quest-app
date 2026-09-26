@@ -93,7 +93,7 @@ class StageOneLoop(unittest.TestCase):
 class OneServerManyChildren(unittest.TestCase):
     """把服务器放到局域网上就不止一个孩子了。
 
-    「我的创作图鉴」「作品记录」「地图上的星」读的都是同一条 `/api/sessions`。
+    「画廊」「小传」「地图上的星」读的都是同一条 `/api/sessions`。
     不带身份问，它返回服务器上所有人的作品——别人的画会直接出现在这个孩子的
     个人页里，绕过了整套同意机制。所以 app 永远带着自己的两个 id 问。
     """

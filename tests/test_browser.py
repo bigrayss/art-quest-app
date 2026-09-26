@@ -21,9 +21,11 @@ import urllib.request
 from .env import TMP as _TMP  # noqa: F401  (offline backends, throwaway data dir)
 
 try:
+    from playwright.sync_api import TimeoutError as PWTimeout
     from playwright.sync_api import sync_playwright
 except ImportError:  # pragma: no cover
     sync_playwright = None
+    PWTimeout = Exception
 
 
 def _free_port() -> int:
@@ -95,7 +97,7 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
             page.wait_for_selector("#tour:not(.hidden)")
 
             seen = []
-            for _ in range(5):
+            for _ in range(6):
                 page.wait_for_timeout(400)
                 box = page.evaluate("""() => {
                   const h = document.querySelector('#tour-hole').getBoundingClientRect();
@@ -112,7 +114,7 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
                 self.assertLessEqual(box["tip"][3], 1180 + 1)
                 seen.append(box["text"])
                 page.click("#btn-tour-next")
-            self.assertEqual(len(set(seen)), 5, "五步该说五件不同的事")
+            self.assertEqual(len(set(seen)), 6, "六步该说六件不同的事")
             page.wait_for_function("() => document.querySelector('#tour').classList.contains('hidden')")
 
             page.reload()
@@ -124,6 +126,216 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
             page.wait_for_selector("#tour:not(.hidden)")
             browser.close()
 
+    def test_an_empty_collection_still_hangs_a_wall(self):
+        """一张画都没有的时候，画廊里挂的是一面**空墙**，不是什么都没有。
+
+        整块区域消失会让人以为这一屏坏了，而它只是还在等第一张画——
+        大家那面墙早就是这么做的，自己的那面照抄同一个做法。
+        """
+        if type(self) is not ZoomKeepsStrokesInCanvasSpace:
+            self.skipTest("基类跑一次就够")
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(channel="chrome")
+            page = browser.new_page(viewport={"width": 820, "height": 1180})
+            page.set_default_timeout(15000)
+            # 一个没人用过的设备代号：这条测的就是「一张画都没有」那一刻
+            page.add_init_script("""
+              localStorage.setItem('artquest.tour/2', '1');
+              localStorage.setItem('artquest.anon_id', 'anon-empty-dex');
+              sessionStorage.setItem('artquest.entered', '1');
+            """)
+            page.goto(self.base)
+            # #view-quest 初始就没有 hidden 类，所以等的是关卡真的渲染出来；
+            # init 收尾时还会自己 show 一次，撞上了就再点一下
+            page.wait_for_selector("#quest-grid > *")
+            for _ in range(4):
+                page.click(".tab[data-tab='dex']")
+                try:
+                    page.wait_for_selector("#view-dex:not(.hidden)", timeout=3000)
+                    break
+                except PWTimeout:
+                    page.wait_for_timeout(300)
+
+            page.wait_for_selector("#collection-wrap:not(.hidden)")
+            self.assertTrue(page.is_visible("#dex-empty"), "空墙上该写着一句话")
+            self.assertEqual(page.locator(".dex-card").count(), 0)
+            # 「0/75 种」是把「还没开始」写成一张成绩单，空墙上不挂
+            self.assertEqual(page.inner_text("#dex-progress").strip(), "")
+            browser.close()
+
+    def test_the_badge_wall_never_says_how_many_are_left(self):
+        """墙上只有点亮过的，外加一张「还有别的」。
+
+        报个数（「还有 31 枚」）听着无害，其实把发现变回了进度条：
+        孩子会开始数，而不是继续画。所以墙上**任何地方都不出现总数**。
+        """
+        if type(self) is not ZoomKeepsStrokesInCanvasSpace:
+            self.skipTest("基类跑一次就够")
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(channel="chrome")
+            page = browser.new_page(viewport={"width": 820, "height": 1180})
+            page.set_default_timeout(15000)
+            page.add_init_script("""
+              localStorage.setItem('artquest.tour/2', '1');
+              localStorage.setItem('artquest.anon_id', 'anon-badge-wall');
+              localStorage.setItem('artquest.buddy_name', '阿布');
+              sessionStorage.setItem('artquest.entered', '1');
+            """)
+            page.goto(self.base)
+            page.wait_for_selector("#quest-grid > *")
+            for _ in range(4):
+                page.click(".tab[data-tab='buddy']")
+                try:
+                    page.wait_for_selector("#view-buddy:not(.hidden)", timeout=3000)
+                    break
+                except PWTimeout:
+                    page.wait_for_timeout(300)
+            # 这面墙要等两个请求（自己的 session 列表 + 全服稀有度）才画得出来。
+            # 满负载跑整套测试的时候它们会慢下来，所以这里给得比别处宽。
+            page.wait_for_selector("#badge-wall .badge", timeout=30000)
+
+            wall = page.inner_text("#badge-wall")
+            self.assertIn("更多等你发现", wall, "墙尾该留一枚「?」")
+            self.assertNotIn("还有 ", wall)
+            self.assertNotIn("全部 ", wall)
+            # 一枚灰的都不该有：没点亮的根本不展示
+            self.assertEqual(page.locator("#badge-wall .badge:not(.on):not(.mystery)").count(), 0)
+            # 一打开就有的那枚（「加入家庭」）不经服务器，它得自己出现在墙上
+            self.assertIn("加入家庭", wall)
+            browser.close()
+
+    def test_a_drawing_lives_in_one_place_only(self):
+        """同一批画不摆两处：画廊里有，「我的」里就不该再列一遍。
+
+        以前「图鉴」收画完的、「我的」再按时间列一遍同样那些画，第二处永远是
+        第一处的影子。现在画全在画廊（**没画完的也在**），「我的」只说用户自己。
+        """
+        if type(self) is not ZoomKeepsStrokesInCanvasSpace:
+            self.skipTest("基类跑一次就够")
+        anon = "anon-one-place"
+        # 一张画完的 + 一张没画完的，都该挂在画廊里
+        done = self._finish_one(anon)
+        open_one = json.loads(urllib.request.urlopen(urllib.request.Request(
+            self.base + "/api/sessions", method="POST",
+            data=json.dumps({"quest_id": "imagine_animal",
+                             "intent": {"emotion": "平静", "text": ""},
+                             "participant": {"anon_id": anon}}).encode(),
+            headers={"Content-Type": "application/json"})).read())["session_id"]
+
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(channel="chrome")
+            page = browser.new_page(viewport={"width": 820, "height": 1180})
+            page.set_default_timeout(15000)
+            page.add_init_script(f"""
+              localStorage.setItem('artquest.tour/2', '1');
+              localStorage.setItem('artquest.anon_id', {anon!r});
+              sessionStorage.setItem('artquest.entered', '1');
+            """)
+            page.goto(self.base)
+            page.wait_for_selector("#quest-grid > *")
+
+            for _ in range(4):
+                page.click(".tab[data-tab='dex']")
+                try:
+                    page.wait_for_selector("#view-dex:not(.hidden)", timeout=3000)
+                    break
+                except PWTimeout:
+                    page.wait_for_timeout(300)
+            page.wait_for_selector(f'.dex-open[data-sid="{done}"]')
+            page.wait_for_selector(f'.dex-open[data-sid="{open_one}"]')      # 半张画也是画过的证据
+            self.assertIn("还没画完", page.inner_text("#collection"))
+
+            for _ in range(4):
+                page.click(".tab[data-tab='me']")
+                try:
+                    page.wait_for_selector("#view-sessions:not(.hidden)", timeout=3000)
+                    break
+                except PWTimeout:
+                    page.wait_for_timeout(300)
+            page.wait_for_selector("#story .stile")
+            me = page.inner_text("#view-sessions")
+            self.assertNotIn("画过的画", me, "作品列表该整块搬去画廊了")
+            self.assertEqual(page.locator("#view-sessions .dex-card").count(), 0)
+            self.assertIn("画完的画", me)        # 小传说的是数字，不是一张张画
+            browser.close()
+
+    def test_the_researcher_code_is_not_a_thing_children_see(self):
+        """心愿页上不该有「给自己起个代号」。
+
+        代号是研究员分配的（`?pid=P007` 带进来），和后端名、本机代号、导出 JSON
+        是同一类把手——这个项目定过它们不当界面给孩子看。孩子自己的身份是账号，
+        起名在「我的」里；心愿这一屏（2026-09-26 简约风）只问心情和想画什么，
+        连「起个名字」的提示都不摆——它只剩两个问题和一颗按钮。
+        """
+        if type(self) is not ZoomKeepsStrokesInCanvasSpace:
+            self.skipTest("基类跑一次就够")
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(channel="chrome")
+            try:
+                page = browser.new_page(viewport={"width": 820, "height": 1180})
+                page.set_default_timeout(15000)
+                page.add_init_script("""
+                  localStorage.setItem('artquest.tour/2', '1');
+                  localStorage.setItem('artquest.anon_id', 'anon-no-code');
+                  sessionStorage.setItem('artquest.entered', '1');
+                """)
+                page.goto(self.base)
+                page.wait_for_selector("#quest-grid .quest-card")
+                page.click("#quest-grid .quest-card")
+                page.wait_for_selector("#view-intent:not(.hidden)")
+
+                self.assertTrue(page.is_hidden("#pidbox"), "代号框不该出现在孩子面前")
+                # 这一屏上除了任务本身，只有两个短问题——多一句说明都算话多
+                words = page.inner_text("#view-intent")
+                for banned in ("代号", "起个名字", "设备", "提示："):
+                    self.assertNotIn(banned, words, f"心愿页上不该出现「{banned}」")
+
+                # 研究员那条路还在：带 pid 进来，代号框出现并且已经填好
+                page2 = browser.new_page(viewport={"width": 820, "height": 1180})
+                page2.set_default_timeout(15000)
+                page2.add_init_script("localStorage.setItem('artquest.tour/2','1');"
+                                      "sessionStorage.setItem('artquest.entered','1');")
+                page2.goto(self.base + "/?study=1&pid=P07")
+                page2.wait_for_selector("#quest-grid .quest-card")
+                # 实验模式下 studybar 是异步补上去的，它一出现整张地图就往下挪一截；
+                # 不等它落定就点，Playwright 会一直等一个「位置还在动」的元素
+                page2.wait_for_selector("#studybar:not(.hidden)")
+                page2.wait_for_timeout(600)
+                # 实验模式下地图上摆的是 protocol 那条序列，任务一多，绝对定位的
+                # 卡片会互相压住（点第一个会被一个 locked 的挡住）。这条测的是
+                # 代号框露不露面，不是点击手感，所以直接让那张卡自己 click。
+                page2.eval_on_selector("#quest-grid .quest-card:not(.locked)", "e => e.click()")
+                page2.wait_for_selector("#view-intent:not(.hidden)")
+                self.assertTrue(page2.is_visible("#pidbox"))
+                self.assertEqual(page2.input_value("#participant"), "P07")
+            finally:
+                browser.close()
+
+    def _finish_one(self, anon_id):
+        """从服务端造一张画完的画——这条测的是界面怎么摆，不是画布。"""
+        import base64
+        import io
+
+        from PIL import Image, ImageDraw
+        img = Image.new("RGB", (320, 240), "white")
+        ImageDraw.Draw(img).ellipse((40, 40, 220, 200), fill=(120, 170, 230), outline="black", width=5)
+        buf = io.BytesIO()
+        img.save(buf, "PNG")
+        url = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+
+        def post(path, body):
+            req = urllib.request.Request(self.base + path, method="POST",
+                                         data=json.dumps(body).encode(),
+                                         headers={"Content-Type": "application/json"})
+            return json.loads(urllib.request.urlopen(req).read())
+
+        sid = post("/api/sessions", {"quest_id": "emotion_alone",
+                                     "intent": {"emotion": "开心", "text": ""},
+                                     "participant": {"anon_id": anon_id}})["session_id"]
+        post(f"/api/sessions/{sid}/submit", {"image": url, "elapsed_ms": 60000, "phase": "before"})
+        post(f"/api/sessions/{sid}/finalize", {"elapsed_ms": 62000})
+        return sid
+
     def _start(self, page, intent, family=None):
         """Walk the real UI from the mission map into a running session.
 
@@ -134,10 +346,19 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
         page.set_default_timeout(15000)
         page.add_init_script("localStorage.setItem('artquest.tour/2','1')")
         page.goto(self.base)
-        # the app opens on 彩点's world; the map is behind "进入世界"
-        page.wait_for_selector("#view-world:not(.hidden), #quest-grid .quest-card")
-        if page.is_visible("#btn-enter-world"):
+        # 这个 app 开在彩点的世界上，地图在「进入世界」后面。
+        #
+        # 这里不能用 `is_visible`——它**问一次就走**：世界那一屏还在渲染、按钮
+        # 还没画出来的那一瞬间问会得到 False，于是不点，然后一路等一张永远不会
+        # 露面的关卡卡片（它在 DOM 里，但 #view-quest 已经被切成 hidden 了）。
+        # 也不能等 `#view-quest:not(.hidden)`：初始 HTML 里 #view-quest 身上
+        # 根本没有 hidden 类，那个选择器在 app 还没开始跑的时候就已经匹配上了。
+        # 要等的是世界那一屏**真的出现**；`ui=quiet` 下它不出现，超时就是答案。
+        try:
+            page.wait_for_selector("#view-world:not(.hidden)", timeout=8000)
             page.click("#btn-enter-world")
+        except PWTimeout:
+            pass                      # quiet 模式直接落在地图上，没有这一步
         # `.quest-card` alone would resolve to the hidden card inside the draw
         # view before /api/quests lands, and a locator never re-queries
         page.wait_for_selector("#quest-grid .quest-card")
@@ -264,7 +485,7 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
             for i in range(3):
                 stroke_from(180 + i * 130, 200, 150, 220)
             page.mouse.move(*screen_of(500, 350))
-            for _ in range(6):
+            for _ in range(5):
                 page.mouse.wheel(0, -120)
             page.wait_for_timeout(150)
             stroke_from(500, 350, 60, 40)                     # drawn zoomed in…
@@ -301,6 +522,72 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
         self.assertEqual(next(c for c in qc["checks"] if c["name"] == "log_streams_agree")["detail"]["status"], "ok")
 
 
+    def test_a_colour_sucked_out_of_the_drawing_is_the_colour_that_was_painted(self):
+        """吸管吸到的必须是画上真实的像素，而且那一下**不能顺手画出一笔**。
+
+        取色器整个盖住画布，孩子想要「刚才那个红」只能凭记忆，所以给了吸管。
+        它借的是落笔那条路（pointerdown 在画布上），最容易犯的错就是既吸了色
+        又留下一个点。顺带盯住清空那个弹窗：点「继续画」画必须还在。
+        """
+        before = self._ids()
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(channel="chrome")
+            page = browser.new_page(viewport={"width": 1180, "height": 820})
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            self._start(page, "eyedropper")
+            pick = lambda hx: (page.click("#btn-color"), page.wait_for_selector("#pop-color:not(.hidden)"),
+                               page.eval_on_selector_all("#palette div", f"e => e.find(d => d.title === '{hx}').click()"))
+            cur = lambda: page.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--cur').trim()")
+
+            pick("#e63946")                              # 红，粗一点，横穿画布中央画一笔
+            page.eval_on_selector("#size", "e => { e.value = 80; e.dispatchEvent(new Event('input')); }")
+            c = page.locator("#canvas").bounding_box()
+            x, y = c["x"] + c["width"] / 2, c["y"] + c["height"] / 2
+            page.mouse.move(x - 60, y); page.mouse.down(); page.mouse.move(x + 60, y, steps=6); page.mouse.up()
+            pick("#222222")                              # 换回黑，吸管得把红找回来
+            self.assertEqual(cur(), "#222222")
+
+            page.click("#btn-color"); page.wait_for_selector("#pop-color:not(.hidden)")
+            page.click("#btn-eyedrop")
+            page.wait_for_selector("#eyedrop-tip:not(.hidden)")
+            page.mouse.move(x, y); page.mouse.down(); page.mouse.move(x + 10, y, steps=3)
+            preview = page.evaluate("getComputedStyle(document.querySelector('#nib-dot')).backgroundColor")
+            self.assertEqual(preview, "rgb(230, 57, 70)", "按住的时候泡泡里该是指尖下的颜色")
+            page.mouse.up()
+            self.assertEqual(cur(), "#e63946", "吸到的不是画上的红")
+            self.assertTrue(page.evaluate("document.querySelector('#eyedrop-tip').classList.contains('hidden')"),
+                            "松手之后吸管该自己收起来")
+            self.assertTrue(page.eval_on_selector("#palette div[title='#e63946']", "e => e.classList.contains('active')"),
+                            "吸到的是色板上有的颜色，色板上那格该亮")
+
+            page.click("#btn-clear"); page.wait_for_selector("#clear-modal:not(.hidden)")
+            page.click("#btn-clear-keep")
+            still_red = page.evaluate(f"""() => {{
+              const cv = document.querySelector('#canvas'), r = cv.getBoundingClientRect();
+              const d = cv.getContext('2d').getImageData(Math.round(({x} - r.left) * cv.width / r.width),
+                                                        Math.round(({y} - r.top) * cv.height / r.height), 1, 1).data;
+              return [d[0], d[1], d[2]]; }}""")
+            self.assertEqual(still_red, [230, 57, 70], "点了「继续画」，画却没了")
+
+            page.wait_for_timeout(400)
+            page.evaluate("ArtLog.flush()")
+            page.wait_for_timeout(1200)
+            page.click("#btn-submit")
+            page.wait_for_timeout(4000)
+            browser.close()
+
+        self.assertEqual(errors, [], "JS errors on the page")
+        sid = (self._ids() - before).pop()
+        strokes = self._get(f"/api/sessions/{sid}/strokes")
+        self.assertEqual(len(strokes), 1, f"吸管那一下不该留下笔画，现在有 {len(strokes)} 笔")
+        self.assertEqual(strokes[0]["color"], "#e63946")
+        from artquest.config import SESSIONS_DIR
+        from artquest.storage import session_events
+        events = session_events(SESSIONS_DIR / sid)
+        sources = [(e.get("payload") or e.get("detail") or {}).get("source") for e in events if e.get("type") == "COLOR_CHANGE"]
+        self.assertIn("eyedropper", sources, "从画里吸的颜色和从色板点的，日志里得分得开")
+
     def test_looking_at_the_reference_is_recorded_as_behaviour(self):
         """Look → draw → check → correct only exists if the reference records it."""
         errors, before = [], self._ids()
@@ -311,21 +598,24 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
             self._start(page, "reference", family="博物馆修复师")
             screen_of, drag, stroke_from = self._canvas_tools(page)
 
-            # M1's reference is `mode: always`, so the task presents it at the
-            # start — clicking the toggle here would close it, not open it
+            # M1's reference is `mode: always`: the thumbnail sits in the column
+            # from the start; the big view (where zoom/pan live) opens on tap
+            page.wait_for_selector("#refpanel:not(.hidden)")
+            page.click("#btn-ref-toggle")
             page.wait_for_selector("#ref-viewport", state="visible")
+            page.wait_for_timeout(200)
             box = page.eval_on_selector("#ref-viewport",
                                         "e=>{const b=e.getBoundingClientRect();return [b.left,b.top,b.width,b.height]}")
             centre = (box[0] + box[2] / 2, box[1] + box[3] / 2)
             page.mouse.move(*centre)                           # attention: reference
-            for _ in range(6):
+            for _ in range(5):
                 page.mouse.wheel(0, -120)                      # zoom into the reference
             page.wait_for_timeout(120)
             zoom = page.eval_on_selector("#ref-zoom", "e=>e.textContent")
             drag(centre, -40, -30)                             # pan it
-            stroke_from(300, 300, 80, 120)                     # attention: canvas
+            page.click("#btn-ref-close")                       # back to the canvas
             page.wait_for_timeout(200)
-            page.click("#btn-ref-toggle")                      # and close it again
+            stroke_from(300, 300, 80, 120)                     # attention: canvas
             page.evaluate("ArtLog.flush()")
             page.wait_for_timeout(1500)
             browser.close()
@@ -447,6 +737,206 @@ class IPadGestures(ZoomKeepsStrokesInCanvasSpace):
         # distinguishable only by source
         self.assertIn("pinch", [e["payload"].get("source") for e in events if e["type"] == "ZOOM"])
         self.assertIn("UNDO", kinds)                        # two-finger tap
+
+
+@unittest.skipUnless(_chrome_available(), "playwright + chrome not available")
+class OnAnApplePad(ZoomKeepsStrokesInCanvasSpace):
+    """一块 pad 上的四件事：画布看得全、捏合不跳、装到主屏之后还打得开、
+    孩子在画笔条上挑的颜色和浓淡服务端能原样重建出来。
+
+    （四条合在一个类里，不是因为它们是一件事，而是因为每多一个继承基类的类，
+    基类那一批就得整个重跑一遍。）
+
+    **画布看得全**——孩子看得见的那个框，必须就是他画的那张画。
+
+    样式表里写着 `canvas { max-height: 100% }`，但它**解析不出值**：
+    .canvas-viewport 的高度是 flex 收缩出来的，specified height 还是 auto，
+    百分比没有可依的高度，max-height 于是计算成 none——画布按宽度撑满、比框
+    高出一截，被 overflow:hidden 切掉。iPad 横屏上下各切 22px（整幅画的 7.7%），
+    1440x900 的桌面各切 16px。这不只是难看：构图是九维里的一维，而孩子从来
+    没看全过他被评的那个框。所以上限由 app.js 的 fitCanvas() 按像素写进 style，
+    这条测试盯着它别再退回去。
+    """
+
+    SIZES = [(1194, 834), (1180, 820), (1366, 1024), (820, 1180), (393, 852), (1440, 900)]
+
+    def test_no_edge_of_the_canvas_is_cut_off(self):
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(channel="chrome")
+            for w, h in self.SIZES:
+                page = browser.new_page(viewport={"width": w, "height": h}, has_touch=True)
+                self._start(page, f"fit {w}x{h}")
+                page.wait_for_timeout(400)
+                cut = page.evaluate("""() => {
+                    const c = document.querySelector('#canvas'), v = document.querySelector('#viewport');
+                    const a = c.getBoundingClientRect(), b = v.getBoundingClientRect();
+                    return {top: b.top - a.top, bottom: a.bottom - b.bottom,
+                            left: b.left - a.left, right: a.right - b.right,
+                            w: a.width, h: a.height};
+                }""")
+                for side in ("top", "bottom", "left", "right"):
+                    self.assertLess(cut[side], 2,
+                                    f"{w}x{h}：画布{side}被切掉 {round(cut[side])}px（{cut['w']}x{cut['h']}）")
+                # 切不掉了也不能缩成一张邮票：画布该占满能给它的那一边
+                self.assertGreater(cut["w"] * cut["h"], 40000, f"{w}x{h}：画布只剩 {cut['w']}x{cut['h']}")
+                page.close()
+            browser.close()
+
+    def test_a_pinch_keeps_the_point_under_the_fingers_still(self):
+        """捏合的意思是「这儿放大」，不是「跳一下再放大」。
+
+        手指给的是 clientX/clientY（整页的），view.tx/ty 量的是框内的位移，
+        差着框的左上角。滚轮那条路一直减掉了 r.left/r.top，捏合那条路没减，
+        所以在 iPad 上一捏，画面会整个甩掉一个顶栏的高度——大约 150px。
+        只有触摸屏走这条路，鼠标测不出来。
+        """
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(channel="chrome")
+            page = browser.new_page(viewport={"width": 1194, "height": 834}, has_touch=True)
+            self._start(page, "pinch focus")
+            cdp = page.context.new_cdp_session(page)
+
+            def touch(kind, pts):
+                cdp.send("Input.dispatchTouchEvent", {"type": kind, "touchPoints": [
+                    {"x": x, "y": y, "id": i} for i, (x, y) in enumerate(pts)]})
+                page.wait_for_timeout(28)
+
+            def screen_of(cx, cy):
+                return page.evaluate("""([cx, cy]) => {
+                    const c = document.querySelector('#canvas'), r = c.getBoundingClientRect();
+                    return [r.left + cx * r.width / c.width, r.top + cy * r.height / c.height];
+                }""", [cx, cy])
+
+            focus = (500, 350)
+            fx, fy = screen_of(*focus)
+            touch("touchStart", [(fx - 60, fy), (fx + 60, fy)])
+            for i in range(1, 9):
+                k = 60 + i * 22
+                touch("touchMove", [(fx - k, fy), (fx + k, fy)])
+            touch("touchEnd", [])
+            page.wait_for_timeout(400)
+
+            self.assertNotEqual(page.eval_on_selector("#zoom-level", "e=>e.textContent"), "100%")
+            gx, gy = screen_of(*focus)
+            browser.close()
+
+        # 手指按住的那一点，放大之后还在手指底下
+        self.assertAlmostEqual(gx, fx, delta=8, msg="捏合把画面横着甩开了")
+        self.assertAlmostEqual(gy, fy, delta=8, msg="捏合把画面竖着甩开了")
+
+
+    def _caches(self, page):
+        return page.evaluate("""async () => {
+            const names = await caches.keys(), out = [];
+            for (const n of names) {
+                const c = await caches.open(n);
+                (await c.keys()).forEach(r => out.push(new URL(r.url).pathname));
+            }
+            return out;
+        }""")
+
+    def test_the_shell_is_kept_but_the_artwork_never_is(self):
+        """装到主屏之后，它得像个 app：点开就在，wifi 抖一下不白屏。
+
+        外壳（HTML/CSS/JS/字体/图标）存在设备上，**孩子的画一张都不存**。
+        撤回是这个项目里唯一一处真删——要是 Service Worker 把作品留在了设备
+        缓存里，撤回之后它还在，那条承诺就是假的。带身份的 API 同理：离线时该
+        显示「连不上」，不该显示一份说不清是什么时候的旧数据。
+        """
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(channel="chrome")
+            context = browser.new_context(viewport={"width": 820, "height": 1180}, has_touch=True)
+            page = context.new_page()
+            page.goto(self.base, wait_until="networkidle")
+            page.wait_for_function("async () => { const r = await navigator.serviceWorker.getRegistration();"
+                                   " return !!(r && r.active); }", timeout=15000)
+            cached = self._caches(page)
+            for must in ("/", "/static/app.js", "/static/style.css", "/static/log.js"):
+                self.assertIn(must, cached, "外壳缺一块就打不开")
+
+            # 走一遍真实流程，让画、日志、带身份的请求都跑过一次
+            self._start(page, "pwa")
+            page.wait_for_timeout(1200)
+            leaked = [p for p in self._caches(page)
+                      if p.startswith("/files/") or p.startswith("/api/sessions")
+                      or p.startswith("/api/participants") or p == "/api/study"]
+            self.assertEqual(leaked, [], f"这些不该留在设备缓存里：{leaked}")
+
+            # 拔网线：外壳还打得开
+            context.set_offline(True)
+            offline = context.new_page()
+            offline.goto(self.base, wait_until="domcontentloaded", timeout=15000)
+            self.assertIn("KidsArtQuest", offline.title())
+            self.assertGreater(offline.eval_on_selector_all(".tab", "e => e.length"), 0,
+                               "断网打开是一张白纸")
+            browser.close()
+
+    def test_the_colour_and_opacity_a_child_picked_survive_the_round_trip(self):
+        """画笔条上挑的东西，必须一路走到服务端重建出来的那张图里。
+
+        浓淡原来是工具写死的属性（`TOOLS[tool].alpha`），现在是孩子拉的滑杆。
+        它敢放开，是因为 `reconstruct.py` 从来不查工具表——它按每一笔自己的
+        `opacity` 合成，连同一笔自我重叠的 `1-(1-a)^k` 都算进去了。
+        这条测试盯的就是那个「从来不查工具表」：浏览器画的和 PIL 重建的，
+        在一个**非默认**的浓淡上也必须对得上，不然日志和作品就开始各说各话。
+        """
+        from artquest.reconstruct import check_final
+        from artquest.config import SESSIONS_DIR
+
+        before = self._ids()
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(channel="chrome")
+            page = browser.new_page(viewport={"width": 1180, "height": 820}, has_touch=True)
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            self._start(page, "brush round trip")
+
+            # 取色器现在在常用色面板后面一层：点色块钮先浮出十二色，
+            # 要精调才进取色器。两步都走一遍，顺带验证面板真的浮出来了。
+            page.click("#btn-color")
+            page.wait_for_selector("#pop-color:not(.hidden)")
+            page.click("#btn-more-color")
+            page.wait_for_selector("#color-modal:not(.hidden)")
+            page.eval_on_selector("#pk-hue", "e => { e.value = 190; e.dispatchEvent(new Event('input')); }")
+            box = page.locator("#pk-sv").bounding_box()
+            page.mouse.click(box["x"] + box["width"] * 0.8, box["y"] + box["height"] * 0.25)
+            picked = page.eval_on_selector("#pk-now-hex", "e => e.textContent").strip().lower()
+            page.click("#pk-ok")
+
+            # 一个**非默认**的浓淡：写死的工具值里没有 0.4，蒙不过去
+            page.eval_on_selector("#opacity", "e => { e.value = 40; e.dispatchEvent(new Event('input')); }")
+            page.eval_on_selector("#size", "e => { e.value = 55; e.dispatchEvent(new Event('input')); }")
+            size_px = int(page.eval_on_selector("#size-val", "e => e.textContent"))
+
+            c = page.locator("#canvas").bounding_box()
+            for k in range(4):                      # 互相叠着画，逼出自我重叠那条路径
+                x, y = c["x"] + c["width"] * (0.25 + k * 0.1), c["y"] + c["height"] * 0.3
+                page.mouse.move(x, y)
+                page.mouse.down()
+                for i in range(1, 10):
+                    page.mouse.move(x + i * 5, y + i * 16)
+                page.mouse.up()
+            page.wait_for_timeout(500)
+            page.evaluate("ArtLog.flush()")
+            page.wait_for_timeout(1200)
+            page.click("#btn-submit")
+            page.wait_for_timeout(4000)
+            browser.close()
+
+        self.assertEqual(errors, [], "JS errors on the page")
+        sid = (self._ids() - before).pop()
+        strokes = self._get(f"/api/sessions/{sid}/strokes")
+        self.assertTrue(strokes, "没有笔画被记下来")
+        for st in strokes:
+            self.assertEqual(st["color"], picked, "取色器挑的颜色没进 stroke")
+            self.assertAlmostEqual(st["opacity"], 0.4, places=2, msg="浓淡没进 stroke")
+            self.assertEqual(st["size"], size_px, "粗细的非线性刻度和记下来的像素对不上")
+
+        # 真正要紧的一条：服务端按这些数字重建，得和孩子看到的那张图一致
+        report = check_final(SESSIONS_DIR / sid)
+        self.assertIsNotNone(report["rel"], "没有 final.png 可比")
+        self.assertLess(report["rel"], 0.30,
+                        f"半透明的一笔重建不出来：rel={report['rel']}（阈值 0.30）")
 
 
 if __name__ == "__main__":

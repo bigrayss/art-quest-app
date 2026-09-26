@@ -1,0 +1,45 @@
+# ArtQuest —— 追加到服务器现有的 Caddyfile 里（通常是 /etc/caddy/Caddyfile）。
+#
+# 这台机器跑的是 Caddy 不是 nginx，所以**不需要 certbot**：
+# 域名解析指过来之后，Caddy 会自己去申请 Let's Encrypt 证书并自动续期。
+# 前提是先加好 DNS，再 reload——顺序反了它签不到证书，会反复重试。
+#
+# 应用只监听 127.0.0.1:8010，不对公网开端口；这一段是它唯一的对外入口。
+# 要撤掉：删掉这一段再 `caddy reload`，其余站点不受影响。
+
+art.ddhulu.cn {
+    # 孩子的画以 base64 PNG 提交，默认上限会把它截断
+    request_body {
+        max_size 20MB
+    }
+
+    # ---- 研究员接口：挡在口令后面 --------------------------------------
+    # 应用本身还没有鉴权层（见 deploy/服务器接入指南.md 第零部分卡点 3），
+    # 这几条是公网上的最低限度。
+    #
+    # GET /api/sessions 不带参数会返回**全部**孩子的作品列表；
+    # POST /api/sessions 是孩子新建作品，必须放行——所以按方法区分。
+    @research_list {
+        path /api/sessions
+        method GET
+    }
+    @research_paths {
+        path /api/participants/* /api/gallery/curate
+    }
+    basic_auth @research_list {
+        # 用 `caddy hash-password` 生成，贴 bcrypt 那一串（不是明文）
+        researcher REPLACE_WITH_BCRYPT_HASH
+    }
+    basic_auth @research_paths {
+        researcher REPLACE_WITH_BCRYPT_HASH
+    }
+
+    # ---- 其余全部转给应用 ----------------------------------------------
+    reverse_proxy 127.0.0.1:8010
+
+    log {
+        output file /var/log/caddy/artquest.log
+    }
+}
+
+# 这台机器上是 Caddy v2.10.2，`basic_auth` 是对的写法（2.8 以前叫 `basicauth`）。

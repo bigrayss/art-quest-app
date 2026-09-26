@@ -9,7 +9,13 @@
  */
 (function () {
   "use strict";
-  const DB_NAME = "artquest-log", DB_VERSION = 1, STORE = "queue";
+  const DB_NAME = "artquest-log", DB_VERSION = 2, STORE = "queue";
+  // v2 加了两个库：
+  //   tickets —— 联网时预领的票（服务端发的 session_id + 冻好的 condition）。
+  //              离线开始创作就是花掉一张，不用向服务器要 id。
+  //   outbox  —— 离线时攒下的**整个请求**（建 session、快照、提交、收尾）。
+  //              和 queue 里那些逐笔记录不一样，它们各自打到不同的接口上。
+  const TICKETS = "tickets", OUTBOX = "outbox";
   const FLUSH_MS = 4000, MAX_BATCH = 120;
 
   let db = null, sid = null, flushing = false, timer = null, memKey = 0, quarantined = 0;
@@ -27,12 +33,20 @@
           const os = d.createObjectStore(STORE, { keyPath: "k", autoIncrement: true });
           os.createIndex("sid", "sid");
         }
+        if (!d.objectStoreNames.contains(TICKETS)) d.createObjectStore(TICKETS, { keyPath: "session_id" });
+        if (!d.objectStoreNames.contains(OUTBOX)) {
+          const ob = d.createObjectStore(OUTBOX, { keyPath: "k", autoIncrement: true });
+          ob.createIndex("sid", "sid");
+        }
       };
       req.onsuccess = () => res(req.result);
       req.onerror = () => res(null);
     });
   }
   const tx = (mode) => db.transaction(STORE, mode).objectStore(STORE);
+  const store = (name, mode) => db.transaction(name, mode).objectStore(name);
+  const req1 = (r) => new Promise((res) => { r.onsuccess = () => res(r.result); r.onerror = () => res(null); });
+  const all = (name) => db ? req1(store(name, "readonly").getAll()).then(x => x || []) : Promise.resolve([]);
 
   function put(rec) {
     if (!db) { memq.push(Object.assign({ k: ++memKey }, rec)); return Promise.resolve(); }
@@ -84,7 +98,7 @@
   }
 
   async function notify() {
-    const n = await count();
+    const n = await count() + (db ? (await all(OUTBOX)).filter(r => !r.bad).length : 0);
     listeners.forEach(fn => { try { fn({ pending: n, online: navigator.onLine, quarantined }); } catch (e) { /* ignore */ } });
     return n;
   }
@@ -111,26 +125,81 @@
     await drop(good.concat(bad).map(r => r.k));
   }
 
+  // ---------- 发件箱：离线时攒下的整个请求 ----------
+  // queue 里是一条条记录，全部打到 /log；outbox 里是各自不同的接口
+  // （建 session / 快照 / 提交 / 收尾），而且**必须按原来的先后顺序**重放。
+  const OUTBOX_URL = {
+    create:   () => "/api/sessions",
+    snapshot: (s) => `/api/sessions/${s}/snapshot`,
+    submit:   (s) => `/api/sessions/${s}/submit`,
+    finalize: (s) => `/api/sessions/${s}/finalize`,
+  };
+
+  /** 还没重放的「建 session」是哪些 —— 它们的笔画得等着。 */
+  async function pendingCreates() {
+    const rows = await all(OUTBOX);
+    return new Set(rows.filter(r => r.kind === "create").map(r => r.sid));
+  }
+
+  /** 按顺序重放发件箱。任何一条没过去就停下——后面的都依赖前面的。 */
+  async function drainOutbox() {
+    if (!db) return;
+    const rows = (await all(OUTBOX)).sort((a, b) => a.k - b.k);
+    for (const r of rows) {
+      const url = (OUTBOX_URL[r.kind] || (() => null))(r.sid);
+      if (!url) { await req1(store(OUTBOX, "readwrite").delete(r.k)); continue; }
+      let res;
+      try {
+        res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" },
+                                 body: JSON.stringify(r.body) });
+      } catch (e) { return; }                       // 还是没网，原样留着
+      if (res.ok || res.status === 409) {
+        await req1(store(OUTBOX, "readwrite").delete(r.k));
+        continue;
+      }
+      if (res.status >= 500 || res.status === 429 || res.status === 408) return;   // 服务器的问题，等下一轮
+      // 4xx：这条请求服务器永远不会接受（比如票号它不认）。删掉它会让后面
+      // 所有依赖它的东西一起失败得莫名其妙，所以留在本地、标记出来，
+      // 让「这台设备上还有没送出去的东西」这件事始终是可见的。
+      await req1(store(OUTBOX, "readwrite").put(Object.assign({}, r, { bad: true, status: res.status })));
+      await req1(store(OUTBOX, "readwrite").delete(r.k));
+      quarantined += 1;
+      console.warn(`outbox ${r.kind} 被服务器拒绝（HTTP ${res.status}）`);
+      return;
+    }
+  }
+
   async function flush() {
-    if (!sid || flushing || !navigator.onLine) return notify();
+    if (flushing || !navigator.onLine) return notify();
     flushing = true;
     try {
+      await drainOutbox();
+      const held = await pendingCreates();
+      if (!sid && !held.size) { flushing = false; return notify(); }
       for (;;) {
         const rows = await pull(MAX_BATCH);
         if (!rows.length) break;
+        // 被 create 挡住的行一条都不会被删掉，`rows.length` 就永远是满的——
+        // 没有这个「这一轮到底动了没有」的判断，下面的 for(;;) 会原地转圈。
+        let moved = 0;
         const bySid = {};
         rows.forEach(r => { (bySid[r.sid] = bySid[r.sid] || { events: [], strokes: [], pending: 0, keys: [] }); bySid[r.sid][r.stream].push(r.rec); bySid[r.sid].keys.push(r.k); });
         for (const s of Object.keys(bySid)) {
+          // 这个 session 还没被建出来：它的笔画现在发过去只会撞 404，
+          // 而 404 走的是「服务器拒了这一行」那条路——会被隔离掉，画了等于没画。
+          if (held.has(s)) continue;
           const { keys, ...body } = bySid[s];
           try {
             await post(s, body);
-            await drop(keys);
+            await drop(keys); moved += keys.length;
           } catch (e) {
             if (e.status >= 400 && e.status < 500 && e.status !== 408 && e.status !== 429) {
               await postRowsIndividually(s, rows.filter(r => r.sid === s));
+              moved += 1;
             } else { throw e; }
           }
         }
+        if (!moved) break;                      // 全被挡住了：这一轮没得做，等下一轮
         if (rows.length < MAX_BATCH) break;
       }
     } catch (e) {
@@ -151,6 +220,44 @@
         `/api/sessions/${s}/log`, new Blob([JSON.stringify(bySid[s])], { type: "application/json" })));
     });
   }
+
+  // ---------- 票 ----------
+  // 一张票 = 服务端发的 session_id + 冻好的 condition。联网时领，离线时花。
+  // 不在设备上生成 id：那会同时毁掉 id 的可信性、条件冻结，以及重放时
+  // 「还没建」和「不存在」的可分辨性（见 README「离线创作」）。
+  /** 票和发件箱在**没有 session 的时候**也要能用——离线开工时 `start()` 还没跑过，
+   *  `db` 还是 null。以前这些函数直接读 `db`，于是「有 3 张票」被读成「一张都没有」，
+   *  孩子看到的是「这台设备上没有备用的创作名额了」。 */
+  async function ensure() { if (db === null) db = await openDB(); return !!db; }
+
+  async function saveTickets(list) {
+    await ensure();
+    if (!db || !list || !list.length) return 0;
+    const os = store(TICKETS, "readwrite");
+    list.forEach(t => os.put(t));
+    await new Promise(res => { os.transaction.oncomplete = os.transaction.onerror = res; });
+    return list.length;
+  }
+  async function countTickets() { await ensure(); return (await all(TICKETS)).length; }
+  /** 花掉一张票。优先给绑了这个任务的那张；没有就用任务无关的。 */
+  async function takeTicket(questId) {
+    await ensure();
+    const rows = await all(TICKETS);
+    if (!rows.length) return null;
+    const t = rows.find(r => r.quest_id === questId) || rows.find(r => !r.quest_id) || null;
+    if (!t) return null;
+    await req1(store(TICKETS, "readwrite").delete(t.session_id));
+    return t;
+  }
+  /** 把一整个请求存进发件箱，等有网了按顺序重放。 */
+  async function defer(kind, sessionId, body) {
+    await ensure();
+    if (!db) return false;
+    await req1(store(OUTBOX, "readwrite").add({ kind, sid: sessionId, body, at: Date.now() }));
+    await notify();
+    return true;
+  }
+  async function outboxCount() { await ensure(); return (await all(OUTBOX)).filter(r => !r.bad).length; }
 
   const ArtLog = {
     async start(sessionId) {
@@ -176,6 +283,9 @@
     flush,
     beacon,
     pending: count,
+    // 离线创作要用的四件
+    saveTickets, countTickets, takeTicket, defer, outboxCount,
+    ready: ensure,
     onstatus(fn) { listeners.push(fn); },
   };
   window.ArtLog = ArtLog;

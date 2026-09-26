@@ -32,7 +32,7 @@ from . import events as ev
 from .logstore import read_json
 from .reconstruct import read_jsonl, visible_ids
 from .scoring.base import DIM_KEYS
-from .storage import now_iso, session_meta, sid_of
+from .storage import belongs_to, now_iso, session_meta, sid_of
 
 # Bumped when the shape below changes, so a frozen snapshot stays readable.
 REPRESENTATION_SCHEMA = 1
@@ -58,14 +58,19 @@ def iter_sessions(root=None) -> Iterable[Dict[str, Any]]:
 
 
 def sessions_for(participant_id: str = "", anon_id: str = "",
-                 *, finished_only: bool = True, before: str = "") -> List[Dict[str, Any]]:
+                 *, account_id: str = "", windows: Optional[Dict[str, str]] = None,
+                 finished_only: bool = True, before: str = "") -> List[Dict[str, Any]]:
     """A participant's sessions, oldest first.
 
-    **The researcher code wins when there is one.** The device id is a fallback
-    for free play, not a second name for the same child: a shared lab machine
-    gives twenty children one `anon_id`, and matching on either id would merge
-    their histories into one imaginary participant. So a code narrows to that
-    code alone, and `anon_id` is consulted only when no code was given.
+    **The researcher code wins when there is one.** The device id is the last
+    fallback, for free play — it is not a second name for the same child: a
+    shared lab machine gives twenty children one `anon_id`, and matching on any
+    id would merge their histories into one imaginary participant. So a code
+    narrows to that code alone.
+
+    在两者之间是**账号**（`accounts.py`）：它比设备强——换台设备还是同一个孩子，
+    伙伴的成长不该从头再来——比研究员代号弱，代号是分析里的那个身份。
+    归属规则只有一份，在 `storage.belongs_to`。
 
     `before` takes an ISO timestamp and keeps history strictly prior to it,
     which is what makes a representation reproducible after the fact: rebuild it
@@ -73,13 +78,18 @@ def sessions_for(participant_id: str = "", anon_id: str = "",
     the system had.
     """
     want_pid, want_anon = (participant_id or "").strip(), (anon_id or "").strip()
-    if not (want_pid or want_anon):
+    want_acc = (account_id or "").strip()
+    if not (want_pid or want_anon or want_acc):
         return []
     out = []
     for meta in iter_sessions():
         anon, pid = _identity(meta)
         if want_pid:
             if pid != want_pid:
+                continue
+        elif want_acc:
+            if not belongs_to(meta, participant_id="", anon_id="",
+                              account_id=want_acc, windows=windows or {}):
                 continue
         elif anon != want_anon:
             continue
@@ -217,13 +227,14 @@ def _dim_trajectory(tasks: List[Dict[str, Any]]) -> Dict[str, Any]:
     return out
 
 
-def build(participant_id: str = "", anon_id: str = "", *, before: str = "") -> Dict[str, Any]:
+def build(participant_id: str = "", anon_id: str = "", *, account_id: str = "",
+          windows: Optional[Dict[str, str]] = None, before: str = "") -> Dict[str, Any]:
     """Build a participant's representation from their finished sessions.
 
     Pure: reads the logs, writes nothing. Pass `before` to rebuild the exact
     input a past decision had.
     """
-    metas = sessions_for(participant_id, anon_id, before=before)
+    metas = sessions_for(participant_id, anon_id, account_id=account_id, windows=windows, before=before)
     tasks = [task_record(m) for m in metas]
     rep = {
         "schema": REPRESENTATION_SCHEMA,
@@ -294,7 +305,8 @@ def _level(practice: float) -> int:
     return lvl
 
 
-def growth(participant_id: str = "", anon_id: str = "") -> Dict[str, Any]:
+def growth(participant_id: str = "", anon_id: str = "", *, account_id: str = "",
+           windows: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
     """Per-dimension growth, in two layers that must not be confused.
 
     **practice** — how many finished tasks were *built* to exercise this
@@ -308,7 +320,7 @@ def growth(participant_id: str = "", anon_id: str = "") -> Dict[str, Any]:
     be a progress bar over numbers nobody produced. Those come back `awake:
     false` so the missing piece is visible instead of papered over.
     """
-    metas = sessions_for(participant_id, anon_id)
+    metas = sessions_for(participant_id, anon_id, account_id=account_id, windows=windows)
     practice: Dict[str, float] = {k: 0.0 for k in DIM_KEYS}
     scored: Dict[str, List[float]] = {k: [] for k in DIM_KEYS}
     by_dim_tasks: Dict[str, List[str]] = {k: [] for k in DIM_KEYS}

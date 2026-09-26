@@ -281,8 +281,13 @@ CURATOR_ID = "curator/v1"
 
 
 def _person(meta: Dict[str, Any]) -> str:
+    """轮换算的是**人**，所以身份按强弱取：研究员代号 > 账号 > 设备。
+
+    漏掉账号那一档，同一个孩子的 iPad 和手机会被当成两个人——轮换、
+    一人一轮一张、cooldown 三条规则一起失效。
+    """
     p = meta.get("participant") or {}
-    return p.get("participant_id") or p.get("anon_id") or ""
+    return p.get("participant_id") or p.get("account_id") or p.get("anon_id") or ""
 
 
 def _days_since(iso: str, now: Optional[str] = None) -> float:

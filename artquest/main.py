@@ -1,9 +1,11 @@
 """FastAPI application: serves the drawing UI and the session / research API."""
+import hashlib
 import logging
+import re
 from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__
@@ -11,8 +13,10 @@ from . import events as ev
 from . import gallery as gallery_mod
 from . import history as history_mod
 from . import study as study_mod
+from .accounts import AccountError, AccountStore
 from .config import (CLAUDE_MODEL, SESSIONS_DIR, SNAPSHOT_INTERVAL_SEC, STATIC_DIR,
                      claude_available)
+from .assist import get_assist_engine
 from .feedback import get_feedback_engine
 from .personalize import MODES as HISTORY_MODES, get_personalizer
 from .qc import check as qc_check
@@ -21,9 +25,11 @@ from .quests import (EMOTIONS, QUESTS, QUESTS_BY_ID, condition_snapshot,
 from .reconstruct import check_final
 from .rubric import apply_contract, check_rating
 from .revision import attribute as attribute_revision
-from .schemas import (Abandon, Annotation, CreateSession, Curate, DrawEvent, EarnedBadges, FeaturedAnswer,
-                      FeedbackIn, Finalize, HARDEST_PARTS, LogBatch, PROCESS_LABELS,
-                      Questionnaire, Rating, Snapshot, StudyAssign, Stroke, Submit)
+from .schemas import (
+    AssistIn,Abandon, Annotation, ClaimDevice, CreateSession, Curate, DrawEvent, EarnedBadges,
+                      FeaturedAnswer, FeedbackIn, Finalize, HARDEST_PARTS_SHOWN, IssueTickets, Login, LogBatch,
+                      PROCESS_LABELS, ProfileUpdate, Questionnaire, Rating, Register, Snapshot, StudyAssign,
+                      Stroke, Submit, TokenOnly)
 from .scoring import DIMENSIONS, SCALE_MAX, get_scorer
 from .storage import SCHEMA_VERSION, SessionStore, decode_data_url, now_iso, sid_of
 
@@ -33,8 +39,39 @@ log = logging.getLogger("artquest")
 # instructions is never pooled in analysis.
 PROMPT_VERSION = "feedback/1"
 
-app = FastAPI(title="KidsArtQuest", version=__version__)
+# 外壳（HTML/CSS/JS）的版本号 = 这几个文件内容的哈希。
+# 谁也不用记得去改它：改了任何一个文件，版本就变了。
+# 两个地方用它——Service Worker 的缓存名，和「我的 → 这台设备」里显示的那一行。
+# 以前 sw.js 里写死一个 `v3`，改完前端忘了跟着 bump，装在 iPad 主屏上的那份
+# 就一直拿旧外壳；而且当时**没有任何地方看得出设备上跑的是哪一版**，
+# 于是「到底更新了没有」只能靠猜。
+_SHELL_FILES = ("index.html", "app.js", "log.js", "style.css", "sw.js")
+
+
+def shell_version() -> str:
+    h = hashlib.sha256()
+    for name in _SHELL_FILES:
+        p = STATIC_DIR / name
+        if p.exists():
+            h.update(p.read_bytes())
+    return h.hexdigest()[:10]
+
+
+class Utf8JSON(JSONResponse):
+    """JSON 一律声明 `charset=utf-8`。
+
+    RFC 8259 说 JSON 默认就是 UTF-8，浏览器也这么认，所以不写也能用。
+    但这个接口的内容**大部分是中文**（任务名、孩子写的一句话、伙伴的名字），
+    而「导出 JSON」那条链接是给人下载下来看的——存成文件之后，
+    中文系统上的记事本、Excel、某些编辑器会按本地编码（GBK）去猜，然后满屏乱码。
+    多写这一句，下游就不用猜。
+    """
+    media_type = "application/json; charset=utf-8"
+
+
+app = FastAPI(title="KidsArtQuest", version=__version__, default_response_class=Utf8JSON)
 store = SessionStore()
+accounts = AccountStore()
 SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
 
 # `before.png` / `after.png` / `final.png` are *phases*, not file names: since
@@ -58,6 +95,26 @@ def phase_image(sid: str, phase: str):
 
 app.mount("/files", StaticFiles(directory=SESSIONS_DIR), name="files")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+@app.middleware("http")
+async def revalidate_the_app_shell(request, call_next):
+    """外壳一律带 `no-cache`。
+
+    没有这个头，`StaticFiles` 什么缓存指令都不发，浏览器就按**启发式**自己决定
+    存多久——于是改完 CSS 之后，客户端可能拿到「新的 HTML 配旧的 CSS」，
+    按钮画出来了却没有样式也没有事件，看起来就是坏的。这不是理论：
+    iPad 上真碰到了一次。
+
+    `no-cache` 不是「不缓存」，是「每次都回来问一句」。文件没变就是一个 304，
+    几十字节；`StaticFiles` 本来就在发 ETag 和 Last-Modified，白用。
+    这条只管外壳（`/static` 和首页），孩子的画（`/files`）另有自己的头。
+    """
+    response = await call_next(request)
+    path = request.url.path
+    if path == "/" or path.startswith("/static/"):
+        response.headers.setdefault("Cache-Control", "no-cache")
+    return response
 
 
 def _session_or_404(sid: str) -> Dict[str, Any]:
@@ -122,12 +179,32 @@ def index():
     return FileResponse(STATIC_DIR / "index.html")
 
 
+# Service Worker 必须从**根目录**发出来，它才管得了整个站（/static/sw.js 的作用域
+# 只有 /static/）。文件本身仍然住在 static/ 里，这里只是换个路径端出去。
+# no-cache 是故意的：浏览器拿旧的 sw.js 意味着旧的一整套外壳再也换不掉。
+@app.get("/sw.js")
+def service_worker():
+    """把缓存版本号**当场换成外壳的哈希**再发出去。
+
+    sw.js 里写的 `const VERSION = "dev"` 只是个占位。手写版本号这件事总会忘：
+    改完 CSS 忘了 bump，装在主屏上的那份就抱着旧缓存不放，而人在 iPad 上
+    根本看不出自己跑的是哪一版。现在文件一改哈希就变，SW 自己会去装新的。
+    """
+    src = (STATIC_DIR / "sw.js").read_text(encoding="utf-8")
+    src = re.sub(r'const VERSION = "[^"]*";', f'const VERSION = "{shell_version()}";', src, count=1)
+    return Response(src, media_type="application/javascript",
+                    headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"})
+
+
 @app.get("/api/config")
 def config():
     scorer, fb = get_scorer(), get_feedback_engine()
     st = study_mod.load_study()
     return {
         "version": __version__,
+        # 设备上跑的是哪一版外壳。「我的 → 这台设备」里显示它，
+        # 这样在 iPad 上一眼就看得出更新到没有，不用靠猜。
+        "shell": shell_version(),
         "schema_version": SCHEMA_VERSION,
         "snapshot_interval_sec": SNAPSHOT_INTERVAL_SEC,
         "scorer": scorer.name,
@@ -141,7 +218,7 @@ def config():
         # server is not running
         "default_condition": study_mod.resolve_condition(),
         "history_modes": list(HISTORY_MODES),
-        "hardest_parts": [{"key": k, "label": v} for k, v in HARDEST_PARTS],
+        "hardest_parts": [{"key": k, "label": v} for k, v in HARDEST_PARTS_SHOWN],
         "process_labels": list(PROCESS_LABELS),
         "study": {"active": st["active"], "study_id": st["study_id"], "order": st["order"]},
     }
@@ -170,11 +247,91 @@ def study_assign(body: StudyAssign):
     return study_mod.assign(body.participant_id, body.anon_id, body.group)
 
 
+# -- 账号 ------------------------------------------------------------------
+# 只解决一件事：让画跟着**人**走。`anon_id` 是一台设备，孩子在 iPad 上画、
+# 想在 iPhone 上看的时候它就失效了。设计取舍全部写在 accounts.py 开头。
+def _account_error(e: AccountError) -> HTTPException:
+    code = {"name_taken": 409, "device_taken": 409, "no_session": 401,
+            "bad_credentials": 401, "locked": 429}.get(e.code, 400)
+    return HTTPException(code, e.message)
+
+
+def _scope(account_id: str = "") -> Dict[str, Any]:
+    """一个账号在列表接口里的取景框：它自己 + 它认领过的设备。
+
+    **认不出来的 account_id 原样带下去**，不要抹成空的：抹空了这一层筛选就整个消失，
+    一个乱填的账号 id 会让「我的」接口退回研究员那份全量视图。认不出来的 id
+    匹配不到任何作品，这才是它该有的结果。
+    """
+    acc = accounts.load(account_id) if account_id else None
+    return {"account_id": account_id, "device_windows": accounts.device_windows(acc) if acc else {}}
+
+
+@app.post("/api/accounts/register", status_code=201)
+def account_register(body: Register):
+    try:
+        return accounts.register(body.name, body.pin, anon_id=body.anon_id, buddy_name=body.buddy_name)
+    except AccountError as e:
+        raise _account_error(e)
+
+
+@app.post("/api/accounts/login")
+def account_login(body: Login):
+    try:
+        return accounts.login(body.name, body.pin, anon_id=body.anon_id)
+    except AccountError as e:
+        raise _account_error(e)
+
+
+@app.get("/api/accounts/me")
+def account_me(token: str = "", anon_id: str = ""):
+    """当前登录的是谁，外加「这台设备上还有几张没归属的画」——
+    那个数字是「收进我的」按钮存在的全部理由，所以在这儿一起给。"""
+    try:
+        acc = accounts.require(token)
+    except AccountError as e:
+        raise _account_error(e)
+    pub = accounts.public(acc)
+    claimed = anon_id in accounts.device_windows(acc)
+    return {"account": pub, "unclaimed_here": 0 if claimed else len(store.unowned(anon_id)),
+            "claimed_here": claimed}
+
+
+@app.post("/api/accounts/claim")
+def account_claim(body: ClaimDevice):
+    """把这台设备上以前画的收进自己名下。**不改任何 session**：
+    记的是「这个账号认领过这台设备，截止到此刻」，旧数据一个字节不动。"""
+    try:
+        acc = accounts.require(body.token)
+        pub = accounts.claim_device(acc["account_id"], body.anon_id)
+    except AccountError as e:
+        raise _account_error(e)
+    return {"ok": True, "account": pub, "claimed": len(store.unowned(body.anon_id))}
+
+
+@app.post("/api/accounts/profile")
+def account_profile(body: ProfileUpdate):
+    """伙伴的名字跟着账号走，换台设备它还叫原来那个名字。"""
+    try:
+        acc = accounts.require(body.token)
+        return {"ok": True, "account": accounts.set_buddy_name(acc["account_id"], body.buddy_name)}
+    except AccountError as e:
+        raise _account_error(e)
+
+
+@app.post("/api/accounts/logout")
+def account_logout(body: TokenOnly):
+    """只退这一台设备。别处仍然登录着——共用 iPad 上退出的那个孩子，
+    不该把自己手机上的登录也一起弄掉。"""
+    accounts.logout(body.token)
+    return {"ok": True}
+
+
 # -- sessions --------------------------------------------------------------
 @app.get("/api/sessions")
-def list_sessions(participant_id: str = "", anon_id: str = ""):
+def list_sessions(participant_id: str = "", anon_id: str = "", account_id: str = ""):
     """不带参数 = 研究员看全部；带上身份 = 这个孩子自己的那些（app 永远带）。"""
-    return store.list(participant_id=participant_id, anon_id=anon_id)
+    return store.list(participant_id=participant_id, anon_id=anon_id, **_scope(account_id))
 
 
 @app.get("/api/sessions/{sid}")
@@ -205,8 +362,10 @@ def _personalize(sid: str, quest: Dict[str, Any], meta: Dict[str, Any]) -> Dict[
     who = meta.get("participant") or {}
     rep = None
     if mode != "none":
+        sc = _scope(who.get("account_id", ""))
         try:
             rep = history_mod.build(who.get("participant_id", ""), who.get("anon_id", ""),
+                                    account_id=sc["account_id"], windows=sc["device_windows"],
                                     before=meta.get("created_at") or "")
         except Exception:
             log.exception("representation build failed for %s", sid)
@@ -222,6 +381,37 @@ def _personalize(sid: str, quest: Dict[str, Any], meta: Dict[str, Any]) -> Dict[
     return store.save_personalization(sid, decision)
 
 
+@app.post("/api/tickets", status_code=201)
+def issue_tickets(body: IssueTickets):
+    """预发几张票，留着离线用。
+
+    一张票 = 服务端生成的 `session_id` + **此刻冻结好的 condition**，目录当场占住。
+    孩子离线开始创作就是花掉一张，不发任何请求；重新联网时队列把创建和笔画一起补上。
+
+    为什么不让客户端自己发 id：那会一次性毁掉三样东西——id 的可信性（它是后面
+    每张表的外键）、条件冻结（孩子究竟跑在哪条实验臂上），以及重放时分不清
+    「这个 session 还没建」和「这个 session 根本不存在」。票据把服务端的决定
+    **提前**而不是拿掉。
+    """
+    n = max(1, min(20, body.n))
+    st = body.study.model_dump()
+    quest_ids = body.quest_ids[:n]
+    out = []
+    for i in range(n):
+        qid = quest_ids[i] if i < len(quest_ids) else ""
+        quest = QUESTS_BY_ID.get(qid) if qid else None
+        if qid and quest is None:
+            raise HTTPException(400, f"unknown quest {qid}")
+        condition = study_mod.resolve_condition(None, st.get("group", ""))
+        if quest and quest.get("time_limit_sec") and not condition.get("time_limit_sec"):
+            condition["time_limit_sec"] = quest["time_limit_sec"]
+        t = store.issue(condition=condition, participant=body.participant.model_dump(),
+                        study=st, quest_id=qid)
+        out.append({"session_id": t["session_id"], "issued_at": t["issued_at"],
+                    "condition": t["condition"], "quest_id": qid})
+    return {"tickets": out}
+
+
 @app.post("/api/sessions", status_code=201)
 def create_session(body: CreateSession):
     quest = QUESTS_BY_ID.get(body.task())
@@ -231,11 +421,22 @@ def create_session(body: CreateSession):
     condition = study_mod.resolve_condition(body.condition, st.get("group", ""))
     if quest.get("time_limit_sec") and not condition.get("time_limit_sec"):
         condition["time_limit_sec"] = quest["time_limit_sec"]
-    meta = store.create(
-        quest, body.intent.model_dump(),
-        participant=body.participant_dict(), condition=condition,
-        device=body.device.model_dump(), study=st, canvas=body.canvas.model_dump(),
-    )
+    try:
+        meta = store.create(
+            quest, body.intent.model_dump(),
+            participant=body.participant_dict(), condition=condition,
+            device=body.device.model_dump(), study=st, canvas=body.canvas.model_dump(),
+            sid=body.session_id or None,
+        )
+    except KeyError:
+        # 带了一个从没发出去过的票号。不当场给它建一个——那正是「客户端自己发 id」
+        # 的后门，会把 id 的可信性从后门放回来。
+        raise HTTPException(404, "unknown ticket")
+    # 重放一张已经用过的票：原样返回，不重跑下面那串「冻条件、拷参考图、写开场事件」
+    if meta.get("lifecycle") != "recording" or meta.get("times", {}).get("started_at"):
+        return {"session_id": sid_of(meta), "session": store.load(sid_of(meta)),
+                "personalization": {}, "replayed": True}
+    condition = meta.get("condition") or condition      # 票上冻的那份才算数
     store.mark_started(sid_of(meta))
     # what this child actually saw, frozen before anything else happens
     store.save_condition(sid_of(meta), condition_snapshot(
@@ -278,6 +479,35 @@ def ingest_log(sid: str, body: LogBatch):
     if body.pending == 0:
         store.set_lifecycle(sid, "uploaded")
     return {"ok": True, "streams": out}
+
+
+@app.post("/api/sessions/{sid}/assist")
+def assist(sid: str, body: AssistIn):
+    """孩子画到一半，点开那扇模糊的窗。
+
+    `dialogue_mode` 是冻结在 session 上的条件，所以它必须**真的决定点什么**——
+    `feedback_source` 曾经被声明了却没人执行，元数据说「没有反馈」而孩子照样
+    收到了，那是两头不落好。对照组在这里直接 403，前端连窗都不画。
+
+    这一层只鼓励和发问，不评价质量；评价在交卷之后的 `/submit`。
+    理由见 `artquest/assist/__init__.py` 的模块注释。
+    """
+    meta = _session_or_404(sid)
+    mode = (meta.get("condition") or {}).get("dialogue_mode", "on_demand")
+    if mode == "none":
+        raise HTTPException(403, "dialogue_mode is none for this session")
+    try:
+        png = decode_data_url(body.image)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    _ingest(sid, body.events, [])
+    quest = QUESTS_BY_ID[meta["quest_id"]]
+    try:
+        out = get_assist_engine().assist(png, quest, meta.get("intent") or {}, nth=max(1, body.nth))
+    except Exception as e:                      # 陪伴挂了绝不能挡住画画
+        log.exception("assist failed")
+        return {"text": "我在这儿呢，接着画。", "backend": "error", "error": str(e)}
+    return {"text": out["text"], "backend": out.get("backend", "")}
 
 
 @app.post("/api/sessions/{sid}/snapshot")
@@ -476,10 +706,12 @@ def add_rating(sid: str, body: Rating):
 
 
 @app.get("/api/participants/{pid}/featured")
-def featured_pending(pid: str, anon_id: str = ""):
+def featured_pending(pid: str, anon_id: str = "", account_id: str = ""):
     """这个孩子有哪几张被老师挑中、还等着他自己答复。"""
+    sc = _scope(account_id)
     out = []
-    for meta in history_mod.sessions_for(pid, anon_id):
+    for meta in history_mod.sessions_for(pid, anon_id, account_id=sc["account_id"],
+                                         windows=sc["device_windows"]):
         rec = meta.get("featured") or {}
         if rec.get("state") != "pending":
             continue
@@ -495,7 +727,7 @@ def featured_pending(pid: str, anon_id: str = ""):
 
 @app.post("/api/sessions/{sid}/featured")
 def answer_featured(sid: str, body: FeaturedAnswer):
-    """孩子自己的答复。答应了才会出现在图鉴的优秀作品里；随时可以反悔。"""
+    """孩子自己的答复。答应了才会挂到大家那面墙上；随时可以反悔。"""
     _session_or_404(sid)
     return {"ok": True, "featured": store.answer_featured(sid, body.accept)}
 
@@ -570,7 +802,7 @@ def gallery_curate(body: Curate):
     """今天挂哪几张。一天跑一次（cron → `tools/curate.py`）。
 
     这里只是**提议**，和老师 pin 走同一条路：每一张都要等本人下次打开 app
-    时自己答应，才会出现在图鉴里。挑的规则在 `gallery.curate` —— 轮换 + 差异，
+    时自己答应，才会挂出来。挑的规则在 `gallery.curate` —— 轮换 + 差异，
     不是排名，理由见那儿的注释。重复跑是安全的：已经提过的不会再提一次。
     """
     picks = gallery_mod.curate(k=body.k, since=body.since,
@@ -602,9 +834,11 @@ def get_personalization(sid: str):
 
 # -- participants: behavioural history → user representation ------------------
 @app.get("/api/participants/{pid}/history")
-def participant_history(pid: str, anon_id: str = "", before: str = ""):
+def participant_history(pid: str, anon_id: str = "", account_id: str = "", before: str = ""):
     """A participant's finished tasks, compacted — the input to a representation."""
-    metas = history_mod.sessions_for(pid, anon_id, before=before)
+    sc = _scope(account_id)
+    metas = history_mod.sessions_for(pid, anon_id, account_id=sc["account_id"],
+                                     windows=sc["device_windows"], before=before)
     return {"participant_id": pid, "anon_id": anon_id, "n_tasks": len(metas),
             "tasks": [history_mod.task_record(m) for m in metas]}
 
@@ -633,19 +867,22 @@ def participant_protocol(pid: str, anon_id: str = ""):
 
 
 @app.get("/api/participants/{pid}/growth")
-def participant_growth(pid: str, anon_id: str = ""):
+def participant_growth(pid: str, anon_id: str = "", account_id: str = ""):
     """The nine attributes, in two layers: practice (real today) and evaluation
     (asleep until a backend can actually judge that dimension)."""
-    return history_mod.growth(pid, anon_id)
+    sc = _scope(account_id)
+    return history_mod.growth(pid, anon_id, account_id=sc["account_id"], windows=sc["device_windows"])
 
 
 @app.get("/api/participants/{pid}/representation")
-def participant_representation(pid: str, anon_id: str = "", before: str = ""):
+def participant_representation(pid: str, anon_id: str = "", account_id: str = "", before: str = ""):
     """Rebuilt from the logs on every call — never a stored summary.
 
     `before` (ISO timestamp) reproduces the input a past decision had.
     """
-    return history_mod.build(pid, anon_id, before=before)
+    sc = _scope(account_id)
+    return history_mod.build(pid, anon_id, account_id=sc["account_id"],
+                             windows=sc["device_windows"], before=before)
 
 
 @app.post("/api/sessions/{sid}/qc")

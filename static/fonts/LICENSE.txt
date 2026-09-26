@@ -6,3 +6,23 @@ https://scripts.sil.org/OFL
 
 nunito-latin.woff2 是 Google Fonts 提供的拉丁子集（可变字重 200–1000），
 仅用于界面里的拉丁字母与数字；中文由系统的 Noto Sans CJK 承担。
+
+
+================================================================================
+思源柔黑 Resource Han Rounded CN — static/fonts/rhr-sc-400.woff2 / rhr-sc-700.woff2
+SIL Open Font License 1.1
+https://github.com/CyanoHao/Resource-Han-Rounded
+
+界面里的中文用它。iOS 上没有预装的圆体中文，不带一个就只能落到 PingFang SC
+那种几何黑体上。它基于 Source Han Sans（思源黑体）做圆角处理，同样 OFL-1.1。
+
+**这里放的是子集**，不是整包（原始 TTF 每个字重 14MB）。两份分开裁，
+理由见 `tools/build_font.py`：
+
+  rhr-sc-400.woff2  593KB  3924 字（GB2312 一级 + 仓库里的字）—— 正文，
+                            孩子自己打的字也要覆盖
+  rhr-sc-700.woff2  166KB  1169 字（只要仓库里的字）—— 标题和按钮，
+                            这些文案从来不是孩子输入的
+
+要换字体或改字符集，跑 `python3 -m tools.build_font` 重新生成。
+OFL 的要求是随字体分发许可证并保留字体名称，子集的 name 表原样保留了。

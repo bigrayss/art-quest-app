@@ -6,6 +6,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "static"
 DATA_DIR = Path(os.environ.get("ARTQUEST_DATA_DIR", BASE_DIR / "data"))
 SESSIONS_DIR = DATA_DIR / "sessions"
+# 账号（孩子自己起的名字 + 暗号摘要）。和 session 分开放：一个是人，一个是作品。
+ACCOUNTS_DIR = DATA_DIR / "accounts"
 
 # How often the browser sends an intermediate canvas image (seconds); 0 = never.
 # Off by default: Artwork(t) = replay(strokes[0:t], events[0:t]), so a periodic
