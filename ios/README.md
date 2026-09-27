@@ -49,7 +49,7 @@ open ArtQuest.xcodeproj
 | `Bridge.swift` | JS → Swift 的五件事：`token` `haptic` `keepAwake` `share` `open` |
 | `Keychain.swift` | 令牌的家 |
 | `AppConfig.swift` | 服务器地址、版本号 |
-| `Info.plist` | 方向（iPhone 只竖屏、iPad 四向）、相册权限说明、本地网络放行 |
+| `../Info.plist`（即 `ios/Info.plist`） | 方向（iPhone 只竖屏、iPad 四向）、相册权限说明、本地网络放行 |
 | `PrivacyInfo.xcprivacy` | 上架必填的隐私清单 |
 | `Settings.bundle` | 系统设置里那一页（服务器地址） |
 | `Assets.xcassets` | 图标（**现在是 512 拉到 1024 的占位**，等 `docs/ART_LIST.md` 里的正式图标） |
