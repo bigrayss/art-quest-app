@@ -2499,7 +2499,8 @@
     const sh = $("#btn-share");
     if (sh) {
       sh.classList.toggle("hidden", !NATIVE);
-      sh.onclick = () => native("share", { image: afterImg, title: titleOf(session.quest_id) || "我的画" });
+      const q = state.quests.find(x => x.id === session.quest_id);
+      sh.onclick = () => native("share", { image: afterImg, title: (q && q.title) || "我的画" });
     }
     renderPeers(session);
     // What the child is shown of their own growth is its own condition, separate

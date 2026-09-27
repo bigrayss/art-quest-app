@@ -37,7 +37,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: cn.ddhulu.artquest
         PRODUCT_NAME: KidsArtQuest
-        INFOPLIST_FILE: ArtQuest/Info.plist
+        INFOPLIST_FILE: Info.plist   # 放在 sources 目录外面，免得被当资源再拷一份；不用 XcodeGen 的 info: 生成，手写的才是权威
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         CODE_SIGN_STYLE: Automatic
@@ -45,6 +45,3 @@ targets:
         DEVELOPMENT_TEAM: ""
         # 正式服务器。调试时不用改这里——系统「设置 → KidsArtQuest → 服务器地址」能临时覆盖
         ARTQUEST_SERVER: "https://art.ddhulu.cn"
-    info:
-      path: ArtQuest/Info.plist
-      properties: {}

@@ -10,6 +10,7 @@
 // Canvas 标定的），换一个渲染器就要重新标定整条 replay 契约，而它是全部研究数据的地基。
 // 一份界面代码，网页版和 app 同时受益；哪天真要原生画布，这个壳的其余部分（鉴权、API、桥）原样能用。
 import SwiftUI
+import UIKit
 import WebKit
 
 @main
@@ -20,7 +21,6 @@ struct ArtQuestApp: App {
         WindowGroup {
             ContentView()
                 .ignoresSafeArea()          // 外壳自己按 env(safe-area-inset-*) 排版（viewport-fit=cover）
-                .statusBarHidden(false)
         }
         .onChange(of: phase) { newPhase in
             // 退到后台前把还没送出去的笔画推一把。队列本来就在 IndexedDB 里，丢不了，
