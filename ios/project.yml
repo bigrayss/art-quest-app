@@ -15,7 +15,8 @@ options:
   generateEmptyDirectories: false
 settings:
   base:
-    SWIFT_VERSION: "5.9"
+    # 代码里没用到新语法，5.5 就够——Xcode 13（macOS 11.3）起都能编
+    SWIFT_VERSION: "5.5"
     MARKETING_VERSION: "0.3.0"
     CURRENT_PROJECT_VERSION: "1"
     # iPhone + iPad。iPad 是创作设备，iPhone 是看的设备（见 README「iPhone 和 iPad 不是同一件事」）

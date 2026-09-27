@@ -62,6 +62,20 @@ open ArtQuest.xcodeproj
 - 壳调 JS：`window.dispatchEvent(new Event("artquest:pencilTap"))`。
 - Service Worker 在 `artquest://` 下**不注册**（app.js 里按协议判断），外壳本来就在包里，用不着它。
 
+## Xcode 太老怎么办
+
+工程本身放得很宽：**Xcode 13（macOS 11.3）起就能编**——Swift 5.5、iOS 15 起、图标是全套尺寸不是单张 1024、
+`isInspectable` 那句按编译器版本挡掉了。真正卡老 Xcode 的是另外两件事：
+
+1. **iPad 系统比 Xcode 新，连不上设备。** Xcode 只认它自带的 iOS 版本。两条路：Mac 升系统装新 Xcode；
+   或者别用这台 Mac 编——见下一条。
+2. **上 TestFlight / App Store 要求用近两年的 SDK 打包。** 老 Xcode 打的包 Apple 直接拒收。
+
+**不靠手边的 Mac**：`.github/workflows/ios.yml` 在 GitHub 的 macOS 机器上用最新 Xcode 编模拟器版本，
+改了 `ios/` 或 `static/` 一推就跑，Actions 页面能看到编过没有、报错在哪一行。它不签名不上传，
+只回答「这份 Swift 能不能编过」。要装到 iPad 上还是得有一台能签名的 Mac；将来要上 TestFlight，
+在这条流水线上加签名和 `xcodebuild -exportArchive` 就行（要往仓库 Secrets 里放证书和 App Store Connect 的 key）。
+
 ## 还没在真机上验过的
 
 这台开发机是 Linux，Swift 没法编译，以上代码按 iOS 15 SDK 的公开接口写，**第一次在 Xcode 里编要有心理准备改几处**。
