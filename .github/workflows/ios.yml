@@ -1,0 +1,33 @@
+# 没有一台够新的 Mac 也能知道 iOS 壳编不编得过：GitHub 的 macOS 机器上装着最新的 Xcode。
+# 只编模拟器版本、不签名、不上传——它回答的问题只有一个：「这份 Swift 能不能编过」。
+# 触发：改了 ios/ 或 static/（外壳打在包里）就跑；也可以在 Actions 页面手动点。
+name: iOS build
+on:
+  push:
+    paths: ["ios/**", "static/**", ".github/workflows/ios.yml"]
+  pull_request:
+    paths: ["ios/**", "static/**"]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Xcode 版本
+        run: xcodebuild -version
+      - name: 生成 .xcodeproj
+        run: |
+          brew install xcodegen
+          cd ios && xcodegen generate
+      - name: 编模拟器版本（不签名）
+        run: |
+          cd ios
+          xcodebuild -project ArtQuest.xcodeproj -scheme ArtQuest \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug CODE_SIGNING_ALLOWED=NO \
+            build
+      - name: 包里带着外壳？
+        run: |
+          app=$(find ~/Library/Developer/Xcode/DerivedData -path '*Debug-iphonesimulator/KidsArtQuest.app' -type d | head -1)
+          test -n "$app" && ls "$app/static/index.html" "$app/static/app.js" && echo "外壳在包里"

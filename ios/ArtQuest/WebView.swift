@@ -38,8 +38,9 @@ struct WebView: UIViewRepresentable {
         web.scrollView.isScrollEnabled = true
         web.allowsBackForwardNavigationGestures = false
         web.allowsLinkPreview = false
-        #if DEBUG
-        if #available(iOS 16.4, *) { web.isInspectable = true }   // Mac 上的 Safari → 开发 → 这台 iPad
+        #if DEBUG && compiler(>=5.8)
+        // Mac 上的 Safari → 开发 → 这台 iPad。老 SDK（Xcode 14.3 以前）没有这个属性，连编译都过不去，按编译器版本挡掉
+        if #available(iOS 16.4, *) { web.isInspectable = true }
         #endif
         // Apple Pencil 双击（系统设置里孩子选的那个动作我们不管，一律当「切橡皮」）
         let pencil = UIPencilInteraction()
