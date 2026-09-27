@@ -58,8 +58,12 @@ enum Bridge {
     /// 在 WebView 所在的窗口最上层弹一个控制器（alert / 分享面板）。
     static func present(_ vc: UIViewController, over webView: WKWebView?) {
         DispatchQueue.main.async {
-            guard var top = (webView?.window ?? UIApplication.shared.connectedScenes
-                    .compactMap({ ($0 as? UIWindowScene)?.keyWindow }).first)?.rootViewController
+            // `UIWindowScene.keyWindow` 要 iOS 15 SDK；这样写 iOS 13 起都认，老 Xcode 也能编
+            let keyWindow = UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .flatMap { $0.windows }
+                .first { $0.isKeyWindow }
+            guard var top = (webView?.window ?? keyWindow)?.rootViewController
             else { return }
             while let next = top.presentedViewController { top = next }
             top.present(vc, animated: true)
