@@ -10,13 +10,13 @@ name: ArtQuest
 options:
   bundleIdPrefix: cn.ddhulu
   deploymentTarget:
-    iOS: "15.0"
+    iOS: "14.0"   # 用到的最新接口是 iOS 14 的（SwiftUI App 生命周期、UTType）；Xcode 12.4 起能编
   createIntermediateGroups: true
   generateEmptyDirectories: false
 settings:
   base:
-    # 代码里没用到新语法，5.5 就够——Xcode 13（macOS 11.3）起都能编
-    SWIFT_VERSION: "5.5"
+    # 代码里没用到新语法——Xcode 12.4（macOS 10.15.4）起都能编
+    SWIFT_VERSION: "5.3"
     MARKETING_VERSION: "0.3.0"
     CURRENT_PROJECT_VERSION: "1"
     # iPhone + iPad。iPad 是创作设备，iPhone 是看的设备（见 README「iPhone 和 iPad 不是同一件事」）

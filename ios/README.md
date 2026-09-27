@@ -64,7 +64,7 @@ open ArtQuest.xcodeproj
 
 ## Xcode 太老怎么办
 
-工程本身放得很宽：**Xcode 13（macOS 11.3）起就能编**——Swift 5.5、iOS 15 起、图标是全套尺寸不是单张 1024、
+工程本身放得很宽：**Xcode 12.4（macOS 10.15.4）起就能编**——Swift 5.3、iOS 14 起、图标是全套尺寸不是单张 1024、
 `isInspectable` 那句按编译器版本挡掉了。真正卡老 Xcode 的是另外两件事：
 
 1. **iPad 系统比 Xcode 新，连不上设备。** Xcode 只认它自带的 iOS 版本。两条路：Mac 升系统装新 Xcode；
