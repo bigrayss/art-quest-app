@@ -31,3 +31,23 @@ jobs:
         run: |
           app=$(find ~/Library/Developer/Xcode/DerivedData -path '*Debug-iphonesimulator/KidsArtQuest.app' -type d | head -1)
           test -n "$app" && ls "$app/static/index.html" "$app/static/app.js" && echo "外壳在包里"
+      # 再编一个**真机**的、不签名的包，打成 .ipa 挂在这次运行的 Artifacts 里。
+      # 它装不进 iPad——没签名——但 Sideloadly / AltStore 这类工具能拿一个免费 Apple ID 现场签了装进去，
+      # 对 iPadOS 太新、手边 Xcode 太老连不上设备的情况，这是不花钱的那条路（7 天要重签一次）。
+      - name: 真机版本（不签名）→ .ipa
+        run: |
+          cd ios
+          xcodebuild -project ArtQuest.xcodeproj -scheme ArtQuest \
+            -destination 'generic/platform=iOS' -configuration Release \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            -derivedDataPath build build
+          app=$(find build -path '*Release-iphoneos/KidsArtQuest.app' -type d | head -1)
+          test -n "$app"
+          mkdir -p ipa/Payload && cp -R "$app" ipa/Payload/
+          (cd ipa && zip -qry ../KidsArtQuest-unsigned.ipa Payload)
+          ls -la KidsArtQuest-unsigned.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KidsArtQuest-unsigned-ipa
+          path: ios/KidsArtQuest-unsigned.ipa
+          retention-days: 14
