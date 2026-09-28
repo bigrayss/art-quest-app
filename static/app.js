@@ -1644,8 +1644,7 @@
     // 到点自动交卷的逻辑照旧。研究要的 TIME_LIMIT_REACHED 一条不少。
     if (left === 0) {
       state.timeUp = true; logEvent("TIME_LIMIT_REACHED", { limit_sec: limit });
-      const btn = state.phase === "after" ? $("#btn-submit-after") : $("#btn-submit");
-      if (btn) btn.click();
+      $("#btn-submit").click();
     }
   }
   function stopTimers() { state.timers.forEach(clearInterval); state.timers = []; }
@@ -2377,7 +2376,7 @@
     applyTask(state.quest);
     $("#draw-quest-card").innerHTML = `<div class="type">${state.quest.type}</div><h3>${state.quest.title}</h3><p>${state.quest.prompt}</p>`;
     assistReset(intent);
-    $("#revision-banner").classList.add("hidden"); $("#btn-submit").classList.remove("hidden"); $("#snap-info").textContent = "";
+    $("#snap-info").textContent = "";
     // 不承诺走不到的站：条件里没有 AI 反馈时，这颗按钮后面根本没有「支招」那一步。
     // 「画好了」什么都不许诺，两臂用同一句；有没有反馈是后面那一屏的事。
     $("#btn-submit").innerHTML = "画好了" + icon("arrowRight", 18);
@@ -2388,6 +2387,7 @@
   };
 
   $("#btn-submit").onclick = async () => {
+    if (state.phase === "after") return submitAfter();
     if (!undoStack.length && !state.dirtySinceSnapshot) { if (!confirm("画布好像还是空的，确定提交吗？")) return; }
     overlay("正在观察你的画……"); stopTimers();
     logEvent(EV.TASK_SUBMIT, { phase: state.phase, strokes: visible.length });
@@ -2404,7 +2404,9 @@
         overlay(null);
         return endSession(done.session, image, image, null);
       }
-      $("#result-img").src = image; renderScores($("#scores"), r.scores, null); $("#score-summary").textContent = r.scores.summary || "";
+      $("#result-img").src = image; renderScores($("#scores"), r.scores, null);
+      // 评分后端的那句摘要（「离线启发式评分：画面覆盖率 1%…」）是研究员看的，不是孩子看的——只在实验模式下露
+      $("#score-summary").textContent = state.study ? (r.scores.summary || "") : "";
       const fbSp = $("#fb-sprite"); if (fbSp) fbSp.innerHTML = spriteInner(buddyColor(), "happy");
       // remember which feedback this is, so the revision can be attributed to it
       state.feedback = { id: r.feedback.feedback_id || "", text: r.feedback.text || "", shown_ms: elapsed() };
@@ -2428,7 +2430,8 @@
     logEvent("REVISION_START", { feedback_id: fb.id || null,
       latency_ms: fb.shown_ms != null ? Math.round(elapsed() - fb.shown_ms) : null });
     assistShowFeedback(fb.text || "");
-    $("#btn-submit").classList.add("hidden"); $("#revision-banner").classList.remove("hidden"); startTimers(); show("draw");
+    // 同一颗钮、同一个位置，只换两个字。不加任何「改一小处就行」的说明——说明是彩点的窗里那段话的事
+    $("#btn-submit").innerHTML = "改好了" + icon("arrowRight", 18); startTimers(); show("draw");
   };
   $("#btn-skip-revise").onclick = async () => {
     dismissFeedback("skip");
@@ -2437,7 +2440,7 @@
     const r = await api(`${API}/sessions/${state.sessionId}/finalize`, { method: "POST", body: JSON.stringify({ elapsed_ms: elapsed(), pending }) });
     endSession(r.session, state.before.image, state.before.image, null); overlay(null);
   };
-  $("#btn-submit-after").onclick = async () => {
+  async function submitAfter() {
     overlay("正在比较修改前后……"); stopTimers();
     const image = canvas.toDataURL("image/png");
     try {
@@ -2446,7 +2449,7 @@
       endSession(r.session, state.before.image, image, r.comparison);
     } catch (e) { alert("提交失败：" + e.message); startTimers(); }
     overlay(null);
-  };
+  }
   // ---------- self-report ----------
   const SURVEY = [
     { key: "difficulty", q: "难不难？", lo: "很简单", hi: "很难" },

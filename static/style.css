@@ -541,8 +541,6 @@ input[type=range]::-moz-range-thumb { width:22px; height:22px; border-radius:50%
 .timer { display:flex; align-items:center; gap:6px; font-size:0.875rem; font-weight:800; margin-bottom:10px; }
 .timer .limit { color:var(--muted-2); font-variant-numeric:tabular-nums; }
 .timer .limit.low { color:var(--red-d); }
-.banner { margin-top:10px; background:var(--purple-l); border-radius:var(--r); padding:12px; font-size:0.8125rem; font-weight:700; }
-.banner button { margin-top:10px; width:100%; }
 /* 原来画布外面裹着一层带边框和 10px 内边距的卡片，加上 section 自己的 padding，
    画布四周有三层留白。现在只留画布本身的圆角和一道极淡的描边。
    **这里绝不能出现 transform**：缩放靠的是 canvas 自己的 transform，取点走
@@ -1462,9 +1460,11 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
      区分它们的是**形状**（一个是楔子、一个是等宽的渐变），不是颜色。 */
   .vsl[data-name="浓淡"]::after { border-radius:999px;
     background:linear-gradient(to right, rgba(168,168,168,.1), var(--muted)); }
-  .result-layout { display:grid; grid-template-columns:1fr 1fr; gap:22px; align-items:start; }
-  #view-result .artwork { max-height:38vh; width:auto; max-width:100%; margin:0 auto; display:block; object-fit:contain; }
-  #view-result .rose { max-width:min(300px, 34vh); }
+  .result-layout { display:grid; grid-template-columns:1fr 1fr; gap:22px; align-items:stretch; }
+  .result-layout > .feedback-card { display:flex; flex-direction:column; }
+  .result-layout > .feedback-card .actions.column { margin-top:auto; }
+  #view-result .artwork { max-height:30vh; width:auto; max-width:100%; margin:0 auto; display:block; object-fit:contain; }
+  #view-result .rose { max-width:min(260px, 26vh); }
   #view-result .scores { margin-top:12px; }
   .growth { grid-template-columns:minmax(170px,210px) 1fr; }
   .actions.sticky { position:static; padding:0; background:none; }
