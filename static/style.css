@@ -1155,6 +1155,12 @@ body.quiet #collection-wrap { display:none; }
    booting 的时候钮先不露——先让封面静静地在那儿，服务器答了再把钮亮出来，
    而不是空地图闪一下、满地图闪一下、再跳到封面。 */
 body.welcome .appbar, body.welcome .studybar { display:none; }
+.langbtn { position:absolute; top:calc(14px + env(safe-area-inset-top)); right:18px; z-index:2;
+  background:var(--card); border:2px solid var(--line); box-shadow:none; color:var(--muted-2);
+  font-weight:800; font-size:0.8125rem; padding:6px 12px; min-height:0; border-radius:999px; }
+.langbtn:hover { color:var(--ink); }
+#view-welcome { position:relative; }
+#btn-lang-me { background:none; border:none; box-shadow:none; padding:0; min-height:0; font:inherit; font-weight:800; color:var(--accent-d); }
 #view-welcome { min-height: 100vh; min-height: 100dvh; display:flex; align-items:center; justify-content:center;
   padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
 .world.welcome .cover { height: 40vh; height: 40dvh; }
@@ -1643,3 +1649,12 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
   .gdim .ggo { padding:3px 6px; }
   .gdim .gtop { gap:4px; }
 }
+
+/* ---------- 英文界面 ----------
+   英文词比中文长一到两倍。只在 html[data-lang="en"] 下改这几处会撑破的地方，中文一处不动。 */
+html[data-lang="en"] .growth-dims { grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); }
+html[data-lang="en"] .gdim .gtop { flex-wrap:wrap; }
+html[data-lang="en"] .gdim .gname { white-space:normal; }
+html[data-lang="en"] .badge .b-name { white-space:normal; line-height:1.25; font-size:0.75rem; }
+html[data-lang="en"] .rose-label { font-size:0.625rem; }
+html[data-lang="en"] .welcome-title { letter-spacing:0; }

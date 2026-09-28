@@ -31,20 +31,53 @@ ENCOURAGE = [
     "你想怎么画都可以，这是你的画。",
 ]
 
+# 英文会话（quest["lang"] == "en"）用同样的三组、同样的轮换。规矩不变：
+# 只问问题或把他的意图还给他，不评价、不夸、不给建议。
+OPEN_QUESTIONS_EN = [
+    "What sounds are there, where it lives?",
+    "If it could talk, what would it say first?",
+    "How is its day going?",
+    "What is outside the picture, where we can't see?",
+    "Its favourite thing — are you going to draw it in?",
+    "Is it day or night here?",
+    "Does it have a secret only you know?",
+]
+WITH_INTENT_EN = [
+    "You said you wanted to draw \u201c{intent}\u201d. Where are you up to?",
+    "Thinking about \u201c{intent}\u201d — what do you want to add next?",
+    "\u201c{intent}\u201d — which part matters most to you?",
+]
+ENCOURAGE_EN = [
+    "Take your time. This one is just getting started.",
+    "There is no such thing as a wrong line. Keep going.",
+    "You can draw it any way you like. It's your picture.",
+]
+
 
 # 孩子写心愿几乎都从「我想画」起头，模板句又是「你说你想画{intent}」——
 # 直接拼就是「你说你想画我想画一个安静的房间」。把他那半句的起头剥掉再嵌。
 INTENT_LEADS = ("我想要画", "我想画", "我要画", "我想要", "我想", "我要", "想画", "画一个", "画")
-INTENT_TAILS = "。！!，,、 "
+# 英文孩子写 "I want to draw a quiet room." ——同样把起头剥掉。长的在前，先匹配到的先剥。
+INTENT_LEADS_EN = ("i want to draw", "i would like to draw", "i'd like to draw", "i am going to draw",
+                   "i'm going to draw", "i want to make", "i want to", "i will draw", "i'll draw",
+                   "i wanna draw", "draw", "drawing")
+INTENT_TAILS = "。！!，,、 ."
 
 
 def bare_intent(text: str) -> str:
-    """「我想画一个安静的房间。」→「一个安静的房间」，能嵌进任何句式。"""
+    """「我想画一个安静的房间。」→「一个安静的房间」，能嵌进任何句式。
+    "I want to draw a quiet room." → "a quiet room"。"""
     t = (text or "").strip()
     for lead in INTENT_LEADS:
         if t.startswith(lead) and len(t) > len(lead):
             t = t[len(lead):]
             break
+    else:
+        low = t.lower()
+        for lead in INTENT_LEADS_EN:
+            if low.startswith(lead + " ") and len(t) > len(lead) + 1:
+                t = t[len(lead) + 1:]
+                break
     return t.strip(INTENT_TAILS)
 
 
@@ -55,12 +88,16 @@ class TemplateAssist:
                nth: int = 1) -> Dict[str, Any]:
         want = bare_intent(intent.get("text") or "")
         i = max(0, nth - 1)
+        en = quest.get("lang") == "en"
+        with_intent = WITH_INTENT_EN if en else WITH_INTENT
+        encourage = ENCOURAGE_EN if en else ENCOURAGE
+        questions = OPEN_QUESTIONS_EN if en else OPEN_QUESTIONS
         # 第一次不提意图：前端已经把他自己写的那句话摆在窗口第一行了，
         # 这儿再说一遍就是复读，孩子会觉得这东西没在听。
         if want and i >= 2 and i % 2 == 0:
-            text = WITH_INTENT[(i // 2) % len(WITH_INTENT)].format(intent=want)
+            text = with_intent[(i // 2) % len(with_intent)].format(intent=want)
         elif i % 3 == 2:
-            text = ENCOURAGE[(i // 3) % len(ENCOURAGE)]
+            text = encourage[(i // 3) % len(encourage)]
         else:
-            text = OPEN_QUESTIONS[i % len(OPEN_QUESTIONS)]
+            text = questions[i % len(questions)]
         return {"text": text, "backend": self.backend}

@@ -19,8 +19,23 @@
     catch (e) { /* 不在 app 里 */ }
   };
 
+  // 界面语言（i18n.js 定的）。维度名这类服务器同时给了 zh/en 的，直接按它挑；
+  // 其余中文文案由 i18n.js 在 DOM 上换，这里不用管。
+  const LANG = (window.I18N || {}).lang || "zh";
+  const T = s => (window.I18N ? window.I18N.t(s) : s);
+  const dimName = d => (LANG === "en" && d && d.en) ? d.en : ((d || {}).zh || "");
+  // 玫瑰图上九个标签挤在一圈里，英文全名放不下：用一个词
+  const DIM_SHORT_EN = { realism: "Realism", deformation: "Shape", imagination: "Ideas", color_richness: "Color",
+    color_contrast: "Contrast", line_combination: "Lines", line_texture: "Texture",
+    picture_organization: "Layout", transformation: "Change" };
+  const dimShort = d => (LANG === "en" && d && DIM_SHORT_EN[d.key]) ? DIM_SHORT_EN[d.key] : dimName(d);
+  const LIST_SEP = LANG === "en" ? ", " : "、";
+  // alert / confirm 不经过 DOM，i18n.js 的观察者看不见它们：这里包一层再交给系统
+  // （iOS 壳把 window.alert 接到了 UIAlertController，包一层不影响）
+  const alert = s => window.alert(T(s));
+  const confirm = s => window.confirm(T(s));
   const api = async (path, opts = {}) => {
-    const headers = { "Content-Type": "application/json" };
+    const headers = { "Content-Type": "application/json", "Accept-Language": LANG };
     // 登录着就带上令牌。走请求头不走查询串——URL 会原样进服务器的 access log。
     const tok = savedToken(); if (tok) headers.Authorization = `Bearer ${tok}`;
     const r = await fetch(path, { headers, ...opts });
@@ -72,6 +87,7 @@
     screen: [screen.width, screen.height], viewport: [innerWidth, innerHeight], dpr: devicePixelRatio || 1,
     pointer_types: [matchMedia("(pointer:fine)").matches ? "fine" : "", matchMedia("(any-pointer:coarse)").matches ? "coarse" : ""].filter(Boolean),
     timezone: (Intl.DateTimeFormat().resolvedOptions() || {}).timeZone || "", language: navigator.language || "",
+    ui_lang: LANG,
     // 哪个壳：浏览器里是空的；app 里记下平台和 app 版本——Pencil 的压感、采样率
     // 都跟壳有关，分析时它是协变量
     app: NATIVE ? { platform: NATIVE.platform || "ios", version: NATIVE.version || "" } : {},
@@ -655,6 +671,14 @@
     await renderWorld(); show("world");
     if (!guideSeen() && state.condition.ui !== "quiet") startTour(); else checkFeatured();
   }
+  // 切语言：两个钮显示的是**另一种**语言的名字（在中文界面上写 English，反之写 中文），
+  // 这是「切到哪儿去」而不是「现在是哪儿」，孩子一眼就懂。整页重载。
+  const OTHER = LANG === "en" ? { lang: "zh", label: "中文" } : { lang: "en", label: "English" };
+  ["#btn-lang-welcome", "#btn-lang-me"].forEach(sel => {
+    const b = $(sel); if (!b) return;
+    b.textContent = OTHER.label;
+    b.onclick = () => { logEvent && logEvent("UI_LANG_SWITCH", { from: LANG, to: OTHER.lang }); window.I18N.set(OTHER.lang); };
+  });
   $("#btn-welcome-register").onclick = () => openAcct("register");
   $("#btn-welcome-login").onclick = () => openAcct("login");
   $("#btn-welcome-skip").onclick = finishWelcome;
@@ -1761,7 +1785,7 @@
       const rec = recommendFor(key);
       const go = rec ? `<button class="ggo" data-fam="${rec.id}">去${rec.name}练练</button>` : "";
       return `<div class="gdim" style="--gc:${fam.color}">
-        <div class="gtop"><span class="gname">${d.zh}</span>${go}</div>
+        <div class="gtop"><span class="gname">${dimName(d)}</span>${go}</div>
         <div class="gpips">${pips}</div></div>`;
     }).join("");
     $("#growth-dims").querySelectorAll(".ggo").forEach(b => {
@@ -2922,11 +2946,11 @@
     const chip = (k) => {
       const fam = FAMILIES[DIM_FAMILY[k]];
       return `<span class="tchip" style="--tc:${fam.color};--tc-bg:${mixHex(fam.color, 13, "#fff")}`
-        + `;--tc-fg:${mixHex(fam.color, 72, "#000")}"><i></i>${(byKey[k] || {}).zh || k}</span>`;
+        + `;--tc-fg:${mixHex(fam.color, 72, "#000")}"><i></i>${dimName(byKey[k]) || k}</span>`;
     };
     el.innerHTML = `<h4>${icon("sprout", 16)}这一关练的是</h4><div class="tchips">${primary.map(chip).join("")}</div>`
       + `<div class="tnote">${buddyName()}跟着长了一截。`
-      + (na.length ? `这一关用不上「${na.map(k => (byKey[k] || {}).zh || k).join("、")}」。` : "")
+      + (na.length ? `这一关用不上「${na.map(k => dimName(byKey[k]) || k).join(LIST_SEP)}」。` : "")
       + `</div>`;
   }
 
@@ -3131,8 +3155,8 @@
         const a0n = -90 + i * SLOT + PAD, a1n = -90 + (i + 1) * SLOT - PAD, midn = (a0n + a1n) / 2;
         const [nx, ny] = polar(cx, cy, LABEL_R, midn);
         const anch = Math.cos(midn * Math.PI / 180) > 0.25 ? "start" : Math.cos(midn * Math.PI / 180) < -0.25 ? "end" : "middle";
-        sectors += `<path d="${sectorPath(cx, cy, R, a0n, a1n)}" fill="none" stroke="#e6e0d6" stroke-width="1" stroke-dasharray="3 3"><title>${d.zh}：这个任务不考察</title></path>`;
-        labels += `<text x="${fmt(nx)}" y="${fmt(ny)}" text-anchor="${anch}" class="rose-label na">${d.zh}</text>`;
+        sectors += `<path d="${sectorPath(cx, cy, R, a0n, a1n)}" fill="none" stroke="#e6e0d6" stroke-width="1" stroke-dasharray="3 3"><title>${dimName(d)}：这个任务不考察</title></path>`;
+        labels += `<text x="${fmt(nx)}" y="${fmt(ny)}" text-anchor="${anch}" class="rose-label na">${dimShort(d)}</text>`;
         return;
       }
       const fam = FAMILIES[DIM_FAMILY[key]];
@@ -3141,7 +3165,7 @@
       const b = baseline && baseline.dims[key], delta = b ? sc.score - b.score : null;
       sectors += `<path d="${sectorPath(cx, cy, r, a0, a1)}" fill="${fam.color}" fill-opacity="${ph ? 0.26 : isFocus ? 0.95 : 0.72}"`
         + ` stroke="#fff" stroke-width="2"${isFocus && !ph ? ' class="rose-focus"' : ''}>`
-        + `<title>${d.zh}${ph ? "（等模型来评）" : ""}</title></path>`;
+        + `<title>${dimName(d)}${ph ? "（等模型来评）" : ""}</title></path>`;
       if (b && !ph) {  // 修改前的水平：一条虚线弧
         const rb = rOf(b.score);
         marks += `<path d="${arcPath(cx, cy, rb, a0, a1)}" class="rose-before" stroke="${fam.color}"/>`;
@@ -3150,7 +3174,7 @@
       const anchor = Math.cos(mid * Math.PI / 180) > 0.25 ? "start" : Math.cos(mid * Math.PI / 180) < -0.25 ? "end" : "middle";
       const arrow = delta !== null && Math.abs(delta) >= 0.05 ? (delta > 0 ? " ▲" : " ▼") : "";
       labels += `<text x="${fmt(lx)}" y="${fmt(ly)}" text-anchor="${anchor}" class="rose-label${isFocus ? " focus" : ""}">`
-        + `<tspan>${d.zh}</tspan>${arrow ? `<tspan dx="3" class="rose-arw ${delta < 0 ? "dn" : "up"}">${arrow}</tspan>` : ""}</text>`;
+        + `<tspan>${dimShort(d)}</tspan>${arrow ? `<tspan dx="3" class="rose-arw ${delta < 0 ? "dn" : "up"}">${arrow}</tspan>` : ""}</text>`;
     });
     const legend = Object.values(FAMILIES).map(f =>
       `<span class="rose-leg"><i style="background:${f.color}"></i>${f.label}</span>`).join("");
@@ -3176,7 +3200,7 @@
       const s = scores.dims[d.key]; if (!s) return "";
       if (isNA(s)) {
         const fam0 = FAMILIES[DIM_FAMILY[d.key]];
-        return `<div class="dim na"><div class="name"><span><i class="dot" style="background:#d8d2c8"></i>${d.zh}</span>`
+        return `<div class="dim na"><div class="name"><span><i class="dot" style="background:#d8d2c8"></i>${dimName(d)}</span>`
           + `<span class="sval"><span class="wait">这个任务不考察</span></span></div></div>`;
       }
       const ph = isPlaceholder(s);
@@ -3185,7 +3209,7 @@
         ? ` <span class="delta ${delta < 0 ? "neg" : ""}">${delta > 0 ? "▲ 进步了" : "▼"}</span>` : "";
       const fam = FAMILIES[DIM_FAMILY[d.key]];
       return `<div class="dim${focus.has(d.key) ? " focus" : ""}${ph ? " ph" : ""}">
-        <div class="name"><span><i class="dot" style="background:${fam.color}"></i>${d.zh}</span>
+        <div class="name"><span><i class="dot" style="background:${fam.color}"></i>${dimName(d)}</span>
           <span class="sval">${ph ? '<span class="wait">等模型来评</span>' : `<span class="st">${stars(s.score)}</span>${arrow}`}</span></div></div>`;
     }).join("");
     el.innerHTML = `<div class="ability-head">${icon("palette", 17)}这一幅，你长在这儿</div>`

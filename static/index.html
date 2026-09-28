@@ -67,6 +67,7 @@
      彩点、名字，别的什么都没有。问完了再决定是留在这儿（第一次来）还是直接进世界（来过）。
      这一屏只做一件事：让画跟着人走。不注册也能进去——「先随便看看」。 -->
 <section class="view" id="view-welcome">
+  <button class="langbtn" id="btn-lang-welcome" data-no-i18n aria-label="Language"></button>
   <div class="world welcome">
     <div class="cover">
       <div class="cover-glow"></div>
@@ -214,6 +215,7 @@
   <details class="techbox" id="techbox">
     <summary><i data-icon="sliders" data-size="16"></i>这台设备<span class="me-sync hidden" id="me-sync"></span></summary>
     <div class="infolist">
+      <div class="info"><span>语言</span><b><button class="linkbtn" id="btn-lang-me" data-no-i18n></button></b></div>
       <div class="info"><span>这一版</span><b id="shell-badge"></b></div>
       <div class="info"><span>评分 / 反馈</span><b id="backend-badge"></b></div>
       <div class="info"><span>本机代号</span><b id="anon-badge"></b></div>
@@ -547,6 +549,9 @@
 <div class="pop pop-badge hidden" id="pop-badge"></div>
 
 <div id="overlay" class="hidden"><div class="spinner"></div><div id="overlay-text">正在观察你的画……</div></div>
+<!-- 语言表先于运行时，运行时先于界面：i18n.js 一跑就把页上的中文换掉，后面渲染的由它盯着换 -->
+<script src="/static/lang/en.js"></script>
+<script src="/static/i18n.js"></script>
 <script src="/static/log.js"></script>
 <script src="/static/app.js"></script>
 </body>

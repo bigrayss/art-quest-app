@@ -30,6 +30,8 @@ const SHELL_URLS = [
   "/static/style.css",
   "/static/app.js",
   "/static/log.js",
+  "/static/i18n.js",
+  "/static/lang/en.js",
   "/static/manifest.webmanifest",
   "/static/fonts/nunito-latin.woff2",
   "/static/fonts/rhr-sc-400.woff2",

@@ -17,6 +17,7 @@ from . import gallery as gallery_mod
 from . import history as history_mod
 from . import study as study_mod
 from .accounts import AccountError, AccountStore
+from . import i18n
 from .config import (CLAUDE_MODEL, SESSIONS_DIR, SNAPSHOT_INTERVAL_SEC, STATIC_DIR,
                      claude_available)
 from .assist import get_assist_engine
@@ -48,7 +49,7 @@ PROMPT_VERSION = "feedback/1"
 # 以前 sw.js 里写死一个 `v3`，改完前端忘了跟着 bump，装在 iPad 主屏上的那份
 # 就一直拿旧外壳；而且当时**没有任何地方看得出设备上跑的是哪一版**，
 # 于是「到底更新了没有」只能靠猜。
-_SHELL_FILES = ("index.html", "app.js", "log.js", "style.css", "sw.js")
+_SHELL_FILES = ("index.html", "app.js", "log.js", "style.css", "sw.js", "i18n.js", "lang/en.js")
 
 
 def shell_version() -> str:
@@ -252,14 +253,16 @@ def config():
 
 
 @api.get("/families")
-def get_families():
+def get_families(request: Request):
     """Mission families — what the child picks from; a form is assigned below."""
-    return task_families()
+    return i18n.families_for(task_families(), i18n.pick_lang(request))
 
 
 @api.get("/quests")
-def quests():
-    return QUESTS
+def quests(request: Request):
+    # 英文界面拿英文题目；id、条件、刺激材料一样，只有给孩子看的字不同
+    lang = i18n.pick_lang(request)
+    return [i18n.quest_for(q, lang) for q in QUESTS]
 
 
 # -- study mode ------------------------------------------------------------
@@ -521,12 +524,15 @@ def create_session(body: CreateSession, request: Request):
     condition = study_mod.resolve_condition(body.condition, st.get("group", ""))
     if quest.get("time_limit_sec") and not condition.get("time_limit_sec"):
         condition["time_limit_sec"] = quest["time_limit_sec"]
+    # 界面语言此刻冻进 session：之后评分、反馈、陪伴都按它，task 快照记的也是孩子看到的那一版
+    lang = i18n.pick_lang(request)
+    quest = i18n.quest_for(quest, lang)
     try:
         meta = store.create(
             quest, body.intent.model_dump(),
             participant=body.participant_dict(), condition=condition,
             device=body.device.model_dump(), study=st, canvas=body.canvas.model_dump(),
-            sid=body.session_id or None,
+            sid=body.session_id or None, lang=lang,
         )
     except KeyError:
         # 带了一个从没发出去过的票号。不当场给它建一个——那正是「客户端自己发 id」
@@ -601,12 +607,13 @@ def assist(sid: str, body: AssistIn):
     except ValueError as e:
         raise HTTPException(400, str(e))
     _ingest(sid, body.events, [])
-    quest = QUESTS_BY_ID[meta["quest_id"]]
+    quest = i18n.quest_for(QUESTS_BY_ID[meta["quest_id"]], meta.get("lang", "zh"))
     try:
         out = get_assist_engine().assist(png, quest, meta.get("intent") or {}, nth=max(1, body.nth))
     except Exception as e:                      # 陪伴挂了绝不能挡住画画
         log.exception("assist failed")
-        return {"text": "我在这儿呢，接着画。", "backend": "error", "error": str(e)}
+        return {"text": i18n.say(meta.get("lang", "zh"), "我在这儿呢，接着画。", "I'm here. Keep going."),
+                "backend": "error", "error": str(e)}
     return {"text": out["text"], "backend": out.get("backend", "")}
 
 
@@ -624,7 +631,7 @@ def snapshot(sid: str, body: Snapshot):
 
 def _score_and_save(sid: str, phase: str, png: bytes, elapsed_ms: int) -> Dict[str, Any]:
     meta = store.load(sid)
-    quest, intent = QUESTS_BY_ID[meta["quest_id"]], meta["intent"]
+    quest, intent = i18n.quest_for(QUESTS_BY_ID[meta["quest_id"]], meta.get("lang", "zh")), meta["intent"]
     store.save_phase_image(sid, phase, png)
     try:
         scores = get_scorer().score(png, quest, intent)
@@ -644,7 +651,7 @@ def submit(sid: str, body: Submit):
     except ValueError as e:
         raise HTTPException(400, str(e))
     _ingest(sid, body.events, body.strokes)
-    quest, intent = QUESTS_BY_ID[meta["quest_id"]], meta["intent"]
+    quest, intent = i18n.quest_for(QUESTS_BY_ID[meta["quest_id"]], meta.get("lang", "zh")), meta["intent"]
     engine = get_feedback_engine()
 
     if body.phase == "before":
@@ -819,7 +826,7 @@ def featured_pending(pid: str, request: Request, anon_id: str = "", account_id: 
         if rec.get("state") != "pending":
             continue
         sid = sid_of(meta)
-        quest = QUESTS_BY_ID.get(meta.get("quest_id")) or {}
+        quest = i18n.quest_for(QUESTS_BY_ID.get(meta.get("quest_id")) or {}, meta.get("lang", "zh"))
         out.append({"session_id": sid, "task_id": meta.get("quest_id"),
                     "title": quest.get("title") or meta.get("quest_id"),
                     "image": f"/files/{sid}/final.png",

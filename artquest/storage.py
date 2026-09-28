@@ -121,7 +121,7 @@ class SessionStore:
                device: Optional[Dict[str, Any]] = None,
                study: Optional[Dict[str, Any]] = None,
                canvas: Optional[Dict[str, Any]] = None,
-               sid: Optional[str] = None) -> Dict[str, Any]:
+               sid: Optional[str] = None, lang: str = "zh") -> Dict[str, Any]:
         """开一次创作。
 
         `sid` 给了就是**花掉一张预发的票**（见 `issue`）：目录和 id 早就占住了，
@@ -195,6 +195,8 @@ class SessionStore:
             "study": {"active": bool((study or {}).get("active")), "study_id": (study or {}).get("study_id", ""),
                       "group": (study or {}).get("group", "")},
             "app": {"version": __version__, "schema": SCHEMA_VERSION},
+            # 孩子看的是哪种语言的界面和题目：评分、反馈、陪伴之后都按它
+            "lang": lang or "zh",
             "device": dict(device or {}),
             "canvas": dict(canvas or {}),
             "times": {"created_at": now_iso(), "started_at": None, "ended_at": None, "duration_ms": None},
