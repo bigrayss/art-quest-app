@@ -120,7 +120,6 @@
     medal: '<path d="M8.6 9.4 5.4 3.4M15.4 9.4l3.2-6"/><circle cx="12" cy="15" r="6.2"/><path d="m12 11.5 1.2 2.4 2.6.4-1.9 1.8.5 2.6-2.4-1.3-2.4 1.3.5-2.6-1.9-1.8 2.6-.4Z" fill="currentColor" stroke="none"/>',
     sprout: '<path d="M12 20.8v-7.2"/><path d="M12 14.6C8.2 14.6 5.6 12 5.6 8.2c3.8 0 6.4 2.6 6.4 6.4Z"/><path d="M12 13c0-3.6 2.6-6.2 6.4-6.2 0 3.6-2.6 6.2-6.4 6.2Z"/>',
     pin: '<path d="M9.4 3.4h5.2l-.8 5.4 3.4 3.4H6.8l3.4-3.4Z"/><path d="M12 12.2v8.4"/>',
-    share: '<path d="M12 14.6V3.6"/><path d="m8.2 7.2 3.8-3.8 3.8 3.8"/><path d="M5.4 11.4v6.4a2.6 2.6 0 0 0 2.6 2.6h8a2.6 2.6 0 0 0 2.6-2.6v-6.4"/>',
     grid: '<rect x="3.4" y="3.4" width="7.4" height="7.4" rx="2.2"/><rect x="13.2" y="3.4" width="7.4" height="7.4" rx="2.2"/><rect x="3.4" y="13.2" width="7.4" height="7.4" rx="2.2"/><rect x="13.2" y="13.2" width="7.4" height="7.4" rx="2.2"/>',
     people: '<circle cx="9" cy="8" r="3.6"/><path d="M2.6 20.4c0-3.6 2.9-6.2 6.4-6.2s6.4 2.6 6.4 6.2"/><path d="M16.2 4.9a3.6 3.6 0 0 1 0 6.2"/><path d="M17.6 14.7c2.5.7 3.8 3 3.8 5.7"/>',
     contrast: '<circle cx="12" cy="12" r="8.4"/><path d="M12 3.6a8.4 8.4 0 0 1 0 16.8Z" fill="currentColor"/>',
@@ -1240,6 +1239,15 @@
     if (b.disabled) return;
     applyTool(b.dataset.tool); logEvent(EV.BRUSH_CHANGE, { tool });
   });
+  // 壳把画存进相册之后回一句：成了就把钮变成「存好了」，没成说一句孩子看得懂的话，能再试
+  window.addEventListener("artquest:saved", (e) => {
+    const sv = $("#btn-save"); if (!sv) return;
+    const ok = !!(e.detail && e.detail.ok);
+    sv.textContent = ok ? "存好了，在相册里" : "没存上，再试一次";
+    sv.disabled = ok;
+    if (ok) native("haptic", { style: "success" });
+  });
+
   // Apple Pencil 双击（原生壳转发过来）：橡皮 ↔ 刚才用的那支笔。记成 BRUSH_CHANGE，
   // 多一个 source 说它是笔杆上来的——和点 dock 是两种不同的动作。
   let toolBeforeEraser = "pencil";
@@ -2495,12 +2503,15 @@
     renderBadges(session);
     if (earnedNow(session).length) native("haptic", { style: "success" });   // 章亮了，手里也知道
     reportBadges(session).then(() => renderBadges(session));   // rarity needs this session counted
-    // 分享只在 app 里有：浏览器里长按图片就能存，按钮是多的
-    const sh = $("#btn-share");
-    if (sh) {
-      sh.classList.toggle("hidden", !NATIVE);
-      const q = state.quests.find(x => x.id === session.quest_id);
-      sh.onclick = () => native("share", { image: afterImg, title: (q && q.title) || "我的画" });
+    // 「存进相册」只在 app 里有：浏览器里长按图片就能存，按钮是多的。
+    // 一颗钮只做一件事：直接存进相册，不弹系统分享面板——那张面板上一排陌生的图标，
+    // 八到十四岁的孩子不知道该点哪个。存好了钮自己变成「存好了」，存不上说一句人话。
+    const sv = $("#btn-save");
+    if (sv) {
+      sv.classList.toggle("hidden", !NATIVE);
+      sv.disabled = false;
+      sv.innerHTML = `${icon("download", 17)}存进相册`;
+      sv.onclick = () => { sv.disabled = true; sv.textContent = "正在存…"; native("save", { image: afterImg }); };
     }
     renderPeers(session);
     // What the child is shown of their own growth is its own condition, separate
