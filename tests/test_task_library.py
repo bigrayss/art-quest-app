@@ -140,14 +140,32 @@ class ConditionSnapshot(unittest.TestCase):
         self.assertEqual(m["task"]["prompt_style"], "story")
         self.assertTrue(any(e["type"] == "TASK_SHOW" for e in m["events"]))
 
-    def test_a_session_run_on_a_placeholder_stimulus_says_so(self):
+    def test_the_real_stimulus_set_is_in(self):
+        """2026-09-28 起 19 张参考图都是真图：manifest 里没有占位 id，QC 不再标 pilot。"""
         sid = self._create()
         m = self.c.get(f"/api/sessions/{sid}").json()
-        # pilot data is not invalid data — it is marked, not blocked
-        self.assertTrue(m["task"]["stimulus_placeholder"])
+        self.assertFalse(m["task"]["stimulus_placeholder"])
+        self.assertTrue(m["task"]["reference_file"], "参考图要拷进 session 目录")
         qc = self.c.post(f"/api/sessions/{sid}/qc").json()
-        self.assertIn("stimulus_ready", qc["failed"])
+        self.assertNotIn("stimulus_ready", qc["failed"])
         self.assertNotIn("condition_frozen", qc["failed"])
+
+    def test_a_session_run_on_a_placeholder_stimulus_says_so(self):
+        """机制留着：哪天某张图临时换成占位图，跑出来的是 pilot 数据——标记，不拦。"""
+        from artquest import quests as qmod
+        q = qmod.QUESTS_BY_ID["M1_A"]
+        saved = (q["stimulus_placeholder"], dict(q["stimulus"]))
+        q["stimulus_placeholder"] = True
+        q["stimulus"]["placeholder"] = True
+        try:
+            sid = self._create("M1_A")
+            m = self.c.get(f"/api/sessions/{sid}").json()
+            self.assertTrue(m["task"]["stimulus_placeholder"])
+            qc = self.c.post(f"/api/sessions/{sid}/qc").json()
+            self.assertIn("stimulus_ready", qc["failed"])
+            self.assertNotIn("condition_frozen", qc["failed"])
+        finally:
+            q["stimulus_placeholder"], q["stimulus"] = saved
 
     def test_a_rater_scores_every_dimension_of_the_drawing(self):
         """A teacher rates all nine; the task only says which ones it focuses on."""
