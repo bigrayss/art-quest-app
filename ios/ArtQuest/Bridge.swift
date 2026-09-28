@@ -1,3 +1,4 @@
+import Photos
 import UIKit
 import WebKit
 
@@ -16,6 +17,9 @@ enum Bridge {
         case "keepAwake":
             // 画画的时候屏幕别自己暗下去；离开创作屏就恢复系统默认
             UIApplication.shared.isIdleTimerDisabled = (msg["on"] as? Bool) ?? false
+        case "save":
+            // 结算页的「存进相册」：一颗钮一件事，不弹系统分享面板（孩子看不懂那一排图标）
+            save(dataURL: msg["image"] as? String ?? "", webView: webView)
         case "share":
             share(dataURL: msg["image"] as? String ?? "", title: msg["title"] as? String ?? "", over: webView)
         case "open":
@@ -38,7 +42,27 @@ enum Bridge {
         }
     }
 
-    /// 结算页的「分享这张画」：系统分享面板（存相册 / AirDrop / 发给家长）。
+    /// 把画直接写进相册。只申请「仅添加」这一档权限——我们从不读孩子的相册。
+    /// 存完（或失败）通过 `artquest:saved` 事件告诉页面，按钮据此改字。
+    private static func save(dataURL: String, webView: WKWebView?) {
+        func report(_ ok: Bool, _ reason: String = "") {
+            let js = "window.dispatchEvent(new CustomEvent('artquest:saved', {detail: {ok: \(ok), reason: '\(reason)'}}))"
+            WebHost.shared.evaluate(js)
+        }
+        guard let comma = dataURL.firstIndex(of: ","),
+              let data = Data(base64Encoded: String(dataURL[dataURL.index(after: comma)...])),
+              let image = UIImage(data: data) else { return report(false, "decode") }
+        PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
+            guard status == .authorized || status == .limited else { return report(false, "denied") }
+            PHPhotoLibrary.shared().performChanges({
+                PHAssetChangeRequest.creationRequestForAsset(from: image)
+            }) { ok, error in
+                report(ok, error.map { String(describing: $0) } ?? "")
+            }
+        }
+    }
+
+    /// 系统分享面板（AirDrop / 发给家长）。界面上现在没有入口，桥留着，将来家长端可能要。
     /// 图片从 JS 的 data URL 里解出来——画就在 WebView 的画布上，不用再去服务器取一遍。
     private static func share(dataURL: String, title: String, over webView: WKWebView?) {
         guard let comma = dataURL.firstIndex(of: ","),

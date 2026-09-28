@@ -377,10 +377,15 @@ class TheShellRunsFromAnotherOrigin(unittest.TestCase):
             self.assertGreater(page.evaluate("document.querySelectorAll('#badges .badge').length"), 0)
             self.assertGreaterEqual(page.evaluate("window.__native.filter(m=>m.type==='haptic').length"), 1,
                                     "点亮徽章要震一下")
-            self.assertTrue(page.is_visible("#btn-share"), "分享只在 app 里有，这儿是 app")
-            page.click("#btn-share")
-            share = [m for m in page.evaluate("window.__native") if m.get("type") == "share"]
-            self.assertTrue(share and share[-1]["image"].startswith("data:image/png;base64,") and share[-1]["title"])
+            self.assertTrue(page.is_visible("#btn-save"), "「存进相册」只在 app 里有，这儿是 app")
+            page.click("#btn-save")
+            saves = [m for m in page.evaluate("window.__native") if m.get("type") == "save"]
+            self.assertTrue(saves and saves[-1]["image"].startswith("data:image/png;base64,"))
+            self.assertEqual(page.inner_text("#btn-save"), "正在存…")
+            # 壳存完回一句，钮就变字；孩子不用面对系统分享面板那一排图标
+            page.evaluate("window.dispatchEvent(new CustomEvent('artquest:saved', {detail: {ok: true}}))")
+            self.assertEqual(page.inner_text("#btn-save"), "存好了，在相册里")
+            self.assertTrue(page.is_disabled("#btn-save"))
             page.click("#btn-again")
             page.wait_for_selector("#view-quest:not(.hidden)")
             self._tab(page, "dex", "view-dex")
