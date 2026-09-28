@@ -63,6 +63,22 @@ class HeuristicScorer:
         picture_organization = 1 + SPAN * min(1.0, 0.6 * used / 9 + 0.4 * (1 - abs(centre_weight - 0.2) * 2))
 
         res = empty_result(self.name)
+        if quest.get("lang") == "en":
+            unmeasured = "Not measured offline"
+            res["dims"] = {
+                "realism": {"score": NEUTRAL, "note": unmeasured},
+                "deformation": {"score": NEUTRAL, "note": unmeasured},
+                "imagination": {"score": NEUTRAL, "note": unmeasured},
+                "color_richness": {"score": _clamp(color_richness), "note": f"Used about {len(hue_bins)} hues"},
+                "color_contrast": {"score": _clamp(color_contrast), "note": f"Light-dark spread {lum.stddev[0]:.0f}"},
+                "line_combination": {"score": _clamp(line_combination), "note": f"Edge density {edge_density:.2f}"},
+                "line_texture": {"score": _clamp(line_texture), "note": "Variation in edge strength"},
+                "picture_organization": {"score": _clamp(picture_organization), "note": f"Used {used} of 9 grid cells"},
+                "transformation": {"score": NEUTRAL, "note": unmeasured},
+            }
+            res["summary"] = (f"Offline scoring: {coverage:.0%} of the page drawn, {len(hue_bins)} hues. "
+                              "Meaning-based dimensions are placeholders.")
+            return res
         res["dims"] = {
             "realism": {"score": NEUTRAL, "note": "启发式无法判断（需模型评分）"},
             "deformation": {"score": NEUTRAL, "note": "启发式无法判断（需模型评分）"},
