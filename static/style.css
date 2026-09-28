@@ -1600,3 +1600,27 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
   .sprite .cd-body, .sprite .cd-shadow, .sprite .cd-eyes, .sprite.cheer .cd-body,
   .flow-sprite .cd-body, .node-here .cd-body { animation:none; }
 }
+
+/* ===== (2026-09-28) 内容少的几屏也要把屏幕用起来 =====
+   用户：「有些是框框对齐了，但是有很大的留白」。画廊空着、徽章墙只有一枚、小传四个 0 的时候，
+   iPad 上大半屏是空的。不是往里塞东西，是把已有的东西按屏幕放大：空墙撑到半屏、章大一号、
+   数字大一号、心愿页任务卡里的字竖向居中、宝藏页彩点那张卡的字大一号并居中。 */
+@media (min-width: 760px) and (min-height: 600px) {
+  .wall-empty { min-height:46vh; display:flex; align-items:flex-end; justify-content:center;
+    padding:0 16px 36px; font-size:1rem; }
+  .wall-empty::before, .wall-empty::after { top:calc(50% - 64px); width:82px; height:64px; border-radius:12px; }
+  .wall-empty::before { margin-left:-98px; }
+  .wall-empty::after { margin-left:16px; }
+  .dex { grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:20px 18px; }
+  .badge-row { grid-template-columns:repeat(auto-fill, minmax(128px, 1fr)); gap:24px 10px; }
+  .badge .b-ico { width:78px; height:78px; }
+  .badge .b-name { font-size:0.9375rem; }
+  .story-tiles { grid-template-columns:repeat(2, 1fr); gap:14px; }
+  .stile { min-height:150px; justify-content:flex-end; padding:16px 18px 16px; }
+  .stile b { font-size:2.75rem; }
+  .stile > span { font-size:0.9375rem; }
+  .quest-card.small.intent-task { display:flex; flex-direction:column; justify-content:center; }
+  #view-final .feedback-card.buddy-card { display:flex; flex-direction:column; }
+  #view-final .feedback-card .feedback-text { flex:1; display:flex; align-items:center;
+    font-size:1.25rem; line-height:1.9; }
+}

@@ -1730,7 +1730,9 @@
     let g;
     try { g = await api(`${API}/participants/${encodeURIComponent(savedPid() || " ")}/growth?${whoQuery()}`); }
     catch (e) { return; }
-    if (!g || !g.n_tasks) { wrap.classList.add("hidden"); return; }
+    // 一张都没画也照样摆出来：灰的彩点和九项「还没练」本身就是「从这儿开始长」的样子。
+    // 以前整块藏起来，iPad 上这一屏只剩一枚章，大半屏是空的。
+    if (!g) { wrap.classList.add("hidden"); return; }
     wrap.classList.remove("hidden");
 
     const byKey = Object.fromEntries(state.cfg.dimensions.map(d => [d.key, d]));
