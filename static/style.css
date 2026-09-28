@@ -743,7 +743,7 @@ figcaption { text-align:center; color:var(--muted-2); font-size:0.75rem; font-we
 .badge.mystery .b-ico::after { border-color:var(--line); }
 .badge.mystery .b-name { color:var(--muted-2); }
 .badge.mystery:hover .b-ico { transform:translateY(-3px) rotate(4deg); }
-.rarity { font-size:0.6875rem; color:var(--muted); margin-top:4px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.rarity { display:none; }
 .badge-left { font-size:0.8125rem; color:var(--muted-2); font-weight:700; margin:14px 2px 0; }
 
 /* ===== 房间：每块 tab 自己的空气颜色 =====
