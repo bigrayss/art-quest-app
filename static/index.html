@@ -139,10 +139,6 @@
       <span class="sechead-chip" id="growth-total"></span>
     </div>
     <div class="growth">
-      <div class="growth-buddy">
-        <svg class="sprite big" id="growth-sprite" viewBox="0 0 200 200"></svg>
-        <div class="growth-rings" id="growth-rings"></div>
-      </div>
       <div class="growth-dims" id="growth-dims"></div>
     </div>
   </div>
@@ -158,12 +154,6 @@
 
 <!-- ===== tab 4：我的 ===== -->
 <section class="view hidden" id="view-sessions">
-  <div class="mecard">
-    <svg class="sprite" id="me-sprite" viewBox="0 0 200 200"></svg>
-    <div class="me-text"><b id="me-name">彩点</b></div>
-    <span class="me-sync" id="me-sync"></span>
-  </div>
-
   <!-- 账号：让画跟着人走，不是跟着一台设备 -->
   <div class="sechead" style="--sc:var(--purple); --sc-d:var(--purple-d)">
     <span class="sechead-ico"><i data-icon="people" data-size="19"></i></span>
@@ -201,7 +191,7 @@
   <div class="me-foot">
   <button class="secondary" id="btn-guide-again"><i data-icon="bulb" data-size="17"></i>再看一遍导览</button>
   <details class="techbox" id="techbox">
-    <summary><i data-icon="sliders" data-size="16"></i>这台设备</summary>
+    <summary><i data-icon="sliders" data-size="16"></i>这台设备<span class="me-sync hidden" id="me-sync"></span></summary>
     <div class="infolist">
       <div class="info"><span>这一版</span><b id="shell-badge"></b></div>
       <div class="info"><span>评分 / 反馈</span><b id="backend-badge"></b></div>
