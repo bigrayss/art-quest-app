@@ -863,9 +863,9 @@ body[data-room="flow"]  { --room:var(--yellow); --room-d:var(--yellow-d); --room
   border:2px solid var(--line); border-radius:var(--r-lg); padding:16px; }
 .growth-buddy { text-align:center; }
 .growth-rings { display:flex; justify-content:center; gap:3px; color:var(--yellow); margin:4px 0 2px; min-height:18px; }
-.growth-dims { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:14px 20px; }
+.growth-dims { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px 18px; }
 .gdim { font-size:0.8125rem; }
-.gdim .gtop { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+.gdim .gtop { display:flex; flex-direction:column; align-items:flex-start; gap:5px; }
 .gdim .gname { font-weight:800; white-space:nowrap; }
 .gdim .ggo { white-space:nowrap; padding:3px 9px; font-size:0.75rem; font-weight:800; border:2px solid var(--line); border-radius:999px;
   box-shadow:none; color:var(--gc, var(--accent)); background:var(--card); min-height:0; }
@@ -1466,6 +1466,7 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
   #view-result .rose { max-width:min(260px, 26vh); }
   #view-result .scores { margin-top:12px; }
   .growth { grid-template-columns:minmax(170px,210px) 1fr; }
+  .growth-dims { grid-template-columns:repeat(3, 1fr); }   /* 用户定的：一行三个 */
   .actions.sticky { position:static; padding:0; background:none; }
   .actions.sticky button.grow { flex:0 0 auto; }
   .modal { align-items:center; }
