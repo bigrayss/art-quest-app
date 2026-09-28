@@ -209,11 +209,25 @@ def service_worker():
                     headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"})
 
 
+def art_available() -> Dict[str, List[str]]:
+    """`static/art/` 里已经有的彩色插画：families/M1.png、badges/<徽章名>.png。
+
+    有就用图，没有就退回代码画的线稿——所以美术可以一枚一枚地交，交一枚亮一枚，
+    不用等 61 张齐了才换。清单在 docs/ART_LIST.md。
+    """
+    out: Dict[str, List[str]] = {}
+    for kind in ("families", "badges"):
+        d = STATIC_DIR / "art" / kind
+        out[kind] = sorted(p.stem for p in d.glob("*.png")) if d.is_dir() else []
+    return out
+
+
 @api.get("/config")
 def config():
     scorer, fb = get_scorer(), get_feedback_engine()
     st = study_mod.load_study()
     return {
+        "art": art_available(),
         "version": __version__,
         # 设备上跑的是哪一版外壳。「我的 → 这台设备」里显示它，
         # 这样在 iPad 上一眼就看得出更新到没有，不用靠猜。

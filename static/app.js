@@ -684,6 +684,12 @@
     // a door you have not opened
     M9: '<path d="M5.2 20.4V4.6l8.6-2v20.4l-8.6-2.6Z"/><path d="M13.8 5.2h5v13.6h-5"/><circle cx="11.4" cy="12.2" r=".9" fill="currentColor" stroke="none"/>',
   };
+  /** 彩色插画（static/art/<kind>/<key>.png）有就给地址，没有给空——调用方退回线稿。
+   *  哪些有，`/api/v1/config` 的 `art` 里列着；地址相对当前源：网页版和 app 壳里的 static 都在本地。 */
+  function artFor(kind, key) {
+    const have = ((state.cfg || {}).art || {})[kind] || [];
+    return have.includes(key) ? `/static/art/${kind}/${encodeURIComponent(key)}.png` : "";
+  }
   /** A family glyph at `size` px, in that family's colour. */
   function glyph(familyId, color, size) {
     const g = GLYPHS[familyId];
@@ -2034,7 +2040,9 @@
       const spot = spots[i] || [50, 50];
       el.style.setProperty("--mx", spot[0] + "%");
       el.style.setProperty("--my", spot[1] + "%");
-      const glyphMark = glyph(fam, "currentColor", 34) || `<span class="qc-icon">${c.icon || ""}</span>`;
+      const art = artFor("families", fam);
+      const glyphMark = art ? `<img class="node-art" src="${art}" alt="">`
+        : glyph(fam, "currentColor", 34) || `<span class="qc-icon">${c.icon || ""}</span>`;
       const shot = !c.locked && shotOf[fam];
       // 画没加载出来（撤回过、还没传上去）就退回那枚字形，别留一个洞
       const mark = shot
@@ -2917,9 +2925,10 @@
       // 角标写第几次：结算页是「以前的次数 + 这一次」，墙上是总次数（count）
       const n = count ? timesLit(b.name)
         : (typeof newTag === "function" && !isNew ? timesLit(b.name) + 1 : 0);
-      return `<div class="badge on${isNew ? " new" : ""}${n > 1 ? " again" : ""}${b.evo ? " evo" : ""}${rare ? " rare" : ""}"${n > 1 ? ` data-n="${n}"` : ""}
+      const art = artFor("badges", b.name);
+      return `<div class="badge on${isNew ? " new" : ""}${n > 1 ? " again" : ""}${b.evo ? " evo" : ""}${rare ? " rare" : ""}${art ? " art" : ""}"${n > 1 ? ` data-n="${n}"` : ""}
         style="${style}" title="${b.desc}">
-        <div class="b-ico">${icon(b.icon, 30)}</div><div class="b-name">${b.name}</div>
+        <div class="b-ico">${art ? `<img src="${art}" alt="">` : icon(b.icon, 30)}</div><div class="b-name">${b.name}</div>
         <div class="b-desc">${b.desc}</div>${line}</div>`;
     }).join("");
     // 墙尾那一枚：说还有，不说有多少。一句话，不再多解释一行。
