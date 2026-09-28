@@ -12,6 +12,9 @@ options:
   # 生成的 .xcodeproj 按这个版本的格式写。不写的话 XcodeGen 按最新 Xcode 的格式生成，
   # Big Sur 上的 Xcode 13.2.1 会说「这是未来版本的工程，打不开」。新 Xcode 打开老格式没问题。
   xcodeVersion: "13.2.1"
+  # 上面那行 XcodeGen 新版并不真的听：生成出来的 objectVersion 仍是新 Xcode 的。
+  # 所以生成完立刻把两处版本号改回 Xcode 13 的（55）——新 Xcode 打开老格式没问题，反过来不行。
+  postGenCommand: perl -pi -e 's/objectVersion = \d+;/objectVersion = 55;/; s/compatibilityVersion = "Xcode [\d.]+";/compatibilityVersion = "Xcode 13.0";/' ArtQuest.xcodeproj/project.pbxproj
   deploymentTarget:
     iOS: "14.0"   # 用到的最新接口是 iOS 14 的（SwiftUI App 生命周期、UTType）；Xcode 12.4 起能编
   createIntermediateGroups: true
