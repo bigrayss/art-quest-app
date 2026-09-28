@@ -54,7 +54,7 @@
     return out;
   }
 
-  const ATTRS = ["placeholder", "title", "aria-label", "alt"];
+  const ATTRS = ["placeholder", "title", "aria-label", "alt", "data-label"];   // data-label：CSS attr() 显示的字
   const SKIP = new Set(["SCRIPT", "STYLE", "TEXTAREA", "INPUT"]);
   function walk(node) {
     if (node.nodeType === 3) {
