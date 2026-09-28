@@ -360,6 +360,7 @@
       paintIntentIdentity();        // 心愿页那句「起个名字」现在不用再说了
       await loadAccount();          // 顺便问一句这台设备上有没有还没写名字的画
       await loadCollection(); renderQuests();
+      if (welcomeOn) { await finishWelcome(); return; }   // 从门口进来的：名字有了，进世界
       await loadSessions();
     } catch (e) {
       acctError(errText(e));
@@ -427,7 +428,7 @@
 
   // ---------- views ----------
   // 四个 tab 是四块独立的界面；做任务时导航整个收起来，只剩画画。
-  const VIEWS = ["world", "quest", "dex", "buddy", "sessions", "intent", "draw", "result", "survey", "final"];
+  const VIEWS = ["welcome", "world", "quest", "dex", "buddy", "sessions", "intent", "draw", "result", "survey", "final"];
   const TAB_VIEW = { map: "quest", dex: "dex", buddy: "buddy", me: "sessions" };
   const VIEW_TAB = { world: "map", quest: "map", dex: "dex", buddy: "buddy", sessions: "me" };
   const TITLES = { world: "彩点的世界", quest: "地图", dex: "画廊", buddy: "彩点", sessions: "我的" };
@@ -436,9 +437,10 @@
     native("keepAwake", { on: name === "draw" });     // 画着画的时候屏幕别自己暗下去
     const tab = VIEW_TAB[name];
     document.body.classList.toggle("inflow", !tab);
+    document.body.classList.toggle("welcome", name === "welcome");   // 门口：连顶栏都没有
     // 每块 tab 有自己的空气颜色：切 tab 像换了个房间，而不是换了一页文档。
     // 具体的色值在 CSS 里（body[data-room]），这里只说现在在哪个房间。
-    document.body.dataset.room = tab || (name === "draw" ? "draw" : "flow");
+    document.body.dataset.room = tab || (name === "draw" ? "draw" : name === "welcome" ? "map" : "flow");
     document.querySelectorAll(".tab").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
     $("#appbar-title").classList.toggle("hidden", !tab);
     if (tab) $("#appbar-title").textContent = TITLES[name];
@@ -635,6 +637,27 @@
   // 「看过了」的设备必须再看一次新的——否则改了等于没改。
   const TOUR_KEY = "artquest.tour/2";
   const guideSeen = () => { try { return localStorage.getItem(TOUR_KEY) === "1"; } catch (e) { return true; } };
+
+  // ---------- 门口 ----------
+  // 第一次打开只问一件事：你叫什么。名字 + 四位暗号，画过的画就跟着人走，
+  // 换台设备也认得你。不是登录墙——「先随便看看」照样能画，只是画留在这台设备上。
+  // 问过一次就不再拦（不管他选了哪个）；登录着的设备根本不会到这儿。
+  const WELCOME_KEY = "artquest.acct_prompted";
+  const welcomeSeen = () => { try { return localStorage.getItem(WELCOME_KEY) === "1"; } catch (e) { return true; } };
+  let welcomeOn = false;
+  function paintWelcome() {
+    const sp = $("#welcome-sprite");
+    if (sp && !sp.innerHTML) sp.innerHTML = spriteInner("#cfcbc4", "normal");
+  }
+  async function finishWelcome() {
+    welcomeOn = false;
+    try { localStorage.setItem(WELCOME_KEY, "1"); } catch (e) { /* 无所谓 */ }
+    await renderWorld(); show("world");
+    if (!guideSeen() && state.condition.ui !== "quiet") startTour(); else checkFeatured();
+  }
+  $("#btn-welcome-register").onclick = () => openAcct("register");
+  $("#btn-welcome-login").onclick = () => openAcct("login");
+  $("#btn-welcome-skip").onclick = finishWelcome;
 
   function enterWorld() {
     state.entered = true;
@@ -2210,8 +2233,10 @@
   addEventListener("resize", () => paintMapBackground());
 
   async function init() {
-    state.cfg = await api(`${API}/config`); state.quests = await api(`${API}/quests`);
-    state.families = await api(`${API}/families`);
+    paintWelcome();                  // JS 一起来就把门口的彩点画上，别让封面空着等网络
+    // 三个都是静态配置，谁也不依赖谁：一起发。串行的时候连上海要等三个来回。
+    [state.cfg, state.quests, state.families] = await Promise.all([
+      api(`${API}/config`), api(`${API}/quests`), api(`${API}/families`)]);
     state.anonId = anonId();
     loadBuddyName(); paintBuddyName();
     // 账号要在取任何「我的」数据之前问清楚：画廊、地图上的星都按它来筛
@@ -2246,10 +2271,18 @@
     renderQuests();
     topUpTickets();                  // 不 await：领票慢也不该让界面等着
     try { state.entered = sessionStorage.getItem("artquest.entered") === "1"; } catch (e) { /* 无所谓 */ }
-    if (state.entered || state.condition.ui === "quiet") { show("quest"); }
-    else { await renderWorld(); show("world"); }
-    if (!guideSeen() && state.condition.ui !== "quiet") startTour();
-    else checkFeatured();
+    // 落在哪一屏，按这个顺序定：
+    //   对照组（quiet）直接进地图；
+    //   第一次来、还没名字 → 门口；
+    //   导览没看完 → 封面 + 导览（导览第一步指的是封面上的彩点，得让它在屏幕上）；
+    //   这个标签页里进过地图 → 地图；否则封面。
+    const quiet = state.condition.ui === "quiet";
+    if (quiet) { show("quest"); checkFeatured(); }
+    else if (!welcomeSeen() && !state.account) { welcomeOn = true; show("welcome"); }
+    else if (!guideSeen()) { await renderWorld(); show("world"); startTour(); }
+    else if (state.entered) { show("quest"); checkFeatured(); }
+    else { await renderWorld(); show("world"); checkFeatured(); }
+    document.body.classList.remove("booting");
   }
   function chooseQuest(q) {
     state.quest = q;
@@ -3300,5 +3333,5 @@
     });
   }
 
-  init().catch(e => alert("初始化失败：" + e.message));
+  init().catch(e => { document.body.classList.remove("booting"); alert("初始化失败：" + e.message); });
 })();
