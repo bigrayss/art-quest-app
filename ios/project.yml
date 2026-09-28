@@ -45,6 +45,10 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         CODE_SIGN_STYLE: Automatic
+        # 模拟器不需要签名。免费 Apple ID 在没登记过任何真机之前，Xcode 造不出描述文件，
+        # Signing 那页会一直报红——但那只关真机的事。这两行让模拟器构建根本不去要签名。
+        "CODE_SIGNING_ALLOWED[sdk=iphonesimulator*]": "NO"
+        "CODE_SIGNING_REQUIRED[sdk=iphonesimulator*]": "NO"
         # 在 Xcode 的 Signing & Capabilities 里选自己的 Team，或者在这里填 Team ID
         DEVELOPMENT_TEAM: ""
         # 正式服务器。调试时不用改这里——系统「设置 → KidsArtQuest → 服务器地址」能临时覆盖
