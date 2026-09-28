@@ -132,13 +132,6 @@
      徽章墙排在成长面板**前面**：进这一屏最想看的是「我又拿到了什么章」，
      那是刚发生的事；九维成长是个慢变量，翻下去看就行。 -->
 <section class="view hidden" id="view-buddy">
-  <div class="sechead" style="--sc:var(--yellow); --sc-d:var(--yellow-d)">
-    <span class="sechead-ico"><i data-icon="medal" data-size="19"></i></span>
-    <div class="sechead-t"><b>徽章墙</b></div>
-    <span class="sechead-chip" id="badge-wall-count"></span>
-  </div>
-  <div class="badges" id="badge-wall"></div>
-
   <div id="growth-wrap" class="hidden">
     <div class="sechead" style="--sc:var(--green); --sc-d:var(--green-d)">
       <span class="sechead-ico"><i data-icon="sprout" data-size="19"></i></span>
@@ -154,6 +147,14 @@
       <div class="growth-dims" id="growth-dims"></div>
     </div>
   </div>
+
+  <div class="sechead" style="--sc:var(--yellow); --sc-d:var(--yellow-d)">
+    <span class="sechead-ico"><i data-icon="medal" data-size="19"></i></span>
+    <div class="sechead-t"><b>徽章墙</b></div>
+    <span class="sechead-chip" id="badge-wall-count"></span>
+  </div>
+  <div class="badges" id="badge-wall"></div>
+
 </section>
 
 <!-- ===== tab 4：我的 ===== -->
@@ -197,8 +198,9 @@
   </div>
   <div class="story" id="story"></div>
 
-  <button class="secondary wide" id="btn-guide-again"><i data-icon="bulb" data-size="17"></i>再看一遍导览</button>
-
+  <!-- 导览和「这台设备」并成一行：这一屏要装在一页里 -->
+  <div class="me-foot">
+  <button class="secondary" id="btn-guide-again"><i data-icon="bulb" data-size="17"></i>再看一遍导览</button>
   <details class="techbox" id="techbox">
     <summary><i data-icon="sliders" data-size="16"></i>这台设备</summary>
     <div class="infolist">
@@ -208,6 +210,7 @@
       <div class="info"><span>全部记录</span><b><a id="export-link" href="/api/v1/sessions" target="_blank">导出 JSON</a></b></div>
     </div>
   </details>
+  </div>
 </section>
 
 <!-- ===== 流程 1：心愿 ===== -->
