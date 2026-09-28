@@ -1732,9 +1732,6 @@
     const rings = Math.min(5, Math.floor(g.total_level / 3));
     $("#growth-rings").innerHTML = rings ? icon("star", 16).repeat(rings) : "";
     $("#growth-total").textContent = `成长 ${g.total_level}/${g.max_total}`;
-    $("#growth-say").textContent = best[1].practice
-      ? `我在「${byKey[best[0]].zh}」上长得最快！`
-      : "再画几幅，我就开始长啦～";
 
     $("#growth-dims").innerHTML = CHART_ORDER.map(key => {
       const d = byKey[key], v = g.dims[key];
