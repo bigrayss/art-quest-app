@@ -797,6 +797,7 @@ body[data-room="flow"]  { --room:var(--yellow); --room-d:var(--yellow-d); --room
    一枚彩色图标砖 + 标题 + 一句人话 + 右边一个数字牌。
    颜色由用的人给：`style="--sc:...; --sc-d:..."`。 */
 .sechead { display:flex; align-items:center; gap:12px; margin:26px 0 14px; }
+.view > .sechead:first-child, .view > div:first-child > .sechead:first-child { margin-top:4px; }
 .sechead:first-child { margin-top:4px; }
 .sechead-ico { flex:none; display:flex; align-items:center; justify-content:center;
   width:40px; height:40px; border-radius:13px; color:#fff;
@@ -862,15 +863,16 @@ body[data-room="flow"]  { --room:var(--yellow); --room-d:var(--yellow-d); --room
   border:2px solid var(--line); border-radius:var(--r-lg); padding:16px; }
 .growth-buddy { text-align:center; }
 .growth-rings { display:flex; justify-content:center; gap:3px; color:var(--yellow); margin:4px 0 2px; min-height:18px; }
-.growth-dims { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px 18px; }
+.growth-dims { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:14px 20px; }
 .gdim { font-size:0.8125rem; }
 .gdim .gtop { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
-.gdim .gname { font-weight:800; }
-.gdim .gnext { color:var(--muted); font-size:0.6875rem; font-weight:700; }
-.gpips { display:flex; gap:4px; margin-top:5px; }
+.gdim .gname { font-weight:800; white-space:nowrap; }
+.gdim .ggo { white-space:nowrap; padding:3px 9px; font-size:0.75rem; font-weight:800; border:2px solid var(--line); border-radius:999px;
+  box-shadow:none; color:var(--gc, var(--accent)); background:var(--card); min-height:0; }
+.gdim .ggo:active { transform:translateY(1px); }
+.gpips { display:flex; gap:4px; margin-top:7px; }
 .gpips i { width:100%; height:9px; border-radius:999px; background:var(--line); }
 .gpips i.on { background:var(--gc,var(--accent)); }
-.gdim .gsleep { color:var(--muted); font-size:0.6875rem; margin-top:4px; font-weight:600; }
 .gdim .gawake { color:var(--green-d); font-size:0.6875rem; margin-top:4px; font-weight:700; }
 
 /* "What this mission trained" — the task's own rubric, said back to the child as
@@ -970,7 +972,9 @@ body[data-room="flow"]  { --room:var(--yellow); --room-d:var(--yellow-d); --room
    四个数字，说的都是**做过的事**——画完了几张、去过几个地方、画了几天、
    点亮了几枚。没有一个是对画的评价，这一屏不给任何人打分。 */
 .story { display:flex; flex-direction:column; gap:12px; }
-#btn-guide-again { margin-top:14px; }
+#btn-guide-again { margin:0; flex:0 0 auto; }
+.me-foot { display:flex; align-items:stretch; gap:12px; margin-top:14px; }
+.me-foot .techbox { flex:1 1 auto; margin:0; }
 .story-tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; }
 .stile { position:relative; background:var(--card); border:2px solid var(--line); border-radius:var(--r);
   box-shadow:0 var(--edge) 0 var(--line); padding:13px 14px 12px; display:flex; flex-direction:column; gap:1px; }
@@ -1610,10 +1614,10 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
   .badge-row { grid-template-columns:repeat(auto-fill, minmax(128px, 1fr)); gap:24px 10px; }
   .badge .b-ico { width:78px; height:78px; }
   .badge .b-name { font-size:0.9375rem; }
-  .story-tiles { grid-template-columns:repeat(2, 1fr); gap:14px; }
-  .stile { min-height:150px; justify-content:flex-end; padding:16px 18px 16px; }
-  .stile b { font-size:2.75rem; }
-  .stile > span { font-size:0.9375rem; }
+  .story-tiles { grid-template-columns:repeat(4, 1fr); gap:12px; }
+  .stile { min-height:96px; justify-content:flex-end; padding:14px 16px; }
+  .stile b { font-size:2rem; }
+  .stile > span { font-size:0.875rem; }
   .quest-card.small.intent-task { display:flex; flex-direction:column; justify-content:center; }
   #view-final .feedback-card.buddy-card { display:flex; flex-direction:column; }
   #view-final .feedback-card .feedback-text { flex:1; display:flex; align-items:center;

@@ -1742,17 +1742,27 @@
       const fam = FAMILIES[DIM_FAMILY[key]];
       const pips = Array.from({ length: v.max_level }, (_, i) =>
         `<i class="${i < v.level ? "on" : ""}"></i>`).join("");
-      // 「评价层已唤醒 · 29 次评分」是后台说话。孩子这儿只要两件事：
-      // 还差几幅能长一格，以及这项现在有没有人在评。
-      const left = Math.ceil(Math.max(0, (v.next_at || 0) - v.practice));
-      const next = v.next_at !== null
-        ? (left <= 0 ? "马上升一格" : `再画 ${left} 幅长一格`)
-        : "长满了";
-      const layer = v.awake ? "" : `<div class="gsleep">这项等模型来评</div>`;
+      // 每一项底下不报数（「再画 3 幅长一格」把成长变回进度条），也不说评估层的事
+      // （「等模型来评」是后台的话；没有就空着）。给的是一个**去处**：哪块地练这一项。
+      const rec = recommendFor(key);
+      const go = rec ? `<button class="ggo" data-fam="${rec.id}">去「${rec.name}」</button>` : "";
       return `<div class="gdim" style="--gc:${fam.color}">
-        <div class="gtop"><span class="gname">${d.zh}</span><span class="gnext">${next}</span></div>
-        <div class="gpips">${pips}</div>${layer}</div>`;
+        <div class="gtop"><span class="gname">${d.zh}</span>${go}</div>
+        <div class="gpips">${pips}</div></div>`;
     }).join("");
+    $("#growth-dims").querySelectorAll(".ggo").forEach(b => {
+      b.onclick = () => { const q = randomForm(b.dataset.fam); if (q) chooseQuest(q); };
+    });
+  }
+  /** 哪个家族主要练这一维：按任务的 rubric 主考维度找，没去过的优先。 */
+  function recommendFor(dimKey) {
+    // M0 是「想画什么画什么」，什么都练一点，推荐它等于没推荐——只在别的家族都不练这一维时才轮到它
+    const fams = (state.families || []).filter(f => f.id !== "M0" && (state.quests || []).some(q =>
+      q.family === f.id && ((q.rubric || {}).primary_dimensions || []).includes(dimKey)));
+    if (!fams.length) fams.push(...(state.families || []).filter(f => f.id === "M0"));
+    if (!fams.length) return null;
+    const been = new Set((state.allSessions || []).filter(r => r.status === "done").map(r => (r.task_id || r.quest_id || "").split("_")[0]));
+    return fams.find(f => !been.has(f.id)) || fams[0];
   }
 
   // ---------- Study Mode ----------
