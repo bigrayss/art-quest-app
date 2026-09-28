@@ -73,11 +73,10 @@
       <svg class="sprite hero grey" id="welcome-sprite" viewBox="0 0 200 200"></svg>
     </div>
     <h1 class="welcome-title">彩绘冒险</h1>
-    <p class="world-say">起个名字，画过的画就跟着你走。</p>
     <div class="actions column welcome-actions" id="welcome-actions">
-      <button class="primary big clay" id="btn-welcome-register"><i data-icon="sparkle" data-size="18"></i>起个名字</button>
-      <button class="ghost" id="btn-welcome-login">我已经有名字了</button>
-      <button class="skip" id="btn-welcome-skip">先随便看看</button>
+      <button class="primary big clay" id="btn-welcome-register">注册</button>
+      <button class="ghost" id="btn-welcome-login">登录</button>
+      <button class="skip" id="btn-welcome-skip">跳过</button>
     </div>
   </div>
 </section>
@@ -179,14 +178,14 @@
   <!-- 账号：让画跟着人走，不是跟着一台设备 -->
   <div class="sechead" style="--sc:var(--purple); --sc-d:var(--purple-d)">
     <span class="sechead-ico"><i data-icon="people" data-size="19"></i></span>
-    <div class="sechead-t"><b>我的名字</b></div>
+    <div class="sechead-t"><b>账号</b></div>
     <span class="sechead-chip" id="acct-chip"></span>
   </div>
 
   <div class="acct" id="acct-out">
     <div class="acct-btns">
-      <button class="primary" id="btn-acct-register"><i data-icon="sparkle" data-size="17"></i>起个名字</button>
-      <button class="ghost" id="btn-acct-login">我已经有名字了</button>
+      <button class="primary" id="btn-acct-register">注册</button>
+      <button class="ghost" id="btn-acct-login">登录</button>
     </div>
   </div>
 
@@ -198,7 +197,7 @@
     </div>
     <div class="acct-claim hidden" id="acct-claim">
       <span id="acct-claim-text"></span>
-      <button class="secondary" id="btn-acct-claim">收进我的名下</button>
+      <button class="secondary" id="btn-acct-claim">收进账号</button>
     </div>
   </div>
 
@@ -490,17 +489,17 @@
 <!-- 中途离开一个任务 -->
 <div class="modal hidden" id="acct-modal">
   <div class="modal-card">
-    <h3 id="acct-modal-title">起个名字</h3>
-    <p class="muted" id="acct-modal-sub">名字是给你自己看的，不用写真名。暗号是四位数字，记住它就行。</p>
+    <h3 id="acct-modal-title">注册</h3>
+    <p class="muted" id="acct-modal-sub">起一个名字，设一个四位数字密码。</p>
     <input id="acct-name-input" type="text" maxlength="12" autocomplete="off" autocapitalize="off"
-           spellcheck="false" placeholder="比如：小满、爱画画的鱼">
+           spellcheck="false" placeholder="名字">
     <input id="acct-pin-input" class="pin" type="text" inputmode="numeric" maxlength="4"
-           autocomplete="off" placeholder="四位数字">
+           autocomplete="off" placeholder="四位数字密码">
     <p class="acct-err hidden" id="acct-err"></p>
     <div class="actions column">
-      <button class="primary" id="btn-acct-go">就用这个</button>
-      <button class="ghost" id="btn-acct-switch">我已经有名字了</button>
-      <button class="ghost" id="btn-acct-cancel">以后再说</button>
+      <button class="primary" id="btn-acct-go">注册</button>
+      <button class="ghost" id="btn-acct-switch">已有账号，去登录</button>
+      <button class="ghost" id="btn-acct-cancel">取消</button>
     </div>
   </div>
 </div>
