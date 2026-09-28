@@ -43,7 +43,8 @@ fi
 mkdir -p data
 install -m 644 deploy/artquest.service "$HOME/.config/systemd/user/artquest.service"
 systemctl --user daemon-reload
-systemctl --user enable --now artquest
+systemctl --user enable artquest
+systemctl --user restart artquest     # enable --now 对已经在跑的服务不重启，代码换了进程还是旧的
 sleep 2
 systemctl --user is-active --quiet artquest && echo "服务在跑" || { systemctl --user status artquest --no-pager -l | tail -20; exit 1; }
 curl -fsS -o /dev/null http://127.0.0.1:8010/ && echo "本地自检 200 OK"
