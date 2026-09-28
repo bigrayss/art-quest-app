@@ -1467,7 +1467,8 @@ tests/               端到端测试 + 研究数据层测试（离线后端）
                      真实 Chrome 里把外壳放到第二个源上跑一遍登录 + 开画（= iOS 壳的 JS 那一半）
   test_browser.py    真实 Chrome：缩放不改坐标、含撤销的 session 能重建、参考图交互、
                      鼠标压感确实是 null（无浏览器则跳过）
-docs/                ART_LIST.md（美术清单：要画的参考图 19 张 / 地图字形 10 枚 / 徽章 51 枚 / app 图标，
+docs/                TASK_LIST.md（任务清单：75 个任务逐条的原话 / 提示 / 参考图 / 时限 / 考察维度，给老师提意见用，
+                     由 gen_task_list.py 生成）、ART_LIST.md（美术清单：要画的参考图 19 张 / 地图字形 10 枚 / 徽章 51 枚 / app 图标，
                      每项写像素尺寸、文件名、画什么；由 gen_art_list.py 从代码生成）、ETHICS.md、开发指南
 ```
 
