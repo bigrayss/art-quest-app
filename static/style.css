@@ -712,7 +712,7 @@ figcaption { text-align:center; color:var(--muted-2); font-size:0.75rem; font-we
 .badge .b-ico::after { content:""; position:absolute; inset:-7px; border-radius:50%;
   border:2px dashed var(--bc-l, #fbc48a); }
 .badge:hover .b-ico { transform:translateY(-3px) rotate(-4deg); }
-.badge .b-name { font-size:0.8125rem; font-weight:800; margin-top:14px; }
+.badge .b-name { font-size:0.8125rem; font-weight:800; margin-top:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 /* 说明不常驻在章底下（点一枚才浮出），这条只给 title 之外的读屏用 */
 .badge .b-desc { display:none; font-size:0.6875rem; color:var(--muted-2); margin-top:4px; line-height:1.5; font-weight:600;
   text-wrap:pretty; }
@@ -737,14 +737,13 @@ figcaption { text-align:center; color:var(--muted-2); font-size:0.75rem; font-we
              inset 0 8px 11px -5px rgba(255,255,255,.55),
              inset 0 0 0 3px var(--yellow); }
 .badge.rare .b-ico::after { border-color:var(--yellow); }
-.badge.rare .b-name::after { content:" ✦"; color:var(--yellow-d); }
 /* 墙尾那张「?」：它说还有，但不说有多少 */
 .badge.mystery .b-ico { color:var(--muted); background:var(--soft);
   box-shadow:inset 0 0 0 2px var(--line); }
 .badge.mystery .b-ico::after { border-color:var(--line); }
 .badge.mystery .b-name { color:var(--muted-2); }
 .badge.mystery:hover .b-ico { transform:translateY(-3px) rotate(4deg); }
-.rarity { font-size:0.6875rem; color:var(--muted); margin-top:4px; font-weight:700; }
+.rarity { font-size:0.6875rem; color:var(--muted); margin-top:4px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .badge-left { font-size:0.8125rem; color:var(--muted-2); font-weight:700; margin:14px 2px 0; }
 
 /* ===== 房间：每块 tab 自己的空气颜色 =====
