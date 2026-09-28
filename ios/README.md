@@ -1,4 +1,4 @@
-# KidsArtQuest · iOS
+# 彩绘冒险（ArtQuest）· iOS
 
 这个目录是 iOS app 的全部原生代码。**界面不在这里**——界面是仓库根下的 `static/`，
 和网页版是同一份，整个目录以文件夹引用的方式打进 app 包，运行时从 `artquest://app/` 端出去。

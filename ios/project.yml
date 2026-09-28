@@ -1,4 +1,4 @@
-# KidsArtQuest 的 iOS 工程。用 XcodeGen 生成 .xcodeproj：
+# 彩绘冒险（ArtQuest）的 iOS 工程。桌面上显示的名字在 Info.plist 的 CFBundleDisplayName；PRODUCT_NAME 只是包名，别改（CI 认它）。用 XcodeGen 生成 .xcodeproj：
 #
 #   brew install xcodegen
 #   cd ios && xcodegen generate && open ArtQuest.xcodeproj

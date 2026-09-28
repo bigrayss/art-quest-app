@@ -185,7 +185,7 @@ class DrawingWithNoNetwork(unittest.TestCase):
             page.set_default_timeout(15000)
             page.on("pageerror", lambda e: errors.append(str(e)))
             page.on("dialog", lambda d: (errors.append("dialog: " + d.message), d.accept()))
-            page.add_init_script("localStorage.setItem('artquest.tour/2','1')")
+            page.add_init_script("localStorage.setItem('artquest.tour/2','1'); localStorage.setItem('artquest.acct_prompted','1')")
             page.goto(self.base, wait_until="networkidle")
             # 票是**联网时**领的：离线要用的 id 和条件都已经由服务端定好
             page.wait_for_function("async () => (await ArtLog.countTickets()) > 0")
@@ -260,7 +260,7 @@ class DrawingWithNoNetwork(unittest.TestCase):
             page.set_default_timeout(15000)
             page.on("pageerror", lambda e: notes.append("JS: " + str(e)))
             page.on("dialog", lambda d: (notes.append("dialog: " + d.message), d.accept()))
-            page.add_init_script("localStorage.setItem('artquest.tour/2','1')")
+            page.add_init_script("localStorage.setItem('artquest.tour/2','1'); localStorage.setItem('artquest.acct_prompted','1')")
 
             # 联网开一次：注册 SW、存外壳、领票
             page.goto(self.base, wait_until="networkidle")
@@ -287,7 +287,7 @@ class DrawingWithNoNetwork(unittest.TestCase):
             cold.on("pageerror", lambda e: notes.append("JS: " + str(e)))
             cold.on("dialog", lambda d: (notes.append("dialog: " + d.message), d.accept()))
             cold.goto(self.base, wait_until="domcontentloaded")
-            self.assertIn("KidsArtQuest", cold.title(), "断网点图标打不开")
+            self.assertIn("彩绘冒险", cold.title(), "断网点图标打不开")
 
             cold.wait_for_selector("#view-world:not(.hidden)")
             cold.click("#btn-enter-world")
@@ -336,7 +336,7 @@ class DrawingWithNoNetwork(unittest.TestCase):
                 context = browser.new_context(viewport={"width": 1180, "height": 820})
                 page = context.new_page()
                 page.set_default_timeout(15000)
-                page.add_init_script("localStorage.setItem('artquest.tour/2','1')")
+                page.add_init_script("localStorage.setItem('artquest.tour/2','1'); localStorage.setItem('artquest.acct_prompted','1')")
                 page.goto(self.base, wait_until="networkidle")
                 page.wait_for_function(
                     "async () => { const r = await navigator.serviceWorker.getRegistration();"

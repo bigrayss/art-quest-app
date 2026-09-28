@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no, maximum-scale=1">
 <meta name="theme-color" content="#ffffff">
-<title>KidsArtQuest · 创作冒险</title>
+<title>彩绘冒险 · ArtQuest</title>
 <!-- 装到 iPad 主屏上就是一个 app：没有地址栏，自己的图标，横竖屏都跑 -->
 <link rel="manifest" href="/static/manifest.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="KidsArtQuest">
+<meta name="apple-mobile-web-app-title" content="彩绘冒险">
 <link rel="apple-touch-icon" href="/static/icons/icon-180.png">
 <link rel="icon" href="/static/icons/icon-192.png">
 <link rel="stylesheet" href="/static/style.css">
@@ -24,7 +24,7 @@
        小孩靠位置和形状记路，全收光了就得靠记忆找回来。 -->
   <div class="rail-brand">
     <span class="mark"><i data-icon="palette" data-size="20"></i></span>
-    <b>KidsArtQuest</b>
+    <b>彩绘冒险</b>
     <button class="rail-toggle" id="btn-rail" title="收起这一栏" aria-label="收起这一栏"><i data-icon="arrowLeft" data-size="13"></i></button>
   </div>
   <button class="tab active" data-tab="map"><i data-icon="map" data-size="24"></i><span>地图</span></button>
@@ -38,7 +38,7 @@
   <button class="iconbtn hidden" id="btn-back-quest" title="换个任务"><i data-icon="arrowLeft" data-size="20"></i></button>
   <button class="iconbtn hidden" id="btn-back-draw" title="换个任务"><i data-icon="arrowLeft" data-size="20"></i></button>
   <div class="appbar-main">
-    <div class="appbar-title" id="appbar-title">创作冒险</div>
+    <div class="appbar-title" id="appbar-title">地图</div>
     <!-- 做一幅画的六步：一条细进度条，彩点走在最前面 -->
     <div class="flow hidden" id="flow">
       <div class="flow-track"><div class="flow-fill" id="flow-fill"></div></div>
@@ -92,6 +92,8 @@
        而它右边那个「走过 5/10 关」并进了下面这张条里。
        十个平级的选项 = 无从下手。所以先给一个默认的起点，其余的仍然全部开着。 -->
   <div class="today hidden" id="today"></div>
+  <!-- 账号不是登录墙，但入口不能只藏在「我的」里：没名字的时候地图上给一行 -->
+  <div class="acct-nudge hidden" id="acct-nudge"><span>还没有名字。起一个，画会跟着你走。</span><button class="secondary" id="btn-acct-nudge">起个名字</button></div>
   <div class="map" id="quest-grid">
     <!-- 十个地方之间的小路。它**不表示顺序**（家族之间本来就没有先后），
          它只做一件事：把十个散落的点变成一片连着的地。
