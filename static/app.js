@@ -299,7 +299,16 @@
     }
   }
 
+  const ACCT_PROMPTED = "artquest.acct_prompted";
+  /** 第一次进来（导览看完之后）问一次要不要起名字。只问一次，「以后再说」就走；
+   *  之后地图上留一行。不做登录墙——不注册照样能画。 */
+  function maybePromptAccount() {
+    if (state.account) return;
+    try { if (localStorage.getItem(ACCT_PROMPTED) === "1") return; localStorage.setItem(ACCT_PROMPTED, "1"); } catch (e) { return; }
+    openAcct("register");
+  }
   function paintAccount() {
+    const nudge = $("#acct-nudge"); if (nudge) nudge.classList.toggle("hidden", !!state.account);
     const out = $("#acct-out"), inBox = $("#acct-in"); if (!out || !inBox) return;
     const acc = state.account;
     out.classList.toggle("hidden", !!acc);
@@ -366,6 +375,7 @@
     } finally { btn.disabled = false; }
   }
   $("#btn-acct-register").onclick = () => openAcct("register");
+  if ($("#btn-acct-nudge")) $("#btn-acct-nudge").onclick = () => openAcct("register");
   $("#btn-acct-login").onclick = () => openAcct("login");
   $("#btn-acct-switch").onclick = () => openAcct(acctMode === "register" ? "login" : "register");
   $("#btn-acct-go").onclick = submitAcct;
@@ -430,7 +440,7 @@
   const VIEWS = ["world", "quest", "dex", "buddy", "sessions", "intent", "draw", "result", "survey", "final"];
   const TAB_VIEW = { map: "quest", dex: "dex", buddy: "buddy", me: "sessions" };
   const VIEW_TAB = { world: "map", quest: "map", dex: "dex", buddy: "buddy", sessions: "me" };
-  const TITLES = { world: "彩点的世界", quest: "创作冒险", dex: "画廊", buddy: "彩点", sessions: "我的" };
+  const TITLES = { world: "彩点的世界", quest: "地图", dex: "画廊", buddy: "彩点", sessions: "我的" };
   function show(name) {
     VIEWS.forEach(v => $(`#view-${v}`).classList.toggle("hidden", v !== name));
     native("keepAwake", { on: name === "draw" });     // 画着画的时候屏幕别自己暗下去
@@ -620,6 +630,7 @@
     tourEl.classList.add("hidden");
     try { localStorage.setItem(TOUR_KEY, "1"); } catch (e) { /* 无所谓 */ }
     checkFeatured();
+    maybePromptAccount();
   }
   $("#btn-tour-next").onclick = () => nextTour(false);
   $("#btn-tour-skip").onclick = endTour;
@@ -688,7 +699,7 @@
    *  哪些有，`/api/v1/config` 的 `art` 里列着；地址相对当前源：网页版和 app 壳里的 static 都在本地。 */
   function artFor(kind, key) {
     const have = ((state.cfg || {}).art || {})[kind] || [];
-    return have.includes(key) ? `/static/art/${kind}/${encodeURIComponent(key)}.png` : "";
+    return have.includes(key) ? `/static/art/${kind}/${encodeURIComponent(key)}.${kind === "map" ? "jpg" : "png"}` : "";
   }
   /** A family glyph at `size` px, in that family's colour. */
   function glyph(familyId, color, size) {
@@ -1995,7 +2006,15 @@
     });
     return out;
   }
+  function paintMapBackground() {
+    const grid = $("#quest-grid"); if (!grid) return;
+    const wide = innerWidth >= innerHeight;
+    const bg = artFor("map", wide ? "map-wide" : "map-tall") || artFor("map", "map-wide");
+    grid.classList.toggle("has-bg", !!bg);
+    grid.style.backgroundImage = bg ? `url("${bg}")` : "";
+  }
   function renderQuests() {
+    paintMapBackground();
     const grid = $("#quest-grid"); if (!grid) return;
     grid.querySelectorAll(".quest-card").forEach(el => el.remove());
     const seq = state.study && state.study.sequence ? state.study.sequence : null;
@@ -2043,7 +2062,8 @@
       const art = artFor("families", fam);
       const glyphMark = art ? `<img class="node-art" src="${art}" alt="">`
         : glyph(fam, "currentColor", 34) || `<span class="qc-icon">${c.icon || ""}</span>`;
-      const shot = !c.locked && shotOf[fam];
+      // 2026-09-28 用户：圆里换成孩子的画反而难看，字形保持原样；去过的地方靠实心色圆 + 星表示
+      const shot = false; void shotOf;
       // 画没加载出来（撤回过、还没传上去）就退回那枚字形，别留一个洞
       const mark = shot
         ? `<img class="node-shot" src="${FILES}/${shot}/after.png" alt="" loading="lazy"
@@ -2196,6 +2216,7 @@
     } catch (e) { /* 领不到票只是不能离线开新的，不该挡住任何事 */ }
   }
   addEventListener("online", () => { topUpTickets(); ArtLog.flush(); });
+  addEventListener("resize", () => paintMapBackground());
 
   async function init() {
     state.cfg = await api(`${API}/config`); state.quests = await api(`${API}/quests`);
@@ -2204,6 +2225,7 @@
     loadBuddyName(); paintBuddyName();
     // 账号要在取任何「我的」数据之前问清楚：画廊、地图上的星都按它来筛
     await loadAccount();
+    paintAccount();               // 地图上「还没有名字」那一行也按它来定
     $("#backend-badge").textContent = `${state.cfg.scorer} · ${state.cfg.feedback}` + (state.cfg.claude_available ? "" : "（离线）");
     // 设备上跑的是哪一版外壳。iPad 上「到底更新了没有」以前只能靠猜——
     // 这一行就是答案：和电脑上 `curl .../api/config` 里的 shell 对一下就知道。
@@ -2237,7 +2259,7 @@
     if (state.entered || state.condition.ui === "quiet") { show("quest"); }
     else { await renderWorld(); show("world"); }
     if (!guideSeen() && state.condition.ui !== "quiet") startTour();
-    else checkFeatured();
+    else { checkFeatured(); if (state.entered) maybePromptAccount(); }
   }
   function chooseQuest(q) {
     state.quest = q;

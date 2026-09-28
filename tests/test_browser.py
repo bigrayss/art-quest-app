@@ -140,7 +140,7 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
             page.set_default_timeout(15000)
             # 一个没人用过的设备代号：这条测的就是「一张画都没有」那一刻
             page.add_init_script("""
-              localStorage.setItem('artquest.tour/2', '1');
+              localStorage.setItem('artquest.tour/2', '1'); localStorage.setItem('artquest.acct_prompted', '1');
               localStorage.setItem('artquest.anon_id', 'anon-empty-dex');
               sessionStorage.setItem('artquest.entered', '1');
             """)
@@ -176,7 +176,7 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
             page = browser.new_page(viewport={"width": 820, "height": 1180})
             page.set_default_timeout(15000)
             page.add_init_script("""
-              localStorage.setItem('artquest.tour/2', '1');
+              localStorage.setItem('artquest.tour/2', '1'); localStorage.setItem('artquest.acct_prompted', '1');
               localStorage.setItem('artquest.anon_id', 'anon-badge-wall');
               localStorage.setItem('artquest.buddy_name', '阿布');
               sessionStorage.setItem('artquest.entered', '1');
@@ -227,7 +227,7 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
             page = browser.new_page(viewport={"width": 820, "height": 1180})
             page.set_default_timeout(15000)
             page.add_init_script(f"""
-              localStorage.setItem('artquest.tour/2', '1');
+              localStorage.setItem('artquest.tour/2', '1'); localStorage.setItem('artquest.acct_prompted', '1');
               localStorage.setItem('artquest.anon_id', {anon!r});
               sessionStorage.setItem('artquest.entered', '1');
             """)
@@ -275,7 +275,7 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
                 page = browser.new_page(viewport={"width": 820, "height": 1180})
                 page.set_default_timeout(15000)
                 page.add_init_script("""
-                  localStorage.setItem('artquest.tour/2', '1');
+                  localStorage.setItem('artquest.tour/2', '1'); localStorage.setItem('artquest.acct_prompted', '1');
                   localStorage.setItem('artquest.anon_id', 'anon-no-code');
                   sessionStorage.setItem('artquest.entered', '1');
                 """)
@@ -293,7 +293,7 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
                 # 研究员那条路还在：带 pid 进来，代号框出现并且已经填好
                 page2 = browser.new_page(viewport={"width": 820, "height": 1180})
                 page2.set_default_timeout(15000)
-                page2.add_init_script("localStorage.setItem('artquest.tour/2','1');"
+                page2.add_init_script("localStorage.setItem('artquest.tour/2', '1'); localStorage.setItem('artquest.acct_prompted', '1');"
                                       "sessionStorage.setItem('artquest.entered','1');")
                 page2.goto(self.base + "/?study=1&pid=P07")
                 page2.wait_for_selector("#quest-grid .quest-card")
@@ -344,7 +344,7 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
         gestures under test actually run in.
         """
         page.set_default_timeout(15000)
-        page.add_init_script("localStorage.setItem('artquest.tour/2','1')")
+        page.add_init_script("localStorage.setItem('artquest.tour/2','1'); localStorage.setItem('artquest.acct_prompted','1')")
         page.goto(self.base)
         # 这个 app 开在彩点的世界上，地图在「进入世界」后面。
         #
@@ -866,7 +866,7 @@ class OnAnApplePad(ZoomKeepsStrokesInCanvasSpace):
             context.set_offline(True)
             offline = context.new_page()
             offline.goto(self.base, wait_until="domcontentloaded", timeout=15000)
-            self.assertIn("KidsArtQuest", offline.title())
+            self.assertIn("彩绘冒险", offline.title())
             self.assertGreater(offline.eval_on_selector_all(".tab", "e => e.length"), 0,
                                "断网打开是一张白纸")
             browser.close()

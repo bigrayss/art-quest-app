@@ -216,9 +216,9 @@ def art_available() -> Dict[str, List[str]]:
     不用等 61 张齐了才换。清单在 docs/ART_LIST.md。
     """
     out: Dict[str, List[str]] = {}
-    for kind in ("families", "badges"):
+    for kind in ("families", "badges", "map"):
         d = STATIC_DIR / "art" / kind
-        out[kind] = sorted(p.stem for p in d.glob("*.png")) if d.is_dir() else []
+        out[kind] = sorted(p.stem for p in list(d.glob("*.png")) + list(d.glob("*.jpg"))) if d.is_dir() else []
     return out
 
 

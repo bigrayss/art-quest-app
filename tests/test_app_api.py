@@ -213,7 +213,7 @@ class TheShellRunsFromAnotherOrigin(unittest.TestCase):
               window.ArtQuestNative = {{ platform: "ios", server: {json.dumps(self.api)}, token: "", version: "test (0)" }};
               window.__native = [];
               window.webkit = {{ messageHandlers: {{ artquest: {{ postMessage: (m) => window.__native.push(m) }} }} }};
-              localStorage.setItem('artquest.tour/2', '1');
+              localStorage.setItem('artquest.tour/2', '1'); localStorage.setItem('artquest.acct_prompted', '1');
               localStorage.setItem('artquest.anon_id', 'anon-shell');
               sessionStorage.setItem('artquest.entered', '1');
             """)
@@ -299,7 +299,7 @@ class TheShellRunsFromAnotherOrigin(unittest.TestCase):
           window.ArtQuestNative = {{ platform: "ios", server: {json.dumps(self.api)}, token: {json.dumps(token)}, version: "test (0)" }};
           window.__native = [];
           window.webkit = {{ messageHandlers: {{ artquest: {{ postMessage: (m) => window.__native.push(m) }} }} }};
-          localStorage.setItem('artquest.tour/2', '1');
+          localStorage.setItem('artquest.tour/2', '1'); localStorage.setItem('artquest.acct_prompted', '1');
           localStorage.setItem('artquest.anon_id', {json.dumps(anon)});
           sessionStorage.setItem('artquest.entered', '1');
         """

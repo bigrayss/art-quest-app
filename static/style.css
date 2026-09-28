@@ -93,7 +93,7 @@ body { margin:0; font-family:var(--font); background:var(--bg); color:var(--ink)
 .app { display:flex; flex-direction:column; min-height:100vh; min-height:100dvh; }
 .screen { flex:1; min-width:0; display:flex; flex-direction:column; }
 .appbar { position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:10px;
-  padding:9px 14px; background:rgba(255,255,255,.72);
+  padding:calc(9px + env(safe-area-inset-top)) 14px 9px; background:rgba(255,255,255,.72);
   backdrop-filter:blur(22px) saturate(1.5); -webkit-backdrop-filter:blur(22px) saturate(1.5);
   border-bottom:1px solid var(--line); min-height:52px; }
 .appbar-main { flex:1; min-width:0; }
@@ -263,6 +263,11 @@ h2 .muted { font-weight:700; }
 /* 十个平级的彩球没有主次，孩子得一次评估十个陌生的名字才敢点。
    这张卡是**默认的入口**：不替他决定（十个仍然全开着），
    但让「不想决定」也是一条能走通的路。 */
+.map.has-bg { background-size:cover; background-position:center; }
+.acct-nudge { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 14px;
+  padding:9px 10px 9px 14px; background:var(--card); border:2px solid var(--line); border-radius:var(--r-lg);
+  font-size:0.875rem; color:var(--muted-2); }
+.acct-nudge button { flex:0 0 auto; padding:8px 14px; }
 .today { display:flex; align-items:center; gap:13px; margin:0 0 14px;
   background:linear-gradient(135deg, var(--tc-l, var(--accent-l)), var(--card) 78%);
   border:2px solid var(--tc-l, var(--accent-l)); border-radius:var(--r-lg);
@@ -1332,7 +1337,7 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
      量出来间距是 28 / 48 / 50 / 50 / 50，第一段差了 22px，一眼看得出。
      统一成「46px 的格子 + 4px 间距」= 中心间距一律 50。
      tab 本来就是 11+24+11=46，所以只需要把另外两个撑到同一格。 */
-  body.rail-off .rail-brand { flex-direction:column; align-items:center; gap:4px; padding:0; }
+  body.rail-off .rail-brand { flex-direction:column; align-items:center; gap:4px; padding:env(safe-area-inset-top) 0 0; }
   body.rail-off .rail-brand .mark { margin:10px 0; }            /* 26 + 20 = 46 */
   body.rail-off .rail-toggle { margin:12px 0; }                 /* 22 + 24 = 46 */
   body.rail-off .tab { justify-content:center; padding:11px 0; }
@@ -1347,7 +1352,7 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
   /* 左内衬 14px 是为了跟 `.tab` 的图标对齐；右边只有那个小方框，不用跟谁对齐，
      所以左右不对称——两边都给 14 的话品牌就被挤成「KidsArtQue…」了。 */
   .rail-brand { display:flex; align-items:flex-start; gap:6px; font-size:0.875rem; font-weight:800;
-    padding:4px 2px 14px 14px; min-width:0; }
+    padding:4px 2px 14px 14px; min-width:0;  padding-top:calc(4px + env(safe-area-inset-top)); }
   /* 兜底：万一将来字号再调大，宁可省略号也不要顶穿栏边 */
   .rail-brand b { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .rail-brand .mark { display:flex; align-items:center; justify-content:center; width:26px; height:26px;
@@ -1457,7 +1462,10 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
      区分它们的是**形状**（一个是楔子、一个是等宽的渐变），不是颜色。 */
   .vsl[data-name="浓淡"]::after { border-radius:999px;
     background:linear-gradient(to right, rgba(168,168,168,.1), var(--muted)); }
-  .result-layout { display:grid; grid-template-columns:1.05fr 1fr; gap:22px; }
+  .result-layout { display:grid; grid-template-columns:1fr 1fr; gap:22px; align-items:start; }
+  #view-result .artwork { max-height:38vh; width:auto; max-width:100%; margin:0 auto; display:block; object-fit:contain; }
+  #view-result .rose { max-width:min(300px, 34vh); }
+  #view-result .scores { margin-top:12px; }
   .growth { grid-template-columns:minmax(170px,210px) 1fr; }
   .actions.sticky { position:static; padding:0; background:none; }
   .actions.sticky button.grow { flex:0 0 auto; }

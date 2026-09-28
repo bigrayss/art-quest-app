@@ -79,7 +79,7 @@ class AccountsInARealBrowser(unittest.TestCase):
         """一台「设备」：自己的 localStorage，导览已经看过（这里不测导览）。"""
         ctx = browser.new_context(viewport={"width": 820, "height": 1180})
         ctx.add_init_script(f"""
-          localStorage.setItem('artquest.tour/2', '1');
+          localStorage.setItem('artquest.tour/2', '1'); localStorage.setItem('artquest.acct_prompted', '1');
           localStorage.setItem('artquest.anon_id', {anon_id!r});
           sessionStorage.setItem('artquest.entered', '1');
         """)
