@@ -636,7 +636,7 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
         self.assertGreater(closed["view_duration_ms"], 0)
         self.assertTrue(closed["reference_id"])
         shown = next(e for e in events if e["type"] == "REFERENCE_SHOW")["payload"]
-        self.assertTrue(shown["placeholder"], "a placeholder stimulus must say so")
+        self.assertFalse(shown["placeholder"], "参考图已经是真图了，事件里不该再标占位")
         # the switch back to the canvas is what makes look→draw→check countable
         self.assertLess(kinds.index("REFERENCE_FOCUS"), kinds.index("CANVAS_FOCUS"))
 

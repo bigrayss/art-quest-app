@@ -308,7 +308,7 @@ def _build_m1() -> List[Dict[str, Any]]:
         sid = f"m1_scene_{form.lower()}"
         out.append(_row("M1", form, title=title, instruction=text,
                         hint="先把大的结构和位置定下来，再补细节。",
-                        stimulus=_reference(f"/static/refs/m1/{sid}.png", sid)))
+                        stimulus=_reference(f"/static/refs/m1/{sid}.jpg", sid)))
     return out
 
 
@@ -319,7 +319,7 @@ def _build_m2() -> List[Dict[str, Any]]:
     out = []
     for form, title, text in M2_PROMPTS:
         sid = f"m2_scene_{form.lower()}"
-        stim = _reference(f"/static/refs/m2/{sid}.png", sid)
+        stim = _reference(f"/static/refs/m2/{sid}.jpg", sid)
         stim["spec"] = spec
         out.append(_row("M2", form, title=title, instruction=text,
                         hint="注意谁在前面、谁被挡住、谁更大。", stimulus=stim))
@@ -383,7 +383,7 @@ def _build_m6() -> List[Dict[str, Any]]:
     out = []
     for form, title, text, variants in M6_PROMPTS:
         sid = f"m6_scene_{form.lower()}"
-        stim = _reference(f"/static/refs/m6/{sid}.png", sid)
+        stim = _reference(f"/static/refs/m6/{sid}.jpg", sid)
         for variant in (variants or [None]):
             field = "mood" if form == "A" else "when"
             key, zh = variant if variant else (None, None)
