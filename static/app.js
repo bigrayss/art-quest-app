@@ -1742,7 +1742,7 @@
       // 每一项底下不报数（「再画 3 幅长一格」把成长变回进度条），也不说评估层的事
       // （「等模型来评」是后台的话；没有就空着）。给的是一个**去处**：哪块地练这一项。
       const rec = recommendFor(key);
-      const go = rec ? `<button class="ggo" data-fam="${rec.id}">去「${rec.name}」练</button>` : "";
+      const go = rec ? `<button class="ggo" data-fam="${rec.id}">去「${rec.name}」练练</button>` : "";
       return `<div class="gdim" style="--gc:${fam.color}">
         <div class="gtop"><span class="gname">${d.zh}</span>${go}</div>
         <div class="gpips">${pips}</div></div>`;
