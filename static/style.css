@@ -1620,7 +1620,4 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
   .stile b { font-size:2rem; }
   .stile > span { font-size:0.75rem; }
   .quest-card.small.intent-task { display:flex; flex-direction:column; justify-content:center; }
-  #view-final .feedback-card.buddy-card { display:flex; flex-direction:column; }
-  #view-final .feedback-card .feedback-text { flex:1; display:flex; align-items:center;
-    font-size:1.25rem; line-height:1.9; }
 }
