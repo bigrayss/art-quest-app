@@ -1725,12 +1725,6 @@
     wrap.classList.remove("hidden");
 
     const byKey = Object.fromEntries(state.cfg.dimensions.map(d => [d.key, d]));
-    const best = Object.entries(g.dims).sort((a, b) => b[1].practice - a[1].practice)[0];
-    const col = FAMILIES[DIM_FAMILY[best[0]]].color;
-    $("#growth-sprite").innerHTML = spriteInner(col, g.total_level >= 9 ? "happy" : "normal");
-    // one ring per three levels: a visible shape change, not a number
-    const rings = Math.min(5, Math.floor(g.total_level / 3));
-    $("#growth-rings").innerHTML = rings ? icon("star", 16).repeat(rings) : "";
     $("#growth-total").textContent = `成长 ${g.total_level}/${g.max_total}`;
 
     $("#growth-dims").innerHTML = CHART_ORDER.map(key => {
@@ -3201,8 +3195,6 @@
 
     paintAccount();
     const done = mine.filter(r => r.status === "done");
-    $("#me-sprite").innerHTML = spriteInner(buddyColor(), done.length ? "happy" : "normal");
-    $("#me-name").textContent = state.buddyName || "彩点";
     renderStory(mine, done);
 
     $("#anon-badge").textContent = state.anonId + (savedPid() ? ` · ${savedPid()}` : "");
@@ -3234,9 +3226,12 @@
 
   // 「画还在不在这台设备上」——和顶栏的 recstat 是同一件事，换成孩子看得懂的话
   function paintSync(pending, online) {
+    // 只在真有事的时候说话：断网、还没传完。平时什么都不显示——「都收好啦」是一块常驻的灰。
     const me = $("#me-sync"); if (!me) return;
-    me.classList.toggle("warn", !online || pending > 0);
-    me.innerHTML = `<b></b>${!online ? "没网，先记在这台设备里" : pending ? "正在收好…" : "都收好啦"}`;
+    const busy = !online || pending > 0;
+    me.classList.toggle("hidden", !busy);
+    me.classList.toggle("warn", busy);
+    me.innerHTML = busy ? `<b></b>${!online ? "没网，先记在这台设备里" : "正在收好…"}` : "";
   }
 
   // 点开一张：先看画，再说它是哪个任务。原始文件只在实验模式下露出来。

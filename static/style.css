@@ -928,6 +928,7 @@ body[data-room="flow"]  { --room:var(--yellow); --room-d:var(--yellow-d); --room
 .me-text { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .me-text b { font-size:1rem; font-weight:800; }
 .me-text span { font-size:0.7812rem; color:var(--muted-2); font-weight:600; }
+.techbox summary .me-sync { margin-left:auto; }
 .me-sync { margin-left:auto; flex:0 0 auto; display:flex; align-items:center; gap:5px; font-size:0.7188rem;
   font-weight:800; color:var(--muted-2); background:var(--soft); border-radius:999px; padding:5px 10px; }
 .me-sync b { width:7px; height:7px; border-radius:50%; background:#3fbf6a; }
@@ -1465,7 +1466,6 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
   #view-result .artwork { max-height:30vh; width:auto; max-width:100%; margin:0 auto; display:block; object-fit:contain; }
   #view-result .rose { max-width:min(260px, 26vh); }
   #view-result .scores { margin-top:12px; }
-  .growth { grid-template-columns:minmax(170px,210px) 1fr; }
   .growth-dims { grid-template-columns:repeat(3, 1fr); }   /* 用户定的：一行三个 */
   .actions.sticky { position:static; padding:0; background:none; }
   .actions.sticky button.grow { flex:0 0 auto; }
