@@ -1521,9 +1521,19 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
   .zoombar #btn-hand .lbl { display:none; }
   .compare { grid-template-columns:1fr; }
 
-  #view-draw { display:flex; flex-direction:column;
-    height:calc(100vh - 152px); height:calc(100dvh - 152px); }
+  /* 这一屏的高度不再用「100dvh 减一个常数」猜：常数猜大了底下留 45px 空，猜小了
+     右栏被挤成一条缝（664 高的 iPhone 上右栏只剩 24px，主按钮露 10px，参考图整个在屏幕外，
+     手指一碰就是在滚一个 24px 高的滚动区，iOS 上整页跟着橡皮筋往上蹿，之后哪儿都点不到）。
+     改成一条 flex 链：app 定 100dvh，screen → main → #view-draw 逐级 min-height:0，
+     剩多少就是多少；页面本身不再有可滚的高度，iOS 就没有东西可以蹿。 */
+  body[data-room="draw"] .app { height:100vh; height:100dvh; min-height:0; }
+  body[data-room="draw"] .screen { min-height:0; }
+  body[data-room="draw"] main { flex:1 1 auto; min-height:0; display:flex; flex-direction:column;
+    padding-bottom:calc(6px + env(safe-area-inset-bottom)); }
+  body[data-room="draw"] { overscroll-behavior:none; }
+  #view-draw { display:flex; flex-direction:column; flex:1 1 auto; min-height:0; overflow:hidden; }
   .studio { flex:1 1 auto; min-height:0; gap:9px; }
+  .brief { overscroll-behavior:contain; }
   /* 画布按自己的比例走（窄屏上是宽度说了算），dock 和任务栏分剩下的高度。
      主按钮占自己一行，不浮在 dock 上面——挡住工具就白做了。 */
   /* 画布区**不参与压缩**。它参与的话会绕成一个圈：fitCanvas 把画布的上限
@@ -1587,6 +1597,32 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
   .railbtn { order:0; }
   /* 调色板浮出来的那张面板本来就贴着屏幕宽度，6 列正好 */
   .pop { width:calc(100vw - 2rem); }
+  /* 参考图缩略在手机上是一条矮带，不是一块 8rem 的图：右栏本来就不宽裕 */
+  .refpanel:not(.peek) .ref-thumb { height:4.25rem; }
+  .refpanel:not(.peek) .ref-thumb-t { bottom:auto; top:50%; transform:translate(-50%,-50%); }
+}
+/* 竖着拿的手机：撤销/重做和粗细同一行，浓淡独占一行——比三行省一行；
+   画布的上限交给 viewport（fitCanvas 只问它），保证右栏至少有标题一行 + 主按钮的位置。
+   矮的时候画布让一点，任务描述夹成一行。 */
+@media (max-width: 700px) and (orientation: portrait) {
+  .railbar { gap:7px 8px; }
+  .vsl[data-name="粗细"] { flex:1 1 0; order:1; }
+  .vsl[data-name="浓淡"] { flex:1 1 100%; order:3; }
+  #btn-undo { order:0; } #btn-redo { order:2; }
+  .stage > .canvas-viewport { max-height:max(10rem, min(46vh, calc(100vh - 420px))); max-height:max(10rem, min(46dvh, calc(100dvh - 420px))); }
+}
+@media (max-width: 700px) and (orientation: portrait) and (max-height: 720px) {
+  .brief .quest-card.small p { -webkit-line-clamp:1; }
+}
+/* 横着拿的手机（393 高）：一屏根本放不下画布 + 工具 + 右栏（右栏会被挤成 9px）。
+   不硬塞：这一屏退回普通的可滚动页面，主按钮钉在屏幕底边。手机本来就不劝横屏画。 */
+@media (orientation: landscape) and (max-height: 599px) and (max-width: 1000px) {
+  body[data-room="draw"] .app { height:auto; min-height:100vh; min-height:100dvh; }
+  body[data-room="draw"] main { display:block; }
+  #view-draw { flex:none; overflow:visible; min-height:0; }
+  .studio { flex:none; }
+  .brief { flex:none; overflow:visible; }
+  .brief > .actions { position:sticky; bottom:0; }
 }
 
 /* ===== 彩点的呼吸 ===== */
