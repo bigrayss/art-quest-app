@@ -3,6 +3,7 @@
 // 读者是 6–14 岁的孩子：短、日常、口语。彩点 = Dot。
 window.ARTQUEST_LANG_EN = {
   "语言": "Language",
+  "其他…": "Other…",
   "{a} · {b}/{c}": "{a} · {b}/{c}",
   // ---------- 名字与导航 ----------
   "彩绘冒险 · ArtQuest": "ArtQuest",

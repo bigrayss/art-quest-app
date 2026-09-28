@@ -376,7 +376,7 @@ textarea::placeholder, input::placeholder { color:var(--muted); font-weight:600;
 .railbtn { width:42px; height:42px; padding:0; flex:0 0 auto; }
 .vsl { flex:1 1 auto; min-width:0; display:flex; align-items:center; gap:7px; }
 .vsl-thumb { display:none; }       /* 横排用原生拇指；竖排（宽屏）才画自己的 */
-.vsl::before { content:attr(data-name); flex:0 0 auto;
+.vsl::before { content:attr(data-label);   /* data-name 是 CSS 选择器用的键，不翻；data-label 是显示的字，i18n 会换 */ flex:0 0 auto;
   font-size:0.6875rem; font-weight:800; color:var(--muted); }
 .vsl input[type=range] { flex:1 1 auto; min-width:0; }
 .vsl-v { flex:0 0 3.2em; text-align:right; font-size:0.6875rem; font-weight:800;
@@ -1658,3 +1658,11 @@ html[data-lang="en"] .gdim .gname { white-space:normal; }
 html[data-lang="en"] .badge .b-name { white-space:normal; line-height:1.25; font-size:0.75rem; }
 html[data-lang="en"] .rose-label { font-size:0.625rem; }
 html[data-lang="en"] .welcome-title { letter-spacing:0; }
+/* 问卷：英文选项是两三个词，按钮里放不下就换行，不裁 */
+html[data-lang="en"] .hard-grid button { white-space:normal; line-height:1.25; font-size:0.875rem; padding:9px 6px; }
+html[data-lang="en"] .sq-end { width:4.4em; line-height:1.2; }
+@media (max-width:700px) {
+  html[data-lang="en"] .sq-scale { gap:6px; }
+  html[data-lang="en"] .sq-scale button { min-width:0; }
+  html[data-lang="en"] .sq-end { width:3.8em; font-size:0.6875rem; }
+}
