@@ -207,6 +207,8 @@ h2 .muted { font-weight:700; }
   box-shadow:0 0 0 4px var(--qc, var(--accent)), 0 6px 0 var(--qc-edge, var(--accent-d)),
              0 14px 22px -10px rgba(60,45,25,.45); }
 .node-shot { width:100%; height:100%; object-fit:cover; display:block; }
+/* 彩色插画版的地方：图占圆的 72%，圆本身仍是家族色（插画是透明底，画在色圆上） */
+.node-art { width:72%; height:72%; object-fit:contain; display:block; pointer-events:none; }
 /* 没去过的地方是**一块空地**：一圈虚线、颜色还没填上。它要读起来像
    「这儿还没画」，不是像「这个按钮被禁用了」——所以留着自己的颜色，
    只是淡，而且没有那层厚厚的下沿（那是给能按下去的东西的）。 */
@@ -703,6 +705,11 @@ figcaption { text-align:center; color:var(--muted-2); font-size:0.75rem; font-we
              inset 0 -7px 11px -6px rgba(0,0,0,.34),
              inset 0 8px 11px -5px rgba(255,255,255,.55);
   transition:transform .18s cubic-bezier(.22,1,.36,1); }
+/* 彩色插画版的章：圆盘退成浅色底，组色只留在边圈和下沿上，插画自己带颜色 */
+.badge.art .b-ico { background:radial-gradient(120% 120% at 50% 14%, #fff, var(--bc-l, #fbc48a));
+  box-shadow:0 10px 18px -8px var(--bc, #f79433), 0 4px 0 var(--bc-d, #a5621f),
+             inset 0 0 0 3px var(--bc, #f79433); }
+.badge.art .b-ico img { width:74%; height:74%; object-fit:contain; display:block; }
 /* 一圈虚线托盘，像别针别上去的那圈缝线 */
 .badge .b-ico::after { content:""; position:absolute; inset:-7px; border-radius:50%;
   border:2px dashed var(--bc-l, #fbc48a); }
