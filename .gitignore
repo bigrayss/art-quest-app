@@ -15,3 +15,6 @@ __pycache__/
 id_rsa*
 /key
 /key.txt
+
+# 字体源文件 28MB，只在重裁子集时用（tools/build_font.py），不进仓库
+tools/fonts-src/

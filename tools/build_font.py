@@ -14,6 +14,11 @@
     python3 -m tools.build_font RHR-CN-Medium.ttf static/fonts/rhr-sc-400.woff2
     # 标题：只要仓库里的字（标题从不是孩子输入的）
     python3 -m tools.build_font RHR-CN-Bold.ttf static/fonts/rhr-sc-700.woff2 --repo-only
+
+**改了任何面向孩子的文案都要重跑一次**（尤其加粗那份只含仓库里出现过的字）：漏掉的字会掉到系统字体，
+看上去就是「有几个字字体不对」。源字体放在 tools/fonts-src/（不进仓库）：
+    python3 -m tools.build_font tools/fonts-src/ResourceHanRoundedCN-Medium.ttf static/fonts/rhr-sc-400.woff2
+    python3 -m tools.build_font tools/fonts-src/ResourceHanRoundedCN-Bold.ttf static/fonts/rhr-sc-700.woff2 --repo-only
 """
 import re
 import sys
@@ -23,7 +28,7 @@ ROOT = Path(__file__).resolve().parent.parent
 # 面向孩子的文案散在这些地方
 SOURCES = ["static/index.html", "static/app.js", "static/style.css",
            "artquest/missions.py", "artquest/quests.py", "artquest/schemas.py",
-           "artquest/feedback", "artquest/scoring", "artquest/rubric.py"]
+           "artquest/feedback", "artquest/scoring", "artquest/rubric.py", "artquest/assist"]
 
 
 def gb2312_level1() -> set:

@@ -299,16 +299,7 @@
     }
   }
 
-  const ACCT_PROMPTED = "artquest.acct_prompted";
-  /** 第一次进来（导览看完之后）问一次要不要起名字。只问一次，「以后再说」就走；
-   *  之后地图上留一行。不做登录墙——不注册照样能画。 */
-  function maybePromptAccount() {
-    if (state.account) return;
-    try { if (localStorage.getItem(ACCT_PROMPTED) === "1") return; localStorage.setItem(ACCT_PROMPTED, "1"); } catch (e) { return; }
-    openAcct("register");
-  }
   function paintAccount() {
-    const nudge = $("#acct-nudge"); if (nudge) nudge.classList.toggle("hidden", !!state.account);
     const out = $("#acct-out"), inBox = $("#acct-in"); if (!out || !inBox) return;
     const acc = state.account;
     out.classList.toggle("hidden", !!acc);
@@ -375,7 +366,6 @@
     } finally { btn.disabled = false; }
   }
   $("#btn-acct-register").onclick = () => openAcct("register");
-  if ($("#btn-acct-nudge")) $("#btn-acct-nudge").onclick = () => openAcct("register");
   $("#btn-acct-login").onclick = () => openAcct("login");
   $("#btn-acct-switch").onclick = () => openAcct(acctMode === "register" ? "login" : "register");
   $("#btn-acct-go").onclick = submitAcct;
@@ -630,7 +620,6 @@
     tourEl.classList.add("hidden");
     try { localStorage.setItem(TOUR_KEY, "1"); } catch (e) { /* 无所谓 */ }
     checkFeatured();
-    maybePromptAccount();
   }
   $("#btn-tour-next").onclick = () => nextTour(false);
   $("#btn-tour-skip").onclick = endTour;
@@ -2226,7 +2215,6 @@
     loadBuddyName(); paintBuddyName();
     // 账号要在取任何「我的」数据之前问清楚：画廊、地图上的星都按它来筛
     await loadAccount();
-    paintAccount();               // 地图上「还没有名字」那一行也按它来定
     $("#backend-badge").textContent = `${state.cfg.scorer} · ${state.cfg.feedback}` + (state.cfg.claude_available ? "" : "（离线）");
     // 设备上跑的是哪一版外壳。iPad 上「到底更新了没有」以前只能靠猜——
     // 这一行就是答案：和电脑上 `curl .../api/config` 里的 shell 对一下就知道。
@@ -2260,7 +2248,7 @@
     if (state.entered || state.condition.ui === "quiet") { show("quest"); }
     else { await renderWorld(); show("world"); }
     if (!guideSeen() && state.condition.ui !== "quiet") startTour();
-    else { checkFeatured(); if (state.entered) maybePromptAccount(); }
+    else checkFeatured();
   }
   function chooseQuest(q) {
     state.quest = q;
