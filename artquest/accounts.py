@@ -75,7 +75,7 @@ def check_name(name: str) -> str:
     if _CTRL_RE.search(name):
         raise AccountError("bad_name", "名字里有打不出来的字符，换一个吧")
     if not name_key(name):
-        raise AccountError("bad_name", "给自己起个名字吧")
+        raise AccountError("bad_name", "请输入名字")
     if len(name) > NAME_MAX:
         raise AccountError("bad_name", f"名字最多 {NAME_MAX} 个字")
     return name
@@ -84,7 +84,7 @@ def check_name(name: str) -> str:
 def check_pin(pin: str) -> str:
     pin = (pin or "").strip()
     if not (len(pin) == PIN_LEN and pin.isdigit() and pin.isascii()):
-        raise AccountError("bad_pin", f"暗号是 {PIN_LEN} 位数字")
+        raise AccountError("bad_pin", f"密码是 {PIN_LEN} 位数字")
     return pin
 
 
@@ -175,7 +175,7 @@ class AccountStore:
         acc = self.load(account_id) if account_id else None
         if not acc:
             # 名字不存在和暗号不对给同一句话：否则这个接口就成了「谁注册过」的查询器
-            raise AccountError("bad_credentials", "名字或暗号不对")
+            raise AccountError("bad_credentials", "名字或密码不对")
         locked = acc.get("locked_until")
         if locked and _iso() < locked:
             raise AccountError("locked", "试得太多啦，等一分钟再来")
@@ -185,7 +185,7 @@ class AccountStore:
                 acc["failed"] = 0
                 acc["locked_until"] = _iso(_now() + timedelta(seconds=_LOCK_SEC))
             self._save(acc)
-            raise AccountError("bad_credentials", "名字或暗号不对")
+            raise AccountError("bad_credentials", "名字或密码不对")
         acc["failed"] = 0
         acc["locked_until"] = None
         acc["last_seen_at"] = _iso()

@@ -315,7 +315,7 @@
     const claim = $("#acct-claim");
     claim.classList.toggle("hidden", !state.unclaimed);
     $("#acct-claim-text").textContent = state.unclaimed
-      ? `这台设备上还有 ${state.unclaimed} 张画没写名字，是你画的吗？` : "";
+      ? `这台设备上还有 ${state.unclaimed} 张画不在账号里` : "";
   }
 
   const acctModal = $("#acct-modal");
@@ -323,12 +323,12 @@
   function openAcct(mode) {
     acctMode = mode;
     const reg = mode === "register";
-    $("#acct-modal-title").textContent = reg ? "起个名字" : "用名字找回";
+    $("#acct-modal-title").textContent = reg ? "注册" : "登录";
     $("#acct-modal-sub").textContent = reg
-      ? "名字是给你自己看的，不用写真名。暗号是四位数字，记住它就行。"
-      : "输入你起过的名字和那四位数字，画过的画就跟过来了。";
-    $("#btn-acct-go").textContent = reg ? "就用这个" : "进去";
-    $("#btn-acct-switch").textContent = reg ? "我已经有名字了" : "还没有，我要起一个";
+      ? "起一个名字，设一个四位数字密码。"
+      : "输入名字和四位数字密码。";
+    $("#btn-acct-go").textContent = reg ? "注册" : "登录";
+    $("#btn-acct-switch").textContent = reg ? "已有账号，去登录" : "没有账号，去注册";
     $("#acct-err").classList.add("hidden");
     $("#acct-name-input").value = "";
     $("#acct-pin-input").value = "";
@@ -344,8 +344,8 @@
   async function submitAcct() {
     const name = $("#acct-name-input").value.trim();
     const pin = $("#acct-pin-input").value.trim();
-    if (!name) { acctError("先起个名字吧"); return; }
-    if (!/^\d{4}$/.test(pin)) { acctError("暗号是四位数字"); return; }
+    if (!name) { acctError("请输入名字"); return; }
+    if (!/^\d{4}$/.test(pin)) { acctError("密码是四位数字"); return; }
     const btn = $("#btn-acct-go"); btn.disabled = true;
     try {
       const body = { name, pin, anon_id: state.anonId };
@@ -388,7 +388,7 @@
   };
 
   $("#btn-acct-logout").onclick = async () => {
-    if (!confirm("退出之后，这一屏就只剩这台设备上画的画了。\n名字和暗号都还在，随时能再登回来。")) return;
+    if (!confirm("确定退出登录？")) return;
     try { await api(`${API}/accounts/logout`, { method: "POST", body: JSON.stringify({ token: savedToken() }) }); }
     catch (e) { /* 退出是本地的事，网不通也要退得掉 */ }
     setToken(""); cacheAccount(null); state.account = null; state.unclaimed = 0;
@@ -2787,7 +2787,7 @@
       earned: () => backToBackDays() },
     { g: "奇遇", icon: "heart", name: "起了名字", desc: "给伙伴起了自己的名字",
       earned: () => !!state.buddyName },
-    { g: "奇遇", icon: "key", name: "有名字的人", desc: "有了自己的名字和暗号，画跟着你走",
+    { g: "奇遇", icon: "key", name: "有名字的人", desc: "注册了账号，画跟着你走",
       earned: () => !!(state.account && state.account.account_id) },
     { g: "奇遇", icon: "people", name: "两处都画过", desc: "在两台设备上画过画",
       earned: () => !!(state.account && (state.account.devices || 0) >= 2) },
