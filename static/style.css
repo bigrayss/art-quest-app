@@ -1151,6 +1151,22 @@ body.quiet #collection-wrap { display:none; }
 .world-hint { margin: 8px 0 0; font-size:0.7812rem; font-weight: 700;
   color: var(--muted); line-height: 1.6; }
 
+/* 门口那一屏：没有顶栏、没有 tab，整页只有彩点和三颗钮。
+   booting 的时候钮先不露——先让封面静静地在那儿，服务器答了再把钮亮出来，
+   而不是空地图闪一下、满地图闪一下、再跳到封面。 */
+body.welcome .appbar, body.welcome .studybar { display:none; }
+#view-welcome { min-height: 100vh; min-height: 100dvh; display:flex; align-items:center; justify-content:center;
+  padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+.world.welcome .cover { height: 40vh; height: 40dvh; }
+.welcome-title { margin: 12px 0 0; font-size: 2rem; font-weight: 800; letter-spacing: .02em; line-height: 1.2; }
+.welcome-actions { align-items: center; margin-top: 22px; transition: opacity .35s ease; }
+/* .world .actions button 给的是 flex-basis 260px——在竖排里那是高度，不是宽度 */
+.world.welcome .actions button { flex: 0 0 auto; width: min(300px, 100%); }
+.welcome-actions .skip { background: none; border: none; box-shadow: none; color: var(--muted);
+  font-size: 0.875rem; font-weight: 700; padding: 8px; min-height: 0; }
+.welcome-actions .skip:hover { color: var(--ink); background: none; }
+body.booting .welcome-actions { opacity: 0; pointer-events: none; }
+
 /* 黏土按钮：厚、软、按下去会陷 */
 button.clay { border: none; border-radius: 24px; padding: 15px 22px; font-size:1.0625rem;
   box-shadow: 0 16px 28px -12px rgba(247,148,51,0.62),

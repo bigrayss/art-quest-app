@@ -15,7 +15,9 @@
 <link rel="icon" href="/static/icons/icon-192.png">
 <link rel="stylesheet" href="/static/style.css">
 </head>
-<body>
+<!-- 三个状态类：booting = 还在问服务器（按钮先别露）；welcome = 门口那一屏（没有顶栏和 tab）；
+     inflow = 收起导航。都由 app.js 在 init 里收掉，JS 没起来之前这一页就是一张安静的封面。 -->
+<body class="booting welcome inflow">
 <div class="app">
 
 <!-- 底部 tab（手机）／左侧导航栏（桌面）。做任务时整个收起来，只剩画画。 -->
@@ -60,6 +62,26 @@
 </div>
 
 <main>
+<!-- ===== 门口：第一次打开只有这一屏 =====
+     HTML 里它是唯一不带 hidden 的视图，所以 JS 还在问服务器的那一两秒，屏幕上就是它：
+     彩点、名字，别的什么都没有。问完了再决定是留在这儿（第一次来）还是直接进世界（来过）。
+     这一屏只做一件事：让画跟着人走。不注册也能进去——「先随便看看」。 -->
+<section class="view" id="view-welcome">
+  <div class="world welcome">
+    <div class="cover">
+      <div class="cover-glow"></div>
+      <svg class="sprite hero grey" id="welcome-sprite" viewBox="0 0 200 200"></svg>
+    </div>
+    <h1 class="welcome-title">彩绘冒险</h1>
+    <p class="world-say">起个名字，画过的画就跟着你走。</p>
+    <div class="actions column welcome-actions" id="welcome-actions">
+      <button class="primary big clay" id="btn-welcome-register"><i data-icon="sparkle" data-size="18"></i>起个名字</button>
+      <button class="ghost" id="btn-welcome-login">我已经有名字了</button>
+      <button class="skip" id="btn-welcome-skip">先随便看看</button>
+    </div>
+  </div>
+</section>
+
 <!-- ===== tab 1 的门口：精灵 + 它的属性 → 进入世界 ===== -->
 <section class="view hidden" id="view-world">
   <div class="world">
@@ -85,7 +107,7 @@
 </section>
 
 <!-- ===== tab 1：地图 ===== -->
-<section class="view" id="view-quest">
+<section class="view hidden" id="view-quest">
   <!-- 这一屏只有两样东西：一个不用决定也能开始的入口，和十个地方。
        曾经在这两样中间还夹着一条灰带（「想画别的？/ 都能去，随便挑」）——
        那是说明书，不是界面：导览第四步已经指着关卡钮说过同样的话，

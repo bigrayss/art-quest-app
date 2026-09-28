@@ -94,6 +94,8 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
             page = browser.new_page(viewport={"width": 820, "height": 1180})
             page.set_default_timeout(15000)
             page.goto(self.base)
+            # 第一次打开先是门口（起名字 / 先随便看看），导览在门口之后
+            page.click("#btn-welcome-skip")
             page.wait_for_selector("#tour:not(.hidden)")
 
             seen = []
@@ -124,6 +126,55 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
             page.click(".tab[data-tab='me']")
             page.click("#btn-guide-again")
             page.wait_for_selector("#tour:not(.hidden)")
+            browser.close()
+
+    def test_the_first_launch_is_a_front_door_not_a_flash_of_the_map(self):
+        """第一次打开：一张安静的封面，然后是门口——不是空地图闪一下、满地图闪一下再跳到封面。
+
+        HTML 里唯一不带 hidden 的视图是门口，所以 JS 还在问服务器的那一两秒屏幕上就是它，
+        没有顶栏也没有 tab。门口只问一件事（名字 + 四位暗号），答了或者「先随便看看」都进世界，
+        而且只问这一次：同一台设备再打开直接是封面。登录着的设备根本不会到门口。
+        """
+        if type(self) is not ZoomKeepsStrokesInCanvasSpace:
+            self.skipTest("基类跑一次就够")
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(channel="chrome")
+            ctx = browser.new_context(viewport={"width": 820, "height": 1180})
+            page = ctx.new_page()
+            page.set_default_timeout(15000)
+            # 一提交就看：门口已经在，地图藏着，导航不露（init 跑完之前之后都该如此）
+            page.goto(self.base, wait_until="commit")
+            self.assertTrue(page.is_visible("#view-welcome"), "启动期间该是门口")
+            self.assertTrue(page.is_hidden("#view-quest"), "启动期间不该露出地图")
+            self.assertTrue(page.is_hidden("#tabbar")); self.assertTrue(page.is_hidden(".appbar"))
+            page.wait_for_function("() => !document.body.classList.contains('booting')")
+            self.assertTrue(page.is_visible("#btn-welcome-register"))
+            self.assertTrue(page.is_hidden("#tour"), "门口上不该同时压着导览")
+
+            # 起个名字 → 封面 + 导览；「我的」里是登录态
+            page.click("#btn-welcome-register")
+            page.fill("#acct-name-input", "门口人"); page.fill("#acct-pin-input", "1357")
+            page.click("#btn-acct-go")
+            page.wait_for_selector("#view-world:not(.hidden)")
+            page.wait_for_selector("#tour:not(.hidden)")
+            self.assertTrue(page.is_hidden("#view-welcome"))
+            page.click("#btn-tour-skip")
+            page.click(".tab[data-tab='me']")
+            page.wait_for_selector("#acct-in:not(.hidden)")
+            self.assertEqual(page.inner_text("#acct-name"), "门口人")
+
+            # 同一台设备再开：不再问，直接封面
+            again = ctx.new_page(); again.set_default_timeout(15000)
+            again.goto(self.base)
+            again.wait_for_function("() => !document.body.classList.contains('booting')")
+            self.assertTrue(again.is_hidden("#view-welcome")); self.assertTrue(again.is_visible("#view-world"))
+            self.assertTrue(again.is_hidden("#tour"))
+
+            # 没名字也能进：「先随便看看」→ 封面 + 导览
+            fresh = browser.new_context(viewport={"width": 390, "height": 844}).new_page()
+            fresh.set_default_timeout(15000)
+            fresh.goto(self.base); fresh.click("#btn-welcome-skip")
+            fresh.wait_for_selector("#view-world:not(.hidden)"); fresh.wait_for_selector("#tour:not(.hidden)")
             browser.close()
 
     def test_an_empty_collection_still_hangs_a_wall(self):
