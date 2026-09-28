@@ -1,14 +1,16 @@
 # -*- coding: utf-8 -*-
-"""生成 `docs/TASK_LIST.md` —— 全部 75 个任务，给老师逐条看、逐条提意见。
+"""生成给专业老师看的任务清单：`docs/任务清单.docx` 和 `.pdf`。
 
-结构和文字都从代码里抽（`artquest/missions.py` 是唯一的原文），所以老师改了意见、
-我改了代码、重跑一次，清单就和 app 里孩子看到的一字不差。
+内容从 `artquest/missions.py` 抽（那是任务原文唯一的家），所以老师改了意见、我改了代码、
+重跑一次，文件就和 app 里孩子看到的一字不差。每个家族只说三样：研究目的、主要考察、任务本身。
 
-    python3 tools/gen_task_list.py            # 写进 docs/TASK_LIST.md
-    python3 tools/gen_task_list.py --stdout
+    python3 tools/gen_task_list.py          # 需要 google-chrome（出 PDF）和 python-docx（出 DOCX）
 """
+import html
 import os
+import subprocess
 import sys
+import tempfile
 from collections import OrderedDict
 from pathlib import Path
 
@@ -17,142 +19,194 @@ sys.path.insert(0, str(ROOT))
 os.environ.setdefault("ARTQUEST_SCORER", "heuristic")
 os.environ.setdefault("ARTQUEST_FEEDBACK", "template")
 
+from artquest import missions as _m  # noqa: E402
 from artquest.quests import QUESTS, families  # noqa: E402
 from artquest.scoring import DIMENSIONS  # noqa: E402
-from artquest import missions as _m  # noqa: E402
 
-# 变体里的英文键 → 孩子看到的中文（M4 的物品/环境/目标、M5 的两个概念、M7 的概念）
+ZH = {d["key"]: d["zh"] for d in DIMENSIONS}
+STYLE_ZH = {"minimal": "极简说法", "story": "故事说法", "challenge": "挑战说法"}
+
+# 研究目的，用老师听得懂的话说。代码里的 research_goal 是给研究员的缩写。
+AIM = {
+    "M0": "开放创作。不设任何限制，看孩子在完全自由时怎么选题、怎么组织画面。",
+    "M1": "根据一张受损的参考图重建场景。看的是孩子如何组织整体结构、先抓大局还是先抠局部、怎样利用参考图。",
+    "M2": "对着一组静物如实记录。看观察力与空间推理：前后遮挡、大小比例、物体之间的位置关系。",
+    "M3": "由几块不完整的图形出发完成一幅画（残缺图形创造力范式）。看孩子如何把无意义的碎片赋予意义。",
+    "M4": "把一件日常物品改造成另一种用途的东西。看变形与转化的想象力；同一题有三种说法，用来比较提示语措辞对创作的影响。",
+    "M5": "把两个毫不相干的概念融合成一个新事物。看概念整合的能力，和 M4 的「改造一件」是不同的能力。",
+    "M6": "用颜色改变同一个场景的情绪、天气或时间。让色彩的丰富与对比真正成为可观察的对象，而不是要求「多用颜色」。",
+    "M7": "先用纯线条表现一个抽象概念，再把这些线发展成完整作品。看线条的组织与质感，以及从抽象到具象的转化。",
+    "M8": "在给定的两条「世界规则」下画出那个世界的生活。最接近真实的自由创作，但由规则提供约束。",
+    "M9": "开放的故事题。用来检验在受控任务里看到的行为模式，在真实创作中是否仍然存在。",
+}
+
 _WORD = {}
 for tbl in (getattr(_m, "M4_BASE", []), getattr(_m, "M4_ENV", []), getattr(_m, "M4_GOAL", [])):
     for row in tbl:
         _WORD[row[0]] = row[-1]
 for row in getattr(_m, "M5_PAIRS", []):
-    _WORD[row[0]] = row[2]
-    _WORD[row[1]] = row[3]
+    _WORD[row[0]], _WORD[row[1]] = row[2], row[3]
 for row in getattr(_m, "M7_CONCEPTS", []):
     _WORD[row[0]] = row[1]
-_KEY_ZH = {"base_object": "物品", "environment": "环境", "goal": "目标", "concept_a": "概念一", "concept_b": "概念二",
-           "concept": "概念", "rules": "规则", "narrative_card": "叙事提示", "mood": "心情", "when": "时间"}
-
-ZH = {d["key"]: d["zh"] for d in DIMENSIONS}
-TOOL_ZH = {"pencil": "铅笔", "brush": "画笔", "marker": "马克笔", "eraser": "橡皮", "undo": "撤销", "redo": "重做", "zoom": "缩放"}
-STYLE_ZH = {"minimal": "极简版", "story": "故事版", "challenge": "挑战版"}
-FAMILY_NOTE = {
-    "M0": "最早的五个开放任务，没有时限、不限工具。它们是 app 的「自由创作」那块地。",
-    "M1": "看一张损坏的参考图，把场景重新画出来。看的是整体结构与位置关系，不是画得像不像。四张是平行卷。",
-    "M2": "看一张静物参考图（正好 4 个物体、2 处遮挡），画出谁在前、谁被挡、谁更大。四张是平行卷。",
-    "M3": "画布上印着几块程序生成的碎片（不是图片），孩子把它们补成一幅画。每题另附一句叙事提示。",
-    "M4": "把一件日常物品改造成另一样东西。同一组「物品 × 环境 × 目标」有三种说法：极简 / 故事 / 挑战，考的是提示语措辞对创作的影响。参考图默认收起，点一下才看。",
-    "M5": "把两个毫不相干的东西融合成一个新生物。和 M4 的区别：M4 改造一件，M5 融合两件。",
-    "M6": "看一张情绪中性的场景参考图，用颜色把它改成某种心情 / 天气 / 时间。考的是颜色的表达。",
-    "M7": "两步：第一步 60 秒只用铅笔画线条表现一个概念（不许画具体东西）；第二步不许删掉，把这些线发展成一幅画。",
-    "M8": "给两条「世界规则」，画出规则成立的世界里的生活。最接近真实的自由创作，但由规则约束。",
-    "M9": "开放的故事题，没有参考图。用来看受控任务里的行为模式在真实创作里还在不在。",
-}
 
 
-def cond_zh(c):
-    """条件里的变体，用中文说：优先取 *_zh 字段。"""
-    if not c:
-        return ""
-    out = []
-    used = set()
-    for k, v in c.items():
-        if k.endswith("_zh"):
-            base = k[:-3]
-            out.append(f"{base}={v}")
-            used.add(base)
-    for k, v in c.items():
-        if k.endswith("_zh") or k in used or k in ("two_phase", "rule_refs", "fragment_seed"):
-            continue
-        if isinstance(v, list):
-            v = "；".join(map(str, v))
-        out.append(f"{_KEY_ZH.get(k, k)}={_WORD.get(v, v)}")
-    return " · ".join(f"{_KEY_ZH.get(x.split('=')[0], x.split('=')[0])}={x.split('=', 1)[1]}" for x in out)
+def variant(q):
+    c = q.get("condition") or {}
+    bits = []
+    if q["family"] == "M4" and q.get("prompt_style") in STYLE_ZH:
+        bits.append(STYLE_ZH[q["prompt_style"]])
+    for k in ("mood_zh", "when_zh"):
+        if c.get(k):
+            bits.append(c[k])
+    for k in ("base_object", "environment", "goal", "concept_a", "concept_b", "concept"):
+        if c.get(k):
+            bits.append(_WORD.get(c[k], c[k]))
+    return " · ".join(bits)
 
 
 def dims(q, key):
     return "、".join(ZH.get(k, k) for k in (q.get("rubric") or {}).get(key, []))
 
 
-def main() -> int:
+def build_doc():
+    """清单的内容，和出口无关：[(家族标题, 研究目的, 主要考察, 其次, [行…])]。"""
     by_fam = OrderedDict()
     for q in QUESTS:
         by_fam.setdefault(q["family"], []).append(q)
     fams = {f["id"]: f for f in families()}
-
-    L = []
-    w = L.append
-    w("# 任务清单（给老师看的版本）\n")
-    w(f"app 里孩子能抽到的全部 **{len(QUESTS)} 个任务**，按 10 个家族分。每个任务写了孩子看到的原话、提示、参考图、时限、"
-      "工具限制和它主要考察的维度。**编号可以直接拿来指**：`4.7` 就是第 4 家族第 7 个任务。\n")
-    w("> 由 `tools/gen_task_list.py` 从代码里生成，文字和 app 里的一字不差。**别手改这个文件**——"
-      "意见写在别处（邮件、批注、或者直接写在最后一列复制走），我改进代码后重跑一次它就更新。\n")
-    w("## 怎么提意见\n")
-    w("对着编号说就行，比如「4.7 的指令改成……」「2.3 的提示太抽象」「M6 时限太短」。能改的东西：\n")
-    w("- **标题、指令原话、提示语**：想怎么说就写出来，我照抄进去。\n"
-      "- **时限、允许的工具、参考图开不开**：家族级的设置，说清楚哪个家族。\n"
-      "- **一个任务主要考察哪几个维度**：见每节的「主要考察」。九个维度**每幅画都评**，「主要考察」只是说这个任务额外想看的。\n"
-      "- **增删任务、换参考图的内容**：也可以，写清楚要什么。\n")
-    w("有两样请先商量再改：任务的 **id**（它是所有数据表的外键，改了历史数据就对不上）；"
-      "M3 的碎片（程序生成的，前后端要逐像素对上，不能换成图片）。\n")
-    w("## 九个维度\n")
-    w("| 维度 | 看的是什么 |")
-    w("| --- | --- |")
-    for d in DIMENSIONS:
-        w(f"| **{d['zh']}** | {d['desc']} |")
-    w("\n---\n")
-
-    n_fam = 0
-    for fid, rows in by_fam.items():
-        n_fam += 1
+    out = []
+    for n, (fid, rows) in enumerate(by_fam.items(), 1):
         f = fams.get(fid, {})
         first = rows[0]
-        w(f"## {n_fam}. {fid} {f.get('name', first.get('family_name', ''))} · {len(rows)} 题\n")
-        w(FAMILY_NOTE.get(fid, "") + "\n")
-        limits = sorted({q.get("time_limit_sec") for q in rows}, key=lambda x: (x is None, x))
-        tools = sorted({tuple(q.get("allowed_tools") or []) for q in rows})
-        stim = {(q.get("stimulus") or {}).get("kind", "none") for q in rows}
-        stim_zh = {"none": "无", "reference": "参考图", "fragments": "画布上的碎片"}
-        w("| 项 | 设置 |")
-        w("| --- | --- |")
-        w(f"| 难度 | {f.get('difficulty', first.get('difficulty'))} / 5 |")
-        w("| 时限 | " + " / ".join("不限时" if t is None else f"{t // 60} 分钟" for t in limits) + " |")
-        w("| 工具 | " + " / ".join("不限" if not t else "、".join(TOOL_ZH.get(x, x) for x in t) for t in tools) + " |")
-        w("| 参考图 | " + "、".join(stim_zh.get(s, s) for s in sorted(stim))
-          + ("（默认收起，点一下才看）" if any((q.get("stimulus") or {}).get("mode") == "on_demand" for q in rows) else "") + " |")
-        sec = dims(first, 'secondary_dimensions')
-        w(f"| 主要考察 | **{dims(first, 'primary_dimensions')}**" + (f"；其次 {sec}" if sec else "") + " |")
-        w(f"| 研究目的 | {f.get('research_goal', first.get('research_goal', ''))} |")
-        if first.get("phases"):
-            steps = "；".join(f"第 {i + 1} 步「{p['label']}」" + (f" {p['seconds']} 秒" if p.get("seconds") else "")
-                             + (f"，只能用 {'、'.join(TOOL_ZH.get(t, t) for t in p['allowed_tools'])}" if p.get("allowed_tools") else "")
-                             for i, p in enumerate(first["phases"]))
-            w(f"| 分步 | {steps} |")
-        w("")
-        w("| 编号 | id | 标题 | 孩子看到的指令 | 提示 | 变体 | 老师意见 |")
-        w("| --- | --- | --- | --- | --- | --- | --- |")
-        for i, q in enumerate(rows, 1):
-            instr = (q.get("instruction") or "").replace("\n\n", " ⏎ ").replace("\n", " ⏎ ").replace("|", "／")
-            hint = (q.get("hint") or "").replace("|", "／")
-            variant = []
-            if fid == "M4" and q.get("prompt_style") in STYLE_ZH:     # 只有 M4 的三种说法是实验变量
-                variant.append(STYLE_ZH[q["prompt_style"]])
-            c = cond_zh(q.get("condition"))
-            if c:
-                variant.append(c)
-            ref = (q.get("stimulus") or {})
-            if ref.get("kind") == "reference":
-                variant.append(f"参考图 `{ref.get('stimulus_id')}`")
-            w(f"| {n_fam}.{i} | `{q['id']}` | {q.get('title', '')} | {instr} | {hint} | {' · '.join(variant)} |  |")
-        w("\n---\n")
+        table = [(f"{n}.{i}", q.get("title", ""), q.get("instruction") or "", q.get("hint") or "", variant(q))
+                 for i, q in enumerate(rows, 1)]
+        out.append((f"{n}. {f.get('name', '')}（{len(rows)} 题）", AIM.get(fid, f.get("research_goal", "")),
+                    dims(first, "primary_dimensions"), dims(first, "secondary_dimensions"), table))
+    return out
 
-    out = "\n".join(L) + "\n"
-    if "--stdout" in sys.argv:
-        sys.stdout.write(out)
-    else:
-        (ROOT / "docs/TASK_LIST.md").write_text(out, encoding="utf-8")
-        print(f"wrote docs/TASK_LIST.md: {len(QUESTS)} tasks in {n_fam} families")
+
+HEAD = ["编号", "标题", "孩子看到的指令", "提示", "变体"]
+WIDTHS = [7, 15, 44, 20, 14]          # 列宽百分比，两个出口同一份
+INTRO = f"共 {len(QUESTS)} 个任务，分 10 个家族。九个评价维度每幅画都评；每个家族另外标出它主要考察的维度。"
+
+
+def build_html() -> str:
+    e = html.escape
+    CSS = """
+    @page { size: A4; margin: 18mm 16mm; }
+    body { font-family: 'Noto Sans CJK SC', 'Noto Serif CJK SC', 'PingFang SC', sans-serif; font-size: 10.5pt; line-height: 1.5; color: #222; }
+    h1 { font-size: 20pt; margin: 0 0 4pt; } h2 { font-size: 14pt; margin: 22pt 0 6pt; page-break-after: avoid; }
+    p { margin: 3pt 0; }
+    table { border-collapse: collapse; width: 100%; margin: 6pt 0 4pt; table-layout: fixed; }
+    th, td { border: 1px solid #999; padding: 4pt 5pt; vertical-align: top; text-align: left; font-size: 9.5pt; }
+    th { background: #eee; }
+    tr { page-break-inside: avoid; }
+    """
+    H = ["<html><head><meta charset='utf-8'><title>KidsArtQuest 任务清单</title><style>" + CSS + "</style></head><body>",
+         "<h1>KidsArtQuest 任务清单</h1>", f"<p>{e(INTRO)}</p>",
+         "<h2>九个维度</h2><table><colgroup><col width='18%'><col width='82%'></colgroup><tr><th>维度</th><th>看的是什么</th></tr>"]
+    for d in DIMENSIONS:
+        H.append(f"<tr><td><b>{e(d['zh'])}</b></td><td>{e(d['desc'])}</td></tr>")
+    H.append("</table>")
+    for title, aim, primary, sec, table in build_doc():
+        H.append(f"<h2>{e(title)}</h2>")
+        H.append(f"<p><b>研究目的</b>　{e(aim)}</p>")
+        H.append(f"<p><b>主要考察</b>　{e(primary)}" + (f"　　<b>其次</b>　{e(sec)}" if sec else "") + "</p>")
+        H.append("<table><colgroup>" + "".join(f"<col width='{w}%'>" for w in WIDTHS) + "</colgroup><tr>"
+                 + "".join(f"<th>{h}</th>" for h in HEAD) + "</tr>")
+        for row in table:
+            cells = [e(c).replace("\n\n", "<br>").replace("\n", "<br>") for c in row]
+            H.append("<tr>" + "".join(f"<td>{c}</td>" for c in cells) + "</tr>")
+        H.append("</table>")
+    H.append("</body></html>")
+    return "\n".join(H)
+
+
+def build_docx(path):
+    """Word 版：python-docx 直接搭，列宽写死——LibreOffice 从 HTML 导入会把表格挤成一条。"""
+    from docx import Document
+    from docx.enum.table import WD_TABLE_ALIGNMENT
+    from docx.oxml import OxmlElement
+    from docx.oxml.ns import qn
+    from docx.shared import Cm, Pt
+
+    doc = Document()
+    sec = doc.sections[0]
+    sec.page_width, sec.page_height = Cm(21.0), Cm(29.7)
+    sec.left_margin = sec.right_margin = Cm(1.6)
+    sec.top_margin = sec.bottom_margin = Cm(1.8)
+    usable = sec.page_width - sec.left_margin - sec.right_margin
+    normal = doc.styles["Normal"]
+    normal.font.name = "Noto Sans CJK SC"
+    normal.element.rPr.rFonts.set(qn("w:eastAsia"), "Noto Sans CJK SC")
+    normal.font.size = Pt(10.5)
+
+    def table(head, rows, widths_pct, bold_first=False):
+        t = doc.add_table(rows=1, cols=len(head))
+        t.style = "Table Grid"
+        t.alignment = WD_TABLE_ALIGNMENT.CENTER
+        t.autofit = False
+        widths = [int(usable * w / 100) for w in widths_pct]
+        for i, h in enumerate(head):
+            c = t.rows[0].cells[i]
+            c.text = ""
+            r = c.paragraphs[0].add_run(h); r.bold = True; r.font.size = Pt(9.5)
+            shade = OxmlElement("w:shd"); shade.set(qn("w:val"), "clear"); shade.set(qn("w:fill"), "EEEEEE")
+            c._tc.get_or_add_tcPr().append(shade)
+        for row in rows:
+            cells = t.add_row().cells
+            for i, val in enumerate(row):
+                cells[i].text = ""
+                lines = str(val).split("\n")
+                p = cells[i].paragraphs[0]
+                for j, ln in enumerate(lines):
+                    if not ln:
+                        continue
+                    if j and p.runs:
+                        p = cells[i].add_paragraph()
+                    r = p.add_run(ln); r.font.size = Pt(9.5)
+                    if bold_first and i == 0:
+                        r.bold = True
+        # 列宽要写两处：每个单元格的 tcW（Word 看这个）和 tblGrid 的 gridCol（LibreOffice 看这个）
+        for i, w in enumerate(widths):
+            t.columns[i].width = w
+        for row in t.rows:
+            for i, w in enumerate(widths):
+                row.cells[i].width = w
+        layout = OxmlElement("w:tblLayout"); layout.set(qn("w:type"), "fixed")
+        t._tbl.tblPr.append(layout)
+        # 行不跨页
+        for row in t.rows[1:]:
+            trPr = row._tr.get_or_add_trPr()
+            cant = OxmlElement("w:cantSplit"); trPr.append(cant)
+        return t
+
+    doc.add_heading("KidsArtQuest 任务清单", level=1)
+    doc.add_paragraph(INTRO)
+    doc.add_heading("九个维度", level=2)
+    table(["维度", "看的是什么"], [(d["zh"], d["desc"]) for d in DIMENSIONS], [18, 82], bold_first=True)
+    for title, aim, primary, sec_dims, rows in build_doc():
+        doc.add_heading(title, level=2)
+        p = doc.add_paragraph(); p.add_run("研究目的　").bold = True; p.add_run(aim)
+        p = doc.add_paragraph(); p.add_run("主要考察　").bold = True; p.add_run(primary)
+        if sec_dims:
+            p.add_run("　　其次　").bold = True; p.add_run(sec_dims)
+        table(HEAD, rows, WIDTHS)
+    doc.save(path)
+
+
+def main() -> int:
+    out_docx = ROOT / "docs/任务清单.docx"
+    out_pdf = ROOT / "docs/任务清单.pdf"
+    with tempfile.TemporaryDirectory() as td:
+        src = Path(td) / "tasks.html"
+        src.write_text(build_html(), encoding="utf-8")
+        # PDF：Chrome 打印，CSS 说了算
+        subprocess.run(["google-chrome", "--headless=new", "--disable-gpu", "--no-pdf-header-footer", "--print-to-pdf-no-header",
+                        f"--print-to-pdf={out_pdf}", str(src)], check=True,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    build_docx(out_docx)
+    print(f"wrote {out_docx.name} and {out_pdf.name}: {len(QUESTS)} tasks")
     return 0
 
 
