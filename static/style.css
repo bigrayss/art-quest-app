@@ -865,9 +865,9 @@ body[data-room="flow"]  { --room:var(--yellow); --room-d:var(--yellow-d); --room
 .growth-rings { display:flex; justify-content:center; gap:3px; color:var(--yellow); margin:4px 0 2px; min-height:18px; }
 .growth-dims { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px 18px; }
 .gdim { font-size:0.8125rem; }
-.gdim .gtop { display:flex; flex-direction:column; align-items:flex-start; gap:5px; }
+.gdim .gtop { display:flex; justify-content:space-between; align-items:center; gap:8px; }
 .gdim .gname { font-weight:800; white-space:nowrap; }
-.gdim .ggo { white-space:nowrap; padding:3px 9px; font-size:0.75rem; font-weight:800; border:2px solid var(--line); border-radius:999px;
+.gdim .ggo { white-space:nowrap; padding:3px 9px; font-size:0.6875rem; font-weight:800; border:2px solid var(--line); border-radius:999px;
   box-shadow:none; color:var(--gc, var(--accent)); background:var(--card); min-height:0; }
 .gdim .ggo:active { transform:translateY(1px); }
 .gpips { display:flex; gap:4px; margin-top:7px; }
@@ -1620,4 +1620,11 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
   .stile b { font-size:2rem; }
   .stile > span { font-size:0.75rem; }
   .quest-card.small.intent-task { display:flex; flex-direction:column; justify-content:center; }
+}
+
+/* 竖屏 iPad：一行三个刚好挤满，钮的内衬和列距各收一点，别贴到邻居 */
+@media (min-width: 760px) and (max-width: 900px) {
+  .growth-dims { gap:14px 10px; }
+  .gdim .ggo { padding:3px 6px; }
+  .gdim .gtop { gap:4px; }
 }
