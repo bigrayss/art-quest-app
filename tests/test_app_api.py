@@ -251,9 +251,7 @@ class TheShellRunsFromAnotherOrigin(unittest.TestCase):
             # 开一张画：POST /api/v1/sessions 跨源、带 Authorization（账号写在作品上）
             page.click('.tab[data-tab="map"]')
             page.wait_for_selector("#view-quest:not(.hidden)")
-            page.click("#quest-grid .quest-card")
-            page.wait_for_selector("#view-intent:not(.hidden)")
-            page.click("#btn-start-draw")
+            page.click("#quest-grid .quest-card")           # 选了就画：没有心愿屏
             page.wait_for_selector("#view-draw:not(.hidden)")
             page.wait_for_function("() => document.querySelector('#recstat') && !document.querySelector('#recstat').classList.contains('hidden')")
             keep_awake = page.evaluate("window.__native.filter(m => m.type === 'keepAwake').map(m => m.on)")
@@ -332,11 +330,7 @@ class TheShellRunsFromAnotherOrigin(unittest.TestCase):
 
             page.click('.tab[data-tab="map"]')
             page.wait_for_selector("#view-quest:not(.hidden)")
-            page.click("#quest-grid .quest-card")
-            page.wait_for_selector("#view-intent:not(.hidden)")
-            page.click("#emotion-chips button")
-            page.fill("#intent-text", "一座会走路的房子")
-            page.click("#btn-start-draw")
+            page.click("#quest-grid .quest-card")           # 选了就画：没有心愿屏
             page.wait_for_selector("#view-draw:not(.hidden)")
             page.wait_for_function("() => !document.querySelector('#recstat').classList.contains('hidden')")
             self.assertIn(True, page.evaluate("window.__native.filter(m=>m.type==='keepAwake').map(m=>m.on)"),
@@ -365,12 +359,7 @@ class TheShellRunsFromAnotherOrigin(unittest.TestCase):
             page.click("#btn-submit")
             page.wait_for_selector("#btn-skip-revise:visible", timeout=30000)
             page.click("#btn-skip-revise")
-            try:
-                page.wait_for_selector("#btn-survey-skip:visible", timeout=5000)
-                page.click("#btn-survey-skip")
-            except Exception:
-                pass
-            page.wait_for_selector("#view-final:not(.hidden)", timeout=30000)
+            page.wait_for_selector("#view-final:not(.hidden)", timeout=30000)   # 没有问卷，直接是宝藏
             page.wait_for_timeout(1500)
             self.assertFalse(page.evaluate("window.__native.filter(m=>m.type==='keepAwake').slice(-1)[0].on"),
                              "离开创作屏要把锁屏还回去")

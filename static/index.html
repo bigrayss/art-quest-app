@@ -216,7 +216,6 @@
     <summary><i data-icon="sliders" data-size="16"></i>这台设备<span class="me-sync hidden" id="me-sync"></span></summary>
     <div class="infolist">
       <div class="info"><span>语言</span><b><button class="linkbtn" id="btn-lang-me" data-no-i18n></button></b></div>
-      <div class="info" id="mode-row"><span>版本</span><b><button class="linkbtn" id="btn-mode-me"></button></b></div>
       <div class="info"><span>这一版</span><b id="shell-badge"></b></div>
       <div class="info"><span>评分 / 反馈</span><b id="backend-badge"></b></div>
       <div class="info"><span>本机代号</span><b id="anon-badge"></b></div>
@@ -498,8 +497,6 @@
            spellcheck="false" placeholder="名字">
     <input id="acct-pin-input" class="pin" type="text" inputmode="numeric" maxlength="4"
            autocomplete="off" placeholder="四位数字密码">
-    <input id="acct-age-input" class="pin" type="text" inputmode="numeric" maxlength="2"
-           autocomplete="off" placeholder="几岁（可不填）">
     <p class="acct-err hidden" id="acct-err"></p>
     <div class="actions column">
       <button class="primary" id="btn-acct-go">注册</button>
@@ -510,20 +507,6 @@
   </div>
 </div>
 
-<!-- 版本：简单 / 完整。简单版不问心情和心愿、画完不做问卷、不摆成长图；进化关两版都有。
-     注册时填了年龄的，8 岁及以下推荐简单版——推荐只是一个标签，选哪个孩子说了算。 -->
-<div class="modal hidden" id="mode-modal">
-  <div class="modal-card">
-    <h3>选一个版本</h3>
-    <div class="choice" id="mode-choices">
-      <button data-mode="simple"><span><b>简单版</b><small>直接画。画完彩点说一句，可以改一改。</small></span><i data-icon="check" data-size="18"></i></button>
-      <button data-mode="full"><span><b>完整版</b><small>画前说说心情和想画什么，画完看成长图。</small></span><i data-icon="check" data-size="18"></i></button>
-    </div>
-    <div class="actions column">
-      <button class="ghost" id="btn-mode-cancel">取消</button>
-    </div>
-  </div>
-</div>
 
 <!-- 语言：一张选择框，选了才换，不是点一下就跳 -->
 <div class="modal hidden" id="lang-modal">

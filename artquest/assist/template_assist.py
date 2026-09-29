@@ -35,12 +35,16 @@ ENCOURAGE = [
 ]
 
 # 简单版：更短、更少
+# 短句是默认（第一波反馈之后一律短）。库要够大：连点六次不能听到同一句。
 OPEN_QUESTIONS_SIMPLE = [
     "这里是白天还是晚上？",
     "它今天过得怎么样？",
     "画外面还有什么？",
+    "它住在哪儿？",
+    "旁边还有谁？",
+    "它在想什么？",
 ]
-ENCOURAGE_SIMPLE = ["慢慢来。", "接着画。"]
+ENCOURAGE_SIMPLE = ["慢慢来。", "接着画。", "你想怎么画都行。"]
 
 # 英文会话（quest["lang"] == "en"）用同样的三组、同样的轮换。规矩不变：
 # 只问问题或把他的意图还给他，不评价、不夸、不给建议。
@@ -67,8 +71,11 @@ OPEN_QUESTIONS_SIMPLE_EN = [
     "Is it day or night here?",
     "How is its day going?",
     "What is outside the picture?",
+    "Where does it live?",
+    "Who else is there?",
+    "What is it thinking?",
 ]
-ENCOURAGE_SIMPLE_EN = ["Take your time.", "Keep going."]
+ENCOURAGE_SIMPLE_EN = ["Take your time.", "Keep going.", "Draw it any way you like."]
 
 
 # 孩子写心愿几乎都从「我想画」起头，模板句又是「你说你想画{intent}」——
@@ -106,7 +113,7 @@ class TemplateAssist:
         want = bare_intent(intent.get("text") or "")
         i = max(0, nth - 1)
         en = quest.get("lang") == "en"
-        simple = quest.get("ui") == "simple"
+        simple = quest.get("brief", True)
         with_intent = WITH_INTENT_EN if en else WITH_INTENT
         if simple:
             encourage = ENCOURAGE_SIMPLE_EN if en else ENCOURAGE_SIMPLE
