@@ -46,8 +46,7 @@
   const state = { cfg: null, quests: [], families: [], allSessions: [], rarity: null, quest: null, emotion: null, sessionId: null, phase: "before", feedback: null,
     startedAt: null, dirtySinceSnapshot: false, timers: [], before: null, color: "#f79433", buddyTick: 0,
     anonId: "", condition: {}, study: null, seqIdx: 0, lastActivity: 0, idle: false, timeUp: false, pendingFinal: null,
-    entered: false, worldColor: "", buddyName: "", account: null, unclaimed: 0,
-    mode: "full", baseUi: "full" };
+    entered: false, worldColor: "", buddyName: "", account: null, unclaimed: 0 };
 
   // ---------- research identity & environment ----------
   // Two anonymous ids: one the device keeps by itself (so free play still lines
@@ -88,7 +87,7 @@
     screen: [screen.width, screen.height], viewport: [innerWidth, innerHeight], dpr: devicePixelRatio || 1,
     pointer_types: [matchMedia("(pointer:fine)").matches ? "fine" : "", matchMedia("(any-pointer:coarse)").matches ? "coarse" : ""].filter(Boolean),
     timezone: (Intl.DateTimeFormat().resolvedOptions() || {}).timeZone || "", language: navigator.language || "",
-    ui_lang: LANG, ui_mode: state.mode,
+    ui_lang: LANG,
     // 哪个壳：浏览器里是空的；app 里记下平台和 app 版本——Pencil 的压感、采样率
     // 都跟壳有关，分析时它是协变量
     app: NATIVE ? { platform: NATIVE.platform || "ios", version: NATIVE.version || "" } : {},
@@ -353,8 +352,6 @@
     $("#btn-acct-switch").textContent = c.sw;
     $("#acct-pin-input").placeholder = c.pin;
     $("#btn-acct-forgot").classList.toggle("hidden", mode !== "login");
-    $("#acct-age-input").classList.toggle("hidden", mode !== "register");
-    $("#acct-age-input").value = "";
     $("#acct-err").classList.add("hidden");
     $("#acct-name-input").value = "";
     $("#acct-pin-input").value = "";
@@ -375,11 +372,7 @@
     const btn = $("#btn-acct-go"); btn.disabled = true;
     try {
       const body = { name, pin, anon_id: state.anonId };
-      if (acctMode === "register") {
-        body.buddy_name = state.buddyName;
-        const age = parseInt($("#acct-age-input").value, 10);
-        if (age >= 3 && age <= 18) body.age = age;
-      }
+      if (acctMode === "register") body.buddy_name = state.buddyName;
       const r = await api(`${API}/accounts/${acctMode}`, { method: "POST", body: JSON.stringify(body) });   // register / login / reset
       setToken(r.token); state.account = r.account; cacheAccount(r.account);
       // 换台设备登录进来：伙伴的名字跟着账号回来。这台设备上起过名字而账号还空着，
@@ -390,12 +383,7 @@
       paintIntentIdentity();        // 心愿页那句「起个名字」现在不用再说了
       await loadAccount();          // 顺便问一句这台设备上有没有还没写名字的画
       await loadCollection(); renderQuests();
-      // 年龄小的推荐简单版：不替他决定，弹选择框，「推荐」只是个标签
-      const acc = state.account || {};
-      const recommend = acctMode === "register" && acc.age != null && acc.age <= 8 && state.mode !== "simple";
-      // 从门口进来的：先进世界、看完导览，再推荐——导览的暗幕会压住选择框
-      if (welcomeOn) { state.recommendMode = recommend; await finishWelcome(); return; }
-      if (recommend) openMode();
+      if (welcomeOn) { await finishWelcome(); return; }   // 从门口进来的：名字有了，进世界
       await loadSessions();
     } catch (e) {
       acctError(errText(e));
@@ -409,8 +397,6 @@
   $("#btn-acct-cancel").onclick = closeAcct;
   acctModal.onclick = (e) => { if (e.target === acctModal) closeAcct(); };
   $("#acct-pin-input").onkeydown = (e) => { if (e.key === "Enter") submitAcct(); };
-  $("#acct-age-input").oninput = (e) => { e.target.value = e.target.value.replace(/\D/g, "").slice(0, 2); };
-  $("#acct-age-input").onkeydown = (e) => { if (e.key === "Enter") submitAcct(); };
   $("#acct-name-input").onkeydown = (e) => { if (e.key === "Enter") $("#acct-pin-input").focus(); };
 
   // 认领：把这台设备上以前画的收进自己名下。**要孩子自己点**——
@@ -439,7 +425,6 @@
   // 闯关地图搬到首页去了——那儿才该热闹。一次创作的过程条只需要回答一件事：还剩几步。
   const ALL_STAGES = [
     { key: "quest",  name: "出发" },
-    { key: "intent", name: "心愿" },
     { key: "draw",   name: "画画" },
     { key: "result", name: "彩点说" },
     { key: "evolve", name: "进化" },
@@ -659,7 +644,6 @@
     tourOn = false;
     tourEl.classList.add("hidden");
     try { localStorage.setItem(TOUR_KEY, "1"); } catch (e) { /* 无所谓 */ }
-    if (state.recommendMode) { state.recommendMode = false; openMode(); }   // 注册时年龄小：导览完了再推荐简单版
     checkFeatured();
   }
   $("#btn-tour-next").onclick = () => nextTour(false);
@@ -692,8 +676,7 @@
     welcomeOn = false;
     try { localStorage.setItem(WELCOME_KEY, "1"); } catch (e) { /* 无所谓 */ }
     await renderWorld(); show("world");
-    if (!guideSeen() && state.condition.ui !== "quiet") startTour();
-    else { if (state.recommendMode) { state.recommendMode = false; openMode(); } checkFeatured(); }
+    if (!guideSeen() && state.condition.ui !== "quiet") startTour(); else checkFeatured();
   }
   // 切语言：两个钮显示的是**另一种**语言的名字（在中文界面上写 English，反之写 中文），
   // 这是「切到哪儿去」而不是「现在是哪儿」，孩子一眼就懂。整页重载。
@@ -717,28 +700,6 @@
     window.I18N.set(to);
   });
   $("#btn-lang-cancel").onclick = () => langModal.classList.add("hidden");
-  // 版本：简单 / 完整。「我的」里一行；注册时年龄 ≤ 8 会主动弹一次。
-  const modeModal = $("#mode-modal");
-  const MODE_NAMES = { full: "完整版", simple: "简单版" };
-  function paintModeButton() {
-    const b = $("#btn-mode-me"); if (b) b.textContent = MODE_NAMES[state.mode];
-    // 研究员定了别的档（quiet / 强制 simple），孩子的开关不显示
-    const row = $("#mode-row"); if (row) row.classList.toggle("hidden", state.baseUi !== "full");
-  }
-  function openMode() {
-    const age = (state.account || {}).age;
-    const rec = age == null ? "" : (age <= 8 ? "simple" : "full");
-    modeModal.querySelectorAll("[data-mode]").forEach(o => {
-      o.classList.toggle("on", o.dataset.mode === state.mode);
-      o.querySelector(".tag")?.remove();
-      if (o.dataset.mode === rec) o.querySelector("b").insertAdjacentHTML("afterend", `<span class="tag">推荐</span>`);
-    });
-    modeModal.classList.remove("hidden");
-  }
-  $("#btn-mode-me").onclick = openMode;
-  modeModal.querySelectorAll("[data-mode]").forEach(o => o.onclick = () => { modeModal.classList.add("hidden"); if (o.dataset.mode !== state.mode) setMode(o.dataset.mode); });
-  $("#btn-mode-cancel").onclick = () => modeModal.classList.add("hidden");
-  modeModal.onclick = (e) => { if (e.target === modeModal) modeModal.classList.add("hidden"); };
   langModal.onclick = (e) => { if (e.target === langModal) langModal.classList.add("hidden"); };
   $("#btn-welcome-register").onclick = () => openAcct("register");
   $("#btn-welcome-login").onclick = () => openAcct("login");
@@ -1879,7 +1840,6 @@
       state.condition = { ...state.condition, ...state.study.condition };
       state.seqIdx = 0;
     } catch (e) { console.warn("study assign failed", e); }
-    state.baseUi = state.condition.ui || "full";     // 研究员定的那一档；孩子的开关只在它是 full 时起作用
     renderStudyBar();
   }
   function renderStudyBar() {
@@ -1907,21 +1867,8 @@
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
   /** Apply the frozen condition to the UI (gamification level, undo, reference). */
-  // 简单 / 完整 是孩子设备上的开关（artquest.mode）。它只在研究员定的 ui 是 full 时起作用：
-  // 对照组（quiet）是实验臂，开关改不动它；研究员在 study.json 里直接写 simple 也行。
-  const MODE_KEY = "artquest.mode";
-  const isSimple = () => state.condition.ui === "simple";
-  function setMode(mode, { silent } = {}) {
-    state.mode = mode === "simple" ? "simple" : "full";
-    try { localStorage.setItem(MODE_KEY, state.mode); } catch (e) { /* 无所谓 */ }
-    applyCondition();
-    paintModeButton();
-    if (!silent) logEvent("UI_MODE_SWITCH", { to: state.mode });
-  }
   function applyCondition() {
     const c = state.condition;
-    if (state.baseUi === "full") c.ui = state.mode === "simple" ? "simple" : "full";
-    document.body.classList.toggle("simple", c.ui === "simple");
     document.body.classList.toggle("quiet", c.ui === "quiet");
     ["#btn-undo", "#btn-redo"].forEach(sel => { const b = $(sel); if (b) { b.disabled = !c.undo_allowed; b.classList.toggle("hidden", !c.undo_allowed); } });
     $("#zoombar").classList.toggle("hidden", !zoomAllowed());
@@ -2348,8 +2295,7 @@
     // 「全部记录」= 这台设备 / 这个账号自己的那些。全服的列表要研究员令牌，不是界面上的一个链接。
     const ex = $("#export-link"); if (ex) ex.href = `${API}/sessions?${whoQuery()}`;
     await setupStudy();
-    try { state.mode = localStorage.getItem(MODE_KEY) === "simple" ? "simple" : "full"; } catch (e) { /* 无所谓 */ }
-    applyCondition(); paintModeButton();
+    applyCondition();
     $("#participant").value = savedPid();
     renderQuests();
     const chips = $("#emotion-chips"); chips.innerHTML = "";
@@ -2386,8 +2332,9 @@
   }
   function chooseQuest(q) {
     state.quest = q;
-    // 简单版：不问心情、不写心愿，选了就画
-    if (isSimple()) { state.emotion = ""; $("#intent-text").value = ""; return startDrawing(); }
+    // 第一波反馈之后定的：画前不问心情、不写心愿，选了就画。心愿屏（#view-intent）留着不进流程。
+    state.emotion = ""; $("#intent-text").value = "";
+    return startDrawing();
     // 任务自带参考图、而且是「一直可见」那种的，心愿屏的任务卡里就先给他看：
     // 写心愿之前知道要照着什么画。on_demand 的不放——画面要等他自己点开。
     const ref = q.reference, showRef = ref && state.condition.reference_allowed && ref.mode === "always";
@@ -2637,7 +2584,7 @@
     if (pending) console.warn(`${pending} 条记录尚未上传，已保留在本地队列`);
     state.pendingFinal = { session, beforeImg, afterImg, comparison };
     state.revised = session.revised;   // the trail must show ✨进化关 correctly on the survey too
-    if (state.condition.questionnaire && !isSimple()) { renderSurvey(); show("survey"); return; }
+    // 画完不做问卷（第一波反馈之后定的）。问卷那一屏和接口都留着，研究要用时再接回来。
     showFinal(session, beforeImg, afterImg, comparison);
   }
 

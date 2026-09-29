@@ -33,7 +33,7 @@ class TemplateFeedback:
         dims = scores.get("dims", {})
         ranked = sorted(focus, key=lambda k: dims.get(k, {}).get("score", 5))
         low = ranked[0] if ranked else "imagination"
-        simple = quest.get("ui") == "simple"
+        simple = quest.get("brief", True)
         wish = _clean(intent.get("text"))
         mood = (intent.get("emotion") or "").strip()
 
@@ -76,7 +76,7 @@ class TemplateFeedback:
                 quest: Dict[str, Any], intent: Dict[str, Any]) -> Dict[str, Any]:
         bd, ad = before_scores.get("dims", {}), after_scores.get("dims", {})
         deltas = {k: round(ad[k]["score"] - bd[k]["score"], 1) for k in ad if k in bd}
-        simple = quest.get("ui") == "simple"
+        simple = quest.get("brief", True)
         if quest.get("lang") == "en":
             up_en = [_EN[k] for k, v in deltas.items() if v >= 1]
             text = ("After your change, " + ", ".join(up_en) + " looks different." if up_en

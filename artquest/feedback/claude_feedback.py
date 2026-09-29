@@ -57,7 +57,7 @@ class ClaudeFeedback:
                 f"An assessor's notes on this task's focus dimensions (for you only — never pass scores on to the artist):\n{notes}\n\n"
                 "Give your feedback."
             )
-            system = SYSTEM_EN + (SYSTEM_SIMPLE_NOTE_EN if quest.get("ui") == "simple" else "")
+            system = SYSTEM_EN + (SYSTEM_SIMPLE_NOTE_EN if quest.get("brief", True) else "")
             text = claude_text(system, [image_block(image_png), {"type": "text", "text": prompt}])
             return {"backend": self.name, "text": text}
         notes = "\n".join(f"- {_ZH[k]}：{dims[k]['note']}" for k in focus if k in dims)
@@ -67,7 +67,7 @@ class ClaudeFeedback:
             f"评估员对本任务重点维度的观察（仅供你参考，不要向创作者转述分数）：\n{notes}\n\n"
             "请给出你的反馈。"
         )
-        system = SYSTEM + (SYSTEM_SIMPLE_NOTE if quest.get("ui") == "simple" else "")
+        system = SYSTEM + (SYSTEM_SIMPLE_NOTE if quest.get("brief", True) else "")
         text = claude_text(system, [image_block(image_png), {"type": "text", "text": prompt}])
         return {"backend": self.name, "text": text}
 
@@ -79,7 +79,7 @@ class ClaudeFeedback:
                 "The first image is before the change, the second is after."
             )
             text = claude_text(
-                COMPARE_SYSTEM_EN + (COMPARE_SYSTEM_SIMPLE_NOTE_EN if quest.get("ui") == "simple" else ""),
+                COMPARE_SYSTEM_EN + (COMPARE_SYSTEM_SIMPLE_NOTE_EN if quest.get("brief", True) else ""),
                 [{"type": "text", "text": "Before:"}, image_block(before_png),
                  {"type": "text", "text": "After:"}, image_block(after_png),
                  {"type": "text", "text": prompt}],
@@ -90,7 +90,7 @@ class ClaudeFeedback:
             "第一张图是修改前，第二张图是修改后。"
         )
         text = claude_text(
-            COMPARE_SYSTEM + (COMPARE_SYSTEM_SIMPLE_NOTE if quest.get("ui") == "simple" else ""),
+            COMPARE_SYSTEM + (COMPARE_SYSTEM_SIMPLE_NOTE if quest.get("brief", True) else ""),
             [{"type": "text", "text": "修改前："}, image_block(before_png),
              {"type": "text", "text": "修改后："}, image_block(after_png),
              {"type": "text", "text": prompt}],
