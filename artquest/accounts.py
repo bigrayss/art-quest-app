@@ -135,7 +135,7 @@ class AccountStore:
 
     # -- 注册 / 登录 -------------------------------------------------------
     def register(self, name: str, pin: str, *, anon_id: str = "", buddy_name: str = "",
-                 age: Optional[int] = None) -> Dict[str, Any]:
+                 age: Optional[int] = None, role: str = "student") -> Dict[str, Any]:
         name = check_name(name)
         pin = check_pin(pin)
         idx = self._index()
@@ -155,6 +155,8 @@ class AccountStore:
             "buddy_name": (buddy_name or "").strip()[:16],
             # 年龄只用来推荐模式和做协变量；不填就是 None
             "age": int(age) if age is not None else None,
+            # student | teacher。老师的令牌能进教师端（全部作品、打分）；学生的不能
+            "role": "teacher" if role == "teacher" else "student",
             "devices": [],
             "failed": 0,
             "locked_until": None,
@@ -320,6 +322,7 @@ class AccountStore:
             "created_at": acc.get("created_at", ""),
             "buddy_name": acc.get("buddy_name", ""),
             "age": acc.get("age"),
+            "role": acc.get("role", "student"),
             # 只给数量：别的设备的代号，前端一个也用不上
             "devices": len(acc.get("devices", [])),
         }

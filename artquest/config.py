@@ -14,6 +14,11 @@ ACCOUNTS_DIR = DATA_DIR / "accounts"
 # `ARTQUEST_ADMIN_TOKEN=随便一串长随机数` 就行（`python3 -c "import secrets;print(secrets.token_urlsafe(24))"`）。
 ADMIN_TOKEN = os.environ.get("ARTQUEST_ADMIN_TOKEN", "").strip()
 
+
+def teacher_code() -> str:
+    """老师注册要的邀请码。没设就是不开放老师注册。每次读环境，测试里改得动。"""
+    return os.environ.get("ARTQUEST_TEACHER_CODE", "").strip()
+
 # 允许跨源调 API 的来源。iOS 壳把外壳打进 app 包里，从 `artquest://app` 这个源发请求，
 # 浏览器规矩是要服务器点头。网页版和 API 同源，用不到这一条。逗号分隔可加多个。
 CORS_ORIGINS = [o.strip() for o in os.environ.get("ARTQUEST_CORS_ORIGINS", "artquest://app").split(",") if o.strip()]

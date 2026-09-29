@@ -1774,3 +1774,89 @@ body.simple #view-final .feedback-card { display:none !important; }
 .choice button small { font-size:0.75rem; font-weight:600; color:var(--muted-2); line-height:1.45; }
 .choice button.on small { color:var(--accent-d); opacity:.85; }
 .choice button .tag { font-size:0.6875rem; font-weight:800; color:#fff; background:var(--accent); border-radius:999px; padding:2px 8px; margin-left:8px; }
+
+/* ======================= 教师端 =======================
+   老师登录后 body 带 teacher：学生的三个 tab 和「我的」里学生才有的东西收起来，「打分」tab 出来。 */
+.tab.teacher-only { display:none; }
+body.teacher .tab.teacher-only { display:inline-flex; }
+body.teacher .student-only { display:none !important; }
+body[data-room="grade"] { --room:var(--blue); --room-d:var(--blue-d); --room-l:var(--blue-l); }
+
+/* 注册表里的 学生 / 老师 开关 */
+.role-row { display:flex; gap:8px; margin:0 0 10px; }
+.role-row button { flex:1 1 0; padding:9px 8px; font-size:0.9375rem; }
+.role-row button.on { background:var(--accent-l); border-color:var(--accent); color:var(--accent-d); }
+
+/* 列表 */
+.tfilter { display:flex; gap:8px; margin-bottom:14px; }
+.tfilter button { padding:8px 16px; border-radius:999px; }
+.tfilter button b { font-weight:800; margin-left:2px; }
+.tfilter button.on { background:var(--blue-l); border-color:var(--blue); color:var(--blue-d); }
+.tlist { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:14px; }
+.tcard { display:flex; flex-direction:column; align-items:stretch; text-align:left; padding:0; overflow:hidden;
+  border-radius:16px; background:var(--card); }
+.tcard .tthumb { aspect-ratio:1024 / 704; background:#fff; border-bottom:1px solid var(--line); }
+.tcard .tthumb img { width:100%; height:100%; object-fit:contain; display:block; }
+.tcard .tbody { padding:10px 12px 12px; display:flex; flex-direction:column; gap:3px; }
+.tcard .tname { font-weight:800; font-size:1rem; }
+.tcard .ttask { color:var(--muted-2); font-weight:700; font-size:0.875rem; }
+.tcard .tmeta { color:var(--muted); font-weight:600; font-size:0.75rem; display:flex; gap:8px; flex-wrap:wrap; }
+.tcard .tdone { color:var(--green-d); }
+.tempty { color:var(--muted-2); font-weight:700; padding:24px 0; text-align:center; }
+
+/* 打分屏 */
+.ghead { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+.ghead-t { display:flex; flex-direction:column; gap:1px; min-width:0; flex:1 1 auto; }
+.ghead-t b { font-size:1.125rem; font-weight:800; }
+.ghead-t span { font-size:0.8125rem; color:var(--muted-2); font-weight:700; }
+.glayout { display:flex; flex-direction:column; gap:16px; }
+.gleft, .gright { display:flex; flex-direction:column; gap:10px; min-width:0; }
+.gtask { background:var(--card); border:2px solid var(--line); border-radius:var(--r); padding:10px 14px; }
+.gtask summary { cursor:pointer; display:flex; gap:10px; align-items:baseline; list-style:none; }
+.gtask summary::-webkit-details-marker { display:none; }
+.gtask summary b { font-size:1rem; }
+.gtask p { margin:8px 0 0; line-height:1.6; }
+.gfinal { display:block; width:100%; padding:0; background:#fff; border-radius:var(--r-lg); overflow:hidden; }
+.gfinal img { display:block; width:100%; aspect-ratio:1024 / 704; object-fit:contain; }
+.gsub { font-weight:800; font-size:1rem; margin-top:4px; display:flex; align-items:baseline; gap:8px; }
+.gstrip { display:flex; gap:10px; overflow-x:auto; padding:2px 2px 6px; scroll-snap-type:x proximity; }
+.gshot { flex:0 0 11rem; scroll-snap-align:start; display:flex; flex-direction:column; gap:6px; }
+.gshot button { padding:0; overflow:hidden; border-radius:12px; background:#fff; width:100%; }
+.gshot button img { display:block; width:100%; aspect-ratio:1024 / 704; object-fit:contain; }
+.gshot .gtag { font-size:0.6875rem; font-weight:800; color:var(--muted); display:flex; justify-content:space-between; }
+.gshot input { max-width:none; padding:8px 10px; font-size:0.875rem; font-weight:700; }
+.gstrip:empty::after { content:attr(data-empty); color:var(--muted); font-weight:700; font-size:0.875rem; padding:6px 2px; }
+.gdims { background:var(--card); border:2px solid var(--line); border-radius:var(--r); padding:0 14px; }
+.gd { display:grid; grid-template-columns:minmax(0,1fr) auto; column-gap:12px; align-items:center;
+  padding:10px 0; border-bottom:1px solid var(--line); }
+.gd:last-child { border-bottom:none; }
+.gd .gdname { font-weight:800; font-size:0.9375rem; display:flex; flex-direction:column; gap:1px; min-width:0; }
+.gd .gdname small { font-size:0.6875rem; font-weight:600; color:var(--muted); line-height:1.35; }
+.gd .gdscale { display:flex; gap:6px; }
+.gd .gdscale button { width:40px; height:38px; padding:0; border-radius:10px; font-size:0.9375rem; }
+.gd .gdscale button.on { background:var(--blue-l); border-color:var(--blue); color:var(--blue-d); box-shadow:0 var(--edge) 0 var(--blue); }
+.gd.na { opacity:.5; }
+.gd.na .gdscale { font-size:0.75rem; font-weight:700; color:var(--muted); }
+#g-comment { max-width:none; }
+.gsave { margin-top:4px; z-index:4; }
+/* 底部 tab 还在的窄屏上，钉底的「保存」要浮在 tab 条上面，不然被它盖住 */
+@media (max-width: 899px), (max-height: 599px) {
+  #view-grade .actions.sticky { bottom:calc(64px + env(safe-area-inset-bottom)); }
+}
+@media (min-width: 900px) {
+  /* 宽屏两栏：左边图，右边打分；两栏顶边对齐，右栏的「保存」钉在自己那栏底部 */
+  .glayout { display:grid; grid-template-columns:minmax(0, 6fr) minmax(0, 5fr); gap:22px; align-items:start; }
+  .gright { position:sticky; top:calc(var(--appbar-h, 64px) + 8px); }
+  .gshot { flex-basis:12rem; }
+}
+@media (max-width: 520px) {
+  .tlist { grid-template-columns:1fr 1fr; gap:10px; }
+  .gd { grid-template-columns:1fr; row-gap:6px; }
+  .gd .gdscale { justify-content:space-between; }
+  .gd .gdscale button { flex:1 1 0; width:auto; }
+  .gshot { flex-basis:9.5rem; }
+}
+/* 看大图 */
+.pic-modal { align-items:center; background:rgba(20,18,16,.92); padding:16px; }
+.pic-modal img { max-width:100%; max-height:82vh; max-height:82dvh; border-radius:12px; background:#fff; }
+.pic-close { position:absolute; top:calc(14px + env(safe-area-inset-top)); right:16px; }

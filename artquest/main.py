@@ -32,7 +32,7 @@ from .revision import attribute as attribute_revision
 from .schemas import (
     AssistIn,Abandon, Annotation, ClaimDevice, CreateSession, Curate, DrawEvent, EarnedBadges,
                       FeaturedAnswer, FeedbackIn, Finalize, HARDEST_PARTS_SHOWN, IssueTickets, Login, LogBatch,
-                      PROCESS_LABELS, ProfileUpdate, Questionnaire, Rating, Register, ResetPin, Snapshot, StudyAssign,
+                      PROCESS_LABELS, ProfileUpdate, Questionnaire, Rating, Register, ResetPin, Snapshot, TeacherGrade, StudyAssign,
                       Stroke, Submit, TokenOnly)
 from .scoring import DIMENSIONS, SCALE_MAX, get_scorer
 from .storage import SCHEMA_VERSION, SessionStore, decode_data_url, now_iso, sid_of
@@ -363,8 +363,15 @@ def _check_owner(request: Request, account_id: str) -> None:
 
 @api.post("/accounts/register", status_code=201)
 def account_register(body: Register):
+    if body.role == "teacher":
+        code = cfg.teacher_code()
+        if not code:
+            raise HTTPException(403, "这台服务器没开放老师注册")
+        if not secrets.compare_digest(body.teacher_code or "", code):
+            raise HTTPException(403, "邀请码不对")
     try:
-        return accounts.register(body.name, body.pin, anon_id=body.anon_id, buddy_name=body.buddy_name, age=body.age)
+        return accounts.register(body.name, body.pin, anon_id=body.anon_id, buddy_name=body.buddy_name,
+                                 age=body.age, role=body.role)
     except AccountError as e:
         raise _account_error(e)
 
@@ -432,6 +439,133 @@ def account_logout(body: TokenOnly, request: Request):
 
 
 # -- sessions --------------------------------------------------------------
+# -- 教师端 ----------------------------------------------------------------
+# 老师登录进来就是打分：最终图九维 + 评语，过程图各一句短评。数据是服务器上全部画完的作品。
+# 凭证：老师账号的令牌（role=teacher），或研究员令牌。学生的令牌 403。
+def _require_teacher(request: Request) -> Dict[str, str]:
+    if _is_admin(request):
+        return {"rater_id": "admin", "name": "研究员"}
+    acc = accounts.by_token(_bearer(request))
+    if not acc:
+        raise HTTPException(401, "登录已经过期，再登一次吧")
+    if acc.get("role") != "teacher":
+        raise HTTPException(403, "这个界面只给老师")
+    return {"rater_id": acc["account_id"], "name": acc.get("name", "")}
+
+
+def _student_name(meta: Dict[str, Any]) -> str:
+    p = meta.get("participant") or {}
+    if isinstance(p, dict):
+        acc = accounts.load(p.get("account_id") or "") if p.get("account_id") else None
+        if acc:
+            return acc.get("name", "")
+        if p.get("participant_id"):
+            return p["participant_id"]
+        return "匿名 " + (p.get("anon_id") or "")[-4:]
+    return str(p or "")
+
+
+def _teacher_ratings(sid: str) -> List[Dict[str, Any]]:
+    return [r for r in store.labels(sid, "rating") if r.get("source") == "teacher"]
+
+
+def _session_images(meta: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """老师要看的图，按时间顺序：过程快照、（改过的话）改之前那张、最终图。
+    过程图只要一句短评；最终图要九维 + 评语。"""
+    sid = sid_of(meta)
+    out = []
+    for s in meta.get("snapshots") or []:
+        out.append({"key": s["file"], "url": f"/files/{sid}/{s['file']}", "kind": "snapshot", "elapsed_ms": s.get("elapsed_ms")})
+    if meta.get("revised"):
+        out.append({"key": "before", "url": f"/files/{sid}/before.png", "kind": "before",
+                    "elapsed_ms": (meta.get("before") or {}).get("elapsed_ms")})
+    out.append({"key": "final", "url": f"/files/{sid}/final.png", "kind": "final",
+                "elapsed_ms": (meta.get("times") or {}).get("duration_ms")})
+    return out
+
+
+@api.get("/teacher/sessions")
+def teacher_sessions(request: Request, status: str = "all"):
+    """全部画完的作品，一行一件：谁画的、什么任务、最终图、我评过没有。status = todo | done | all。"""
+    me = _require_teacher(request)
+    rows = []
+    for row in store.list():
+        if row.get("status") != "done":
+            continue
+        sid = row["session_id"]
+        try:
+            meta = store.load(sid)
+        except KeyError:
+            continue
+        ratings = _teacher_ratings(sid)
+        mine = [r for r in ratings if r.get("rater_id") == me["rater_id"]]
+        graded = bool(mine)
+        if (status == "todo" and graded) or (status == "done" and not graded):
+            continue
+        task = meta.get("task") or {}
+        rows.append({
+            "session_id": sid, "created_at": meta.get("created_at"),
+            "task_id": task.get("task_id") or meta.get("quest_id"), "task_title": task.get("title") or meta.get("quest_id"),
+            "student": _student_name(meta), "lang": meta.get("lang", "zh"),
+            "image": f"/files/{sid}/final.png", "n_snapshots": len(meta.get("snapshots") or []),
+            "revised": bool(meta.get("revised")), "duration_ms": (meta.get("times") or {}).get("duration_ms"),
+            "graded_by_me": graded, "n_graders": len({r.get("rater_id") for r in ratings}),
+        })
+    rows.sort(key=lambda r: r.get("created_at") or "", reverse=True)
+    return {"me": me, "sessions": rows, "n_todo": sum(1 for r in rows if not r["graded_by_me"]) if status == "all" else None}
+
+
+@api.get("/teacher/sessions/{sid}")
+def teacher_session(sid: str, request: Request):
+    """一件作品的全部：图（过程 + 最终）、任务、心愿、我上次的评分。**不给模型的分**——老师不该被它带着走。"""
+    me = _require_teacher(request)
+    meta = _session_or_404(sid)
+    task = meta.get("task") or {}
+    mine = [r for r in _teacher_ratings(sid) if r.get("rater_id") == me["rater_id"]]
+    last = mine[-1] if mine else None
+    rubric = task.get("rubric") or {}
+    return {
+        "session_id": sid, "student": _student_name(meta), "created_at": meta.get("created_at"),
+        "lang": meta.get("lang", "zh"),
+        "task": {"task_id": task.get("task_id"), "title": task.get("title"), "instruction": task.get("instruction") or task.get("prompt"),
+                 "family_name": task.get("family_name") or task.get("type")},
+        "intent": meta.get("intent") or {},
+        "duration_ms": (meta.get("times") or {}).get("duration_ms"),
+        "images": _session_images(meta),
+        "dimensions": [{"key": d["key"], "zh": d["zh"], "en": d["en"], "desc": d["desc"]} for d in DIMENSIONS],
+        "not_applicable": list(rubric.get("not_applicable_dimensions") or []),
+        "scale_max": SCALE_MAX,
+        "my_rating": ({"dims": last.get("dims") or {}, "comment": last.get("note") or "",
+                       "image_notes": last.get("image_notes") or {}, "at": last.get("ts")} if last else None),
+        "n_graders": len({r.get("rater_id") for r in _teacher_ratings(sid)}),
+    }
+
+
+@api.post("/teacher/sessions/{sid}/grade")
+def teacher_grade(sid: str, body: TeacherGrade, request: Request):
+    """老师交卷。追加一条 rating（不覆盖别人的，也不覆盖自己上一次的——数据集要能报一致性）。"""
+    me = _require_teacher(request)
+    meta = _session_or_404(sid)
+    if meta.get("status") != "done":
+        raise HTTPException(409, "这张还没画完")
+    rubric = (meta.get("task") or {}).get("rubric")
+    bad = check_rating(body.dims, rubric)
+    if bad:
+        raise HTTPException(422, f"这个任务无法考察这些维度，不能打分：{bad}")
+    if not body.dims and not body.comment and not body.image_notes:
+        raise HTTPException(422, "什么都没写")
+    rec = store.add_rating(sid, {
+        "source": "teacher", "rater_id": me["rater_id"], "rater_name": me["name"],
+        "phase": "after" if meta.get("revised") else "before",
+        "overall": None, "dims": body.dims, "note": body.comment, "image_notes": body.image_notes,
+        "t_ms": body.t_ms, "featured": False, "rubric_version": (rubric or {}).get("version"),
+    })
+    store.add_server_event(sid, "RATING_ADDED", body.t_ms,
+                           {"rating_id": rec["rating_id"], "source": "teacher", "rater_id": me["rater_id"],
+                            "overall": None, "n_dims": len(body.dims), "n_image_notes": len(body.image_notes)})
+    return {"ok": True, "rating_id": rec["rating_id"]}
+
+
 @api.get("/sessions")
 def list_sessions(request: Request, participant_id: str = "", anon_id: str = "", account_id: str = ""):
     """带上身份 = 这个孩子自己的那些（app 永远带）；不带任何身份 = 研究员的全量视图，

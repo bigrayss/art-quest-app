@@ -1,0 +1,108 @@
+# -*- coding: utf-8 -*-
+"""教师端：老师注册要邀请码；只有老师（或研究员）能看全部作品、打分；打分追加不覆盖。"""
+import base64
+import io
+import os
+import unittest
+
+from .env import ADMIN, TMP as _TMP  # noqa: F401  (offline backends, throwaway data dir)
+
+os.environ["ARTQUEST_TEACHER_CODE"] = "code-777"
+
+from fastapi.testclient import TestClient  # noqa: E402
+from PIL import Image, ImageDraw  # noqa: E402
+
+from artquest.main import app  # noqa: E402
+
+
+def _png(color=(200, 40, 40)):
+    img = Image.new("RGB", (400, 300), "white")
+    d = ImageDraw.Draw(img)
+    d.ellipse((50, 50, 250, 250), fill=color, outline="black", width=4)
+    buf = io.BytesIO(); img.save(buf, "PNG")
+    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+
+
+class TeacherSide(unittest.TestCase):
+    def setUp(self):
+        self.c = TestClient(app)
+
+    def _finished_session(self, name="小画家", pin="1111", revise=True):
+        r = self.c.post("/api/accounts/register", json={"name": name, "pin": pin, "anon_id": "dev-" + name})
+        if r.status_code == 409:
+            r = self.c.post("/api/accounts/login", json={"name": name, "pin": pin, "anon_id": "dev-" + name})
+        tok, acc = r.json()["token"], r.json()["account"]
+        h = {"Authorization": f"Bearer {tok}"}
+        r = self.c.post("/api/sessions", headers=h, json={
+            "quest_id": "imagine_animal", "intent": {"emotion": "开心", "text": "一只飞鱼"},
+            "participant": {"anon_id": "dev-" + name, "account_id": acc["account_id"]}})
+        sid = r.json()["session_id"]
+        self.c.post(f"/api/sessions/{sid}/snapshot", json={"image": _png(), "elapsed_ms": 30000, "events": []})
+        self.c.post(f"/api/sessions/{sid}/submit", json={"image": _png(), "elapsed_ms": 60000, "phase": "before"})
+        if revise:
+            self.c.post(f"/api/sessions/{sid}/submit", json={"image": _png((40, 200, 90)), "elapsed_ms": 120000, "phase": "after"})
+        else:
+            self.c.post(f"/api/sessions/{sid}/finalize", json={"elapsed_ms": 61000})
+        return sid
+
+    def _teacher(self, name="王老师", code="code-777"):
+        r = self.c.post("/api/accounts/register", json={"name": name, "pin": "2222", "role": "teacher", "teacher_code": code})
+        return r
+
+    def test_a_teacher_needs_the_invite_code_and_a_student_cannot_enter(self):
+        self.assertEqual(self._teacher("冒充", code="wrong").status_code, 403)
+        r = self._teacher("李老师")
+        self.assertEqual(r.status_code, 201, r.text)
+        self.assertEqual(r.json()["account"]["role"], "teacher")
+        teacher = {"Authorization": f"Bearer {r.json()['token']}"}
+        student = self.c.post("/api/accounts/register", json={"name": "学生甲", "pin": "3333"}).json()
+        self.assertEqual(student["account"]["role"], "student")
+        self.assertEqual(self.c.get("/api/teacher/sessions", headers={"Authorization": f"Bearer {student['token']}"}).status_code, 403)
+        self.assertEqual(self.c.get("/api/teacher/sessions").status_code, 401)
+        self.assertEqual(self.c.get("/api/teacher/sessions", headers=teacher).status_code, 200)
+        self.assertEqual(self.c.get("/api/teacher/sessions", headers=ADMIN).status_code, 200)
+
+    def test_the_queue_shows_finished_work_and_grading_moves_it_to_done(self):
+        sid = self._finished_session("小画家A")
+        teacher = {"Authorization": f"Bearer {self._teacher('张老师').json()['token']}"}
+        todo = self.c.get("/api/teacher/sessions?status=todo", headers=teacher).json()
+        row = next(r for r in todo["sessions"] if r["session_id"] == sid)
+        self.assertEqual(row["student"], "小画家A")
+        self.assertTrue(row["revised"]); self.assertFalse(row["graded_by_me"]); self.assertEqual(row["n_snapshots"], 1)
+
+        detail = self.c.get(f"/api/teacher/sessions/{sid}", headers=teacher).json()
+        kinds = [i["kind"] for i in detail["images"]]
+        self.assertEqual(kinds, ["snapshot", "before", "final"], "过程图在前，最终图最后")
+        self.assertEqual(len(detail["dimensions"]), 9)
+        self.assertIsNone(detail["my_rating"])
+        self.assertNotIn("scores", detail, "不给老师看模型的分")
+
+        grade = {"dims": {"imagination": 4, "color_richness": 3}, "comment": "构图很稳。",
+                 "image_notes": {detail["images"][0]["key"]: "先画了轮廓", "before": "颜色还没上"}}
+        r = self.c.post(f"/api/teacher/sessions/{sid}/grade", headers=teacher, json=grade)
+        self.assertEqual(r.status_code, 200, r.text)
+        done = self.c.get("/api/teacher/sessions?status=done", headers=teacher).json()["sessions"]
+        self.assertIn(sid, [r["session_id"] for r in done])
+        todo = self.c.get("/api/teacher/sessions?status=todo", headers=teacher).json()["sessions"]
+        self.assertNotIn(sid, [r["session_id"] for r in todo])
+        detail = self.c.get(f"/api/teacher/sessions/{sid}", headers=teacher).json()
+        self.assertEqual(detail["my_rating"]["dims"]["imagination"], 4)
+        self.assertEqual(detail["my_rating"]["comment"], "构图很稳。")
+        self.assertEqual(detail["my_rating"]["image_notes"]["before"], "颜色还没上")
+
+    def test_two_teachers_are_two_ratings_and_bad_input_is_refused(self):
+        sid = self._finished_session("小画家B", revise=False)
+        t1 = {"Authorization": f"Bearer {self._teacher('赵老师').json()['token']}"}
+        t2 = {"Authorization": f"Bearer {self._teacher('钱老师').json()['token']}"}
+        self.assertEqual(self.c.post(f"/api/teacher/sessions/{sid}/grade", headers=t1, json={"dims": {"imagination": 5}}).status_code, 200)
+        self.assertEqual(self.c.post(f"/api/teacher/sessions/{sid}/grade", headers=t2, json={"comment": "只写评语也行"}).status_code, 200)
+        detail = self.c.get(f"/api/teacher/sessions/{sid}", headers=t1).json()
+        self.assertEqual(detail["n_graders"], 2)
+        self.assertEqual([i["kind"] for i in detail["images"]], ["snapshot", "final"], "没改过就没有 before 那张")
+        self.assertEqual(self.c.post(f"/api/teacher/sessions/{sid}/grade", headers=t1, json={}).status_code, 422)
+        self.assertEqual(self.c.post(f"/api/teacher/sessions/{sid}/grade", headers=t1, json={"dims": {"imagination": 9}}).status_code, 422)
+        self.assertEqual(self.c.post(f"/api/teacher/sessions/{sid}/grade", headers=t1, json={"dims": {"nope": 3}}).status_code, 422)
+
+
+if __name__ == "__main__":
+    unittest.main()
