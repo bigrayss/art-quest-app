@@ -3,6 +3,14 @@
 // 读者是 6–14 岁的孩子：短、日常、口语。彩点 = Dot。
 window.ARTQUEST_LANG_EN = {
   "语言": "Language",
+  "几岁（可不填）": "Age (optional)",
+  "版本": "Version",
+  "选一个版本": "Pick a version",
+  "简单版": "Simple",
+  "完整版": "Full",
+  "直接画，画完看彩点说一句、改一改。": "Just draw. Then Dot says one thing, and you can change your picture.",
+  "画前说说心情和想画什么，画完看成长图。": "Say how you feel and what you want to draw first. See your growth chart after.",
+  "推荐": "For you",
   "忘记密码？": "Forgot PIN?",
   "重设密码": "Reset PIN",
   "输入名字和新的四位数字密码。只能在你登录过的设备上改。": "Type your name and a new 4-digit PIN. This works only on a device you have logged in on.",
