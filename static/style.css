@@ -1528,10 +1528,10 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
   .zoombar #btn-hand .lbl { display:none; }
   .compare { grid-template-columns:1fr; }
 
-  /* 这一屏的高度不再用「100dvh 减一个常数」猜：常数猜大了底下留 45px 空，猜小了
+  /* 这一屏的高度不再用「整屏高度减一个常数」猜：常数猜大了底下留 45px 空，猜小了
      右栏被挤成一条缝（664 高的 iPhone 上右栏只剩 24px，主按钮露 10px，参考图整个在屏幕外，
      手指一碰就是在滚一个 24px 高的滚动区，iOS 上整页跟着橡皮筋往上蹿，之后哪儿都点不到）。
-     改成一条 flex 链：app 定 100dvh，screen → main → #view-draw 逐级 min-height:0，
+     改成一条 flex 链：app 定整屏高，screen → main → #view-draw 逐级 min-height:0，
      剩多少就是多少；页面本身不再有可滚的高度，iOS 就没有东西可以蹿。 */
   body[data-room="draw"] .app { height:100vh; height:100dvh; min-height:0; }
   body[data-room="draw"] .screen { min-height:0; }

@@ -48,8 +48,28 @@ class EnglishEngines(unittest.TestCase):
     def test_chinese_feedback_is_untouched(self):
         intent = {"text": "一只在树上睡觉的猫", "emotion": "开心"}
         text = TemplateFeedback().feedback(b"", ZH_QUEST, intent, SCORES)["text"]
-        self.assertTrue(text.startswith("我看到：你带着「开心」的心情画了这幅画，想表达的是——一只在树上睡觉的猫。"), text)
-        self.assertIn("围绕「想象」", text)
+        self.assertTrue(text.startswith("我看到：你心情开心，画的是「一只在树上睡觉的猫」。"), text)
+        self.assertIn("在「想象」上改一小处", text)
+
+    def test_empty_intent_leaves_no_empty_quotes_and_simple_mode_is_short(self):
+        """心情、心愿没填就不提；简单版只要「我看到」+「可以试试」，中英都不超过一口气。"""
+        eng = TemplateFeedback()
+        for quest in (ZH_QUEST, EN_QUEST):
+            text = eng.feedback(b"", quest, {"text": "", "emotion": ""}, SCORES)["text"]
+            self.assertNotIn("「」", text); self.assertNotIn("\u201c\u201d", text); self.assertNotIn("——", text)
+            simple = eng.feedback(b"", dict(quest, ui="simple"), {"text": "", "emotion": ""}, SCORES)["text"]
+            self.assertEqual(simple.count("\n"), 1, simple)
+            self.assertNotIn("一个问题" if quest is ZH_QUEST else "One question", simple)
+            limit = 40 if quest is ZH_QUEST else 30
+            size = len(simple) if quest is ZH_QUEST else len(simple.split())
+            self.assertLessEqual(size, limit, simple)
+            cmp = eng.compare(b"", b"", SCORES, SCORES, dict(quest, ui="simple"), {})["text"]
+            self.assertNotIn("？", cmp); self.assertNotIn("?", cmp)
+        # 简单版的陪伴：每句更短
+        for quest in (ZH_QUEST, EN_QUEST):
+            for n in range(1, 7):
+                t = TemplateAssist().assist(b"", dict(quest, ui="simple"), {"text": "", "emotion": ""}, nth=n)["text"]
+                self.assertLessEqual(len(t) if quest is ZH_QUEST else len(t.split()), 12 if quest is ZH_QUEST else 8, t)
 
     def test_assist_speaks_english_and_gives_the_intent_back_without_its_lead_in(self):
         eng = TemplateAssist()

@@ -20,8 +20,10 @@ SYSTEM = """你在陪一位 8–14 岁的创作者画画。他画到一半，主
 - 或者，认出他画面里已经在做的一件具体的事，说出来让他知道被看见了
   （「你给它画了三只眼睛」——陈述，不加评价）
 
-语气是蹲下来说话的同伴，不是老师。**一到两句，不超过 40 个字。**
-用「你」称呼他。不要用感叹号堆热情。"""
+像一个耐心的大孩子坐在旁边说话：短句，说事，不评价，不说教。**一到两句，不超过 30 个字。**
+用「你」称呼他。一句里最多一个感叹号。不用破折号。"""
+
+SYSTEM_SIMPLE_NOTE = "\n简单版：只说一句，不超过 15 个字。"
 
 # 英文会话用的同一段规矩。要害一句不变：只鼓励和发问，不评价。
 SYSTEM_EN = """You are keeping a young artist (age 8–14) company while they draw. They are halfway through and tapped you because they want to hear something from you.
@@ -40,8 +42,10 @@ Do:
 - Or name one specific thing they are already doing in the picture, so they know it was seen
   ("You gave it three eyes" — a plain statement, no judgement)
 
-Talk like a friend sitting next to them, not a teacher. **One or two short sentences, at most 25 words.**
-Use simple English a 6-year-old can read. Say "you". No piles of exclamation marks."""
+Talk like a patient older kid sitting next to them: short sentences, no judging, no lecturing. **One or two short sentences, at most 20 words.**
+Use simple English a 6-year-old can read. Say "you". At most one exclamation mark. No dashes."""
+
+SYSTEM_SIMPLE_NOTE_EN = "\nSimple version: one sentence, at most 10 words."
 
 
 class ClaudeAssist:
@@ -56,7 +60,7 @@ class ClaudeAssist:
                 f"How they felt when they started: {intent.get('emotion') or '(not chosen)'}\n"
                 f"This is the {nth}th time they tapped you. The canvas looks like this now:"
             )
-            system = SYSTEM_EN
+            system = SYSTEM_EN + (SYSTEM_SIMPLE_NOTE_EN if quest.get("ui") == "simple" else "")
         else:
             prompt = (
                 f"任务：{quest.get('title', '')}——{quest.get('prompt', '')}\n"
@@ -64,7 +68,7 @@ class ClaudeAssist:
                 f"他当时的心情：{intent.get('emotion') or '（没选）'}\n"
                 f"这是他第 {nth} 次点开你。画布现在是这样："
             )
-            system = SYSTEM
+            system = SYSTEM + (SYSTEM_SIMPLE_NOTE if quest.get("ui") == "simple" else "")
         text = claude_text(system, [image_block(image_png), {"type": "text", "text": prompt}],
                            max_tokens=200)
         return {"text": text.strip(), "backend": self.backend}
