@@ -132,10 +132,10 @@ async def revalidate_the_app_shell(request, call_next):
 
 
 def _quest_for_engines(meta: Dict[str, Any]) -> Dict[str, Any]:
-    """评分 / 反馈 / 陪伴引擎看到的任务：按会话语言翻好，再带上 `brief`（话要短，第一波反馈之后一律短）。
+    """评分 / 反馈 / 陪伴引擎看到的任务：按会话语言翻好，再带上 `ui`（simple 时话要短）。
     是一份拷贝，引擎只读。"""
     quest = i18n.quest_for(QUESTS_BY_ID[meta["quest_id"]], meta.get("lang", "zh"))
-    return {**quest, "brief": True}
+    return {**quest, "ui": (meta.get("condition") or {}).get("ui", "full")}
 
 
 def _session_or_404(sid: str) -> Dict[str, Any]:

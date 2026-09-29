@@ -28,9 +28,9 @@ ROSTER_PATH = DATA_DIR / "participants.json"
 
 # Frozen into every session's metadata, study or not.
 DEFAULT_CONDITION: Dict[str, Any] = {
-    # full = 正常版（本身就是极简的：不问心情/心愿、不做问卷、不摆成长图）；
-    # quiet = 对照组（去游戏化），只能由研究员设，设备发来的 ui 覆盖不了它
-    "ui": "full",              # full | quiet
+    # full = 完整；simple = 简单版（不问心情/心愿/问卷、不摆成长图，进化关保留）——孩子自己或按年龄推荐切；
+    # quiet = 对照组（去游戏化），只能由研究员设，孩子的开关改不动它
+    "ui": "full",              # full | simple | quiet
     "reference_allowed": True,
     "undo_allowed": True,
     "zoom_allowed": True,      # zooming/panning the canvas at all

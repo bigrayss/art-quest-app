@@ -35,40 +35,40 @@ def _png():
 class EnglishEngines(unittest.TestCase):
     def test_feedback_speaks_english_with_the_three_fixed_openers(self):
         intent = {"text": "a cat sleeping in a tree", "emotion": "开心"}
-        text = TemplateFeedback().feedback(b"", dict(EN_QUEST, brief=False), intent, SCORES)["text"]
+        text = TemplateFeedback().feedback(b"", EN_QUEST, intent, SCORES)["text"]
         self.assertIsNone(CJK.search(text), text)
         for opener in ("I see:", "One question:", "Try this:"):
             self.assertIn(opener, text)
         self.assertIn("happy", text, "中文心情词要换成英文说出来")
         cmp = TemplateFeedback().compare(b"", b"", SCORES, {"dims": {"imagination": {"score": 3.5}, "color_richness": {"score": 4}}},
-                                         dict(EN_QUEST, brief=False), intent)["text"]
+                                         EN_QUEST, intent)["text"]
         self.assertIsNone(CJK.search(cmp), cmp)
         self.assertIn("imagination", cmp)
 
     def test_chinese_feedback_is_untouched(self):
         intent = {"text": "一只在树上睡觉的猫", "emotion": "开心"}
-        text = TemplateFeedback().feedback(b"", dict(ZH_QUEST, brief=False), intent, SCORES)["text"]
+        text = TemplateFeedback().feedback(b"", ZH_QUEST, intent, SCORES)["text"]
         self.assertTrue(text.startswith("我看到：你心情开心，画的是「一只在树上睡觉的猫」。"), text)
         self.assertIn("在「想象」上改一小处", text)
 
-    def test_empty_intent_leaves_no_empty_quotes_and_the_default_is_short(self):
+    def test_empty_intent_leaves_no_empty_quotes_and_simple_mode_is_short(self):
         """心情、心愿没填就不提；简单版只要「我看到」+「可以试试」，中英都不超过一口气。"""
         eng = TemplateFeedback()
         for quest in (ZH_QUEST, EN_QUEST):
-            text = eng.feedback(b"", dict(quest, brief=False), {"text": "", "emotion": ""}, SCORES)["text"]
+            text = eng.feedback(b"", quest, {"text": "", "emotion": ""}, SCORES)["text"]
             self.assertNotIn("「」", text); self.assertNotIn("\u201c\u201d", text); self.assertNotIn("——", text)
-            simple = eng.feedback(b"", quest, {"text": "", "emotion": ""}, SCORES)["text"]
-            self.assertEqual(simple.count("\n"), 1, simple)
+            simple = eng.feedback(b"", dict(quest, ui="simple"), {"text": "", "emotion": ""}, SCORES)["text"]
+            self.assertEqual(simple.count("\n"), 0, simple)          # 简单版：一句话
             self.assertNotIn("一个问题" if quest is ZH_QUEST else "One question", simple)
-            limit = 40 if quest is ZH_QUEST else 30
+            limit = 20 if quest is ZH_QUEST else 12
             size = len(simple) if quest is ZH_QUEST else len(simple.split())
             self.assertLessEqual(size, limit, simple)
-            cmp = eng.compare(b"", b"", SCORES, SCORES, quest, {})["text"]
+            cmp = eng.compare(b"", b"", SCORES, SCORES, dict(quest, ui="simple"), {})["text"]
             self.assertNotIn("？", cmp); self.assertNotIn("?", cmp)
         # 简单版的陪伴：每句更短
         for quest in (ZH_QUEST, EN_QUEST):
             for n in range(1, 7):
-                t = TemplateAssist().assist(b"", quest, {"text": "", "emotion": ""}, nth=n)["text"]
+                t = TemplateAssist().assist(b"", dict(quest, ui="simple"), {"text": "", "emotion": ""}, nth=n)["text"]
                 self.assertLessEqual(len(t) if quest is ZH_QUEST else len(t.split()), 12 if quest is ZH_QUEST else 8, t)
 
     def test_assist_speaks_english_and_gives_the_intent_back_without_its_lead_in(self):

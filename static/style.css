@@ -1732,9 +1732,11 @@ html[data-lang="en"] .sq-end { width:4.4em; line-height:1.2; }
   html[data-lang="en"] .sq-end { width:3.8em; font-size:0.6875rem; }
 }
 
-/* ---------- 极简：结算/支招页不摆九维图，彩点页不摆成长面板（第一波反馈之后定的）。
-   数据照算照存，只是不摆给孩子看；徽章墙留着。 */
-#scores, #score-summary, #final-scores, #growth-wrap { display:none !important; }
+/* ---------- 简单版 ----------
+   字最少的版本：不问心情和心愿，画完不做问卷，不摆九维成长图，彩点只说一句，
+   宝藏页不放对比的话。只藏东西，流程逻辑在 app.js 里按 state.condition.ui === "simple" 走。 */
+body.simple #scores, body.simple #score-summary, body.simple #final-scores,
+body.simple #growth-wrap, body.simple #comparison-text { display:none !important; }
 /* 选择框里带说明的选项 */
 .choice button span { display:flex; flex-direction:column; align-items:flex-start; gap:2px; text-align:left; min-width:0; }
 .choice button small { font-size:0.75rem; font-weight:600; color:var(--muted-2); line-height:1.45; }

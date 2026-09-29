@@ -193,10 +193,14 @@ class DrawingWithNoNetwork(unittest.TestCase):
             page.wait_for_selector("#view-world:not(.hidden)")
             page.click("#btn-enter-world")
             page.wait_for_selector("#quest-grid .quest-card")
+            page.click("#quest-grid .quest-card")
+            page.wait_for_timeout(400)
+            page.click("#emotion-chips button")
+
             held = page.evaluate("async () => await ArtLog.countTickets()")
             context.set_offline(True)                       # ← 拔网线
 
-            page.click("#quest-grid .quest-card")           # 选了就画：离线时花一张票
+            page.click("#btn-start-draw")
             page.wait_for_selector("#view-draw:not(.hidden)")
             page.wait_for_timeout(600)
             self.assertEqual(page.evaluate("async () => await ArtLog.countTickets()"), held - 1,
@@ -291,6 +295,9 @@ class DrawingWithNoNetwork(unittest.TestCase):
             self.assertGreater(cold.eval_on_selector_all("#quest-grid .quest-card", "e => e.length"), 0,
                                "断网之后地图是空的")
             cold.click("#quest-grid .quest-card")
+            cold.wait_for_timeout(400)
+            cold.click("#emotion-chips button")
+            cold.click("#btn-start-draw")
             cold.wait_for_selector("#view-draw:not(.hidden)")   # ← 走到画布就算兑现
             browser.close()
 
