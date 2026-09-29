@@ -322,7 +322,7 @@
     out.classList.toggle("hidden", !!acc);
     inBox.classList.toggle("hidden", !acc);
     // 名字就写在卡片上，标题旁边再写一遍是重复的；登录之后那个位置改说设备
-    $("#acct-chip").textContent = acc && acc.devices > 1 ? `${acc.devices} 台设备` : "";
+    $("#acct-chip").textContent = acc && acc.role === "teacher" ? "老师" : (acc && acc.devices > 1 ? `${acc.devices} 台设备` : "");
     if (!acc) return;
     $("#acct-initial").textContent = Array.from(acc.name || "?")[0] || "?";
     $("#acct-name").textContent = acc.name;
@@ -353,8 +353,11 @@
     $("#btn-acct-switch").textContent = c.sw;
     $("#acct-pin-input").placeholder = c.pin;
     $("#btn-acct-forgot").classList.toggle("hidden", mode !== "login");
-    $("#acct-age-input").classList.toggle("hidden", mode !== "register");
     $("#acct-age-input").value = "";
+    $("#acct-code-input").value = "";
+    $("#acct-role").classList.toggle("hidden", mode !== "register");
+    setAcctRole("student");
+    $("#acct-age-input").classList.toggle("hidden", mode !== "register");
     $("#acct-err").classList.add("hidden");
     $("#acct-name-input").value = "";
     $("#acct-pin-input").value = "";
@@ -377,8 +380,14 @@
       const body = { name, pin, anon_id: state.anonId };
       if (acctMode === "register") {
         body.buddy_name = state.buddyName;
-        const age = parseInt($("#acct-age-input").value, 10);
-        if (age >= 3 && age <= 18) body.age = age;
+        body.role = acctRole;
+        if (acctRole === "teacher") {
+          body.teacher_code = $("#acct-code-input").value.trim();
+          if (!body.teacher_code) { acctError("请输入老师邀请码"); btn.disabled = false; return; }
+        } else {
+          const age = parseInt($("#acct-age-input").value, 10);
+          if (age >= 3 && age <= 18) body.age = age;
+        }
       }
       const r = await api(`${API}/accounts/${acctMode}`, { method: "POST", body: JSON.stringify(body) });   // register / login / reset
       setToken(r.token); state.account = r.account; cacheAccount(r.account);
@@ -387,6 +396,12 @@
       if (r.account.buddy_name) setBuddyName(r.account.buddy_name, { push: false });
       else if (state.buddyName) setBuddyName(state.buddyName);
       closeAcct();
+      // 老师：不进门口、不看导览，直接到打分列表
+      if (isTeacher()) {
+        welcomeOn = false;
+        try { localStorage.setItem(WELCOME_KEY, "1"); } catch (e2) { /* 无所谓 */ }
+        applyRole(); await loadAccount(); await openTab("grade"); return;
+      }
       paintIntentIdentity();        // 心愿页那句「起个名字」现在不用再说了
       await loadAccount();          // 顺便问一句这台设备上有没有还没写名字的画
       await loadCollection(); renderQuests();
@@ -401,6 +416,16 @@
       acctError(errText(e));
     } finally { btn.disabled = false; }
   }
+  // 学生 / 老师：同一张表上的一个开关。老师要邀请码，不问年龄。
+  let acctRole = "student";
+  function setAcctRole(role) {
+    acctRole = role === "teacher" ? "teacher" : "student";
+    $("#acct-role").querySelectorAll("[data-role]").forEach(b => b.classList.toggle("on", b.dataset.role === acctRole));
+    $("#acct-code-input").classList.toggle("hidden", !(acctMode === "register" && acctRole === "teacher"));
+    $("#acct-age-input").classList.toggle("hidden", !(acctMode === "register" && acctRole === "student"));
+  }
+  $("#acct-role").querySelectorAll("[data-role]").forEach(b => b.onclick = () => setAcctRole(b.dataset.role));
+  $("#acct-code-input").onkeydown = (e) => { if (e.key === "Enter") submitAcct(); };
   $("#btn-acct-register").onclick = () => openAcct("register");
   $("#btn-acct-login").onclick = () => openAcct("login");
   $("#btn-acct-switch").onclick = () => openAcct(acctMode === "register" ? "login" : acctMode === "reset" ? "login" : "register");
@@ -429,11 +454,136 @@
     if (!confirm("确定退出登录？")) return;
     try { await api(`${API}/accounts/logout`, { method: "POST", body: JSON.stringify({ token: savedToken() }) }); }
     catch (e) { /* 退出是本地的事，网不通也要退得掉 */ }
+    const wasTeacher = isTeacher();
     setToken(""); cacheAccount(null); state.account = null; state.unclaimed = 0;
+    applyRole();
     paintIntentIdentity();
     await loadCollection(); renderQuests();
     await loadSessions();
+    if (wasTeacher) show("sessions");      // 老师退出后停在「我的」，tab 已经换回学生那套
   };
+
+  // ===== 教师端 =====
+  // 老师登录进来就是打分：服务器上全部画完的作品，最终图九维 + 评语，过程图各一句短评。
+  // 凭证是老师账号的令牌（role=teacher），后端 /teacher/* 只认它（和研究员令牌）。
+  const isTeacher = () => ((state.account || {}).role === "teacher");
+  function applyRole() { document.body.classList.toggle("teacher", isTeacher()); }
+
+  let tFilter = "todo", tRows = [];
+  async function loadTeacherList() {
+    const list = $("#tlist"); list.innerHTML = "";
+    $("#tempty").classList.add("hidden");
+    try {
+      const r = await api(`${API}/teacher/sessions?status=all`);
+      tRows = r.sessions || [];
+    } catch (e) {
+      tRows = [];
+      $("#tempty").textContent = errText(e); $("#tempty").classList.remove("hidden");
+      return;
+    }
+    const todo = tRows.filter(x => !x.graded_by_me).length;
+    $("#tf-todo").textContent = todo ? `(${todo})` : "";
+    $("#tf-done").textContent = tRows.length - todo ? `(${tRows.length - todo})` : "";
+    renderTeacherList();
+  }
+  function renderTeacherList() {
+    $("#tfilter").querySelectorAll("[data-f]").forEach(b => b.classList.toggle("on", b.dataset.f === tFilter));
+    const rows = tRows.filter(x => tFilter === "done" ? x.graded_by_me : !x.graded_by_me);
+    const list = $("#tlist");
+    list.innerHTML = rows.map(x => `<button class="tcard" data-sid="${x.session_id}">
+      <div class="tthumb"><img src="${fileUrl(x.image)}" alt="" loading="lazy"></div>
+      <div class="tbody">
+        <div class="tname">${escapeHtml(x.student || "")}</div>
+        <div class="ttask">${escapeHtml(x.task_title || "")}</div>
+        <div class="tmeta"><span>${whenText(x.created_at)}</span><span>${x.revised ? "改过一次" : "没改"}</span>
+          ${x.n_graders ? `<span>${x.n_graders} 位老师评过</span>` : ""}${x.graded_by_me ? `<span class="tdone">我评过了</span>` : ""}</div>
+      </div></button>`).join("");
+    const empty = $("#tempty");
+    empty.textContent = tFilter === "done" ? "还没有评过的。" : (tRows.length ? "都评完了。" : "还没有画完的作品。");
+    empty.classList.toggle("hidden", rows.length > 0);
+    list.querySelectorAll(".tcard").forEach(b => b.onclick = () => openGrade(b.dataset.sid));
+  }
+  $("#tfilter").querySelectorAll("[data-f]").forEach(b => b.onclick = () => { tFilter = b.dataset.f; renderTeacherList(); });
+
+  // ---- 打分屏 ----
+  let grade = null;      // { sid, dims:{}, notes:{}, na:Set, startedAt }
+  async function openGrade(sid) {
+    let d;
+    try { d = await api(`${API}/teacher/sessions/${encodeURIComponent(sid)}`); }
+    catch (e) { alert(errText(e)); return; }
+    const mine = d.my_rating || {};
+    grade = { sid, dims: { ...(mine.dims || {}) }, notes: { ...(mine.image_notes || {}) },
+              na: new Set(d.not_applicable || []), startedAt: Date.now(), scaleMax: d.scale_max || 5 };
+    $("#g-student").textContent = d.student || "";
+    const dur = d.duration_ms ? (d.duration_ms >= 60000 ? `${Math.round(d.duration_ms / 60000)} 分钟` : `${Math.round(d.duration_ms / 1000)} 秒`) : "";
+    $("#g-meta").textContent = [d.task.title, whenText(d.created_at), dur].filter(Boolean).join(" · ");
+    $("#g-graders").textContent = d.n_graders ? `${d.n_graders} 位老师评过` : "";
+    $("#g-task-title").textContent = d.task.title || "";
+    $("#g-task-family").textContent = d.task.family_name || "";
+    $("#g-task-text").textContent = d.task.instruction || "";
+    const it = d.intent || {};
+    $("#g-intent").textContent = [it.emotion ? `心情：${it.emotion}` : "", it.text ? `想画：${it.text}` : ""].filter(Boolean).join(" · ");
+    $("#g-task").open = false;
+    const imgs = d.images || [];
+    const fin = imgs.find(i => i.kind === "final") || imgs[imgs.length - 1];
+    $("#g-final-img").src = fin ? fileUrl(fin.url) : "";
+    $("#g-final").onclick = () => fin && openPic(fileUrl(fin.url));
+    // 过程图：快照 + 改之前那张；最终图不在这条带上
+    const proc = imgs.filter(i => i.kind !== "final");
+    const strip = $("#g-strip");
+    strip.dataset.empty = "这张没有过程图。";
+    strip.innerHTML = proc.map((im, i) => `<div class="gshot">
+      <button type="button" data-url="${fileUrl(im.url)}"><img src="${fileUrl(im.url)}" alt="" loading="lazy"></button>
+      <div class="gtag"><span>${im.kind === "before" ? "改之前" : `第 ${i + 1} 张`}</span><span>${im.elapsed_ms != null ? fmtClock(im.elapsed_ms) : ""}</span></div>
+      <input type="text" data-key="${escapeHtml(im.key)}" placeholder="一句短评" value="${escapeHtml(grade.notes[im.key] || "")}">
+    </div>`).join("");
+    strip.querySelectorAll("button").forEach(b => b.onclick = () => openPic(b.dataset.url));
+    strip.querySelectorAll("input").forEach(inp => inp.oninput = () => { grade.notes[inp.dataset.key] = inp.value; });
+    // 九维
+    const dims = $("#g-dims");
+    dims.innerHTML = (d.dimensions || []).map(dim => {
+      const na = grade.na.has(dim.key);
+      const scale = na ? `<span class="gdscale">这个任务不考察</span>`
+        : `<div class="gdscale">${[1, 2, 3, 4, 5].slice(0, grade.scaleMax).map(v =>
+            `<button type="button" data-dim="${dim.key}" data-v="${v}" class="${grade.dims[dim.key] === v ? "on" : ""}">${v}</button>`).join("")}</div>`;
+      return `<div class="gd${na ? " na" : ""}"><div class="gdname"><span>${escapeHtml(dimName(dim))}</span><small>${escapeHtml(dim.desc || "")}</small></div>${scale}</div>`;
+    }).join("");
+    dims.querySelectorAll("button[data-dim]").forEach(b => b.onclick = () => {
+      const k = b.dataset.dim, v = +b.dataset.v;
+      if (grade.dims[k] === v) delete grade.dims[k]; else grade.dims[k] = v;    // 再点一下取消
+      dims.querySelectorAll(`button[data-dim="${k}"]`).forEach(x => x.classList.toggle("on", grade.dims[k] === +x.dataset.v));
+    });
+    $("#g-comment").value = mine.comment || "";
+    $("#g-err").classList.add("hidden");
+    show("grade");
+  }
+  const fmtClock = (ms) => { const s = Math.round(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+  async function saveGrade() {
+    if (!grade) return;
+    const dims = {}; Object.keys(grade.dims).forEach(k => { if (!grade.na.has(k)) dims[k] = grade.dims[k]; });
+    const notes = {}; Object.keys(grade.notes).forEach(k => { if ((grade.notes[k] || "").trim()) notes[k] = grade.notes[k].trim(); });
+    const comment = $("#g-comment").value.trim();
+    const err = $("#g-err");
+    if (!Object.keys(dims).length && !comment && !Object.keys(notes).length) {
+      err.textContent = "还什么都没写。"; err.classList.remove("hidden"); return;
+    }
+    const btn = $("#btn-grade-save"); btn.disabled = true; err.classList.add("hidden");
+    try {
+      await api(`${API}/teacher/sessions/${encodeURIComponent(grade.sid)}/grade`, { method: "POST",
+        body: JSON.stringify({ dims, comment, image_notes: notes, t_ms: Date.now() - grade.startedAt }) });
+      grade = null;
+      await openTab("grade");
+    } catch (e) {
+      err.textContent = errText(e); err.classList.remove("hidden");
+    } finally { btn.disabled = false; }
+  }
+  $("#btn-grade-save").onclick = saveGrade;
+  $("#btn-grade-back").onclick = () => openTab("grade");
+  // 看大图
+  const picModal = $("#pic-modal");
+  function openPic(url) { $("#pic-img").src = url; picModal.classList.remove("hidden"); }
+  $("#btn-pic-close").onclick = () => picModal.classList.add("hidden");
+  picModal.onclick = (e) => { if (e.target === picModal) picModal.classList.add("hidden"); };
 
   // ===== 做一幅画的六步：顶栏上一条细进度条 =====
   // 闯关地图搬到首页去了——那儿才该热闹。一次创作的过程条只需要回答一件事：还剩几步。
@@ -467,10 +617,11 @@
 
   // ---------- views ----------
   // 四个 tab 是四块独立的界面；做任务时导航整个收起来，只剩画画。
-  const VIEWS = ["welcome", "world", "quest", "dex", "buddy", "sessions", "intent", "draw", "result", "survey", "final"];
-  const TAB_VIEW = { map: "quest", dex: "dex", buddy: "buddy", me: "sessions" };
-  const VIEW_TAB = { world: "map", quest: "map", dex: "dex", buddy: "buddy", sessions: "me" };
-  const TITLES = { world: "彩点的世界", quest: "地图", dex: "画廊", buddy: "彩点", sessions: "我的" };
+  const VIEWS = ["welcome", "world", "quest", "dex", "buddy", "sessions", "intent", "draw", "result", "survey", "final",
+                 "teacher", "grade"];
+  const TAB_VIEW = { map: "quest", dex: "dex", buddy: "buddy", me: "sessions", grade: "teacher" };
+  const VIEW_TAB = { world: "map", quest: "map", dex: "dex", buddy: "buddy", sessions: "me", teacher: "grade", grade: "grade" };
+  const TITLES = { world: "彩点的世界", quest: "地图", dex: "画廊", buddy: "彩点", sessions: "我的", teacher: "打分", grade: "打分" };
   function show(name) {
     VIEWS.forEach(v => $(`#view-${v}`).classList.toggle("hidden", v !== name));
     native("keepAwake", { on: name === "draw" });     // 画着画的时候屏幕别自己暗下去
@@ -516,6 +667,7 @@
     if (view === "dex") { await loadCollection(); await renderWall(); }
     else if (view === "buddy") { await renderBadgeWall(); await renderGrowth(); }
     else if (view === "sessions") await loadSessions();
+    else if (view === "teacher") await loadTeacherList();
   }
   document.querySelectorAll(".tab").forEach(b => { b.onclick = () => openTab(b.dataset.tab); });
   const overlay = (text) => { $("#overlay").classList.toggle("hidden", !text); if (text) $("#overlay-text").textContent = text; };
@@ -2382,7 +2534,9 @@
     //   导览没看完 → 封面 + 导览（导览第一步指的是封面上的彩点，得让它在屏幕上）；
     //   这个标签页里进过地图 → 地图；否则封面。
     const quiet = state.condition.ui === "quiet";
-    if (quiet) { show("quest"); checkFeatured(); }
+    applyRole();
+    if (isTeacher()) { await openTab("grade"); }
+    else if (quiet) { show("quest"); checkFeatured(); }
     else if (!welcomeSeen() && !state.account) { welcomeOn = true; show("welcome"); }
     else if (!guideSeen()) { await renderWorld(); show("world"); startTour(); }
     else if (state.entered) { show("quest"); checkFeatured(); }

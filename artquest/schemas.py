@@ -395,6 +395,34 @@ class Rating(BaseModel):
         return v
 
 
+class TeacherGrade(BaseModel):
+    """老师给一次创作打分：最终图九维 + 评语；过程图各一句短评。
+
+    存成一条 Rating（source=teacher, rater_id=老师账号），所以两位老师评同一张是正常情况，
+    评分者一致性算得出来。`image_notes` 的键是图片的 key（"before" 或 "checkpoints/xxx.png"）。
+    """
+    dims: Dict[str, int] = Field({}, description="九维打分，与模型同一量表 1–5")
+    comment: str = Field("", max_length=2000, description="最终图的评语")
+    image_notes: Dict[str, str] = Field({}, description="过程图的短评：{图片 key: 一句话}")
+    t_ms: int = 0
+
+    @field_validator("dims")
+    @classmethod
+    def _known_dims(cls, v):
+        bad = sorted(set(v) - set(DIM_KEYS))
+        if bad:
+            raise ValueError(f"unknown dimensions: {bad}")
+        out_of_range = {k: s for k, s in v.items() if not 1 <= s <= SCALE_MAX}
+        if out_of_range:
+            raise ValueError(f"scores must be 1–{SCALE_MAX}: {out_of_range}")
+        return v
+
+    @field_validator("image_notes")
+    @classmethod
+    def _short_notes(cls, v):
+        return {k: (t or "").strip()[:300] for k, t in v.items() if k and (t or "").strip()}
+
+
 class StudyAssign(BaseModel):
     participant_id: str = ""
     anon_id: str = ""
@@ -409,6 +437,10 @@ class Register(BaseModel):
     anon_id: str = Field("", description="当前这台设备的代号")
     buddy_name: str = Field("", max_length=16, description="伙伴的名字，跟着账号走")
     age: Optional[int] = Field(None, ge=3, le=18, description="几岁，可不填；≤8 推荐简单版")
+    # 老师和学生用同一张注册表，多一个开关。老师要邀请码（服务器 ARTQUEST_TEACHER_CODE），
+    # 不然谁都能注册成老师、看到全部孩子的画。
+    role: Literal["student", "teacher"] = "student"
+    teacher_code: str = Field("", max_length=64)
 
 
 class Login(BaseModel):
