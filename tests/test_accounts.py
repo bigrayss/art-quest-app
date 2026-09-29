@@ -101,6 +101,27 @@ class Registration(unittest.TestCase):
         self.assertEqual(self.c.get("/api/accounts/me", params={"token": other["token"]}).status_code, 200)
 
 
+    def test_a_forgotten_pin_is_reset_only_on_a_device_that_logged_in_or_by_a_teacher(self):
+        """忘了暗号：没有邮箱、没有真名，凭证只有「这台设备登录过」或老师的令牌。"""
+        self.c.post("/api/accounts/register", json={"name": "忘了", "pin": "1111", "anon_id": "dev-mine"})
+        # 别人的设备拿着名字改不了
+        r = self.c.post("/api/accounts/reset", json={"name": "忘了", "pin": "2222", "anon_id": "dev-stranger"})
+        self.assertEqual(r.status_code, 403, r.text)
+        self.assertEqual(self.c.post("/api/accounts/login", json={"name": "忘了", "pin": "1111"}).status_code, 200)
+        # 自己画过画的设备上可以，改完直接是登录态
+        r = self.c.post("/api/accounts/reset", json={"name": "忘了", "pin": "2222", "anon_id": "dev-mine"})
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual(self.c.get("/api/accounts/me", params={"token": r.json()["token"]}).status_code, 200)
+        self.assertEqual(self.c.post("/api/accounts/login", json={"name": "忘了", "pin": "1111"}).status_code, 401)
+        self.assertEqual(self.c.post("/api/accounts/login", json={"name": "忘了", "pin": "2222"}).status_code, 200)
+        # 老师带研究员令牌，在任何设备上都能替孩子重设
+        r = self.c.post("/api/accounts/reset", json={"name": "忘了", "pin": "3333", "anon_id": "dev-teacher"}, headers=ADMIN)
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual(self.c.post("/api/accounts/login", json={"name": "忘了", "pin": "3333"}).status_code, 200)
+        # 不存在的名字：401，和登录一个口径
+        self.assertEqual(self.c.post("/api/accounts/reset", json={"name": "没这人", "pin": "3333"}, headers=ADMIN).status_code, 401)
+
+
 class WhoseDrawingIsIt(unittest.TestCase):
     """账号引进来的真正风险：一台设备上不止一个孩子。"""
 

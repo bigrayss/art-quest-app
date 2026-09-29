@@ -32,7 +32,7 @@ from .revision import attribute as attribute_revision
 from .schemas import (
     AssistIn,Abandon, Annotation, ClaimDevice, CreateSession, Curate, DrawEvent, EarnedBadges,
                       FeaturedAnswer, FeedbackIn, Finalize, HARDEST_PARTS_SHOWN, IssueTickets, Login, LogBatch,
-                      PROCESS_LABELS, ProfileUpdate, Questionnaire, Rating, Register, Snapshot, StudyAssign,
+                      PROCESS_LABELS, ProfileUpdate, Questionnaire, Rating, Register, ResetPin, Snapshot, StudyAssign,
                       Stroke, Submit, TokenOnly)
 from .scoring import DIMENSIONS, SCALE_MAX, get_scorer
 from .storage import SCHEMA_VERSION, SessionStore, decode_data_url, now_iso, sid_of
@@ -367,6 +367,18 @@ def account_login(body: Login):
     try:
         return accounts.login(body.name, body.pin, anon_id=body.anon_id)
     except AccountError as e:
+        raise _account_error(e)
+
+
+@api.post("/accounts/reset")
+def account_reset(body: ResetPin, request: Request):
+    """忘了暗号。孩子在自己登录过的设备上可以直接改；老师带研究员令牌可以替任何人改。
+    403 = 这台设备没登录过这个账号（不是「名字不存在」，那是 401）。"""
+    try:
+        return accounts.reset_pin(body.name, body.pin, anon_id=body.anon_id, by_admin=_is_admin(request))
+    except AccountError as e:
+        if e.code == "not_your_device":
+            raise HTTPException(403, e.message)
         raise _account_error(e)
 
 

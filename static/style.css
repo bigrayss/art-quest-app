@@ -1161,6 +1161,13 @@ body.welcome .appbar, body.welcome .studybar { display:none; }
 .langbtn:hover { color:var(--ink); }
 #view-welcome { position:relative; }
 #btn-lang-me { background:none; border:none; box-shadow:none; padding:0; min-height:0; font:inherit; font-weight:800; color:var(--accent-d); }
+/* 选择框：一行一个选项，当前那个带钩 */
+.choice { display:flex; flex-direction:column; gap:8px; margin-top:6px; }
+.choice button { display:flex; justify-content:space-between; align-items:center; width:100%; padding:12px 14px;
+  font-size:1rem; font-weight:800; background:var(--card); }
+.choice button .ico { opacity:0; color:var(--accent-d); }
+.choice button.on { border-color:var(--accent); background:var(--accent-l); color:var(--accent-d); }
+.choice button.on .ico { opacity:1; }
 #view-welcome { min-height: 100vh; min-height: 100dvh; display:flex; align-items:center; justify-content:center;
   padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
 .world.welcome .cover { height: 40vh; height: 40dvh; }
