@@ -161,6 +161,7 @@ class SessionStore:
                 # 唯一还成立的那根线。空着就是没登录，那时只有设备认得他。
                 "account_id": p.get("account_id", ""),
                 "label": p.get("label", ""),
+                "age": p.get("age"),
                 # 孩子给创作伙伴起的名字；有没有起名本身就是投入程度的信号
                 "buddy_name": p.get("buddy_name", ""),
             },
@@ -249,7 +250,8 @@ class SessionStore:
             "condition": dict(condition or {}),
             "participant": {"anon_id": p.get("anon_id", ""), "participant_id": p.get("participant_id", ""),
                             "account_id": p.get("account_id", ""),
-                            "label": p.get("label", ""), "buddy_name": p.get("buddy_name", "")},
+                            "label": p.get("label", ""),
+                "age": p.get("age"), "buddy_name": p.get("buddy_name", "")},
             "study": {"active": bool((study or {}).get("active")), "study_id": (study or {}).get("study_id", ""),
                       "group": (study or {}).get("group", "")},
             "quest_id": quest_id,

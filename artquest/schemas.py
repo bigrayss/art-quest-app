@@ -20,6 +20,8 @@ class Participant(BaseModel):
     label: str = ""
     # 孩子给创作伙伴起的名字。存下来是因为「有没有给它起名」本身就是投入程度的信号
     buddy_name: str = Field("", max_length=16, description="孩子给创作伙伴起的名字")
+    # 注册时填的年龄（可不填）。它决定推荐简单版还是完整版，分析时是协变量
+    age: Optional[int] = Field(None, ge=3, le=18, description="注册时填的年龄，可为空")
 
 
 class Device(BaseModel):
@@ -406,6 +408,7 @@ class Register(BaseModel):
     pin: str = Field(..., max_length=8, description="四位数字暗号")
     anon_id: str = Field("", description="当前这台设备的代号")
     buddy_name: str = Field("", max_length=16, description="伙伴的名字，跟着账号走")
+    age: Optional[int] = Field(None, ge=3, le=18, description="几岁，可不填；≤8 推荐简单版")
 
 
 class Login(BaseModel):

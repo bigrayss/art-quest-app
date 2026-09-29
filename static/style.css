@@ -1729,3 +1729,14 @@ html[data-lang="en"] .sq-end { width:4.4em; line-height:1.2; }
   html[data-lang="en"] .sq-scale button { min-width:0; }
   html[data-lang="en"] .sq-end { width:3.8em; font-size:0.6875rem; }
 }
+
+/* ---------- 简单版 ----------
+   低龄孩子的版本：不问心情和心愿，画完不做问卷，不摆九维成长图；进化关保留。
+   只藏东西，不换流程逻辑——逻辑在 app.js 里按 state.condition.ui === "simple" 走。 */
+body.simple #scores, body.simple #score-summary, body.simple #final-scores,
+body.simple #growth-wrap { display:none !important; }
+/* 选择框里带说明的选项 */
+.choice button span { display:flex; flex-direction:column; align-items:flex-start; gap:2px; text-align:left; min-width:0; }
+.choice button small { font-size:0.75rem; font-weight:600; color:var(--muted-2); line-height:1.45; }
+.choice button.on small { color:var(--accent-d); opacity:.85; }
+.choice button .tag { font-size:0.6875rem; font-weight:800; color:#fff; background:var(--accent); border-radius:999px; padding:2px 8px; margin-left:8px; }

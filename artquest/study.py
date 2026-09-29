@@ -28,7 +28,9 @@ ROSTER_PATH = DATA_DIR / "participants.json"
 
 # Frozen into every session's metadata, study or not.
 DEFAULT_CONDITION: Dict[str, Any] = {
-    "ui": "full",              # full | quiet — gamification level
+    # full = 完整；simple = 简单版（不问心情/心愿/问卷、不摆成长图，进化关保留）——孩子自己或按年龄推荐切；
+    # quiet = 对照组（去游戏化），只能由研究员设，孩子的开关改不动它
+    "ui": "full",              # full | simple | quiet
     "reference_allowed": True,
     "undo_allowed": True,
     "zoom_allowed": True,      # zooming/panning the canvas at all
@@ -104,7 +106,11 @@ def resolve_condition(overrides: Optional[Dict[str, Any]] = None, group: str = "
     if group and isinstance(study.get("groups"), dict):
         cond.update({k: v for k, v in (study["groups"].get(group) or {}).items() if k in CONDITION_KEYS})
     if overrides:
-        cond.update({k: v for k, v in overrides.items() if k in CONDITION_KEYS})
+        ov = {k: v for k, v in overrides.items() if k in CONDITION_KEYS}
+        # 对照组是研究员定的实验臂，孩子设备上的「简单 / 完整」开关改不动它
+        if cond.get("ui") == "quiet":
+            ov.pop("ui", None)
+        cond.update(ov)
     return cond
 
 

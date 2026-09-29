@@ -131,6 +131,13 @@ async def revalidate_the_app_shell(request, call_next):
     return response
 
 
+def _quest_for_engines(meta: Dict[str, Any]) -> Dict[str, Any]:
+    """评分 / 反馈 / 陪伴引擎看到的任务：按会话语言翻好，再带上 `ui`（simple 时话要短）。
+    是一份拷贝，引擎只读。"""
+    quest = i18n.quest_for(QUESTS_BY_ID[meta["quest_id"]], meta.get("lang", "zh"))
+    return {**quest, "ui": (meta.get("condition") or {}).get("ui", "full")}
+
+
 def _session_or_404(sid: str) -> Dict[str, Any]:
     try:
         return store.load(sid)
@@ -357,7 +364,7 @@ def _check_owner(request: Request, account_id: str) -> None:
 @api.post("/accounts/register", status_code=201)
 def account_register(body: Register):
     try:
-        return accounts.register(body.name, body.pin, anon_id=body.anon_id, buddy_name=body.buddy_name)
+        return accounts.register(body.name, body.pin, anon_id=body.anon_id, buddy_name=body.buddy_name, age=body.age)
     except AccountError as e:
         raise _account_error(e)
 
@@ -619,7 +626,7 @@ def assist(sid: str, body: AssistIn):
     except ValueError as e:
         raise HTTPException(400, str(e))
     _ingest(sid, body.events, [])
-    quest = i18n.quest_for(QUESTS_BY_ID[meta["quest_id"]], meta.get("lang", "zh"))
+    quest = _quest_for_engines(meta)
     try:
         out = get_assist_engine().assist(png, quest, meta.get("intent") or {}, nth=max(1, body.nth))
     except Exception as e:                      # 陪伴挂了绝不能挡住画画
@@ -643,7 +650,7 @@ def snapshot(sid: str, body: Snapshot):
 
 def _score_and_save(sid: str, phase: str, png: bytes, elapsed_ms: int) -> Dict[str, Any]:
     meta = store.load(sid)
-    quest, intent = i18n.quest_for(QUESTS_BY_ID[meta["quest_id"]], meta.get("lang", "zh")), meta["intent"]
+    quest, intent = _quest_for_engines(meta), meta["intent"]
     store.save_phase_image(sid, phase, png)
     try:
         scores = get_scorer().score(png, quest, intent)
@@ -663,7 +670,7 @@ def submit(sid: str, body: Submit):
     except ValueError as e:
         raise HTTPException(400, str(e))
     _ingest(sid, body.events, body.strokes)
-    quest, intent = i18n.quest_for(QUESTS_BY_ID[meta["quest_id"]], meta.get("lang", "zh")), meta["intent"]
+    quest, intent = _quest_for_engines(meta), meta["intent"]
     engine = get_feedback_engine()
 
     if body.phase == "before":

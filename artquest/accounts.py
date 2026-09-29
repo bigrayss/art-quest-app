@@ -134,7 +134,8 @@ class AccountStore:
         return acc
 
     # -- 注册 / 登录 -------------------------------------------------------
-    def register(self, name: str, pin: str, *, anon_id: str = "", buddy_name: str = "") -> Dict[str, Any]:
+    def register(self, name: str, pin: str, *, anon_id: str = "", buddy_name: str = "",
+                 age: Optional[int] = None) -> Dict[str, Any]:
         name = check_name(name)
         pin = check_pin(pin)
         idx = self._index()
@@ -152,6 +153,8 @@ class AccountStore:
             "pin": {"algo": "pbkdf2_sha256", "iter": _PBKDF2_ITER, "salt": salt, "hash": _hash_pin(pin, salt)},
             # 伙伴的名字跟着账号走，换台设备它还叫原来那个名字
             "buddy_name": (buddy_name or "").strip()[:16],
+            # 年龄只用来推荐模式和做协变量；不填就是 None
+            "age": int(age) if age is not None else None,
             "devices": [],
             "failed": 0,
             "locked_until": None,
@@ -316,6 +319,7 @@ class AccountStore:
             "name": acc["name"],
             "created_at": acc.get("created_at", ""),
             "buddy_name": acc.get("buddy_name", ""),
+            "age": acc.get("age"),
             # 只给数量：别的设备的代号，前端一个也用不上
             "devices": len(acc.get("devices", [])),
         }
