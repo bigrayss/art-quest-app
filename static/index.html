@@ -501,7 +501,22 @@
     <div class="actions column">
       <button class="primary" id="btn-acct-go">注册</button>
       <button class="ghost" id="btn-acct-switch">已有账号，去登录</button>
+      <button class="ghost hidden" id="btn-acct-forgot">忘记密码？</button>
       <button class="ghost" id="btn-acct-cancel">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 语言：一张选择框，选了才换，不是点一下就跳 -->
+<div class="modal hidden" id="lang-modal">
+  <div class="modal-card">
+    <h3 data-no-i18n>语言 / Language</h3>
+    <div class="choice" id="lang-choices" data-no-i18n>
+      <button data-lang="zh"><span>中文</span><i data-icon="check" data-size="18"></i></button>
+      <button data-lang="en"><span>English</span><i data-icon="check" data-size="18"></i></button>
+    </div>
+    <div class="actions column">
+      <button class="ghost" id="btn-lang-cancel">取消</button>
     </div>
   </div>
 </div>

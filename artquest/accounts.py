@@ -195,6 +195,34 @@ class AccountStore:
             self._remember_device(acc["account_id"], anon_id, claim=False)
         return {"token": token, "account": self.public(self.load(acc["account_id"]))}
 
+    def reset_pin(self, name: str, new_pin: str, *, anon_id: str = "", by_admin: bool = False) -> Dict[str, Any]:
+        """忘了暗号。没有邮箱、没有真名，能证明「这是我的账号」的只有两样：
+
+        - **这台设备登录过这个账号**（`devices` 里有它的 anon_id）——孩子在自己画过画的 iPad 上
+          可以直接改；别人在自己的设备上拿着一个名字改不了。
+        - **研究员/老师**（管理员令牌）——课堂上孩子忘了就找老师，老师在教师端重设。
+
+        旧令牌都留着：别的设备上仍然登录着，忘暗号不该把人从别处踢下线。改完在这台设备上直接登录。
+        """
+        new_pin = check_pin(new_pin)
+        key = name_key(name)
+        account_id = self._index()["names"].get(key, "")
+        acc = self.load(account_id) if account_id else None
+        if not acc:
+            raise AccountError("bad_credentials", "没有这个名字")
+        if not by_admin and not any(d.get("anon_id") == anon_id for d in acc.get("devices", []) if anon_id):
+            raise AccountError("not_your_device", "只能在你登录过的设备上重设。换台设备，或者找老师帮你。")
+        salt = secrets.token_hex(16)
+        acc["pin"] = {"algo": "pbkdf2_sha256", "iter": _PBKDF2_ITER, "salt": salt, "hash": _hash_pin(new_pin, salt)}
+        acc["failed"] = 0
+        acc["locked_until"] = None
+        acc["pin_reset_at"] = _iso()
+        self._save(acc)
+        token = self._issue_token(acc["account_id"])
+        if anon_id:
+            self._remember_device(acc["account_id"], anon_id, claim=False)
+        return {"token": token, "account": self.public(self.load(acc["account_id"]))}
+
     # -- 登录态 ------------------------------------------------------------
     def _issue_token(self, account_id: str) -> str:
         token = secrets.token_hex(16)

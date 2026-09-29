@@ -414,6 +414,13 @@ class Login(BaseModel):
     anon_id: str = Field("", description="当前这台设备的代号")
 
 
+class ResetPin(BaseModel):
+    """忘了暗号：名字 + 新的四位数字。凭证是「这台设备登录过」或研究员令牌，见 accounts.reset_pin。"""
+    name: str = Field(..., max_length=32)
+    pin: str = Field(..., max_length=8, description="新的四位数字暗号")
+    anon_id: str = Field("", description="当前这台设备的代号")
+
+
 class TokenOnly(BaseModel):
     token: str = Field("", max_length=128)
 

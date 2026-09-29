@@ -336,15 +336,22 @@
 
   const acctModal = $("#acct-modal");
   let acctMode = "register";
+  // 三种模式：注册 / 登录 / 重设密码。重设没有邮箱可发，凭证是「这台设备登录过这个账号」，
+  // 不是的话服务器 403，界面上告诉他换台设备或找老师。
+  const ACCT_COPY = {
+    register: { title: "注册", sub: "起一个名字，设一个四位数字密码。", go: "注册", sw: "已有账号，去登录", pin: "四位数字密码" },
+    login:    { title: "登录", sub: "输入名字和四位数字密码。", go: "登录", sw: "没有账号，去注册", pin: "四位数字密码" },
+    reset:    { title: "重设密码", sub: "输入名字和新的四位数字密码。只能在你登录过的设备上改。", go: "重设", sw: "回到登录", pin: "新的四位数字密码" },
+  };
   function openAcct(mode) {
     acctMode = mode;
-    const reg = mode === "register";
-    $("#acct-modal-title").textContent = reg ? "注册" : "登录";
-    $("#acct-modal-sub").textContent = reg
-      ? "起一个名字，设一个四位数字密码。"
-      : "输入名字和四位数字密码。";
-    $("#btn-acct-go").textContent = reg ? "注册" : "登录";
-    $("#btn-acct-switch").textContent = reg ? "已有账号，去登录" : "没有账号，去注册";
+    const c = ACCT_COPY[mode];
+    $("#acct-modal-title").textContent = c.title;
+    $("#acct-modal-sub").textContent = c.sub;
+    $("#btn-acct-go").textContent = c.go;
+    $("#btn-acct-switch").textContent = c.sw;
+    $("#acct-pin-input").placeholder = c.pin;
+    $("#btn-acct-forgot").classList.toggle("hidden", mode !== "login");
     $("#acct-err").classList.add("hidden");
     $("#acct-name-input").value = "";
     $("#acct-pin-input").value = "";
@@ -366,7 +373,7 @@
     try {
       const body = { name, pin, anon_id: state.anonId };
       if (acctMode === "register") body.buddy_name = state.buddyName;
-      const r = await api(`${API}/accounts/${acctMode}`, { method: "POST", body: JSON.stringify(body) });
+      const r = await api(`${API}/accounts/${acctMode}`, { method: "POST", body: JSON.stringify(body) });   // register / login / reset
       setToken(r.token); state.account = r.account; cacheAccount(r.account);
       // 换台设备登录进来：伙伴的名字跟着账号回来。这台设备上起过名字而账号还空着，
       // 就反过来把它带上去。
@@ -384,7 +391,8 @@
   }
   $("#btn-acct-register").onclick = () => openAcct("register");
   $("#btn-acct-login").onclick = () => openAcct("login");
-  $("#btn-acct-switch").onclick = () => openAcct(acctMode === "register" ? "login" : "register");
+  $("#btn-acct-switch").onclick = () => openAcct(acctMode === "register" ? "login" : acctMode === "reset" ? "login" : "register");
+  $("#btn-acct-forgot").onclick = () => openAcct("reset");
   $("#btn-acct-go").onclick = submitAcct;
   $("#btn-acct-cancel").onclick = closeAcct;
   acctModal.onclick = (e) => { if (e.target === acctModal) closeAcct(); };
@@ -673,12 +681,27 @@
   }
   // 切语言：两个钮显示的是**另一种**语言的名字（在中文界面上写 English，反之写 中文），
   // 这是「切到哪儿去」而不是「现在是哪儿」，孩子一眼就懂。整页重载。
-  const OTHER = LANG === "en" ? { lang: "zh", label: "中文" } : { lang: "en", label: "English" };
+  // 钮上写的是**现在**的语言，点开是一张选择框（中文 / English，当前那个带钩），
+  // 选了另一个才换页——用户要的是「选一下」，不是「点一下就跳」。
+  const LANG_NAMES = { zh: "中文", en: "English" };
+  const langModal = $("#lang-modal");
   ["#btn-lang-welcome", "#btn-lang-me"].forEach(sel => {
     const b = $(sel); if (!b) return;
-    b.textContent = OTHER.label;
-    b.onclick = () => { logEvent && logEvent("UI_LANG_SWITCH", { from: LANG, to: OTHER.lang }); window.I18N.set(OTHER.lang); };
+    b.textContent = LANG_NAMES[LANG] || LANG;
+    b.onclick = () => {
+      langModal.querySelectorAll("[data-lang]").forEach(o => o.classList.toggle("on", o.dataset.lang === LANG));
+      langModal.classList.remove("hidden");
+    };
   });
+  langModal.querySelectorAll("[data-lang]").forEach(o => o.onclick = () => {
+    const to = o.dataset.lang;
+    langModal.classList.add("hidden");
+    if (to === LANG) return;
+    logEvent && logEvent("UI_LANG_SWITCH", { from: LANG, to });
+    window.I18N.set(to);
+  });
+  $("#btn-lang-cancel").onclick = () => langModal.classList.add("hidden");
+  langModal.onclick = (e) => { if (e.target === langModal) langModal.classList.add("hidden"); };
   $("#btn-welcome-register").onclick = () => openAcct("register");
   $("#btn-welcome-login").onclick = () => openAcct("login");
   $("#btn-welcome-skip").onclick = finishWelcome;

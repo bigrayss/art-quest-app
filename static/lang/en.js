@@ -3,6 +3,14 @@
 // 读者是 6–14 岁的孩子：短、日常、口语。彩点 = Dot。
 window.ARTQUEST_LANG_EN = {
   "语言": "Language",
+  "忘记密码？": "Forgot PIN?",
+  "重设密码": "Reset PIN",
+  "输入名字和新的四位数字密码。只能在你登录过的设备上改。": "Type your name and a new 4-digit PIN. This works only on a device you have logged in on.",
+  "重设": "Reset",
+  "回到登录": "Back to log in",
+  "新的四位数字密码": "New 4-digit PIN",
+  "只能在你登录过的设备上重设。换台设备，或者找老师帮你。": "You can only reset on a device you have logged in on. Try another device, or ask your teacher.",
+  "没有这个名字": "No account with that name",
   "其他…": "Other…",
   "{a} · {b}/{c}": "{a} · {b}/{c}",
   // ---------- 名字与导航 ----------
