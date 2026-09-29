@@ -1733,10 +1733,42 @@ html[data-lang="en"] .sq-end { width:4.4em; line-height:1.2; }
 }
 
 /* ---------- 简单版 ----------
-   字最少的版本：不问心情和心愿，画完不做问卷，不摆九维成长图，彩点只说一句，
-   宝藏页不放对比的话。只藏东西，流程逻辑在 app.js 里按 state.condition.ui === "simple" 走。 */
-body.simple #scores, body.simple #score-summary, body.simple #final-scores,
-body.simple #growth-wrap, body.simple #comparison-text { display:none !important; }
+   字最少的版本：不问心情和心愿，画完不做问卷，彩点只说一句，宝藏页不放对比的话。
+   九维打分照摆（用户：「九维打分还是要的」）。只藏东西，流程逻辑在 app.js 里按 state.condition.ui === "simple" 走。 */
+body.simple #view-final .feedback-card { display:none !important; }
+
+@media (min-width: 760px) {
+  /* 支招页（宽屏）：上面一行是「画 | 九维图」，下面一整行是彩点的话和钮。
+     原来是「左：画 + 图，右：一张撑满高度的卡」——简单版只有一句话，那张卡就是一大块空白。
+     两块的顶边、底边都对齐，屏幕也用满了；用 id 提高优先级，压过下面老的 30vh 那条。 */
+  .result-layout { grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); grid-template-rows:auto auto auto;
+    grid-template-areas: "art scores" "fb fb" "sum sum"; gap:16px 22px; align-items:stretch; }
+  .result-layout > div:first-child { display:contents; }
+  #view-result .result-layout .artwork { grid-area:art; width:100%; height:100%; max-height:none; max-width:none;
+    object-fit:contain; margin:0; align-self:stretch; background:#fff; border-radius:var(--r); border:2px solid var(--line); }
+  .result-layout > div > .scores { grid-area:scores; margin-top:0; }
+  .result-layout > div > #score-summary { grid-area:sum; margin:0; }
+  .result-layout > .feedback-card { grid-area:fb; display:block; }
+  .result-layout > .feedback-card .actions.column { margin-top:14px; }   /* 话说完，钮就跟在后面 */
+  #view-result .rose { max-width:min(300px, 32vh); }
+
+  /* 宝藏页（宽屏）：画横排占满一整行，彩点的话（简单版没有）一整行，下面 九维图 | 徽章。
+     原来左窄右宽、评价卡撑满右栏两行：文字只剩一两句之后，那就是一大块空白，
+     徽章被推到最底下；竖屏 pad 上两张画还叠着放。两个版本共用这一张网格。 */
+  #view-final { grid-template-rows:auto auto auto auto auto auto;
+    grid-template-areas:
+      "title   act"
+      "art     art"
+      "fb      fb"
+      "scores  badges"
+      "peers   peers"
+      "meta    meta"; }
+  #view-final .compare { grid-template-columns:1fr 1fr; }
+  #view-final .compare figure img { max-height:38vh; max-height:38dvh; width:100%; }
+  #view-final .feedback-card { align-self:start; }
+  #view-final #badges-card { align-self:stretch; }
+  #view-final .rose { max-width:min(300px, 32vh); }
+}
 /* 选择框里带说明的选项 */
 .choice button span { display:flex; flex-direction:column; align-items:flex-start; gap:2px; text-align:left; min-width:0; }
 .choice button small { font-size:0.75rem; font-weight:600; color:var(--muted-2); line-height:1.45; }
