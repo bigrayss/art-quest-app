@@ -342,7 +342,7 @@
   const ACCT_COPY = {
     register: { title: "注册", sub: "起一个名字，设一个四位数字密码。", go: "注册", sw: "已有账号，去登录", pin: "四位数字密码" },
     login:    { title: "登录", sub: "输入名字和四位数字密码。", go: "登录", sw: "没有账号，去注册", pin: "四位数字密码" },
-    reset:    { title: "重设密码", sub: "输入名字和新的四位数字密码。只能在你登录过的设备上改。", go: "重设", sw: "回到登录", pin: "新的四位数字密码" },
+    reset:    { title: "重设密码", sub: "输入名字和新的四位数字密码。要在你登录过的设备上改。", go: "重设", sw: "回到登录", pin: "新的四位数字密码" },
   };
   function openAcct(mode) {
     acctMode = mode;
@@ -440,8 +440,8 @@
   const ALL_STAGES = [
     { key: "quest",  name: "出发" },
     { key: "intent", name: "心愿" },
-    { key: "draw",   name: "创作" },
-    { key: "result", name: "支招" },
+    { key: "draw",   name: "画画" },
+    { key: "result", name: "彩点说" },
     { key: "evolve", name: "进化" },
     { key: "final",  name: "宝藏" },
   ];
@@ -541,8 +541,8 @@
     const auto = (item.by || "").startsWith("curator/");
     $("#featured-title").textContent = auto ? "今天轮到你的画了" : "老师选中了你的一张画";
     $("#featured-note").textContent = auto
-      ? `你画的《${item.title}》今天轮到挂出去给大家看啦` + (item.note ? `，旁边会写着「${item.note}」。` : "。")
-      : item.note ? `老师说：「${item.note}」` : `你画的《${item.title}》被老师挑出来了。`;
+      ? `你画的《${item.title}》今天挂到大家的墙上。` + (item.note ? `老师写了：「${item.note}」` : "")
+      : item.note ? `老师说：「${item.note}」` : `老师挑了你画的《${item.title}》。`;
     $("#featured-img").src = fileUrl(item.image);
     m.classList.remove("hidden");
   }
@@ -601,12 +601,12 @@
     { sel: "#world-sprite",    text: "我是彩点。你用什么颜色，我就变什么颜色。" },
     { sel: "#btn-rename",      text: "点这支笔，给我起个名字。" },
     { sel: "#btn-enter-world", text: "走，进地图看看。", after: () => enterWorld() },
-    { sel: "#quest-grid .quest-card", text: "一个钮是一类任务，挑你想画的。" },
-    { sel: ".tab[data-tab='dex']", text: "画过的都挂在画廊里，归你。",
+    { sel: "#quest-grid .quest-card", text: "这些是任务。挑一个你想画的。" },
+    { sel: ".tab[data-tab='dex']", text: "你画的画都在画廊里。",
       after: () => openTab("buddy") },
     // 指着**真的那一枚**，不是画一个例子给他看。这一枚一打开就有，
     // 所以第一次进来的孩子在这一步一定看得到东西。
-    { sel: "#badge-wall .badge", text: "徽章在我这儿。你已经有一枚了——它们只看你怎么画，不看画得好不好。",
+    { sel: "#badge-wall .badge", text: "徽章在这儿。你已经有一枚了。",
       after: () => openTab("map") },
   ];
   let tourAt = 0, tourOn = false;
@@ -1293,8 +1293,8 @@
   $("#btn-clear").onclick = () => {
     const n = visible.length;
     $("#clear-body").textContent = n
-      ? `这张画上的 ${n} 笔都会被擦掉。想反悔的话，撤销键能找回来。`
-      : "画布上还没有笔画。";
+      ? `这 ${n} 笔都会被擦掉。撤销键能找回来。`
+      : "画布还是空的。";
     clearModal.classList.remove("hidden");
   };
   $("#btn-clear-keep").onclick = () => clearModal.classList.add("hidden");
@@ -1502,7 +1502,7 @@
     // 就是本来要画什么。蒙着的时候看不见，揭开第一眼就是这句。
     const want = ((intent && intent.text) || "").trim();
     // 孩子写的几乎都从「我想画」起头，直接拼是「你说你想画我想画……」。剥掉起头和句号再嵌。
-    if (want) assistSay(`你说想画的是「${bareIntent(want)}」。`);
+    if (want) assistSay(`你想画「${bareIntent(want)}」。`);
   }
 
   /** 第二阶段：那份正式反馈直接摊开，**不再蒙**——他正要照着改，得能反复看。
@@ -1552,7 +1552,7 @@
     }
   };
 
-  const BUDDY_LINES = ["选个颜色，我就变成它！", "这个颜色真好看～", "大胆画，画错也没关系！", "多试几种颜色，我陪你！", "你画什么，我就变什么～"];
+  const BUDDY_LINES = ["选个颜色，我就变成它！", "我变成这个颜色了。", "画错也没关系。", "换个颜色试试？", "我在看你画。"];
   function updateBuddy() {
     state.color = color;
     const sp = $("#draw-sprite"); if (sp) sp.innerHTML = spriteInner(color, "normal");
@@ -1900,7 +1900,7 @@
     const card = $("#history-card"), lines = (p && p.shown) || [];
     card.classList.toggle("hidden", !lines.length);
     if (!lines.length) return;
-    card.innerHTML = `<h4>${icon("compass", 15)}你的创作轨迹</h4>`
+    card.innerHTML = `<h4>${icon("compass", 15)}你画过的路</h4>`
       + lines.map(l => `<p>${escapeHtml(l.text || "")}</p>`).join("");
   }
   const escapeHtml = (t) => String(t).replace(/[&<>"']/g, c =>
@@ -2277,15 +2277,15 @@
   /** One child-facing line per family — never the research goal. */
   const FAMILY_BLURB = {
     M0: "画什么由你定。",
-    M1: "一幅画损坏了，把重要的东西重新画回来。",
-    M2: "把看到的场景准确记录下来，让别人也能看懂。",
-    M3: "画布上只剩几个碎片，把它们变成一整幅画。",
-    M4: "把一个普通的东西改造成完全不同的用途。",
-    M5: "把两个毫不相干的东西融合成一个新东西。",
+    M1: "一幅画坏了，把它重新画回来。",
+    M2: "把看到的画下来，让别人看懂。",
+    M3: "只剩几个碎片，把它们变成一幅画。",
+    M4: "把一个东西改成别的用途。",
+    M5: "把两个东西合成一个新东西。",
     M6: "用颜色让整个地方换一种感觉。",
-    M7: "先只用线条，再让线条长成一幅作品。",
-    M8: "这个世界的规则和我们不一样，画出这里的生活。",
-    M9: "一个故事的开头，接下来由你来画。",
+    M7: "先画线条，再让线条变成画。",
+    M8: "这个世界规则不一样，画画这里的生活。",
+    M9: "故事开了头，后面你来画。",
   };
   const familyBlurb = (f) => FAMILY_BLURB[f.id] || "";
   // ---------- 左侧导航栏：收起 / 展开 ----------
@@ -2421,8 +2421,8 @@
     if (state.phase === "after") return;            // mid-revision: finish it
     const n = visible.length;
     $("#leave-body").textContent = n
-      ? `这张画上已经有 ${n} 笔了。要先把它保存下来吗？`
-      : "画布还是空的，可以直接换一个任务。";
+      ? `已经画了 ${n} 笔。要先保存吗？`
+      : "画布还是空的，直接换就行。";
     $("#btn-leave-save").classList.toggle("hidden", !n);
     leaveModal.classList.remove("hidden");
   }
@@ -2484,7 +2484,7 @@
     } catch (e) {
       ticket = await ArtLog.takeTicket(state.quest.id).catch(() => null);
       if (!ticket) {
-        alert("连不上网，备用名额也用完了。\n连上再试——画过的都还在。");
+        alert("连不上网。\n有网了再试，画过的都还在。");
         return;
       }
       body.session_id = ticket.session_id;
@@ -2515,8 +2515,8 @@
 
   $("#btn-submit").onclick = async () => {
     if (state.phase === "after") return submitAfter();
-    if (!undoStack.length && !state.dirtySinceSnapshot) { if (!confirm("画布好像还是空的，确定提交吗？")) return; }
-    overlay("正在观察你的画……"); stopTimers();
+    if (!undoStack.length && !state.dirtySinceSnapshot) { if (!confirm("画布还是空的。要交吗？")) return; }
+    overlay("我在看你的画……"); stopTimers();
     logEvent(EV.TASK_SUBMIT, { phase: state.phase, strokes: visible.length });
     const image = canvas.toDataURL("image/png");
     try {
@@ -2568,7 +2568,7 @@
     endSession(r.session, state.before.image, state.before.image, null); overlay(null);
   };
   async function submitAfter() {
-    overlay("正在比较修改前后……"); stopTimers();
+    overlay("在看改了什么……"); stopTimers();
     const image = canvas.toDataURL("image/png");
     try {
       const pending = await flushLog();
@@ -2580,7 +2580,7 @@
   // ---------- self-report ----------
   const SURVEY = [
     { key: "difficulty", q: "难不难？", lo: "很简单", hi: "很难" },
-    { key: "confidence", q: "画得怎么样？", lo: "还差点", hi: "挺满意" },
+    { key: "confidence", q: "满意吗？", lo: "还差点", hi: "挺满意" },
     { key: "enjoyment", q: "开心吗？", lo: "一般", hi: "很开心" },
   ];
   const answers = {};
@@ -2656,8 +2656,8 @@
     // stops being an intervention this session.
     const quiet = state.condition.feedback_source !== "ai";
     $("#comparison-text").textContent = quiet
-      ? "画完啦！你的创作已经保存下来了。"
-      : (comparison ? comparison.text : "下次照我的话改一小处，就能点亮进化大师。");
+      ? "画完啦！画已经存好了。"
+      : (comparison ? comparison.text : "下次改一小处，就能点亮进化大师。");
     // 「这一关练的是」那张卡不再放在结算页：能力图上练的那几项本来就是橙色高亮的，
     // 再摆一张卡说一遍是重复。（伙伴那页的成长面板照旧用它。）
     renderBadges(session);
@@ -2788,7 +2788,7 @@
     { g: "色彩与工具", icon: "pencil", name: "一支到底", desc: "只用一种工具画完 30 笔以上",
       earned: s => toolsUsed(s).size === 1 && nStrokes(s) >= 30 },
     // -- 过程与节奏 --
-    { g: "过程与节奏", icon: "clock", name: "专注之心", desc: "专注创作超过 5 分钟",
+    { g: "过程与节奏", icon: "clock", name: "专注之心", desc: "画了 5 分钟以上",
       earned: s => drawMs(s) >= 300000 },
     { g: "过程与节奏", icon: "think", name: "深思熟虑", desc: "停下来想了 30 秒以上，然后继续",
       earned: s => longestPause(s) >= 30000 && nStrokes(s) >= 5 },
@@ -2801,7 +2801,7 @@
     // -- 观察与细节 --
     { g: "观察与细节", icon: "search", name: "细节猎人", desc: "放大到 3 倍以上作画",
       earned: s => zoomMax(s) >= 3 },
-    { g: "观察与细节", icon: "map", name: "大局观", desc: "在整体和局部之间来回看了 5 次以上",
+    { g: "观察与细节", icon: "map", name: "大局观", desc: "放大缩小来回 5 次以上",
       earned: s => evOf(s, ["ZOOM", "PAN"]).length >= 5 },
     { g: "观察与细节", icon: "eye", name: "对照高手", desc: "参考图看了 3 次以上",
       earned: s => evOf(s, ["REFERENCE_OPEN"]).length >= 3, needs: "reference" },
@@ -2837,7 +2837,7 @@
       earned: s => nStrokes(s) >= 60 },
     { g: "观察与细节", icon: "swap", name: "来回对照", desc: "在参考图和画布之间来回看了 6 次以上",
       earned: s => evOf(s, ["REFERENCE_FOCUS", "CANVAS_FOCUS"]).length >= 6, needs: "reference" },
-    { g: "观察与细节", icon: "route", name: "走遍画布", desc: "移动画布 8 次以上，每个角落都去过",
+    { g: "观察与细节", icon: "route", name: "走遍画布", desc: "移动画布 8 次以上",
       earned: s => evOf(s, ["PAN"]).length >= 8 },
     { g: "探索与坚持", icon: "calendar", name: "常来的人", desc: "在 3 个不同的日子画过画",
       earned: () => activeDays() >= 3 },
@@ -2862,7 +2862,7 @@
       earned: s => paletteHits(s) >= 10 },
     { g: "奇遇", icon: "eraser", name: "橡皮朋友", desc: "擦的次数比留下的笔还多",
       earned: s => { const e = evOf(s, ["ERASE"]).length; return e >= 8 && e > nStrokes(s); } },
-    { g: "奇遇", icon: "ghost", name: "幽灵画家", desc: "两次推翻重来，最后还是画完了",
+    { g: "奇遇", icon: "ghost", name: "幽灵画家", desc: "清空两次，还是画完了",
       earned: s => evOf(s, ["CLEAR"]).length >= 2 && nStrokes(s) >= 8 },
     { g: "奇遇", icon: "wave", name: "一笔到底", desc: "整幅画只有几笔，每一笔都很长",
       earned: s => { const n = nStrokes(s); const pts = strokePoints(s);
@@ -2870,7 +2870,7 @@
     { g: "奇遇", icon: "dense", name: "点点点", desc: "30 笔以上，每一笔都只是一小点",
       earned: s => { const pts = strokePoints(s);
         return pts.length >= 30 && Math.max(...pts) <= 12; } },
-    { g: "奇遇", icon: "feather", name: "越画越轻", desc: "笔越换越细，收尾轻轻的",
+    { g: "奇遇", icon: "feather", name: "越画越轻", desc: "笔越来越细",
       earned: s => { const z = strokeSizes(s);
         if (z.length < 10) return false;
         const head = z.slice(0, 5), tail = z.slice(-5);
@@ -2890,7 +2890,7 @@
       earned: () => backToBackDays() },
     { g: "奇遇", icon: "heart", name: "起了名字", desc: "给伙伴起了自己的名字",
       earned: () => !!state.buddyName },
-    { g: "奇遇", icon: "key", name: "有名字的人", desc: "注册了账号，画跟着你走",
+    { g: "奇遇", icon: "key", name: "有名字的人", desc: "注册了账号",
       earned: () => !!(state.account && state.account.account_id) },
     { g: "奇遇", icon: "people", name: "两处都画过", desc: "在两台设备上画过画",
       earned: () => !!(state.account && (state.account.devices || 0) >= 2) },
@@ -3125,7 +3125,7 @@
     el.innerHTML = got.length
       ? badgeGroupsHtml(pool, b => gotSet.has(b), { newTag: b => !before.has(b.name) })
         + (got.length > FOLD_AT ? `<button class="ghost badge-more" id="btn-badge-more">还有 ${got.length - FOLD_AT} 枚，展开</button>` : "")
-      : `<p class="badge-left">这次没点亮新的。换个画法再来一张。</p>`;
+      : `<p class="badge-left">这次没有新徽章。换个画法试试。</p>`;
     wireBadgePops(el);
     $("#badges-count").textContent = got.length ? `点亮了 ${got.length} 枚` : "";
     const more = $("#btn-badge-more");
@@ -3168,7 +3168,7 @@
     const n = pool.filter(b => lit.has(b.name)).length;
     curSessionId = null;                      // 墙上数的是全部次数
     el.innerHTML = n ? badgeGroupsHtml(pool, b => lit.has(b.name), { mystery: true, count: true })
-      : `<p class="badge-left">画一幅试试。徽章只看你怎么画，不看画得好不好。</p>`;
+      : `<p class="badge-left">画一幅试试，徽章就来了。</p>`;
     wireBadgePops(el);
     $("#badge-wall-count").textContent = n ? `${n} 枚` : "";
   }
@@ -3234,7 +3234,7 @@
         const a0n = -90 + i * SLOT + PAD, a1n = -90 + (i + 1) * SLOT - PAD, midn = (a0n + a1n) / 2;
         const [nx, ny] = polar(cx, cy, LABEL_R, midn);
         const anch = Math.cos(midn * Math.PI / 180) > 0.25 ? "start" : Math.cos(midn * Math.PI / 180) < -0.25 ? "end" : "middle";
-        sectors += `<path d="${sectorPath(cx, cy, R, a0n, a1n)}" fill="none" stroke="#e6e0d6" stroke-width="1" stroke-dasharray="3 3"><title>${dimName(d)}：这个任务不考察</title></path>`;
+        sectors += `<path d="${sectorPath(cx, cy, R, a0n, a1n)}" fill="none" stroke="#e6e0d6" stroke-width="1" stroke-dasharray="3 3"><title>${dimName(d)}：这一关不看这个</title></path>`;
         labels += `<text x="${fmt(nx)}" y="${fmt(ny)}" text-anchor="${anch}" class="rose-label na">${dimShort(d)}</text>`;
         return;
       }
@@ -3280,7 +3280,7 @@
       if (isNA(s)) {
         const fam0 = FAMILIES[DIM_FAMILY[d.key]];
         return `<div class="dim na"><div class="name"><span><i class="dot" style="background:#d8d2c8"></i>${dimName(d)}</span>`
-          + `<span class="sval"><span class="wait">这个任务不考察</span></span></div></div>`;
+          + `<span class="sval"><span class="wait">这一关不看这个</span></span></div></div>`;
       }
       const ph = isPlaceholder(s);
       const b = baseline && baseline.dims[d.key], delta = b ? s.score - b.score : null;
@@ -3436,5 +3436,5 @@
     });
   }
 
-  init().catch(e => { document.body.classList.remove("booting"); alert("初始化失败：" + e.message); });
+  init().catch(e => { document.body.classList.remove("booting"); alert("打不开：" + e.message); });
 })();

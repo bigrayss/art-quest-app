@@ -1,4 +1,10 @@
-"""Offline feedback built from the intent and the quest's focus dimensions."""
+"""Offline feedback built from the intent and the quest's focus dimensions.
+
+话是说给 6–14 岁的孩子听的：一句一个意思，短，不评价。
+三段固定开头留着（我看到 / 一个问题 / 可以试试；I see / One question / Try this）。
+心情或心愿是空的就不提——「带着「」的心情」那种空壳不许出现。
+简单版（quest["ui"] == "simple"）只要「我看到」+「可以试试」两句。
+"""
 from typing import Any, Dict
 
 from ..scoring.base import DIMENSIONS
@@ -15,6 +21,10 @@ def emotion_en(word: str) -> str:
     return EMOTION_EN.get((word or "").strip(), word or "")
 
 
+def _clean(text: str) -> str:
+    return (text or "").strip().strip("。！!，,、 .")
+
+
 class TemplateFeedback:
     name = "template"
 
@@ -23,36 +33,59 @@ class TemplateFeedback:
         dims = scores.get("dims", {})
         ranked = sorted(focus, key=lambda k: dims.get(k, {}).get("score", 5))
         low = ranked[0] if ranked else "imagination"
+        simple = quest.get("ui") == "simple"
+        wish = _clean(intent.get("text"))
+        mood = (intent.get("emotion") or "").strip()
+
         if quest.get("lang") == "en":
-            wish = intent.get("text") or "what you wanted to show"
-            mood = emotion_en(intent.get("emotion")) or "a certain"
-            text = (
-                f"I see: you drew this feeling {mood}, and you wanted to show — {wish}.\n"
-                "One question: if someone only saw the picture, would they feel that too? Which part shows it most?\n"
-                f"Try this: play a little more with {_EN.get(low, low)}. Change one thing — a size, a colour, or a place — "
-                "and see if the feeling changes. No need to redraw. One small change is enough."
-            )
+            mood_en = emotion_en(mood) if mood else ""
+            if wish and mood_en:
+                see = f"I see: you felt {mood_en} and drew “{wish}”."
+            elif wish:
+                see = f"I see: you drew “{wish}”."
+            elif mood_en:
+                see = f"I see: you felt {mood_en} while drawing this."
+            else:
+                see = "I see: you finished a picture."
+            if simple:
+                text = see + "\nTry this: change one small thing, like a color or a size."
+                return {"backend": self.name, "text": text}
+            ask = ("One question: can someone see what you wanted, just from the picture?" if wish
+                   else "One question: which part do you want people to look at first?")
+            text = (f"{see}\n{ask}\n"
+                    f"Try this: change one small thing in {_EN.get(low, low)}, like a size, a color or a place. No need to redraw.")
             return {"backend": self.name, "text": text}
-        wish = intent.get("text") or "你想表达的东西"
-        text = (
-            f"我看到：你带着「{intent.get('emotion', '某种')}」的心情画了这幅画，想表达的是——{wish}。\n"
-            f"一个问题：如果只看画面，一个不认识你的人能感受到这一点吗？哪个部分最能说明它？\n"
-            f"可以试试：围绕「{_ZH.get(low, low)}」再做一点尝试，比如改变一处大小、颜色或位置，看看感觉有没有变化。"
-            "不需要重画，改一小处就可以。"
-        )
+
+        if wish and mood:
+            see = f"我看到：你心情{mood}，画的是「{wish}」。"
+        elif wish:
+            see = f"我看到：你画的是「{wish}」。"
+        elif mood:
+            see = f"我看到：你心情{mood}，画完了这一幅。"
+        else:
+            see = "我看到：你画完了这一幅。"
+        if simple:
+            text = see + "\n可以试试：改一小处，比如一个颜色或大小。"
+            return {"backend": self.name, "text": text}
+        ask = "一个问题：别人只看画，能看出你想画的吗？" if wish else "一个问题：你最想让人看画里的哪儿？"
+        text = (f"{see}\n{ask}\n"
+                f"可以试试：在「{_ZH.get(low, low)}」上改一小处，比如大小、颜色或位置。不用重画。")
         return {"backend": self.name, "text": text}
 
     def compare(self, before_png: bytes, after_png: bytes, before_scores: Dict[str, Any], after_scores: Dict[str, Any],
                 quest: Dict[str, Any], intent: Dict[str, Any]) -> Dict[str, Any]:
         bd, ad = before_scores.get("dims", {}), after_scores.get("dims", {})
         deltas = {k: round(ad[k]["score"] - bd[k]["score"], 1) for k in ad if k in bd}
+        simple = quest.get("ui") == "simple"
         if quest.get("lang") == "en":
             up_en = [_EN[k] for k, v in deltas.items() if v >= 1]
-            text = "After your change, " + (
-                "something moved in " + ", ".join(up_en) + "." if up_en else "the picture stayed mostly the same.")
-            text += " What do you think — is it closer now to the feeling you wanted at the start?"
+            text = ("After your change, " + ", ".join(up_en) + " looks different." if up_en
+                    else "After your change, the picture looks about the same.")
+            if not simple:
+                text += " Is it closer to what you wanted?"
             return {"backend": self.name, "text": text}
-        up = [f"{_ZH[k]}" for k, v in deltas.items() if v >= 1]
-        text = "修改后，" + ("在" + "、".join(up) + "上有了变化。" if up else "整体变化不大。")
-        text += " 你自己觉得，改完以后更接近一开始想表达的感觉了吗？"
+        up = [_ZH[k] for k, v in deltas.items() if v >= 1]
+        text = ("改完以后，" + "、".join(up) + "变了。") if up else "改完以后，变化不大。"
+        if not simple:
+            text += "你觉得更像你想画的了吗？"
         return {"backend": self.name, "text": text}

@@ -136,7 +136,7 @@
       <span class="sechead-chip" id="dex-progress"></span>
     </div>
     <div class="dex" id="collection"></div>
-    <p class="wall-empty hidden" id="dex-empty">这面墙还空着。去地图挑一个想画的，画完它就挂上来。</p>
+    <p class="wall-empty hidden" id="dex-empty">还没有画。去地图挑一个画吧。</p>
   </div>
 
   <div id="wall-wrap" class="hidden">
@@ -146,7 +146,7 @@
       <span class="sechead-chip" id="wall-count"></span>
     </div>
     <div class="peer-grid" id="wall-grid"></div>
-    <p class="wall-empty hidden" id="wall-empty">墙还空着。等有人愿意把画挂上来，这儿就热闹了。</p>
+    <p class="wall-empty hidden" id="wall-empty">还没有人挂画。</p>
   </div>
 </section>
 
@@ -354,11 +354,11 @@
     </div>
     <div class="feedback-card buddy-card">
       <div class="buddy-head"><svg class="sprite lg" id="fb-sprite" viewBox="0 0 200 200"></svg>
-        <div><div class="buddy-name"><span class="buddy-word">彩点</span> · 你的创作伙伴</div></div></div>
+        <div><div class="buddy-name"><span class="buddy-word">彩点</span></div></div></div>
       <div class="feedback-text" id="feedback-text"></div>
       <div class="actions column">
         <button class="primary big" id="btn-revise"><i data-icon="sparkle" data-size="19"></i>去进化关，改一改<i data-icon="arrowRight" data-size="17"></i></button>
-        <button class="secondary" id="btn-skip-revise">不改了，就这样</button>
+        <button class="secondary" id="btn-skip-revise">不改了</button>
       </div>
     </div>
   </div>
@@ -398,18 +398,18 @@
   <div class="peers hidden" id="peers">
     <div class="sechead" style="--sc:var(--purple); --sc-d:var(--purple-d)">
       <span class="sechead-ico"><i data-icon="people" data-size="19"></i></span>
-      <div class="sechead-t"><b>同一道题，他们这么画</b></div>
+      <div class="sechead-t"><b>别人怎么画的</b></div>
       <span class="sechead-chip" id="peers-note"></span>
     </div>
     <div class="peer-grid" id="peer-grid"></div>
   </div>
   <div class="fcard" id="badges-card">
-    <h2 id="badges-head"><i data-icon="medal" data-size="18"></i>这次点亮的徽章 <span class="muted small" id="badges-count"></span></h2>
+    <h2 id="badges-head"><i data-icon="medal" data-size="18"></i>新徽章 <span class="muted small" id="badges-count"></span></h2>
     <div class="badges" id="badges"></div>
   </div>
   <div class="scores" id="final-scores"></div>
   <p class="muted small" id="final-meta"></p>
-  <div class="actions sticky"><button class="secondary hidden" id="btn-save"><i data-icon="download" data-size="17"></i>存进相册</button><button class="primary big grow" id="btn-again">再来一个任务</button></div>
+  <div class="actions sticky"><button class="secondary hidden" id="btn-save"><i data-icon="download" data-size="17"></i>存进相册</button><button class="primary big grow" id="btn-again">再画一个</button></div>
 </section>
 </main>
 </div><!-- /.screen -->
@@ -470,7 +470,7 @@
     <img id="work-img" class="featured-shot" alt="这张画">
     <p class="muted small hidden" id="work-raw"></p>
     <div class="actions column">
-      <button class="primary" id="btn-work-again">再画一张这个任务</button>
+      <button class="primary" id="btn-work-again">再画一次</button>
       <button class="ghost" id="btn-work-close">关掉</button>
     </div>
   </div>
@@ -480,7 +480,7 @@
 <div class="modal hidden" id="name-modal">
   <div class="modal-card">
     <h3>给它起个名字</h3>
-    <p class="muted">它是你的创作伙伴——你想叫它什么都行。</p>
+    <p class="muted">叫什么都行。</p>
     <input id="buddy-name-input" type="text" maxlength="8" placeholder="比如：小墨、阿布、泡泡">
     <div class="actions column">
       <button class="primary" id="btn-name-save">就叫它这个</button>
@@ -516,7 +516,7 @@
   <div class="modal-card">
     <h3>选一个版本</h3>
     <div class="choice" id="mode-choices">
-      <button data-mode="simple"><span><b>简单版</b><small>直接画，画完看彩点说一句、改一改。</small></span><i data-icon="check" data-size="18"></i></button>
+      <button data-mode="simple"><span><b>简单版</b><small>直接画。画完彩点说一句，可以改一改。</small></span><i data-icon="check" data-size="18"></i></button>
       <button data-mode="full"><span><b>完整版</b><small>画前说说心情和想画什么，画完看成长图。</small></span><i data-icon="check" data-size="18"></i></button>
     </div>
     <div class="actions column">
@@ -557,7 +557,7 @@
 
 <div class="modal hidden" id="clear-modal">
   <div class="modal-card">
-    <h3>要清空整张画布吗？</h3>
+    <h3>全部清空？</h3>
     <p class="muted" id="clear-body"></p>
     <div class="actions column">
       <button class="primary" id="btn-clear-keep">继续画</button>
@@ -568,12 +568,12 @@
 
 <div class="modal hidden" id="leave-modal">
   <div class="modal-card">
-    <h3 id="leave-title">要离开这个任务吗？</h3>
+    <h3 id="leave-title">换任务吗？</h3>
     <p class="muted" id="leave-body"></p>
     <div class="actions column">
       <button class="primary" id="btn-leave-keep">继续画</button>
-      <button class="secondary" id="btn-leave-save">保存这张，然后换任务</button>
-      <button class="ghost danger" id="btn-leave-drop">不保存，换任务</button>
+      <button class="secondary" id="btn-leave-save">先保存，再换</button>
+      <button class="ghost danger" id="btn-leave-drop">不保存，直接换</button>
     </div>
   </div>
 </div>
