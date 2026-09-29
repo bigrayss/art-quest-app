@@ -973,7 +973,9 @@ body[data-room="flow"]  { --room:var(--yellow); --room-d:var(--yellow-d); --room
    点亮了几枚。没有一个是对画的评价，这一屏不给任何人打分。 */
 .story { display:flex; flex-direction:column; gap:12px; }
 #btn-guide-again { margin:0; flex:0 0 auto; }
-.me-foot { display:flex; align-items:stretch; gap:12px; margin-top:14px; }
+.me-foot { display:flex; align-items:stretch; gap:12px; margin-top:14px; flex-wrap:wrap; }
+.me-foot > button { white-space:nowrap; }
+@media (max-width:520px) { .me-foot .techbox { flex:1 1 100%; } }   /* 手机上三样挤不进一行：设备那块换行 */
 .me-foot .techbox { flex:1 1 auto; margin:0; }
 .story-tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; }
 .stile { position:relative; background:var(--card); border:2px solid var(--line); border-radius:var(--r);
