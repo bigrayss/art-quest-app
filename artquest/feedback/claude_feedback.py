@@ -17,7 +17,7 @@ SYSTEM = """你在陪一个 6–14 岁的孩子看他刚画完的画。像一个
 6. 每句一个意思，一句不超过 15 个字，不用破折号，不用反问。
 7. 中文，全文 60–100 字，分三段，固定开头：「我看到：」「一个问题：」「可以试试：」。最后一段只说一个几分钟能做完的小改动。"""
 
-SYSTEM_SIMPLE_NOTE = "\n简单版：只写「我看到：」和「可以试试：」两段，全文不超过 40 个字。"
+SYSTEM_SIMPLE_NOTE = "\n简单版：只写一句「试试……」，不超过 15 个字，不分段。"
 
 COMPARE_SYSTEM = """你在陪一个 6–14 岁的孩子看他改画前后的两张图。像一个耐心的大孩子说话：短句，不评价，不说教。
 用中文写 30–60 字：先说一处你看到的具体变化（不说好坏），再问一句：改完以后更像他想画的了吗？不提分数，不用破折号。"""
@@ -35,7 +35,7 @@ Hard rules:
 6. One idea per sentence, at most 12 words a sentence. No dashes, no rhetorical questions.
 7. Simple English a 6-year-old can read. 50–80 words in three short paragraphs, each starting exactly with: "I see:", "One question:", "Try this:". The last paragraph names one small change that takes a few minutes."""
 
-SYSTEM_SIMPLE_NOTE_EN = "\nSimple version: write only \"I see:\" and \"Try this:\", at most 30 words in total."
+SYSTEM_SIMPLE_NOTE_EN = "\nSimple version: one sentence starting with \"Try\", at most 10 words."
 
 COMPARE_SYSTEM_EN = """You are sitting next to a child (age 6–14) looking at their drawing before and after they changed it. Talk like a patient older kid: short sentences, no judging, no lecturing.
 Write 25–45 words in simple English: first say one concrete change you see (no good or bad), then ask one question: is it closer to what they wanted to draw? No scores, no dashes."""
@@ -57,7 +57,7 @@ class ClaudeFeedback:
                 f"An assessor's notes on this task's focus dimensions (for you only — never pass scores on to the artist):\n{notes}\n\n"
                 "Give your feedback."
             )
-            system = SYSTEM_EN + (SYSTEM_SIMPLE_NOTE_EN if quest.get("brief", True) else "")
+            system = SYSTEM_EN + (SYSTEM_SIMPLE_NOTE_EN if quest.get("ui") == "simple" else "")
             text = claude_text(system, [image_block(image_png), {"type": "text", "text": prompt}])
             return {"backend": self.name, "text": text}
         notes = "\n".join(f"- {_ZH[k]}：{dims[k]['note']}" for k in focus if k in dims)
@@ -67,7 +67,7 @@ class ClaudeFeedback:
             f"评估员对本任务重点维度的观察（仅供你参考，不要向创作者转述分数）：\n{notes}\n\n"
             "请给出你的反馈。"
         )
-        system = SYSTEM + (SYSTEM_SIMPLE_NOTE if quest.get("brief", True) else "")
+        system = SYSTEM + (SYSTEM_SIMPLE_NOTE if quest.get("ui") == "simple" else "")
         text = claude_text(system, [image_block(image_png), {"type": "text", "text": prompt}])
         return {"backend": self.name, "text": text}
 
@@ -79,7 +79,7 @@ class ClaudeFeedback:
                 "The first image is before the change, the second is after."
             )
             text = claude_text(
-                COMPARE_SYSTEM_EN + (COMPARE_SYSTEM_SIMPLE_NOTE_EN if quest.get("brief", True) else ""),
+                COMPARE_SYSTEM_EN + (COMPARE_SYSTEM_SIMPLE_NOTE_EN if quest.get("ui") == "simple" else ""),
                 [{"type": "text", "text": "Before:"}, image_block(before_png),
                  {"type": "text", "text": "After:"}, image_block(after_png),
                  {"type": "text", "text": prompt}],
@@ -90,7 +90,7 @@ class ClaudeFeedback:
             "第一张图是修改前，第二张图是修改后。"
         )
         text = claude_text(
-            COMPARE_SYSTEM + (COMPARE_SYSTEM_SIMPLE_NOTE if quest.get("brief", True) else ""),
+            COMPARE_SYSTEM + (COMPARE_SYSTEM_SIMPLE_NOTE if quest.get("ui") == "simple" else ""),
             [{"type": "text", "text": "修改前："}, image_block(before_png),
              {"type": "text", "text": "修改后："}, image_block(after_png),
              {"type": "text", "text": prompt}],

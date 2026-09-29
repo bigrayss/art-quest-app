@@ -60,7 +60,7 @@ class ClaudeAssist:
                 f"How they felt when they started: {intent.get('emotion') or '(not chosen)'}\n"
                 f"This is the {nth}th time they tapped you. The canvas looks like this now:"
             )
-            system = SYSTEM_EN + (SYSTEM_SIMPLE_NOTE_EN if quest.get("brief", True) else "")
+            system = SYSTEM_EN + (SYSTEM_SIMPLE_NOTE_EN if quest.get("ui") == "simple" else "")
         else:
             prompt = (
                 f"任务：{quest.get('title', '')}——{quest.get('prompt', '')}\n"
@@ -68,7 +68,7 @@ class ClaudeAssist:
                 f"他当时的心情：{intent.get('emotion') or '（没选）'}\n"
                 f"这是他第 {nth} 次点开你。画布现在是这样："
             )
-            system = SYSTEM + (SYSTEM_SIMPLE_NOTE if quest.get("brief", True) else "")
+            system = SYSTEM + (SYSTEM_SIMPLE_NOTE if quest.get("ui") == "simple" else "")
         text = claude_text(system, [image_block(image_png), {"type": "text", "text": prompt}],
                            max_tokens=200)
         return {"text": text.strip(), "backend": self.backend}

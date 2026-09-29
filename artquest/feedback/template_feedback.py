@@ -33,7 +33,7 @@ class TemplateFeedback:
         dims = scores.get("dims", {})
         ranked = sorted(focus, key=lambda k: dims.get(k, {}).get("score", 5))
         low = ranked[0] if ranked else "imagination"
-        simple = quest.get("brief", True)
+        simple = quest.get("ui") == "simple"
         wish = _clean(intent.get("text"))
         mood = (intent.get("emotion") or "").strip()
 
@@ -47,9 +47,8 @@ class TemplateFeedback:
                 see = f"I see: you felt {mood_en} while drawing this."
             else:
                 see = "I see: you finished a picture."
-            if simple:
-                text = see + "\nTry this: change one small thing, like a color or a size."
-                return {"backend": self.name, "text": text}
+            if simple:      # 简单版：一句话
+                return {"backend": self.name, "text": "Try changing one small thing, like a color."}
             ask = ("One question: can someone see what you wanted, just from the picture?" if wish
                    else "One question: which part do you want people to look at first?")
             text = (f"{see}\n{ask}\n"
@@ -64,9 +63,8 @@ class TemplateFeedback:
             see = f"我看到：你心情{mood}，画完了这一幅。"
         else:
             see = "我看到：你画完了这一幅。"
-        if simple:
-            text = see + "\n可以试试：改一小处，比如一个颜色或大小。"
-            return {"backend": self.name, "text": text}
+        if simple:      # 简单版：一句话
+            return {"backend": self.name, "text": "试试改一小处，比如一个颜色。"}
         ask = "一个问题：别人只看画，能看出你想画的吗？" if wish else "一个问题：你最想让人看画里的哪儿？"
         text = (f"{see}\n{ask}\n"
                 f"可以试试：在「{_ZH.get(low, low)}」上改一小处，比如大小、颜色或位置。不用重画。")
@@ -76,7 +74,7 @@ class TemplateFeedback:
                 quest: Dict[str, Any], intent: Dict[str, Any]) -> Dict[str, Any]:
         bd, ad = before_scores.get("dims", {}), after_scores.get("dims", {})
         deltas = {k: round(ad[k]["score"] - bd[k]["score"], 1) for k in ad if k in bd}
-        simple = quest.get("brief", True)
+        simple = quest.get("ui") == "simple"
         if quest.get("lang") == "en":
             up_en = [_EN[k] for k, v in deltas.items() if v >= 1]
             text = ("After your change, " + ", ".join(up_en) + " looks different." if up_en

@@ -214,6 +214,8 @@
   <button class="secondary" id="btn-guide-again"><i data-icon="bulb" data-size="17"></i>再看一遍导览</button>
   <!-- 语言就摆在这一行，不藏进「这台设备」的折叠里——进来之后也要一眼找得到 -->
   <button class="secondary" id="btn-lang-me"><i data-icon="swap" data-size="17"></i><span data-no-i18n id="lang-me-label"></span></button>
+  <!-- 版本也在这一行：简单 / 完整，进来之后随时能换 -->
+  <button class="secondary" id="btn-mode-me"><i data-icon="sliders" data-size="17"></i><span id="mode-me-label"></span></button>
   <details class="techbox" id="techbox">
     <summary><i data-icon="sliders" data-size="16"></i>这台设备<span class="me-sync hidden" id="me-sync"></span></summary>
     <div class="infolist">
@@ -498,6 +500,8 @@
            spellcheck="false" placeholder="名字">
     <input id="acct-pin-input" class="pin" type="text" inputmode="numeric" maxlength="4"
            autocomplete="off" placeholder="四位数字密码">
+    <input id="acct-age-input" class="pin" type="text" inputmode="numeric" maxlength="2"
+           autocomplete="off" placeholder="几岁（可不填）">
     <p class="acct-err hidden" id="acct-err"></p>
     <div class="actions column">
       <button class="primary" id="btn-acct-go">注册</button>
@@ -508,6 +512,21 @@
   </div>
 </div>
 
+
+<!-- 版本：简单 / 完整。简单版字最少：不问心情和心愿、不做问卷、不摆成长图、彩点只说一句；进化关两版都有。
+     注册时填了年龄的，8 岁及以下推荐简单版——推荐只是一个标签，选哪个孩子说了算。 -->
+<div class="modal hidden" id="mode-modal">
+  <div class="modal-card">
+    <h3>选一个版本</h3>
+    <div class="choice" id="mode-choices">
+      <button data-mode="simple"><span><b>简单版</b><small>字最少。直接画，彩点只说一句。</small></span><i data-icon="check" data-size="18"></i></button>
+      <button data-mode="full"><span><b>完整版</b><small>画前说说心情，画完看成长图。</small></span><i data-icon="check" data-size="18"></i></button>
+    </div>
+    <div class="actions column">
+      <button class="ghost" id="btn-mode-cancel">取消</button>
+    </div>
+  </div>
+</div>
 
 <!-- 语言：一张选择框，选了才换，不是点一下就跳 -->
 <div class="modal hidden" id="lang-modal">

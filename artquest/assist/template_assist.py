@@ -35,7 +35,7 @@ ENCOURAGE = [
 ]
 
 # 简单版：更短、更少
-# 短句是默认（第一波反馈之后一律短）。库要够大：连点六次不能听到同一句。
+# 库要够大：连点六次不能听到同一句
 OPEN_QUESTIONS_SIMPLE = [
     "这里是白天还是晚上？",
     "它今天过得怎么样？",
@@ -113,7 +113,7 @@ class TemplateAssist:
         want = bare_intent(intent.get("text") or "")
         i = max(0, nth - 1)
         en = quest.get("lang") == "en"
-        simple = quest.get("brief", True)
+        simple = quest.get("ui") == "simple"
         with_intent = WITH_INTENT_EN if en else WITH_INTENT
         if simple:
             encourage = ENCOURAGE_SIMPLE_EN if en else ENCOURAGE_SIMPLE
