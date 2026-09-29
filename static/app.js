@@ -686,7 +686,7 @@
   const langModal = $("#lang-modal");
   ["#btn-lang-welcome", "#btn-lang-me"].forEach(sel => {
     const b = $(sel); if (!b) return;
-    b.textContent = LANG_NAMES[LANG] || LANG;
+    (b.querySelector("#lang-me-label") || b).textContent = LANG_NAMES[LANG] || LANG;
     b.onclick = () => {
       langModal.querySelectorAll("[data-lang]").forEach(o => o.classList.toggle("on", o.dataset.lang === LANG));
       langModal.classList.remove("hidden");

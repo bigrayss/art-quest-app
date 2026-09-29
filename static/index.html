@@ -212,10 +212,11 @@
   <!-- 导览和「这台设备」并成一行：这一屏要装在一页里 -->
   <div class="me-foot">
   <button class="secondary" id="btn-guide-again"><i data-icon="bulb" data-size="17"></i>再看一遍导览</button>
+  <!-- 语言就摆在这一行，不藏进「这台设备」的折叠里——进来之后也要一眼找得到 -->
+  <button class="secondary" id="btn-lang-me"><i data-icon="swap" data-size="17"></i><span data-no-i18n id="lang-me-label"></span></button>
   <details class="techbox" id="techbox">
     <summary><i data-icon="sliders" data-size="16"></i>这台设备<span class="me-sync hidden" id="me-sync"></span></summary>
     <div class="infolist">
-      <div class="info"><span>语言</span><b><button class="linkbtn" id="btn-lang-me" data-no-i18n></button></b></div>
       <div class="info"><span>这一版</span><b id="shell-badge"></b></div>
       <div class="info"><span>评分 / 反馈</span><b id="backend-badge"></b></div>
       <div class="info"><span>本机代号</span><b id="anon-badge"></b></div>
