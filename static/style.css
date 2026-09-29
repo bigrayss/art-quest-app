@@ -1578,7 +1578,27 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
 /* 竖屏 pad 有 800 宽，dock 一行绰绰有余，下载按钮不必藏。 */
 @media (min-width: 701px) and (max-width: 899px) {
   #btn-download { display:inline-flex; }
+  /* 真 iPad 的 Safari 只有 750 高：画布 46dvh 之后，下面那栏只剩 200 来像素——任务卡（英文两行）
+     加钉底的主按钮就把参考图和彩点的窗全压到按钮底下（用户：「任务界面明显有问题」）。
+     不缩画布（这是创作设备），把**任务卡和参考图并排**：800 宽有的是横向空间。 */
+  .brief { display:grid; grid-template-columns:minmax(0, 1fr) 13rem; gap:10px; align-items:stretch; align-content:start; }
+  .brief > * { grid-column:1 / -1; }
+  .brief > #draw-quest-card { grid-column:1; }
+  .brief > #refpanel { grid-column:2; }
+  .brief:has(#refpanel.hidden) > #draw-quest-card { grid-column:1 / -1; }
+  /* 参考图那格跟任务卡等高：panel 拉伸到行高，缩略在里面撑满。别写 height:100%——
+     grid 里百分比高度会和行高互相等，整行被拉到右栏的全高。 */
+  .brief > #refpanel { display:flex; flex-direction:column; }
+  .brief .refpanel:not(.peek) .ref-thumb { height:auto; flex:1 1 auto; min-height:5.5rem; }
+  /* 图绝对定位铺满格子，不参与算高——不然它按自己的比例要 194px，整行被它撑高 */
+  .brief .refpanel:not(.peek) .ref-thumb img { position:absolute; inset:0; }
+  .brief .quest-card.small p { -webkit-line-clamp:3; }
+  .brief > .actions { grid-column:1 / -1; }
 }
+/* 英文心情词最长的是 Not sure：一行五个时别让它折成两行把整排撑高。
+   列要写 minmax(0,1fr)：1fr 的下限是 min-content，nowrap 之后五列会撑破卡片、整页溢出。 */
+.intent-form .chips { grid-template-columns:repeat(5, minmax(0, 1fr)); }
+html[data-lang="en"] .intent-form .chips button { white-space:nowrap; padding-inline:4px; font-size:0.9375rem; }
 
 
 /* ===== 手机上的创作屏：能给画布的宽度一寸都不留 ===== */
