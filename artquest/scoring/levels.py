@@ -222,14 +222,15 @@ EXAMPLES: Dict[str, Any] = {
         },
     },
     "process": [
-        {"title": {"zh": "第 1 张", "en": "Shot 1"},
-         "note": {"zh": "先用大笔铺满了蓝，再画东西。", "en": "Filled the whole sky blue with a big brush first, then started drawing things."}},
-        {"title": {"zh": "第 2 张", "en": "Shot 2"},
-         "note": {"zh": "热气球和飞机定了位，人物还只是轮廓。", "en": "Balloon and jet are placed; the figures are still outlines."}},
-        {"title": {"zh": "第 3 张", "en": "Shot 3"},
-         "note": {"zh": "最后加的小星星把空白填上了。", "en": "The little stars added at the end fill the empty sky."}},
-        {"title": {"zh": "改之前", "en": "Before revision"},
-         "note": {"zh": "改之前船是单色的，改完加了条纹。", "en": "The boat was one color before; stripes were added in the revision."}},
+        {"title": {"zh": "线条两项偏低", "en": "Both line dimensions low"},
+         "note": {"zh": "轮廓都是一样粗细的一笔。头发试试用短线排一排，草地用尖尖的小线。",
+                  "en": "Every outline is one even stroke. Try short strokes side by side for hair, and little spiky lines for grass."}},
+        {"title": {"zh": "画面组织 3、色彩丰富 4", "en": "Organization 3, color richness 4"},
+         "note": {"zh": "暖色的房子和冷色的夜空搭得好看。东西都在左半边，试试把月亮挪到右上角。",
+                  "en": "The warm house against the cool night sky looks great. Everything sits on the left. Try moving the moon to the top right."}},
+        {"title": {"zh": "写实 1、想象 5", "en": "Realism 1, imagination 5"},
+         "note": {"zh": "猫有六条腿、房子长翅膀，画面因此有了故事。给翅膀画上羽毛，它会更像会飞。",
+                  "en": "A cat with six legs and a house with wings. That is what gives the picture a story. Draw feathers on the wings and they will look ready to fly."}},
     ],
 }
 
