@@ -8,8 +8,8 @@ import unittest
 from .env import ADMIN, TMP as _TMP  # noqa: F401  (offline backends, throwaway data dir)
 
 os.environ["ARTQUEST_TEACHER_CODE"] = "code-777"
-# 别的测试不关心分工：每件分给 99 位 = 谁都看得见。分工规则在 test_work_is_shared_out 里单独把 K 调到 2。
-os.environ["ARTQUEST_RATERS_PER_WORK"] = "99"
+# 别的测试不关心池子：每件要 99 份 = 永远评不满、谁都看得见。池子规则在 test_a_work_leaves_the_queue 里单独把 K 调到 2。
+os.environ["ARTQUEST_RATINGS_PER_WORK"] = "99"
 
 from fastapi.testclient import TestClient  # noqa: E402
 from PIL import Image, ImageDraw  # noqa: E402
@@ -148,54 +148,42 @@ class TeacherSide(unittest.TestCase):
         # 示范图是仓库自带的静态文件
         self.assertEqual(self.c.get(rb["examples"][0]["image"]).status_code, 200)
 
-    def test_work_is_shared_out_so_no_teacher_grades_everything(self):
-        from artquest import assignment
-        # 三位老师、K=2：四件作品 8 个名额，谁手上少给谁 → 3/3/2，没人拿到全部
-        t = [self._teacher(n) for n in ("分工甲", "分工乙", "分工丙")]
-        ids = [r.json()["account"]["account_id"] for r in t]
+    def test_a_work_leaves_the_queue_once_it_has_enough_ratings(self):
+        t = [self._teacher(n) for n in ("池子甲", "池子乙", "池子丙")]
         hs = [{"Authorization": f"Bearer {r.json()['token']}"} for r in t]
-        self.assertEqual(self.c.post("/api/teacher/assignments", headers=ADMIN, json={"raters_per_work": 2}).status_code, 200)
-        self.assertEqual(self.c.post("/api/teacher/assignments", headers=hs[0], json={"raters_per_work": 1}).status_code, 401, "老师不能改分工")
+        self.assertEqual(self.c.post("/api/teacher/progress", headers=hs[0], json={"ratings_per_work": 1}).status_code, 401, "老师不能改")
+        self.assertEqual(self.c.post("/api/teacher/progress", headers=ADMIN, json={"ratings_per_work": 2}).status_code, 200)
         try:
-            sids = [self._finished_session(f"分工学生{i}", revise=False) for i in range(4)]
-            plan = self.c.get("/api/teacher/assignments", headers=ADMIN).json()
-            self.assertEqual(plan["raters_per_work"], 2)
-            for sid in sids:
-                self.assertEqual(len(plan["works"][sid]), 2, "每件正好两位")
-                self.assertEqual(len(set(plan["works"][sid])), 2)
-            # 老师只看到分给自己的；三人合起来覆盖全部
-            seen = {}
-            for h, aid in zip(hs, ids):
-                rows = self.c.get("/api/teacher/sessions?status=all", headers=h).json()["sessions"]
-                mine = {r["session_id"] for r in rows} & set(sids)
-                self.assertEqual(mine, {sid for sid in sids if aid in plan["works"][sid]})
-                self.assertLess(len(mine), 4, "没有一位老师拿到全部")
-                seen[aid] = len(mine)
-            # （同一数据目录里别的测试注册的老师也在分，所以不断言总数）
-            self.assertLessEqual(max(seen.values()) - min(seen.values()), 1, "负担均衡")
-            # 再分一次名单不变（老师手上的名单不能变来变去）
-            again = self.c.get("/api/teacher/assignments", headers=ADMIN).json()["works"]
-            self.assertEqual({k: again[k] for k in sids}, {k: plan["works"][k] for k in sids})
-            # 研究员手动指定：这件只给甲；不是老师的账号会被拒
-            self.assertEqual(self.c.post("/api/teacher/assignments", headers=ADMIN, json={"works": {sids[0]: ["acc-nope"]}}).status_code, 422)
-            r = self.c.post("/api/teacher/assignments", headers=ADMIN, json={"works": {sids[0]: [ids[0]]}}).json()
-            self.assertEqual(r["works"][sids[0]][0], ids[0], "指定的排最前")
-            self.assertEqual(len(r["works"][sids[0]]), 2, "只指定了一位，自动补到 K 位")
-            # 一位没分到的老师评了这件：算进去，不再拉第三位来凑
-            first = self.c.get(f"/api/teacher/sessions/{sids[0]}", headers=hs[2]).json()["images"][0]["key"]
-            self.assertEqual(self.c.post(f"/api/teacher/sessions/{sids[0]}/grade", headers=hs[2],
-                                         json={"dims": {"imagination": 4}, "image_notes": {first: "起头"}}).status_code, 200)
-            r = self.c.get("/api/teacher/assignments", headers=ADMIN).json()
-            self.assertIn(ids[2], r["works"][sids[0]])
-            self.assertIn(ids[0], r["works"][sids[0]])
-            per = {x["account_id"]: x for x in r["teachers"]}
-            self.assertEqual(per[ids[2]]["n_graded"], 1)
-            # 研究员的列表带 assignees（名字）
-            row = next(x for x in self.c.get("/api/teacher/sessions", headers=ADMIN).json()["sessions"] if x["session_id"] == sids[0])
-            self.assertTrue({"分工甲", "分工丙"} <= set(row["assignees"]))
+            a = self._finished_session("池子学生A", revise=False)
+            b = self._finished_session("池子学生B", revise=False)
+            todo = lambda h: [r["session_id"] for r in self.c.get("/api/teacher/sessions?status=todo", headers=h).json()["sessions"]]
+            done = lambda h: [r["session_id"] for r in self.c.get("/api/teacher/sessions?status=done", headers=h).json()["sessions"]]
+            for h in hs:
+                self.assertTrue({a, b} <= set(todo(h)), "没评满、没评过：谁都看得见")
+            key = lambda sid, h: self.c.get(f"/api/teacher/sessions/{sid}", headers=h).json()["images"][0]["key"]
+            grade = lambda sid, h: self.c.post(f"/api/teacher/sessions/{sid}/grade", headers=h,
+                                               json={"dims": {"imagination": 4}, "image_notes": {key(sid, h): "起头"}}).status_code
+            self.assertEqual(grade(b, hs[0]), 200)
+            self.assertNotIn(b, todo(hs[0])); self.assertIn(b, done(hs[0]))
+            self.assertIn(b, todo(hs[1]), "别人还看得见")
+            # 评得少的在前：a（0 次）排在 b（1 次）前面
+            order = [sid for sid in todo(hs[1]) if sid in (a, b)]
+            self.assertEqual(order, [a, b])
+            self.assertEqual(grade(b, hs[1]), 200)
+            self.assertNotIn(b, todo(hs[2]), "评满 2 次：从没评过的人的待评里也消失")
+            self.assertIn(b, done(hs[0]), "评过的人在「已评」里还看得到")
+            self.assertEqual(grade(b, hs[2]), 200, "按 id 打开照样能评，第 3 份不是坏事")
+            p = self.c.get("/api/teacher/progress", headers=ADMIN).json()
+            wb = next(w for w in p["works"] if w["session_id"] == b)
+            self.assertEqual((wb["n_ratings"], wb["full"]), (3, True))
+            self.assertEqual(next(w for w in p["works"] if w["session_id"] == a)["full"], False)
+            names = {x["name"]: x["n_graded"] for x in p["teachers"]}
+            self.assertEqual((names["池子甲"], names["池子乙"], names["池子丙"]), (1, 1, 1))
+            # 研究员的列表带 full，全都看得到
+            rows = {r["session_id"]: r for r in self.c.get("/api/teacher/sessions?status=todo", headers=ADMIN).json()["sessions"]}
+            self.assertTrue(rows[b]["full"] and not rows[a]["full"])
         finally:
-            self.c.post("/api/teacher/assignments", headers=ADMIN, json={"raters_per_work": 99})
-
+            self.c.post("/api/teacher/progress", headers=ADMIN, json={"ratings_per_work": 99})
 
 class TeacherEntrance(unittest.TestCase):
     """/teacher 是同一份 app 的另一个入口，不是第二个网站。"""
