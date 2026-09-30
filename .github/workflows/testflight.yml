@@ -5,6 +5,8 @@
 #   2. App Store Connect → 用户和访问 → 集成 → App Store Connect API：生成一个 key（角色 App Manager），
 #      下载 .p8。记下 Key ID 和 Issuer ID。
 #   3. App Store Connect → App → 新建 App，Bundle ID 选 cn.ddhulu.kidsartquest（没有就先在开发者网站 Identifiers 里登记）。
+#   3b. 开发者网站 → Certificates, Identifiers & Profiles → Devices → 登记至少一台设备的 UDID
+#       （自动签名打包要一个开发 profile，没有设备就生成不了）。
 #   4. 仓库 Settings → Secrets and variables → Actions，加四个 secret：
 #        ASC_KEY_ID      Key ID
 #        ASC_ISSUER_ID   Issuer ID
@@ -41,15 +43,15 @@ jobs:
         env:
           ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
-      # 打包直接用发布签名（Apple Distribution）：默认的开发签名要团队里至少登记一台设备，
-      # CI 上没有设备，第一次就栽在「Your team has no devices」。发布签名不要设备。
+      # 自动签名打包时要一个开发用 profile，而开发 profile 要团队里至少登记过一台设备
+      # （「Your team has no devices」）。指定发布证书绕不过去（和自动签名冲突），
+      # 所以前提多一条：开发者网站 Devices 里登记一台 iPad 的 UDID，任何一台都行。
       - name: Archive（构建号 = 这次运行的序号，每次都往上涨）
         run: |
           cd ios
           xcodebuild -project ArtQuest.xcodeproj -scheme ArtQuest -configuration Release \
             -destination 'generic/platform=iOS' -archivePath build/ArtQuest.xcarchive archive \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
             -allowProvisioningUpdates \
             -authenticationKeyPath ~/.private_keys/AuthKey_${ASC_KEY_ID}.p8 \
             -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
