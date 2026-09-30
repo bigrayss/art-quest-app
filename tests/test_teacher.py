@@ -47,6 +47,8 @@ class TeacherSide(unittest.TestCase):
 
     def _teacher(self, name="王老师", code="code-777"):
         r = self.c.post("/api/accounts/register", json={"name": name, "pin": "2222", "role": "teacher", "teacher_code": code})
+        if r.status_code == 409:      # 数据目录跨进程复用时（ARTQUEST_DATA_DIR 指定了）名字会撞：登录就行
+            r = self.c.post("/api/accounts/login", json={"name": name, "pin": "2222"})
         return r
 
     def test_a_teacher_needs_the_invite_code_and_a_student_cannot_enter(self):
@@ -119,6 +121,30 @@ class TeacherSide(unittest.TestCase):
         self.assertEqual(self.c.post(f"/api/teacher/sessions/{sid}/grade", headers=t1, json={"dims": {"imagination": 9}}).status_code, 422)
         self.assertEqual(self.c.post(f"/api/teacher/sessions/{sid}/grade", headers=t1, json={"dims": {"nope": 3}}).status_code, 422)
 
+
+    def test_the_rubric_reference_is_for_teachers_and_carries_all_nine_dimensions_in_both_languages(self):
+        student = self.c.post("/api/accounts/register", json={"name": "学生乙", "pin": "3333"}).json()
+        self.assertEqual(self.c.get("/api/teacher/rubric", headers={"Authorization": f"Bearer {student['token']}"}).status_code, 403)
+        self.assertEqual(self.c.get("/api/teacher/rubric").status_code, 401)
+        teacher = {"Authorization": f"Bearer {self._teacher('孙老师').json()['token']}"}
+        r = self.c.get("/api/teacher/rubric", headers=teacher)
+        self.assertEqual(r.status_code, 200, r.text)
+        rb = r.json()
+        from artquest.scoring.base import DIM_KEYS
+        self.assertEqual(sorted(rb["dimensions"]), sorted(DIM_KEYS))
+        self.assertEqual([k for c in rb["categories"] for k in c["dims"]], DIM_KEYS)   # 四组连起来正好是九维、同一顺序
+        for k, d in rb["dimensions"].items():
+            self.assertEqual([l["score"] for l in d["levels"]], [5, 4, 3, 2, 1], k)
+            for l in d["levels"]:
+                self.assertTrue(l["zh"] and l["en"], (k, l["score"]))
+            self.assertTrue(d["criterion"]["zh"] and d["criterion"]["en"], k)
+            ref = d["reference"]
+            self.assertEqual(sum(ref["counts"]), ref["n"], k)          # 分布是 1,046 幅的完整计数
+            self.assertEqual(len(ref["counts"]), 5)
+        self.assertIn("arxiv.org", rb["source"]["arxiv"])
+        self.assertTrue(rb["examples"] and all(e["comment"]["zh"] and e["comment"]["en"] for e in rb["examples"]))
+        # 示范图是仓库自带的静态文件
+        self.assertEqual(self.c.get(rb["examples"][0]["image"]).status_code, 200)
 
 
 class TeacherEntrance(unittest.TestCase):

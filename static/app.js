@@ -514,7 +514,8 @@
     catch (e) { alert(errText(e)); return; }
     const mine = d.my_rating || {};
     grade = { sid, dims: { ...(mine.dims || {}) }, notes: { ...(mine.image_notes || {}) },
-              na: new Set(d.not_applicable || []), startedAt: Date.now(), scaleMax: d.scale_max || 5 };
+              na: new Set(d.not_applicable || []), startedAt: Date.now(), scaleMax: d.scale_max || 5,
+              dimsMeta: d.dimensions || [] };
     $("#g-student").textContent = d.student || "";
     const dur = d.duration_ms ? (d.duration_ms >= 60000 ? `${Math.round(d.duration_ms / 60000)} 分钟` : `${Math.round(d.duration_ms / 1000)} 秒`) : "";
     $("#g-meta").textContent = [d.task.title, whenText(d.created_at), dur].filter(Boolean).join(" · ");
@@ -540,19 +541,29 @@
     </div>`).join("");
     strip.querySelectorAll("button").forEach(b => b.onclick = () => openPic(b.dataset.url));
     strip.querySelectorAll("input").forEach(inp => inp.oninput = () => { grade.notes[inp.dataset.key] = inp.value; });
-    // 九维
+    // 九维。量表（KidsArtBench 五档原文）从 /teacher/rubric 来：分数钮的 title 是那一档的话，
+    // 点维度名把五档摊开在这一行底下——老师不用离开打分屏就能对着量表打。
+    const rb = await loadRubric();
     const dims = $("#g-dims");
     dims.innerHTML = (d.dimensions || []).map(dim => {
       const na = grade.na.has(dim.key);
+      const lv = ((rb.dimensions || {})[dim.key] || {}).levels || [];
+      const tip = v => { const l = lv.find(x => x.score === v); return l ? escapeHtml(rbText(l)) : ""; };
       const scale = na ? `<span class="gdscale">这个任务不考察</span>`
         : `<div class="gdscale">${[1, 2, 3, 4, 5].slice(0, grade.scaleMax).map(v =>
-            `<button type="button" data-dim="${dim.key}" data-v="${v}" class="${grade.dims[dim.key] === v ? "on" : ""}">${v}</button>`).join("")}</div>`;
-      return `<div class="gd${na ? " na" : ""}"><div class="gdname"><span>${escapeHtml(dimName(dim))}</span><small>${escapeHtml(dim.desc || "")}</small></div>${scale}</div>`;
+            `<button type="button" data-dim="${dim.key}" data-v="${v}" title="${tip(v)}" class="${grade.dims[dim.key] === v ? "on" : ""}">${v}</button>`).join("")}</div>`;
+      const levels = lv.length ? `<div class="gdlevels hidden">${lv.map(l =>
+        `<div><b>${l.score}</b><span>${escapeHtml(rbText(l))}</span></div>`).join("")}</div>` : "";
+      return `<div class="gd${na ? " na" : ""}" data-dim="${dim.key}"><button type="button" class="gdname${lv.length ? " has-levels" : ""}" data-toggle="${dim.key}"><span>${escapeHtml(dimName(dim))}</span><small>${escapeHtml(dim.desc || "")}</small></button>${scale}${levels}</div>`;
     }).join("");
     dims.querySelectorAll("button[data-dim]").forEach(b => b.onclick = () => {
       const k = b.dataset.dim, v = +b.dataset.v;
       if (grade.dims[k] === v) delete grade.dims[k]; else grade.dims[k] = v;    // 再点一下取消
       dims.querySelectorAll(`button[data-dim="${k}"]`).forEach(x => x.classList.toggle("on", grade.dims[k] === +x.dataset.v));
+    });
+    dims.querySelectorAll("button[data-toggle]").forEach(b => b.onclick = () => {
+      const box = b.parentElement.querySelector(".gdlevels"); if (!box) return;
+      box.classList.toggle("hidden"); b.classList.toggle("open", !box.classList.contains("hidden"));
     });
     $("#g-comment").value = mine.comment || "";
     $("#g-err").classList.add("hidden");
@@ -591,6 +602,81 @@
   $("#btn-pic-close").onclick = () => picModal.classList.add("hidden");
   picModal.onclick = (e) => { if (e.target === picModal) picModal.classList.add("hidden"); };
 
+  // ---- 评分参考 ----
+  // KidsArtBench（EACL 2026）的九维五档量表原文 + 中译、1,046 幅作品里专家打分的分布、评语示范。
+  // 内容全在 scoring/levels.py，这里只排版。中英两份都在响应里，按 LANG 挑，不走 en.js。
+  let rubricData = null, rubricFrom = "teacher";
+  async function loadRubric() {
+    if (rubricData) return rubricData;
+    try { rubricData = await api(`${API}/teacher/rubric`); } catch (e) { return { dimensions: {} }; }
+    return rubricData;
+  }
+  const rbText = o => (o && (LANG === "en" ? o.en : o.zh)) || (o || {}).zh || "";
+  async function openRubric(from) {
+    rubricFrom = from || "teacher";
+    const rb = await loadRubric();
+    if (!rb.categories) { alert("加载失败。"); return; }
+    const byKey = {}; ((grade && grade.dimsMeta) || []).forEach(d => { byKey[d.key] = d; });
+    const src = rb.source || {};
+    $("#rb-source").innerHTML = `${escapeHtml(src.venue || "")} · <a href="${src.arxiv}" target="_blank" rel="noopener">arXiv</a> · <a href="${src.code}" target="_blank" rel="noopener">GitHub</a>`;
+    const nameOf = k => dimName(byKey[k] || DIM_META[k] || { zh: k });
+    // 顶上的一排锚：四组 + 评语
+    $("#rb-nav").innerHTML = rb.categories.map(c => `<a href="#rb-${c.key}">${escapeHtml(rbText(c))}</a>`).join("")
+      + `<a href="#rb-examples">评语示范</a>`;
+    const total = src.n_artworks || 1046;
+    const dist = (ref) => {
+      if (!ref) return "";
+      const max = Math.max(...ref.counts);
+      return `<div class="rb-dist" title="${total}"><div class="rb-bars">${ref.counts.map((n, i) =>
+        `<div class="rb-bar"><i style="height:${Math.max(2, Math.round(n / max * 100))}%"></i><b>${i + 1}</b><small>${Math.round(n / ref.n * 100)}%</small></div>`).join("")}</div>
+        <div class="rb-dist-cap">专家在 ${total} 幅作品里打的分 · 平均 ${ref.mean.toFixed(1)}</div></div>`;
+    };
+    const dimCard = (k) => {
+      const d = rb.dimensions[k]; if (!d) return "";
+      return `<article class="rb-dim" id="rb-dim-${k}">
+        <h3>${escapeHtml(nameOf(k))}<small>${escapeHtml(LANG === "en" ? "" : ((byKey[k] || DIM_META[k] || {}).en || ""))}</small></h3>
+        <p class="rb-crit">${escapeHtml(rbText(d.criterion))}</p>
+        <div class="rb-levels">${d.levels.map(l => `<div class="rb-level"><b>${l.score}</b><span>${escapeHtml(rbText(l))}</span></div>`).join("")}</div>
+        ${dist(d.reference)}
+      </article>`;
+    };
+    const proc = (rb.procedure || {})[LANG === "en" ? "en" : "zh"] || [];
+    const ex = (rb.examples || []).map(e => {
+      const scores = Object.entries(e.scores || {}).map(([k, v]) => `<span class="rb-chip">${escapeHtml(nameOf(k))} <b>${v}</b></span>`).join("");
+      return `<article class="rb-ex">
+        ${e.image ? `<button type="button" class="rb-ex-img" data-url="${e.image}"><img src="${fileUrl(e.image)}" alt=""></button>` : ""}
+        <div class="rb-ex-body">
+          ${e.title ? `<h4>${escapeHtml(rbText(e.title))}</h4>` : ""}
+          <div class="rb-chips">${scores}</div>
+          <blockquote>${escapeHtml(rbText(e.comment)).replace(/\n/g, "<br>")}</blockquote>
+          ${e.caption ? `<p class="rb-cap">${escapeHtml(rbText(e.caption))}</p>` : ""}
+        </div>
+      </article>`;
+    }).join("");
+    $("#rb-body").innerHTML = `
+      <section class="rb-intro">
+        <p>九个维度，每维 1–5 分。分数说的是这一幅在这一维上做到了哪一档，和别的孩子无关。</p>
+        <ul>${proc.map(t => `<li>${escapeHtml(t)}</li>`).join("")}</ul>
+      </section>
+      ${rb.categories.map(c => `<section class="rb-cat" id="rb-${c.key}"><h2>${escapeHtml(rbText(c))}</h2>${c.dims.map(dimCard).join("")}</section>`).join("")}
+      <section class="rb-cat" id="rb-examples"><h2>评语示范</h2>
+        <p class="rb-how">评语是写给孩子的。先说看到了什么，再说哪一维用了什么办法，最后给一个下一步能做的事。不写总分，不和别人比。</p>
+        ${ex}
+      </section>`;
+    $("#rb-body").querySelectorAll(".rb-ex-img").forEach(b => b.onclick = () => openPic(fileUrl(b.dataset.url)));
+    show("rubric");
+  }
+  // 维度名的 zh/en：打分屏拿到的 dimensions 里有；没进过打分屏就用这份（和 scoring/base.py 一致）
+  const DIM_META = { realism: { zh: "写实", en: "Realism" }, deformation: { zh: "变形", en: "Deformation" },
+    imagination: { zh: "想象", en: "Imagination" }, color_richness: { zh: "色彩丰富", en: "Color Richness" },
+    color_contrast: { zh: "色彩对比", en: "Color Contrast" }, line_combination: { zh: "线条组合", en: "Line Combination" },
+    line_texture: { zh: "线条质感", en: "Line Texture" }, picture_organization: { zh: "画面组织", en: "Picture Organization" },
+    transformation: { zh: "转化", en: "Transformation" } };
+  $("#btn-rubric-list").onclick = () => openRubric("teacher");
+  $("#btn-rubric-grade").onclick = () => openRubric("grade");
+  // 返回原处：打分屏的状态还在（grade 没清），直接切回去就行
+  $("#btn-rubric-back").onclick = () => { if (rubricFrom === "grade" && grade) show("grade"); else openTab("grade"); };
+
   // ===== 做一幅画的六步：顶栏上一条细进度条 =====
   // 闯关地图搬到首页去了——那儿才该热闹。一次创作的过程条只需要回答一件事：还剩几步。
   const ALL_STAGES = [
@@ -624,10 +710,10 @@
   // ---------- views ----------
   // 四个 tab 是四块独立的界面；做任务时导航整个收起来，只剩画画。
   const VIEWS = ["welcome", "world", "quest", "dex", "buddy", "sessions", "intent", "draw", "result", "survey", "final",
-                 "teacher", "grade"];
+                 "teacher", "grade", "rubric"];
   const TAB_VIEW = { map: "quest", dex: "dex", buddy: "buddy", me: "sessions", grade: "teacher" };
-  const VIEW_TAB = { world: "map", quest: "map", dex: "dex", buddy: "buddy", sessions: "me", teacher: "grade", grade: "grade" };
-  const TITLES = { world: "彩点的世界", quest: "地图", dex: "画廊", buddy: "彩点", sessions: "我的", teacher: "打分", grade: "打分" };
+  const VIEW_TAB = { world: "map", quest: "map", dex: "dex", buddy: "buddy", sessions: "me", teacher: "grade", grade: "grade", rubric: "grade" };
+  const TITLES = { world: "彩点的世界", quest: "地图", dex: "画廊", buddy: "彩点", sessions: "我的", teacher: "打分", grade: "打分", rubric: "评分参考" };
   function show(name) {
     VIEWS.forEach(v => $(`#view-${v}`).classList.toggle("hidden", v !== name));
     native("keepAwake", { on: name === "draw" });     // 画着画的时候屏幕别自己暗下去
