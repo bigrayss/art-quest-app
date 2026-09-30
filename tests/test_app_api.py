@@ -409,7 +409,7 @@ class TheShellRunsFromAnotherOrigin(unittest.TestCase):
             p2.wait_for_selector(".dex-card", timeout=10000)
             self._tab(p2, "me", "view-sessions")
             p2.click("#btn-acct-logout")
-            p2.wait_for_selector("#acct-out:not(.hidden)")
+            p2.wait_for_selector("#view-welcome:not(.hidden)")   # 退出登录回最开始的门口
             last = [m for m in p2.evaluate("window.__native") if m.get("type") == "token"][-1]
             self.assertEqual(last["value"], "", "退出要让壳把钥匙串里的令牌清掉")
             browser.close()

@@ -1160,6 +1160,7 @@ body.welcome .appbar, body.welcome .studybar { display:none; }
 /* /teacher 打开的门口：没有「跳过」——老师必须登录 */
 body.teacher-entrance #btn-welcome-skip { display:none; }
 body.teacher-entrance #btn-welcome-login { order:-1; }      /* 登录是主钮，放上面 */
+.entrance-link { text-decoration:none; margin-top:10px; display:inline-flex; align-items:center; justify-content:center; }
 .langbtn { position:absolute; top:calc(14px + env(safe-area-inset-top)); right:18px; z-index:2;
   background:var(--card); border:2px solid var(--line); box-shadow:none; color:var(--muted-2);
   font-weight:800; font-size:0.8125rem; padding:6px 12px; min-height:0; border-radius:999px; }

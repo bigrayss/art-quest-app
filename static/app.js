@@ -454,14 +454,13 @@
     if (!confirm("确定退出登录？")) return;
     try { await api(`${API}/accounts/logout`, { method: "POST", body: JSON.stringify({ token: savedToken() }) }); }
     catch (e) { /* 退出是本地的事，网不通也要退得掉 */ }
-    const wasTeacher = isTeacher();
     setToken(""); cacheAccount(null); state.account = null; state.unclaimed = 0;
     applyRole();
     paintIntentIdentity();
     await loadCollection(); renderQuests();
     await loadSessions();
-    if (TEACHER_ENTRANCE) { welcomeOn = true; show("welcome"); }   // 老师入口：退出就回老师的门口
-    else if (wasTeacher) show("sessions");      // 老师退出后停在「我的」，tab 已经换回学生那套
+    // 退出就回最开始的门口：从这儿能重新登录、换个身份、或者去老师入口
+    welcomeOn = true; show("welcome");
   };
 
   // ===== 教师端 =====
@@ -841,6 +840,7 @@
   if (TEACHER_ENTRANCE) {
     document.body.classList.add("teacher-entrance");
     const sub = $("#welcome-sub"); if (sub) sub.classList.remove("hidden");
+    $("#link-teacher")?.classList.add("hidden"); $("#link-student")?.classList.remove("hidden");   // .hidden 是 !important，CSS 压不过
     const r = $("#btn-welcome-register"), l = $("#btn-welcome-login");
     if (r) r.textContent = "老师注册";
     if (l) { l.textContent = "老师登录"; l.classList.remove("ghost"); l.classList.add("primary", "big", "clay"); r.classList.remove("primary", "big", "clay"); r.classList.add("ghost"); }
