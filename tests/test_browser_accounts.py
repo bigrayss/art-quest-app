@@ -152,8 +152,8 @@ class AccountsInARealBrowser(unittest.TestCase):
                 # 暗号错了要有一句看得懂的话，而且不掉线
                 phone.once("dialog", lambda d: d.accept())      # 退出前的那句确认
                 phone.click("#btn-acct-logout")
-                phone.wait_for_selector("#acct-out:not(.hidden)")
-                phone.click("#btn-acct-login")
+                phone.wait_for_selector("#view-welcome:not(.hidden)")   # 退出登录回最开始的门口
+                phone.click("#btn-welcome-login")
                 phone.fill("#acct-name-input", self.NAME)
                 phone.fill("#acct-pin-input", "0000")
                 phone.click("#btn-acct-go")
