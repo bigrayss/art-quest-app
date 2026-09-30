@@ -617,24 +617,12 @@
     if (!rb.categories) { alert("加载失败。"); return; }
     const byKey = {}; ((grade && grade.dimsMeta) || []).forEach(d => { byKey[d.key] = d; });
     const nameOf = k => dimName(byKey[k] || DIM_META[k] || { zh: k });
-    // 顶上的一排锚：四组 + 评语
-    $("#rb-nav").innerHTML = rb.categories.map(c => `<a href="#rb-${c.key}">${escapeHtml(rbText(c))}</a>`).join("")
-      + `<a href="#rb-examples">评语示范</a>`;
-    const total = ((rb.dimensions.realism || {}).reference || {}).n || 1046;
-    const dist = (ref) => {
-      if (!ref) return "";
-      const max = Math.max(...ref.counts);
-      return `<div class="rb-dist" title="${total}"><div class="rb-bars">${ref.counts.map((n, i) =>
-        `<div class="rb-bar"><i style="height:${Math.max(2, Math.round(n / max * 100))}%"></i><b>${i + 1}</b><small>${Math.round(n / ref.n * 100)}%</small></div>`).join("")}</div>
-        <div class="rb-dist-cap">专家在 ${total} 幅作品里打的分 · 平均 ${ref.mean.toFixed(1)}</div></div>`;
-    };
     const dimCard = (k) => {
       const d = rb.dimensions[k]; if (!d) return "";
       return `<article class="rb-dim" id="rb-dim-${k}">
         <h3>${escapeHtml(nameOf(k))}<small>${escapeHtml(LANG === "en" ? "" : ((byKey[k] || DIM_META[k] || {}).en || ""))}</small></h3>
         <p class="rb-crit">${escapeHtml(rbText(d.criterion))}</p>
         <div class="rb-levels">${d.levels.map(l => `<div class="rb-level"><b>${l.score}</b><span>${escapeHtml(rbText(l))}</span></div>`).join("")}</div>
-        ${dist(d.reference)}
       </article>`;
     };
     const ex = (rb.examples || []).map(e => {
@@ -649,9 +637,10 @@
         </div>
       </article>`;
     }).join("");
+    // 九维直接列，不分组、不带分布（用户 2026-09-30：小栏没必要；分布会让老师先入为主）
     $("#rb-body").innerHTML = `
-      ${rb.categories.map(c => `<section class="rb-cat" id="rb-${c.key}"><h2>${escapeHtml(rbText(c))}</h2>${c.dims.map(dimCard).join("")}</section>`).join("")}
-      <section class="rb-cat" id="rb-examples"><h2>评语示范</h2>${ex}</section>`;
+      <section class="rb-cat">${rb.categories.flatMap(c => c.dims).map(dimCard).join("")}</section>
+      <section class="rb-cat"><h2>评语示范</h2>${ex}</section>`;
     $("#rb-body").querySelectorAll(".rb-ex-img").forEach(b => b.onclick = () => openPic(fileUrl(b.dataset.url)));
   }
   // 维度名的 zh/en：打分屏拿到的 dimensions 里有；没进过打分屏就用这份（和 scoring/base.py 一致）

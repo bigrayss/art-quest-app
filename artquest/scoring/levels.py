@@ -6,10 +6,9 @@ Attribute-Aware MLLMs*, EACL 2026（arXiv:2512.12503）附录 A.1 表 3–11，
 以及 github.com/bigrayss/KidsArtBench 的 experiments/utils/prompt_lib.py。
 英文是论文原文，一个词没改；中文是照着译的，给老师快速读。
 
-`REFERENCE_DISTRIBUTION` 是仓库 ArtEduDataset/{train,test}.csv 里 1,046 幅作品的
-专家终评分布（12 位美术教师、两人独立打分、资深专家仲裁）。它回答老师最常问的
-一句「这个维度大家一般打几分」：写实一栏几乎全是 1–2，想象几乎全是 5——
-这不是量表出了错，是儿童画的常态。老师照着这个分布校准自己的手，不必和它一样。
+界面上**不给**数据集的平均分和分数分布（用户 2026-09-30：「會給老師先入爲主的想法」）。
+数据集里的分布仅供研究分析时参考：写实几乎全是 1–2（58% / 40%），想象 70% 是 5，变形 76% 是 4——
+算自仓库 ArtEduDataset/{train,test}.csv，不进老师界面。
 
 评语的例子：公开仓库不含评语文本（评语只覆盖一部分作品，且随图片一起走数据使用协议）。
 `EXAMPLES` 是本界面写的示范，不是数据集标注。老师是专业的：界面上不引用论文、不讲流程、
@@ -204,19 +203,6 @@ RUBRIC: Dict[str, Dict[str, Any]] = {
     },
 }
 
-# 1,046 幅作品的专家终评：每维 1→5 各多少幅。算自仓库 ArtEduDataset/{train,test}.csv，2026-09-30。
-REFERENCE_DISTRIBUTION: Dict[str, Dict[str, Any]] = {
-    "realism": {"n": 1046, "mean": 1.45, "counts": [602, 419, 25, 0, 0]},
-    "deformation": {"n": 1046, "mean": 3.77, "counts": [1, 12, 227, 790, 16]},
-    "imagination": {"n": 1046, "mean": 4.70, "counts": [0, 0, 5, 305, 736]},
-    "color_richness": {"n": 1046, "mean": 3.69, "counts": [17, 34, 363, 470, 162]},
-    "color_contrast": {"n": 1046, "mean": 3.55, "counts": [14, 51, 404, 498, 79]},
-    "line_combination": {"n": 1046, "mean": 3.15, "counts": [1, 93, 710, 230, 12]},
-    "line_texture": {"n": 1046, "mean": 2.73, "counts": [1, 414, 511, 108, 12]},
-    "picture_organization": {"n": 1046, "mean": 3.19, "counts": [1, 61, 724, 260, 0]},
-    "transformation": {"n": 1046, "mean": 3.86, "counts": [1, 4, 235, 704, 102]},
-}
-
 # 评语示范。短：一句看到了什么，一句可以试什么。中英各一份，不是互译。
 EXAMPLES: List[Dict[str, Any]] = [
     {
@@ -265,7 +251,6 @@ def rubric_payload() -> Dict[str, Any]:
     return {
         "categories": CATEGORIES,
         "dimensions": {k: {"criterion": v["criterion"],
-                           "levels": [{"score": s, **v["levels"][s]} for s in (5, 4, 3, 2, 1)],
-                           "reference": REFERENCE_DISTRIBUTION[k]} for k, v in RUBRIC.items()},
+                           "levels": [{"score": s, **v["levels"][s]} for s in (5, 4, 3, 2, 1)]} for k, v in RUBRIC.items()},
         "examples": EXAMPLES,
     }

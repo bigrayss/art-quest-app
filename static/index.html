@@ -32,9 +32,9 @@
   <button class="tab active student-only" data-tab="map"><i data-icon="map" data-size="24"></i><span>地图</span></button>
   <button class="tab student-only" data-tab="dex"><i data-icon="image" data-size="24"></i><span>画廊</span></button>
   <button class="tab student-only" data-tab="buddy"><i data-icon="sprout" data-size="24"></i><span class="buddy-word">彩点</span></button>
-  <!-- 老师登录后只有这一个和「我的」：老师进来就是打分 -->
-  <button class="tab teacher-only" data-tab="grade"><i data-icon="medal" data-size="24"></i><span>打分</span></button>
+  <!-- 老师登录后：评分参考、打分、我的。进来落在打分 -->
   <button class="tab teacher-only" data-tab="rubric"><i data-icon="bulb" data-size="24"></i><span>评分参考</span></button>
+  <button class="tab teacher-only" data-tab="grade"><i data-icon="medal" data-size="24"></i><span>打分</span></button>
   <button class="tab" data-tab="me"><i data-icon="books" data-size="24"></i><span>我的</span></button>
 </nav>
 
@@ -231,7 +231,6 @@
      KidsArtBench（EACL 2026）的九维五档量表原文 + 中译、1,046 幅作品的专家打分分布、评语示范。
      内容由 /teacher/rubric 给，这里只有骨架。左栏的一个 tab，和「打分」并列。 -->
 <section class="view hidden" id="view-rubric">
-  <nav class="rb-nav" id="rb-nav"></nav>
   <div class="rb-body" id="rb-body"></div>
 </section>
 
