@@ -1873,11 +1873,8 @@ body[data-room="grade"], body[data-room="rubric"] { --room:var(--blue); --room-d
 
 /* 评分参考 */
 #view-rubric { max-width:52rem; margin:0 auto; }
-.rb-nav { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; position:sticky; top:calc(var(--appbar-h, 64px) + 4px); z-index:3;
-  background:var(--bg); padding:6px 0; }
-.rb-nav a { text-decoration:none; font-weight:800; font-size:0.8125rem; padding:6px 12px; border-radius:999px; background:var(--card);
   border:2px solid var(--line); color:var(--fg); }
-.rb-cat { margin-bottom:22px; scroll-margin-top:calc(var(--appbar-h, 64px) + 56px); }
+.rb-cat { margin-bottom:22px; }
 .rb-cat h2 { font-size:1.0625rem; margin:0 0 10px; color:var(--blue-d); }
 .rb-dim { background:var(--card); border:2px solid var(--line); border-radius:var(--r); padding:14px 16px; margin-bottom:12px; }
 .rb-dim h3 { margin:0; font-size:1.0625rem; display:flex; gap:8px; align-items:baseline; }
@@ -1887,13 +1884,6 @@ body[data-room="grade"], body[data-room="rubric"] { --room:var(--blue); --room-d
 .rb-level { display:grid; grid-template-columns:2rem 1fr; gap:8px; align-items:start; font-size:0.875rem; line-height:1.5; font-weight:600; }
 .rb-level b { display:inline-flex; align-items:center; justify-content:center; width:1.75rem; height:1.75rem; border-radius:8px;
   background:var(--blue-l); color:var(--blue-d); font-weight:800; }
-.rb-dist { margin-top:12px; padding-top:10px; border-top:1px dashed var(--line); }
-.rb-bars { display:flex; gap:8px; align-items:flex-end; height:64px; }
-.rb-bar { flex:1 1 0; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; gap:2px; }
-.rb-bar i { display:block; width:100%; max-width:2.5rem; background:var(--blue); border-radius:4px 4px 0 0; opacity:.55; }
-.rb-bar b { font-size:0.75rem; line-height:1; }
-.rb-bar small { font-size:0.625rem; color:var(--muted); font-weight:700; line-height:1; }
-.rb-dist-cap { font-size:0.6875rem; color:var(--muted); font-weight:700; margin-top:6px; }
 .rb-ex { background:var(--card); border:2px solid var(--line); border-radius:var(--r); padding:14px 16px; margin-bottom:12px;
   display:flex; flex-direction:column; gap:10px; }
 .rb-ex-img { padding:0; overflow:hidden; border-radius:12px; background:#fff; width:100%; }

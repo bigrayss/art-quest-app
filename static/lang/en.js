@@ -40,7 +40,6 @@ window.ARTQUEST_LANG_EN = {
   "返回": "Back",
   "评语示范": "Sample comments",
   "加载失败。": "Could not load.",
-  "专家在 {a} 幅作品里打的分 · 平均 {b}": "Expert scores over {a} artworks · mean {b}",
   "这个任务不考察": "Not assessed in this task",
   "评语": "Comment",
   "写给这张最终图的评语": "Your comment on the final picture",

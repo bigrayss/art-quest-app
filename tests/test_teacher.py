@@ -140,9 +140,7 @@ class TeacherSide(unittest.TestCase):
             for l in d["levels"]:
                 self.assertTrue(l["zh"] and l["en"], (k, l["score"]))
             self.assertTrue(d["criterion"]["zh"] and d["criterion"]["en"], k)
-            ref = d["reference"]
-            self.assertEqual(sum(ref["counts"]), ref["n"], k)          # 分布是 1,046 幅的完整计数
-            self.assertEqual(len(ref["counts"]), 5)
+            self.assertNotIn("reference", d, "不给老师看数据集的分布，免得先入为主")
         self.assertNotIn("source", rb, "界面上不引用论文")
         self.assertTrue(rb["examples"] and all(e["comment"]["zh"] and e["comment"]["en"] for e in rb["examples"]))
         # 示范图是仓库自带的静态文件
