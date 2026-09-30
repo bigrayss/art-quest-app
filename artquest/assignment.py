@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """老师分工：每件画完的作品分给 K 位老师，老师只看分给自己的那些。
 
-老师不可能评完全部作品，但研究要每件作品有 K 份独立评分（默认 2，算得出一致性）。
+老师不可能评完全部作品，但研究要每件作品有 K 份独立评分（**默认 3**，用户 2026-09-30 定的「每個作品至少得被評過 3 次」）。
 分工在这里自动做，规则只有一条：**谁手上最少，新作品先给谁**。
 
 - 分配表 `data/assignments.json`：`{"raters_per_work": K, "works": {sid: [rater_id, ...]}}`。
@@ -17,7 +17,7 @@ from .config import DATA_DIR
 from .logstore import read_json, write_json
 
 PATH = DATA_DIR / "assignments.json"
-DEFAULT_RATERS_PER_WORK = 2
+DEFAULT_RATERS_PER_WORK = 3
 
 
 def _default_k() -> int:
