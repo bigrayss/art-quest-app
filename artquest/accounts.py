@@ -129,6 +129,16 @@ class AccountStore:
             return None
         return read_json(self._path(account_id))
 
+    def teachers(self) -> List[Dict[str, Any]]:
+        """全部老师账号，按注册先后。分工用。"""
+        out = []
+        for aid in self._index()["names"].values():
+            acc = self.load(aid)
+            if acc and acc.get("role") == "teacher":
+                out.append(acc)
+        out.sort(key=lambda a: a.get("created_at") or "")
+        return out
+
     def _save(self, acc: Dict[str, Any]) -> Dict[str, Any]:
         write_json(self._path(acc["account_id"]), acc)
         return acc

@@ -1870,6 +1870,9 @@ body[data-room="grade"] { --room:var(--blue); --room-d:var(--blue-d); --room-l:v
   background:var(--soft); border-radius:10px; font-size:0.8125rem; line-height:1.45; font-weight:600; color:var(--muted-2); }
 .gd .gdlevels > div { display:grid; grid-template-columns:1.4rem 1fr; gap:6px; }
 .gd .gdlevels b { color:var(--blue-d); }
+.tfilter .tassign { margin-left:auto; align-self:center; font-size:0.8125rem; font-weight:700; color:var(--muted); }
+.tfilter .tassign:empty { display:none; }
+.tfilter .tassign + .tref { margin-left:0; }
 .gsub .linkbtn, .tfilter .tref { margin-left:auto; min-height:0; padding:5px 10px; border-radius:999px; background:var(--soft);
   border:none; box-shadow:none; font-size:0.8125rem; font-weight:800; color:var(--blue-d); display:inline-flex; gap:5px; align-items:center; }
 .gsub .linkbtn:hover, .tfilter .tref:hover { background:var(--blue-l); transform:none; }
@@ -1881,9 +1884,6 @@ body[data-room="grade"] { --room:var(--blue); --room-d:var(--blue-d); --room-l:v
   background:var(--bg); padding:6px 0; }
 .rb-nav a { text-decoration:none; font-weight:800; font-size:0.8125rem; padding:6px 12px; border-radius:999px; background:var(--card);
   border:2px solid var(--line); color:var(--fg); }
-.rb-intro { background:var(--card); border:2px solid var(--line); border-radius:var(--r); padding:12px 16px; margin-bottom:18px; line-height:1.6; }
-.rb-intro p { margin:0 0 6px; font-weight:700; }
-.rb-intro ul { margin:0; padding-left:1.2em; color:var(--muted-2); font-weight:600; font-size:0.875rem; }
 .rb-cat { margin-bottom:22px; scroll-margin-top:calc(var(--appbar-h, 64px) + 56px); }
 .rb-cat h2 { font-size:1.0625rem; margin:0 0 10px; color:var(--blue-d); }
 .rb-dim { background:var(--card); border:2px solid var(--line); border-radius:var(--r); padding:14px 16px; margin-bottom:12px; }
@@ -1901,7 +1901,6 @@ body[data-room="grade"] { --room:var(--blue); --room-d:var(--blue-d); --room-l:v
 .rb-bar b { font-size:0.75rem; line-height:1; }
 .rb-bar small { font-size:0.625rem; color:var(--muted); font-weight:700; line-height:1; }
 .rb-dist-cap { font-size:0.6875rem; color:var(--muted); font-weight:700; margin-top:6px; }
-.rb-how { margin:0 0 12px; color:var(--muted-2); font-weight:700; font-size:0.875rem; line-height:1.5; }
 .rb-ex { background:var(--card); border:2px solid var(--line); border-radius:var(--r); padding:14px 16px; margin-bottom:12px;
   display:flex; flex-direction:column; gap:10px; }
 .rb-ex-img { padding:0; overflow:hidden; border-radius:12px; background:#fff; width:100%; }

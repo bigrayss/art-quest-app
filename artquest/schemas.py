@@ -395,6 +395,12 @@ class Rating(BaseModel):
         return v
 
 
+class AssignmentUpdate(BaseModel):
+    """研究员改分工：每件几位老师；或手动指定某几件给谁（空列表 = 收回，下次自动再分）。"""
+    raters_per_work: Optional[int] = Field(None, ge=1, le=20)
+    works: Dict[str, List[str]] = Field({}, description="{session_id: [老师 account_id, ...]}")
+
+
 class TeacherGrade(BaseModel):
     """老师给一次创作打分：最终图九维 + 评语；过程图各一句短评。
 

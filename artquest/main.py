@@ -18,6 +18,7 @@ from . import history as history_mod
 from . import study as study_mod
 from .accounts import AccountError, AccountStore
 from . import i18n
+from . import assignment
 from .config import (CLAUDE_MODEL, SESSIONS_DIR, SNAPSHOT_INTERVAL_SEC, STATIC_DIR,
                      claude_available)
 from .assist import get_assist_engine
@@ -30,6 +31,7 @@ from .reconstruct import check_final
 from .rubric import apply_contract, check_rating
 from .revision import attribute as attribute_revision
 from .schemas import (
+    AssignmentUpdate,
     AssistIn,Abandon, Annotation, ClaimDevice, CreateSession, Curate, DrawEvent, EarnedBadges,
                       FeaturedAnswer, FeedbackIn, Finalize, HARDEST_PARTS_SHOWN, IssueTickets, Login, LogBatch,
                       PROCESS_LABELS, ProfileUpdate, Questionnaire, Rating, Register, ResetPin, Snapshot, TeacherGrade, StudyAssign,
@@ -506,18 +508,39 @@ def teacher_rubric(request: Request):
     return rubric_payload()
 
 
-@api.get("/teacher/sessions")
-def teacher_sessions(request: Request, status: str = "all"):
-    """全部画完的作品，一行一件：谁画的、什么任务、最终图、我评过没有。status = todo | done | all。"""
-    me = _require_teacher(request)
-    rows = []
+def _done_sessions() -> List[Dict[str, Any]]:
+    out = []
     for row in store.list():
         if row.get("status") != "done":
             continue
-        sid = row["session_id"]
         try:
-            meta = store.load(sid)
+            out.append(store.load(row["session_id"]))
         except KeyError:
+            continue
+    return out
+
+
+def _assign_all(metas: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """把画完的作品分到老师头上（没分满的补齐），返回分配表。"""
+    teachers = [a["account_id"] for a in accounts.teachers()]
+    graded = {sid_of(m): {r.get("rater_id") for r in _teacher_ratings(sid_of(m))} for m in metas}
+    return assignment.ensure([sid_of(m) for m in metas], teachers, graded)
+
+
+@api.get("/teacher/sessions")
+def teacher_sessions(request: Request, status: str = "all"):
+    """分给我的作品，一行一件：谁画的、什么任务、最终图、我评过没有。status = todo | done | all。
+    老师只看分给自己的（每件 K 位，见 assignment.py）；研究员看全部，每行带 assignees。"""
+    me = _require_teacher(request)
+    metas = _done_sessions()
+    plan = _assign_all(metas)
+    admin = me["rater_id"] == "admin"
+    names = {a["account_id"]: a.get("name", "") for a in accounts.teachers()}
+    rows = []
+    for meta in metas:
+        sid = sid_of(meta)
+        assignees = plan["works"].get(sid) or []
+        if not admin and me["rater_id"] not in assignees:
             continue
         ratings = _teacher_ratings(sid)
         mine = [r for r in ratings if r.get("rater_id") == me["rater_id"]]
@@ -526,6 +549,7 @@ def teacher_sessions(request: Request, status: str = "all"):
             continue
         task = meta.get("task") or {}
         rows.append({
+            "assignees": [names.get(a, a) for a in assignees],
             "session_id": sid, "created_at": meta.get("created_at"),
             "task_id": task.get("task_id") or meta.get("quest_id"), "task_title": task.get("title") or meta.get("quest_id"),
             "student": _student_name(meta), "lang": meta.get("lang", "zh"),
@@ -534,7 +558,44 @@ def teacher_sessions(request: Request, status: str = "all"):
             "graded_by_me": graded, "n_graders": len({r.get("rater_id") for r in ratings}),
         })
     rows.sort(key=lambda r: r.get("created_at") or "", reverse=True)
-    return {"me": me, "sessions": rows, "n_todo": sum(1 for r in rows if not r["graded_by_me"]) if status == "all" else None}
+    return {"me": me, "sessions": rows, "raters_per_work": plan["raters_per_work"],
+            "n_todo": sum(1 for r in rows if not r["graded_by_me"]) if status == "all" else None}
+
+
+@api.get("/teacher/assignments")
+def teacher_assignments(request: Request):
+    """研究员看分工：每位老师手上几件、评了几件；每件分给了谁。"""
+    _require_admin(request)
+    metas = _done_sessions()
+    plan = _assign_all(metas)
+    teachers = accounts.teachers()
+    per = {a["account_id"]: {"account_id": a["account_id"], "name": a.get("name", ""), "n_assigned": 0, "n_graded": 0} for a in teachers}
+    for meta in metas:
+        sid = sid_of(meta)
+        for r in plan["works"].get(sid) or []:
+            if r in per:
+                per[r]["n_assigned"] += 1
+        for rid in {r.get("rater_id") for r in _teacher_ratings(sid)}:
+            if rid in per:
+                per[rid]["n_graded"] += 1
+    return {"raters_per_work": plan["raters_per_work"], "teachers": list(per.values()),
+            "works": {sid_of(m): plan["works"].get(sid_of(m)) or [] for m in metas}}
+
+
+@api.post("/teacher/assignments")
+def teacher_assignments_update(body: AssignmentUpdate, request: Request):
+    """研究员改分工：K，或手动指定某几件给谁。指定的名单要是老师账号。"""
+    _require_admin(request)
+    if body.raters_per_work is not None:
+        assignment.set_raters_per_work(body.raters_per_work)
+    teachers = {a["account_id"] for a in accounts.teachers()}
+    for sid, ids in body.works.items():
+        _session_or_404(sid)
+        bad = [i for i in ids if i not in teachers]
+        if bad:
+            raise HTTPException(422, f"不是老师账号：{bad}")
+        assignment.set_work(sid, ids)
+    return teacher_assignments(request)
 
 
 @api.get("/teacher/sessions/{sid}")

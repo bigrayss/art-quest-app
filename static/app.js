@@ -483,6 +483,7 @@
       return;
     }
     const todo = tRows.filter(x => !x.graded_by_me).length;
+    $("#tassign").textContent = tRows.length ? `分给你 ${tRows.length} 件` : "";
     $("#tf-todo").textContent = todo ? `(${todo})` : "";
     $("#tf-done").textContent = tRows.length - todo ? `(${tRows.length - todo})` : "";
     renderTeacherList();
@@ -500,7 +501,7 @@
           ${x.n_graders ? `<span>${x.n_graders} 位老师评过</span>` : ""}${x.graded_by_me ? `<span class="tdone">我评过了</span>` : ""}</div>
       </div></button>`).join("");
     const empty = $("#tempty");
-    empty.textContent = tFilter === "done" ? "还没有评过的。" : (tRows.length ? "都评完了。" : "还没有画完的作品。");
+    empty.textContent = tFilter === "done" ? "还没有评过的。" : (tRows.length ? "分给你的都评完了。" : "还没有分给你的作品。");
     empty.classList.toggle("hidden", rows.length > 0);
     list.querySelectorAll(".tcard").forEach(b => b.onclick = () => openGrade(b.dataset.sid));
   }
@@ -617,13 +618,11 @@
     const rb = await loadRubric();
     if (!rb.categories) { alert("加载失败。"); return; }
     const byKey = {}; ((grade && grade.dimsMeta) || []).forEach(d => { byKey[d.key] = d; });
-    const src = rb.source || {};
-    $("#rb-source").innerHTML = `${escapeHtml(src.venue || "")} · <a href="${src.arxiv}" target="_blank" rel="noopener">arXiv</a> · <a href="${src.code}" target="_blank" rel="noopener">GitHub</a>`;
     const nameOf = k => dimName(byKey[k] || DIM_META[k] || { zh: k });
     // 顶上的一排锚：四组 + 评语
     $("#rb-nav").innerHTML = rb.categories.map(c => `<a href="#rb-${c.key}">${escapeHtml(rbText(c))}</a>`).join("")
       + `<a href="#rb-examples">评语示范</a>`;
-    const total = src.n_artworks || 1046;
+    const total = ((rb.dimensions.realism || {}).reference || {}).n || 1046;
     const dist = (ref) => {
       if (!ref) return "";
       const max = Math.max(...ref.counts);
@@ -640,7 +639,6 @@
         ${dist(d.reference)}
       </article>`;
     };
-    const proc = (rb.procedure || {})[LANG === "en" ? "en" : "zh"] || [];
     const ex = (rb.examples || []).map(e => {
       const scores = Object.entries(e.scores || {}).map(([k, v]) => `<span class="rb-chip">${escapeHtml(nameOf(k))} <b>${v}</b></span>`).join("");
       return `<article class="rb-ex">
@@ -654,15 +652,8 @@
       </article>`;
     }).join("");
     $("#rb-body").innerHTML = `
-      <section class="rb-intro">
-        <p>九个维度，每维 1–5 分。分数说的是这一幅在这一维上做到了哪一档，和别的孩子无关。</p>
-        <ul>${proc.map(t => `<li>${escapeHtml(t)}</li>`).join("")}</ul>
-      </section>
       ${rb.categories.map(c => `<section class="rb-cat" id="rb-${c.key}"><h2>${escapeHtml(rbText(c))}</h2>${c.dims.map(dimCard).join("")}</section>`).join("")}
-      <section class="rb-cat" id="rb-examples"><h2>评语示范</h2>
-        <p class="rb-how">评语是写给孩子的。先说看到了什么，再说哪一维用了什么办法，最后给一个下一步能做的事。不写总分，不和别人比。</p>
-        ${ex}
-      </section>`;
+      <section class="rb-cat" id="rb-examples"><h2>评语示范</h2>${ex}</section>`;
     $("#rb-body").querySelectorAll(".rb-ex-img").forEach(b => b.onclick = () => openPic(fileUrl(b.dataset.url)));
     show("rubric");
   }
