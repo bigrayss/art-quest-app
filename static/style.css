@@ -1784,7 +1784,7 @@ body.simple #view-final .feedback-card { display:none !important; }
 .tab.teacher-only { display:none; }
 body.teacher .tab.teacher-only { display:inline-flex; }
 body.teacher .student-only { display:none !important; }
-body[data-room="grade"] { --room:var(--blue); --room-d:var(--blue-d); --room-l:var(--blue-l); }
+body[data-room="grade"], body[data-room="rubric"] { --room:var(--blue); --room-d:var(--blue-d); --room-l:var(--blue-l); }
 
 /* 注册表里的 学生 / 老师 开关 */
 .role-row { display:flex; gap:8px; margin:0 0 10px; }
@@ -1872,14 +1872,9 @@ body[data-room="grade"] { --room:var(--blue); --room-d:var(--blue-d); --room-l:v
 .gd .gdlevels b { color:var(--blue-d); }
 .tfilter .tassign { margin-left:auto; align-self:center; font-size:0.8125rem; font-weight:700; color:var(--muted); }
 .tfilter .tassign:empty { display:none; }
-.tfilter .tassign + .tref { margin-left:0; }
-.gsub .linkbtn, .tfilter .tref { margin-left:auto; min-height:0; padding:5px 10px; border-radius:999px; background:var(--soft);
-  border:none; box-shadow:none; font-size:0.8125rem; font-weight:800; color:var(--blue-d); display:inline-flex; gap:5px; align-items:center; }
-.gsub .linkbtn:hover, .tfilter .tref:hover { background:var(--blue-l); transform:none; }
 
 /* 评分参考 */
 #view-rubric { max-width:52rem; margin:0 auto; }
-#view-rubric .ghead-t span a { color:var(--blue-d); }
 .rb-nav { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px; position:sticky; top:calc(var(--appbar-h, 64px) + 4px); z-index:3;
   background:var(--bg); padding:6px 0; }
 .rb-nav a { text-decoration:none; font-weight:800; font-size:0.8125rem; padding:6px 12px; border-radius:999px; background:var(--card);
