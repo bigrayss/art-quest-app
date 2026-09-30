@@ -1161,6 +1161,9 @@ body.welcome .appbar, body.welcome .studybar { display:none; }
 body.teacher-entrance #btn-welcome-skip { display:none; }
 body.teacher-entrance #btn-welcome-login { order:-1; }      /* 登录是主钮，放上面 */
 .entrance-link { text-decoration:none; margin-top:10px; display:inline-flex; align-items:center; justify-content:center; }
+.entrance-link.privacy-link { font-size:0.75rem; color:var(--muted); margin-top:4px; }
+.acct-privacy { margin:6px 0 0; }
+.acct-privacy a { color:var(--muted); }
 .langbtn { position:absolute; top:calc(14px + env(safe-area-inset-top)); right:18px; z-index:2;
   background:var(--card); border:2px solid var(--line); box-shadow:none; color:var(--muted-2);
   font-weight:800; font-size:0.8125rem; padding:6px 12px; min-height:0; border-radius:999px; }

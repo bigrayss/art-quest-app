@@ -7,6 +7,7 @@ window.ARTQUEST_LANG_EN = {
   "过程图至少写一条短评": "Write at least one note on a process image",
   "回到首页": "Back to start",
   "老师入口 →": "Teacher entrance →",
+  "隐私政策": "Privacy policy",
   "学生入口 →": "Student entrance →",
   "从参考图里吸一个颜色": "Pick a color from the picture",
   "老师入口": "Teacher entrance",

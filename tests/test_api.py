@@ -31,6 +31,13 @@ class StageOneLoop(unittest.TestCase):
     def setUp(self):
         self.c = TestClient(app)
 
+    def test_the_privacy_policy_is_served_and_linked(self):
+        r = self.c.get("/privacy")
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("隐私政策", r.text)
+        self.assertIn("Privacy Policy", r.text)
+        self.assertIn('href="/privacy"', self.c.get("/").text)
+
     def test_config_and_quests(self):
         cfg = self.c.get("/api/config").json()
         self.assertEqual(cfg["scorer"], "heuristic")

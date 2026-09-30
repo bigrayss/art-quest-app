@@ -203,6 +203,12 @@ def index():
     return FileResponse(STATIC_DIR / "index.html")
 
 
+# 隐私政策：一页静态 HTML，门口和「我的」里链到它；TestFlight / App Store 也要这个地址。
+@app.get("/privacy")
+def privacy_page():
+    return FileResponse(STATIC_DIR / "privacy.html")
+
+
 # 老师的入口：同一份 app，只是从这个路径打开时门口是老师的登录/注册。
 # 不是第二个网站——同一份代码、同一个后端、同一批数据；路径归网站自己管，不用申请任何东西。
 @app.get("/teacher")
