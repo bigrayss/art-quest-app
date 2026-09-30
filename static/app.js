@@ -596,7 +596,7 @@
     } finally { btn.disabled = false; }
   }
   $("#btn-grade-save").onclick = saveGrade;
-  $("#btn-grade-back").onclick = () => openTab("grade");
+  $("#btn-grade-back").onclick = () => { grade = null; openTab("grade"); };
   // 看大图
   const picModal = $("#pic-modal");
   function openPic(url) { $("#pic-img").src = url; picModal.classList.remove("hidden"); }
@@ -606,15 +606,14 @@
   // ---- 评分参考 ----
   // KidsArtBench（EACL 2026）的九维五档量表原文 + 中译、1,046 幅作品里专家打分的分布、评语示范。
   // 内容全在 scoring/levels.py，这里只排版。中英两份都在响应里，按 LANG 挑，不走 en.js。
-  let rubricData = null, rubricFrom = "teacher";
+  let rubricData = null;
   async function loadRubric() {
     if (rubricData) return rubricData;
     try { rubricData = await api(`${API}/teacher/rubric`); } catch (e) { return { dimensions: {} }; }
     return rubricData;
   }
   const rbText = o => (o && (LANG === "en" ? o.en : o.zh)) || (o || {}).zh || "";
-  async function openRubric(from) {
-    rubricFrom = from || "teacher";
+  async function openRubric() {
     const rb = await loadRubric();
     if (!rb.categories) { alert("加载失败。"); return; }
     const byKey = {}; ((grade && grade.dimsMeta) || []).forEach(d => { byKey[d.key] = d; });
@@ -655,7 +654,6 @@
       ${rb.categories.map(c => `<section class="rb-cat" id="rb-${c.key}"><h2>${escapeHtml(rbText(c))}</h2>${c.dims.map(dimCard).join("")}</section>`).join("")}
       <section class="rb-cat" id="rb-examples"><h2>评语示范</h2>${ex}</section>`;
     $("#rb-body").querySelectorAll(".rb-ex-img").forEach(b => b.onclick = () => openPic(fileUrl(b.dataset.url)));
-    show("rubric");
   }
   // 维度名的 zh/en：打分屏拿到的 dimensions 里有；没进过打分屏就用这份（和 scoring/base.py 一致）
   const DIM_META = { realism: { zh: "写实", en: "Realism" }, deformation: { zh: "变形", en: "Deformation" },
@@ -663,10 +661,6 @@
     color_contrast: { zh: "色彩对比", en: "Color Contrast" }, line_combination: { zh: "线条组合", en: "Line Combination" },
     line_texture: { zh: "线条质感", en: "Line Texture" }, picture_organization: { zh: "画面组织", en: "Picture Organization" },
     transformation: { zh: "转化", en: "Transformation" } };
-  $("#btn-rubric-list").onclick = () => openRubric("teacher");
-  $("#btn-rubric-grade").onclick = () => openRubric("grade");
-  // 返回原处：打分屏的状态还在（grade 没清），直接切回去就行
-  $("#btn-rubric-back").onclick = () => { if (rubricFrom === "grade" && grade) show("grade"); else openTab("grade"); };
 
   // ===== 做一幅画的六步：顶栏上一条细进度条 =====
   // 闯关地图搬到首页去了——那儿才该热闹。一次创作的过程条只需要回答一件事：还剩几步。
@@ -702,8 +696,8 @@
   // 四个 tab 是四块独立的界面；做任务时导航整个收起来，只剩画画。
   const VIEWS = ["welcome", "world", "quest", "dex", "buddy", "sessions", "intent", "draw", "result", "survey", "final",
                  "teacher", "grade", "rubric"];
-  const TAB_VIEW = { map: "quest", dex: "dex", buddy: "buddy", me: "sessions", grade: "teacher" };
-  const VIEW_TAB = { world: "map", quest: "map", dex: "dex", buddy: "buddy", sessions: "me", teacher: "grade", grade: "grade", rubric: "grade" };
+  const TAB_VIEW = { map: "quest", dex: "dex", buddy: "buddy", me: "sessions", grade: "teacher", rubric: "rubric" };
+  const VIEW_TAB = { world: "map", quest: "map", dex: "dex", buddy: "buddy", sessions: "me", teacher: "grade", grade: "grade", rubric: "rubric" };
   const TITLES = { world: "彩点的世界", quest: "地图", dex: "画廊", buddy: "彩点", sessions: "我的", teacher: "打分", grade: "打分", rubric: "评分参考" };
   function show(name) {
     VIEWS.forEach(v => $(`#view-${v}`).classList.toggle("hidden", v !== name));
@@ -741,6 +735,8 @@
   }
   async function openTab(tab) {
     let view = TAB_VIEW[tab] || "quest";
+    // 老师评到一半去看了参考：点回「打分」回到那张，不是列表（列表要按打分屏的返回箭头）
+    if (tab === "grade" && grade) { show("grade"); return; }
     // 第一次进来先见彩点：它带着自己的属性，然后才是世界和任务
     if (view === "quest" && !state.entered && state.condition.ui !== "quiet") {
       await renderWorld(); view = "world";
@@ -751,6 +747,7 @@
     else if (view === "buddy") { await renderBadgeWall(); await renderGrowth(); }
     else if (view === "sessions") await loadSessions();
     else if (view === "teacher") await loadTeacherList();
+    else if (view === "rubric") await openRubric();
   }
   document.querySelectorAll(".tab").forEach(b => { b.onclick = () => openTab(b.dataset.tab); });
   const overlay = (text) => { $("#overlay").classList.toggle("hidden", !text); if (text) $("#overlay-text").textContent = text; };
