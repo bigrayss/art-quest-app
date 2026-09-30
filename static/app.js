@@ -625,22 +625,24 @@
         <div class="rb-levels">${d.levels.map(l => `<div class="rb-level"><b>${l.score}</b><span>${escapeHtml(rbText(l))}</span></div>`).join("")}</div>
       </article>`;
     };
-    const ex = (rb.examples || []).map(e => {
-      const scores = Object.entries(e.scores || {}).map(([k, v]) => `<span class="rb-chip">${escapeHtml(nameOf(k))} <b>${v}</b></span>`).join("");
-      return `<article class="rb-ex">
-        ${e.image ? `<button type="button" class="rb-ex-img" data-url="${e.image}"><img src="${fileUrl(e.image)}" alt=""></button>` : ""}
+    // 示范：最终图一段完整评语（带九维分），过程图各一句短评——和老师要写的两样一一对应
+    const exs = rb.examples || {};
+    const fin = exs.final;
+    const finalCard = !fin ? "" : `<article class="rb-ex">
+        <button type="button" class="rb-ex-img" data-url="${fin.image}"><img src="${fileUrl(fin.image)}" alt=""></button>
         <div class="rb-ex-body">
-          ${e.title ? `<h4>${escapeHtml(rbText(e.title))}</h4>` : ""}
-          <div class="rb-chips">${scores}</div>
-          <blockquote>${escapeHtml(rbText(e.comment)).replace(/\n/g, "<br>")}</blockquote>
-          ${e.caption ? `<p class="rb-cap">${escapeHtml(rbText(e.caption))}</p>` : ""}
+          <div class="rb-chips">${Object.entries(fin.scores || {}).map(([k, v]) => `<span class="rb-chip">${escapeHtml(nameOf(k))} <b>${v}</b></span>`).join("")}</div>
+          <blockquote>${escapeHtml(rbText(fin.comment)).replace(/\n/g, "<br>")}</blockquote>
+          ${fin.caption ? `<p class="rb-cap">${escapeHtml(rbText(fin.caption))}</p>` : ""}
         </div>
       </article>`;
-    }).join("");
+    const procCard = !(exs.process || []).length ? "" : `<article class="rb-ex rb-proc">${exs.process.map(e =>
+      `<div class="rb-note"><span>${escapeHtml(rbText(e.title))}</span><blockquote>${escapeHtml(rbText(e.note))}</blockquote></div>`).join("")}</article>`;
     // 九维直接列，不分组、不带分布（用户 2026-09-30：小栏没必要；分布会让老师先入为主）
     $("#rb-body").innerHTML = `
       <section class="rb-cat">${rb.categories.flatMap(c => c.dims).map(dimCard).join("")}</section>
-      <section class="rb-cat"><h2>评语示范</h2>${ex}</section>`;
+      <section class="rb-cat"><h2>最终图评语</h2>${finalCard}</section>
+      <section class="rb-cat"><h2>过程图短评</h2>${procCard}</section>`;
     $("#rb-body").querySelectorAll(".rb-ex-img").forEach(b => b.onclick = () => openPic(fileUrl(b.dataset.url)));
   }
   // 维度名的 zh/en：打分屏拿到的 dimensions 里有；没进过打分屏就用这份（和 scoring/base.py 一致）

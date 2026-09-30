@@ -142,9 +142,12 @@ class TeacherSide(unittest.TestCase):
             self.assertTrue(d["criterion"]["zh"] and d["criterion"]["en"], k)
             self.assertNotIn("reference", d, "不给老师看数据集的分布，免得先入为主")
         self.assertNotIn("source", rb, "界面上不引用论文")
-        self.assertTrue(rb["examples"] and all(e["comment"]["zh"] and e["comment"]["en"] for e in rb["examples"]))
+        ex = rb["examples"]
+        self.assertTrue(ex["final"]["comment"]["zh"] and ex["final"]["comment"]["en"])
+        self.assertEqual(sorted(ex["final"]["scores"]), sorted(DIM_KEYS), "最终图示范带九维分")
+        self.assertTrue(ex["process"] and all(e["note"]["zh"] and e["note"]["en"] for e in ex["process"]))
         # 示范图是仓库自带的静态文件
-        self.assertEqual(self.c.get(rb["examples"][0]["image"]).status_code, 200)
+        self.assertEqual(self.c.get(ex["final"]["image"]).status_code, 200)
 
     def test_a_work_leaves_the_queue_once_it_has_enough_ratings(self):
         t = [self._teacher(n) for n in ("池子甲", "池子乙", "池子丙")]
