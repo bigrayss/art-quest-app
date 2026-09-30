@@ -4,7 +4,7 @@
 #   1. Apple Developer Program 付费会员（TestFlight 只给付费账号）。
 #   2. App Store Connect → 用户和访问 → 集成 → App Store Connect API：生成一个 key（角色 App Manager），
 #      下载 .p8。记下 Key ID 和 Issuer ID。
-#   3. App Store Connect → App → 新建 App，Bundle ID 选 cn.ddhulu.artquest（没有就先在开发者网站 Identifiers 里登记）。
+#   3. App Store Connect → App → 新建 App，Bundle ID 选 cn.ddhulu.kidsartquest（没有就先在开发者网站 Identifiers 里登记）。
 #   4. 仓库 Settings → Secrets and variables → Actions，加四个 secret：
 #        ASC_KEY_ID      Key ID
 #        ASC_ISSUER_ID   Issuer ID

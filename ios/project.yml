@@ -42,7 +42,7 @@ targets:
         buildPhase: resources
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: cn.ddhulu.artquest
+        PRODUCT_BUNDLE_IDENTIFIER: cn.ddhulu.kidsartquest
         PRODUCT_NAME: KidsArtQuest
         INFOPLIST_FILE: Info.plist   # 放在 sources 目录外面，免得被当资源再拷一份；不用 XcodeGen 的 info: 生成，手写的才是权威
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
