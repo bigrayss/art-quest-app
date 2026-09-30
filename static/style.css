@@ -1157,6 +1157,9 @@ body.quiet #collection-wrap { display:none; }
    booting 的时候钮先不露——先让封面静静地在那儿，服务器答了再把钮亮出来，
    而不是空地图闪一下、满地图闪一下、再跳到封面。 */
 body.welcome .appbar, body.welcome .studybar { display:none; }
+/* /teacher 打开的门口：没有「跳过」——老师必须登录 */
+body.teacher-entrance #btn-welcome-skip { display:none; }
+body.teacher-entrance #btn-welcome-login { order:-1; }      /* 登录是主钮，放上面 */
 .langbtn { position:absolute; top:calc(14px + env(safe-area-inset-top)); right:18px; z-index:2;
   background:var(--card); border:2px solid var(--line); box-shadow:none; color:var(--muted-2);
   font-weight:800; font-size:0.8125rem; padding:6px 12px; min-height:0; border-radius:999px; }

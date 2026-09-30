@@ -356,7 +356,7 @@
     $("#acct-age-input").value = "";
     $("#acct-code-input").value = "";
     $("#acct-role").classList.toggle("hidden", mode !== "register");
-    setAcctRole("student");
+    setAcctRole(TEACHER_ENTRANCE ? "teacher" : "student");
     $("#acct-age-input").classList.toggle("hidden", mode !== "register");
     $("#acct-err").classList.add("hidden");
     $("#acct-name-input").value = "";
@@ -460,7 +460,8 @@
     paintIntentIdentity();
     await loadCollection(); renderQuests();
     await loadSessions();
-    if (wasTeacher) show("sessions");      // 老师退出后停在「我的」，tab 已经换回学生那套
+    if (TEACHER_ENTRANCE) { welcomeOn = true; show("welcome"); }   // 老师入口：退出就回老师的门口
+    else if (wasTeacher) show("sessions");      // 老师退出后停在「我的」，tab 已经换回学生那套
   };
 
   // ===== 教师端 =====
@@ -835,6 +836,15 @@
   // 换台设备也认得你。不是登录墙——「先随便看看」照样能画，只是画留在这台设备上。
   // 问过一次就不再拦（不管他选了哪个）；登录着的设备根本不会到这儿。
   const WELCOME_KEY = "artquest.acct_prompted";
+  // 从 /teacher 打开：门口是老师的登录/注册，不给「跳过」，注册默认老师。同一份 app，只是入口不同。
+  const TEACHER_ENTRANCE = location.pathname.replace(/\/+$/, "") === "/teacher";
+  if (TEACHER_ENTRANCE) {
+    document.body.classList.add("teacher-entrance");
+    const sub = $("#welcome-sub"); if (sub) sub.classList.remove("hidden");
+    const r = $("#btn-welcome-register"), l = $("#btn-welcome-login");
+    if (r) r.textContent = "老师注册";
+    if (l) { l.textContent = "老师登录"; l.classList.remove("ghost"); l.classList.add("primary", "big", "clay"); r.classList.remove("primary", "big", "clay"); r.classList.add("ghost"); }
+  }
   const welcomeSeen = () => { try { return localStorage.getItem(WELCOME_KEY) === "1"; } catch (e) { return true; } };
   let welcomeOn = false;
   function paintWelcome() {
@@ -2536,6 +2546,7 @@
     const quiet = state.condition.ui === "quiet";
     applyRole();
     if (isTeacher()) { await openTab("grade"); }
+    else if (TEACHER_ENTRANCE) { welcomeOn = true; show("welcome"); }     // 老师入口：先登录，别的什么都没有
     else if (quiet) { show("quest"); checkFeatured(); }
     else if (!welcomeSeen() && !state.account) { welcomeOn = true; show("welcome"); }
     else if (!guideSeen()) { await renderWorld(); show("world"); startTour(); }

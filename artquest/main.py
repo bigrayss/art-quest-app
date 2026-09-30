@@ -126,7 +126,7 @@ async def revalidate_the_app_shell(request, call_next):
     """
     response = await call_next(request)
     path = request.url.path
-    if path == "/" or path.startswith("/static/"):
+    if path in ("/", "/teacher", "/teacher/") or path.startswith("/static/"):
         response.headers.setdefault("Cache-Control", "no-cache")
     return response
 
@@ -197,6 +197,14 @@ def _run_qc(sid: str, pending: int = 0) -> Dict[str, Any]:
 
 @app.get("/")
 def index():
+    return FileResponse(STATIC_DIR / "index.html")
+
+
+# 老师的入口：同一份 app，只是从这个路径打开时门口是老师的登录/注册。
+# 不是第二个网站——同一份代码、同一个后端、同一批数据；路径归网站自己管，不用申请任何东西。
+@app.get("/teacher")
+@app.get("/teacher/")
+def teacher_index():
     return FileResponse(STATIC_DIR / "index.html")
 
 
