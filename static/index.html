@@ -187,6 +187,7 @@
   <div class="tfilter" id="tfilter">
     <button class="on" data-f="todo">待评 <b id="tf-todo"></b></button>
     <button data-f="done">已评 <b id="tf-done"></b></button>
+    <button class="tref" id="btn-rubric-list"><i data-icon="bulb" data-size="16"></i>评分参考</button>
   </div>
   <div class="tlist" id="tlist"></div>
   <p class="tempty hidden" id="tempty"></p>
@@ -214,7 +215,7 @@
       </div>
     </div>
     <div class="gright">
-      <div class="gsub">九维打分</div>
+      <div class="gsub">九维打分 <button class="linkbtn" id="btn-rubric-grade">评分参考</button></div>
       <div class="gdims" id="g-dims"></div>
       <div class="gsub">评语</div>
       <textarea id="g-comment" rows="4" placeholder="写给这张最终图的评语"></textarea>
@@ -224,6 +225,18 @@
       </div>
     </div>
   </div>
+</section>
+
+<!-- ===== 教师端 3：评分参考 =====
+     KidsArtBench（EACL 2026）的九维五档量表原文 + 中译、1,046 幅作品的专家打分分布、评语示范。
+     内容由 /teacher/rubric 给，这里只有骨架。从列表或打分屏进来，返回回原处。 -->
+<section class="view hidden" id="view-rubric">
+  <div class="ghead">
+    <button class="iconbtn" id="btn-rubric-back" title="返回" aria-label="返回"><i data-icon="arrowLeft" data-size="20"></i></button>
+    <div class="ghead-t"><b>评分参考</b><span id="rb-source"></span></div>
+  </div>
+  <nav class="rb-nav" id="rb-nav"></nav>
+  <div class="rb-body" id="rb-body"></div>
 </section>
 
 <section class="view hidden" id="view-sessions">

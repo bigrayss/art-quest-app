@@ -35,6 +35,7 @@ from .schemas import (
                       PROCESS_LABELS, ProfileUpdate, Questionnaire, Rating, Register, ResetPin, Snapshot, TeacherGrade, StudyAssign,
                       Stroke, Submit, TokenOnly)
 from .scoring import DIMENSIONS, SCALE_MAX, get_scorer
+from .scoring.levels import rubric_payload
 from .storage import SCHEMA_VERSION, SessionStore, decode_data_url, now_iso, sid_of
 
 log = logging.getLogger("artquest")
@@ -495,6 +496,14 @@ def _session_images(meta: Dict[str, Any]) -> List[Dict[str, Any]]:
     out.append({"key": "final", "url": f"/files/{sid}/final.png", "kind": "final",
                 "elapsed_ms": (meta.get("times") or {}).get("duration_ms")})
     return out
+
+
+@api.get("/teacher/rubric")
+def teacher_rubric(request: Request):
+    """老师打分时的参考：KidsArtBench 九维五档的原文与中译、1,046 幅作品的专家打分分布、评语示范。
+    内容是静态的（scoring/levels.py），但只给老师——它是研究材料，不进学生界面。"""
+    _require_teacher(request)
+    return rubric_payload()
 
 
 @api.get("/teacher/sessions")
