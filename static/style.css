@@ -1863,3 +1863,9 @@ body[data-room="grade"] { --room:var(--blue); --room-d:var(--blue-d); --room-l:v
 .pic-modal { align-items:center; background:rgba(20,18,16,.92); padding:16px; }
 .pic-modal img { max-width:100%; max-height:82vh; max-height:82dvh; border-radius:12px; background:#fff; }
 .pic-close { position:absolute; top:calc(14px + env(safe-area-inset-top)); right:16px; }
+
+/* 参考图里吸色：钮亮着的时候，图上不是拖，是指哪儿吸哪儿；钮里那个小方块跟着指尖显示颜色 */
+#btn-ref-drop.on { background:var(--accent-l); border-color:var(--accent); color:var(--accent-d); }
+#ref-drop-swatch { width:18px; height:18px; border-radius:50%; margin-left:6px; border:2px solid #fff; box-shadow:0 0 0 1px rgba(0,0,0,.15); display:inline-block; }
+#ref-drop-swatch.hidden { display:none; }
+.ref-viewport.dropping { cursor:crosshair; }

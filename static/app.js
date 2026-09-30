@@ -1744,7 +1744,14 @@
 
   // source：palette / picker / eyedropper——同一个 COLOR_CHANGE，多一个字段说它从哪儿来。
   // 从自己画里吸出来的颜色和从色板上点的，在「他怎么用色」这件事上不是一回事。
+  // 可当起手色的那几格：不含黑、灰、白
+  const START_COLORS = PALETTE.filter(c => !["#222222", "#7a7a7a", "#ffffff"].includes(c));
+  function defaultColorFor(taskId) {
+    let h = 0; for (const ch of String(taskId || "")) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    return START_COLORS[h % START_COLORS.length];
+  }
   function setColor(c, el, source) {
+    el = el || [...pal.querySelectorAll("div")].find(d => d.title === c) || null;
     color = c;
     document.documentElement.style.setProperty("--cur", c);
     pal.querySelectorAll("div").forEach(x => x.classList.toggle("active", x === el));
@@ -1845,6 +1852,7 @@
     setColor(hx, el, "eyedropper"); pushRecent(hx);
   }
   $("#btn-eyedrop").onclick = () => { closePop(); setEyedrop(true); };
+  $("#btn-eyedrop-ref").onclick = () => { closePop(); toggleRef(true); setRefDrop(true); };
   $("#btn-eyedrop-cancel").onclick = () => setEyedrop(false);
 
   // 两根滑杆的初始位置得从状态反推，不能写死在 HTML 里——粗细的刻度是非线性的，
@@ -2099,6 +2107,8 @@
     drawStimulus(q.stimulus);
     const ref = q.reference, allowRef = state.condition.reference_allowed && !!ref;
     $("#refpanel").classList.toggle("hidden", !allowRef);
+    $("#btn-eyedrop-ref").classList.toggle("hidden", !allowRef);   // 有参考图才能从图里吸
+    refPix = null;
     $("#ref-modal").classList.add("hidden");
     refView.z = 1; refView.tx = refView.ty = 0; refViewedMs = 0; refOpenedAt = null; attention = "canvas";
     if (allowRef) {
@@ -2161,9 +2171,49 @@
     const w = Math.min(maxW, maxH * nw / nh);
     vp.style.width = Math.round(w) + "px"; vp.style.height = Math.round(w * nh / nw) + "px";
   }
+  // ---------- 从参考图里吸色 ----------
+  // 画里能吸，参考图里也得能吸：孩子照着画的时候，要的往往正是图上那个颜色。
+  // 吸色开着的时候，图上不是拖动，是指哪儿吸哪儿；按住拖，钮里的小圆跟着变，松手才算数。
+  let refDrop = false, refDropHex = null, refPix = null;
+  function setRefDrop(on) {
+    refDrop = on; refDropHex = null;
+    $("#btn-ref-drop").classList.toggle("on", on);
+    $("#ref-viewport").classList.toggle("dropping", on);
+    const sw = $("#ref-drop-swatch"); sw.classList.toggle("hidden", !on); sw.style.background = "transparent";
+  }
+  function refPixels() {
+    // 参考图读一次进离屏画布，之后每次取样只读一个像素
+    const img = $("#ref-img");
+    if (!img.naturalWidth) return null;
+    if (refPix && refPix.src === img.src) return refPix.ctx;
+    const c = document.createElement("canvas"); c.width = img.naturalWidth; c.height = img.naturalHeight;
+    const cx = c.getContext("2d", { willReadFrequently: true }); cx.drawImage(img, 0, 0);
+    refPix = { src: img.src, ctx: cx };
+    return cx;
+  }
+  function refSampleAt(e) {
+    const img = $("#ref-img"), cx = refPixels(); if (!cx) return;
+    const r = img.getBoundingClientRect();           // 已含缩放和平移
+    const x = clamp(Math.floor((e.clientX - r.left) / r.width * img.naturalWidth), 0, img.naturalWidth - 1);
+    const y = clamp(Math.floor((e.clientY - r.top) / r.height * img.naturalHeight), 0, img.naturalHeight - 1);
+    let d;
+    try { d = cx.getImageData(x, y, 1, 1).data; } catch (err) { return; }   // 跨源图读不出来就算了
+    refDropHex = "#" + [d[0], d[1], d[2]].map(v => v.toString(16).padStart(2, "0")).join("");
+    $("#ref-drop-swatch").style.background = refDropHex;
+  }
+  function refCommitDrop() {
+    const hx = refDropHex; setRefDrop(false);
+    if (!hx) return;
+    setColor(hx, null, "reference"); pushRecent(hx);
+    logEvent("REFERENCE_COLOR_PICK", { reference_id: refId(), color: hx });
+    toggleRef(false);                                // 吸到了就回去画
+  }
+  $("#btn-ref-drop").onclick = () => setRefDrop(!refDrop);
+
   function toggleRef(open) {
     const modal = $("#ref-modal"), willOpen = open !== undefined ? open : modal.classList.contains("hidden");
     modal.classList.toggle("hidden", !willOpen);
+    if (!willOpen && refDrop) setRefDrop(false);
     const now = elapsed();
     if (willOpen) {
       refOpenedAt = now;
@@ -2198,6 +2248,7 @@
     const fingers = new Map(); let pinch = null;
     vp.addEventListener("pointerdown", (e) => {
       vp.setPointerCapture(e.pointerId);
+      if (refDrop) { e.preventDefault(); refSampleAt(e); return; }
       if (e.pointerType === "touch") {
         fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (fingers.size === 2) {
@@ -2212,6 +2263,7 @@
       vp.classList.add("dragging");
     });
     vp.addEventListener("pointermove", (e) => {
+      if (refDrop) { if (e.buttons || e.pointerType === "touch") refSampleAt(e); return; }
       if (e.pointerType === "touch" && fingers.has(e.pointerId)) {
         fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (pinch && fingers.size === 2) {
@@ -2227,6 +2279,7 @@
       applyRefView();
     });
     const endRefDrag = (e) => {
+      if (refDrop) { if (e && e.type === "pointerup") refCommitDrop(); return; }
       if (e && e.pointerType === "touch") { fingers.delete(e.pointerId); if (fingers.size < 2) pinch = null; }
       if (!refDrag) return;
       const g = refDrag; refDrag = null; vp.classList.remove("dragging");
@@ -2668,6 +2721,9 @@
     resetCanvas(); state.startedAt = Date.now(); state.dirtySinceSnapshot = false;
     strokeCount = 0; state.lastActivity = 0; state.idle = false;
     applyTool("pencil");                 // 上一张用橡皮收的尾，不该带进下一张
+    // 起手色：不是黑。每个任务按 id 定一个（同一任务永远同一色，任务之间不同），孩子随时能换。
+    // 走 setColor 是为了让它进 COLOR_CHANGE 流（source=task_default），分析时看得出是默认还是他选的。
+    setColor(defaultColorFor(state.quest.id), null, "task_default");
     resetView(null); applyCondition(); syncName();   // a fresh canvas starts at 100 %, pen in hand
     await ArtLog.start(state.sessionId);
     applyTask(state.quest);
