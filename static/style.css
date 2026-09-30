@@ -1870,8 +1870,6 @@ body[data-room="grade"], body[data-room="rubric"] { --room:var(--blue); --room-d
   background:var(--soft); border-radius:10px; font-size:0.8125rem; line-height:1.45; font-weight:600; color:var(--muted-2); }
 .gd .gdlevels > div { display:grid; grid-template-columns:1.4rem 1fr; gap:6px; }
 .gd .gdlevels b { color:var(--blue-d); }
-.tfilter .tassign { margin-left:auto; align-self:center; font-size:0.8125rem; font-weight:700; color:var(--muted); }
-.tfilter .tassign:empty { display:none; }
 
 /* 评分参考 */
 #view-rubric { max-width:52rem; margin:0 auto; }

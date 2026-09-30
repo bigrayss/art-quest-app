@@ -183,12 +183,11 @@
 
 <!-- ===== tab 4：我的 ===== -->
 <!-- ===== 教师端 1：打分列表 =====
-     老师登录进来就是这一屏：服务器上全部画完的作品，一张一件。待评 / 已评两个筛选。 -->
+     老师登录进来就是这一屏。待评 = 没评满 K 次、我也没评过的；评满就从大家的待评里消失。已评 = 我评过的。 -->
 <section class="view hidden" id="view-teacher">
   <div class="tfilter" id="tfilter">
     <button class="on" data-f="todo">待评 <b id="tf-todo"></b></button>
     <button data-f="done">已评 <b id="tf-done"></b></button>
-    <span class="tassign" id="tassign"></span>
   </div>
   <div class="tlist" id="tlist"></div>
   <p class="tempty hidden" id="tempty"></p>

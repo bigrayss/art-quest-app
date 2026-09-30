@@ -18,7 +18,7 @@ from . import history as history_mod
 from . import study as study_mod
 from .accounts import AccountError, AccountStore
 from . import i18n
-from . import assignment
+from . import teacher_pool
 from .config import (CLAUDE_MODEL, SESSIONS_DIR, SNAPSHOT_INTERVAL_SEC, STATIC_DIR,
                      claude_available)
 from .assist import get_assist_engine
@@ -31,7 +31,7 @@ from .reconstruct import check_final
 from .rubric import apply_contract, check_rating
 from .revision import attribute as attribute_revision
 from .schemas import (
-    AssignmentUpdate,
+    TeacherPoolUpdate,
     AssistIn,Abandon, Annotation, ClaimDevice, CreateSession, Curate, DrawEvent, EarnedBadges,
                       FeaturedAnswer, FeedbackIn, Finalize, HARDEST_PARTS_SHOWN, IssueTickets, Login, LogBatch,
                       PROCESS_LABELS, ProfileUpdate, Questionnaire, Rating, Register, ResetPin, Snapshot, TeacherGrade, StudyAssign,
@@ -520,82 +520,70 @@ def _done_sessions() -> List[Dict[str, Any]]:
     return out
 
 
-def _assign_all(metas: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """把画完的作品分到老师头上（没分满的补齐），返回分配表。"""
-    teachers = [a["account_id"] for a in accounts.teachers()]
-    graded = {sid_of(m): {r.get("rater_id") for r in _teacher_ratings(sid_of(m))} for m in metas}
-    return assignment.ensure([sid_of(m) for m in metas], teachers, graded)
-
-
 @api.get("/teacher/sessions")
 def teacher_sessions(request: Request, status: str = "all"):
-    """分给我的作品，一行一件：谁画的、什么任务、最终图、我评过没有。status = todo | done | all。
-    老师只看分给自己的（每件 K 位，见 assignment.py）；研究员看全部，每行带 assignees。"""
+    """老师的池子。todo = 没评满 K 次、我也没评过的（评得少的在前）；done = 我评过的。
+    研究员看全部，每行带 n_ratings / full。评分数据一条不删，评满只是从待评里消失。"""
     me = _require_teacher(request)
-    metas = _done_sessions()
-    plan = _assign_all(metas)
+    k = teacher_pool.ratings_per_work()
     admin = me["rater_id"] == "admin"
-    names = {a["account_id"]: a.get("name", "") for a in accounts.teachers()}
     rows = []
-    for meta in metas:
+    n_total = 0
+    for meta in _done_sessions():
+        n_total += 1
         sid = sid_of(meta)
-        assignees = plan["works"].get(sid) or []
-        if not admin and me["rater_id"] not in assignees:
-            continue
         ratings = _teacher_ratings(sid)
-        mine = [r for r in ratings if r.get("rater_id") == me["rater_id"]]
-        graded = bool(mine)
-        if (status == "todo" and graded) or (status == "done" and not graded):
-            continue
+        n_ratings = len({r.get("rater_id") for r in ratings})
+        graded = any(r.get("rater_id") == me["rater_id"] for r in ratings)
+        full = n_ratings >= k
+        if not admin:
+            if status == "todo" and (graded or full):
+                continue
+            if status == "done" and not graded:
+                continue
+            if status == "all" and not graded and full:
+                continue
         task = meta.get("task") or {}
         rows.append({
-            "assignees": [names.get(a, a) for a in assignees],
             "session_id": sid, "created_at": meta.get("created_at"),
             "task_id": task.get("task_id") or meta.get("quest_id"), "task_title": task.get("title") or meta.get("quest_id"),
             "student": _student_name(meta), "lang": meta.get("lang", "zh"),
             "image": f"/files/{sid}/final.png", "n_snapshots": len(meta.get("snapshots") or []),
             "revised": bool(meta.get("revised")), "duration_ms": (meta.get("times") or {}).get("duration_ms"),
-            "graded_by_me": graded, "n_graders": len({r.get("rater_id") for r in ratings}),
+            "graded_by_me": graded, "n_graders": n_ratings, "n_ratings": n_ratings, "full": full,
         })
-    rows.sort(key=lambda r: r.get("created_at") or "", reverse=True)
-    return {"me": me, "sessions": rows, "raters_per_work": plan["raters_per_work"],
+    # 待评：评得少的在前、老的在前，每件尽快凑满；评过的：新的在前
+    todo = sorted((r for r in rows if not r["graded_by_me"]), key=lambda r: (r["n_ratings"], r.get("created_at") or ""))
+    done = sorted((r for r in rows if r["graded_by_me"]), key=lambda r: r.get("created_at") or "", reverse=True)
+    rows = todo + done
+    return {"me": me, "sessions": rows, "ratings_per_work": k, "n_total": n_total,
             "n_todo": sum(1 for r in rows if not r["graded_by_me"]) if status == "all" else None}
 
 
-@api.get("/teacher/assignments")
-def teacher_assignments(request: Request):
-    """研究员看分工：每位老师手上几件、评了几件；每件分给了谁。"""
+@api.get("/teacher/progress")
+def teacher_progress(request: Request):
+    """研究员看进度：每件评了几次、评满了几件；每位老师评了几件。"""
     _require_admin(request)
-    metas = _done_sessions()
-    plan = _assign_all(metas)
-    teachers = accounts.teachers()
-    per = {a["account_id"]: {"account_id": a["account_id"], "name": a.get("name", ""), "n_assigned": 0, "n_graded": 0} for a in teachers}
-    for meta in metas:
+    k = teacher_pool.ratings_per_work()
+    teachers = {a["account_id"]: {"account_id": a["account_id"], "name": a.get("name", ""), "n_graded": 0} for a in accounts.teachers()}
+    works = []
+    for meta in _done_sessions():
         sid = sid_of(meta)
-        for r in plan["works"].get(sid) or []:
-            if r in per:
-                per[r]["n_assigned"] += 1
-        for rid in {r.get("rater_id") for r in _teacher_ratings(sid)}:
-            if rid in per:
-                per[rid]["n_graded"] += 1
-    return {"raters_per_work": plan["raters_per_work"], "teachers": list(per.values()),
-            "works": {sid_of(m): plan["works"].get(sid_of(m)) or [] for m in metas}}
+        raters = {r.get("rater_id") for r in _teacher_ratings(sid)}
+        for rid in raters:
+            if rid in teachers:
+                teachers[rid]["n_graded"] += 1
+        works.append({"session_id": sid, "n_ratings": len(raters), "full": len(raters) >= k})
+    return {"ratings_per_work": k, "n_works": len(works), "n_full": sum(1 for w in works if w["full"]),
+            "teachers": list(teachers.values()), "works": works}
 
 
-@api.post("/teacher/assignments")
-def teacher_assignments_update(body: AssignmentUpdate, request: Request):
-    """研究员改分工：K，或手动指定某几件给谁。指定的名单要是老师账号。"""
+@api.post("/teacher/progress")
+def teacher_progress_update(body: TeacherPoolUpdate, request: Request):
+    """研究员改 K（每件要几份评分）。改小了，已经够数的作品立刻从待评里消失；改大了，回来。"""
     _require_admin(request)
-    if body.raters_per_work is not None:
-        assignment.set_raters_per_work(body.raters_per_work)
-    teachers = {a["account_id"] for a in accounts.teachers()}
-    for sid, ids in body.works.items():
-        _session_or_404(sid)
-        bad = [i for i in ids if i not in teachers]
-        if bad:
-            raise HTTPException(422, f"不是老师账号：{bad}")
-        assignment.set_work(sid, ids)
-    return teacher_assignments(request)
+    teacher_pool.set_ratings_per_work(body.ratings_per_work)
+    return teacher_progress(request)
 
 
 @api.get("/teacher/sessions/{sid}")

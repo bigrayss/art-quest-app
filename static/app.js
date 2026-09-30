@@ -470,20 +470,19 @@
   const isTeacher = () => ((state.account || {}).role === "teacher");
   function applyRole() { document.body.classList.toggle("teacher", isTeacher()); }
 
-  let tFilter = "todo", tRows = [];
+  let tFilter = "todo", tRows = [], tTotal = 0;
   async function loadTeacherList() {
     const list = $("#tlist"); list.innerHTML = "";
     $("#tempty").classList.add("hidden");
     try {
       const r = await api(`${API}/teacher/sessions?status=all`);
-      tRows = r.sessions || [];
+      tRows = r.sessions || []; tTotal = r.n_total || 0;
     } catch (e) {
-      tRows = [];
+      tRows = []; tTotal = 0;
       $("#tempty").textContent = errText(e); $("#tempty").classList.remove("hidden");
       return;
     }
     const todo = tRows.filter(x => !x.graded_by_me).length;
-    $("#tassign").textContent = tRows.length ? `分给你 ${tRows.length} 件` : "";
     $("#tf-todo").textContent = todo ? `(${todo})` : "";
     $("#tf-done").textContent = tRows.length - todo ? `(${tRows.length - todo})` : "";
     renderTeacherList();
@@ -498,10 +497,10 @@
         <div class="tname">${escapeHtml(x.student || "")}</div>
         <div class="ttask">${escapeHtml(x.task_title || "")}</div>
         <div class="tmeta"><span>${whenText(x.created_at)}</span><span>${x.revised ? "改过一次" : "没改"}</span>
-          ${x.n_graders ? `<span>${x.n_graders} 位老师评过</span>` : ""}${x.graded_by_me ? `<span class="tdone">我评过了</span>` : ""}</div>
+          ${x.n_ratings ? `<span>${x.n_ratings} 位老师评过</span>` : ""}${x.graded_by_me ? `<span class="tdone">我评过了</span>` : ""}</div>
       </div></button>`).join("");
     const empty = $("#tempty");
-    empty.textContent = tFilter === "done" ? "还没有评过的。" : (tRows.length ? "分给你的都评完了。" : "还没有分给你的作品。");
+    empty.textContent = tFilter === "done" ? "还没有评过的。" : (tTotal ? "都评满了。" : "还没有画完的作品。");
     empty.classList.toggle("hidden", rows.length > 0);
     list.querySelectorAll(".tcard").forEach(b => b.onclick = () => openGrade(b.dataset.sid));
   }

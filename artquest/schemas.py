@@ -395,10 +395,9 @@ class Rating(BaseModel):
         return v
 
 
-class AssignmentUpdate(BaseModel):
-    """研究员改分工：每件几位老师；或手动指定某几件给谁（空列表 = 收回，下次自动再分）。"""
-    raters_per_work: Optional[int] = Field(None, ge=1, le=20)
-    works: Dict[str, List[str]] = Field({}, description="{session_id: [老师 account_id, ...]}")
+class TeacherPoolUpdate(BaseModel):
+    """研究员改：每件作品要几份老师评分。"""
+    ratings_per_work: int = Field(..., ge=1, le=20)
 
 
 class TeacherGrade(BaseModel):
