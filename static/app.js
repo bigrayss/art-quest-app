@@ -427,6 +427,7 @@
   $("#acct-role").querySelectorAll("[data-role]").forEach(b => b.onclick = () => setAcctRole(b.dataset.role));
   $("#acct-code-input").onkeydown = (e) => { if (e.key === "Enter") submitAcct(); };
   $("#btn-acct-register").onclick = () => openAcct("register");
+  $("#btn-home").onclick = () => { welcomeOn = true; show("welcome"); };   // 回门口：从这儿能去老师入口
   $("#btn-acct-login").onclick = () => openAcct("login");
   $("#btn-acct-switch").onclick = () => openAcct(acctMode === "register" ? "login" : acctMode === "reset" ? "login" : "register");
   $("#btn-acct-forgot").onclick = () => openAcct("reset");
