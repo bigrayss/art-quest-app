@@ -5,7 +5,7 @@ import Security
 /// 删掉重装就没了；而账号存在的全部意义就是「换台设备、清了缓存，画还认得你」。
 /// 钥匙串项在重装后仍在（不进 iCloud 同步——令牌是这一台设备的登录态，见 accounts.py 的 logout）。
 enum Keychain {
-    private static let service = "cn.ddhulu.artquest"
+    private static let service = "cn.ddhulu.kidsartquest"
     private static let account = "session-token"
 
     private static var query: [String: Any] {
