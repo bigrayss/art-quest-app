@@ -203,47 +203,35 @@ RUBRIC: Dict[str, Dict[str, Any]] = {
     },
 }
 
-# 评语示范。短：一句看到了什么，一句可以试什么。中英各一份，不是互译。
-EXAMPLES: List[Dict[str, Any]] = [
-    {
-        "key": "demo",
+# 评语示范：和老师要写的两种东西一一对应——最终图一段完整评语，过程图各一句短评。
+EXAMPLES: Dict[str, Any] = {
+    "final": {
         "image": "/static/refs/kidsartbench-demo.jpg",
         "caption": {"zh": "示范，不是数据集标注。", "en": "An illustration, not a dataset annotation."},
         "scores": {"realism": 1, "deformation": 4, "imagination": 5, "color_richness": 4, "color_contrast": 4,
                    "line_combination": 3, "line_texture": 3, "picture_organization": 3, "transformation": 4},
         "comment": {
-            "zh": "太阳有脸、云会笑、船在天上划，天空变成了游乐场。\n试试近的画大、远的画小，画面会有前后。",
-            "en": "The sun has a face, the clouds smile, a boat rows through the sky. The sky became a playground.\nTry drawing near things bigger and far things smaller, so the picture has depth.",
+            "zh": "天上同时有太阳、飞机、热气球、划船的小姑娘和飞起来的人，云朵还有表情，整幅画在讲一个自己的世界。\n"
+                  "太阳有脸、云会笑、船在天上划，这些改动把天空变成了游乐场，变形和转化都用上了。\n"
+                  "蓝色底子上的红船、黄飞机、彩条气球很跳，对比色用得好；轮廓线粗细比较一致，质感变化不多。\n"
+                  "东西大小差不多、都平铺在一层上。试试近的画大、远的画小，把热气球画得更大更靠前，画面会有前后。",
+            "en": "A sun, a jet, a hot-air balloon, a girl rowing a boat and a flying figure all share one sky, and the clouds have faces. The whole picture tells a world of its own.\n"
+                  "The sun's face, the smiling clouds and the boat rowing through the air turn the sky into a playground. Deformation and transformation are both at work.\n"
+                  "The red boat, yellow jet and striped balloon stand out sharply against the blue. Good contrast. The outlines are fairly even, so there is little variety in line texture.\n"
+                  "Everything is about the same size and sits on one layer. Try near things bigger and far things smaller, with the balloon larger and in front, so the picture has depth.",
         },
     },
-    {
-        "key": "line_low",
-        "scores": {"line_combination": 2, "line_texture": 2},
-        "title": {"zh": "线条两项偏低", "en": "Both line dimensions low"},
-        "comment": {
-            "zh": "轮廓都是一样粗细的一笔。\n头发试试用短线排一排，草地用尖尖的小线。",
-            "en": "Every outline is one even stroke.\nTry short strokes side by side for hair, and little spiky lines for grass.",
-        },
-    },
-    {
-        "key": "org_mid",
-        "scores": {"picture_organization": 3, "color_richness": 4},
-        "title": {"zh": "画面组织 3、色彩丰富 4", "en": "Organization 3, color richness 4"},
-        "comment": {
-            "zh": "暖色的房子和冷色的夜空搭得好看。\n东西都在左半边，试试把月亮挪到右上角。",
-            "en": "The warm house against the cool night sky looks great.\nEverything sits on the left. Try moving the moon to the top right.",
-        },
-    },
-    {
-        "key": "realism_low_fine",
-        "scores": {"realism": 1, "imagination": 5, "deformation": 4},
-        "title": {"zh": "写实 1、想象 5", "en": "Realism 1, imagination 5"},
-        "comment": {
-            "zh": "猫有六条腿、房子长翅膀，画面因此有了故事。\n给翅膀画上羽毛，它会更像会飞。",
-            "en": "A cat with six legs and a house with wings. That is what gives the picture a story.\nDraw feathers on the wings and they will look ready to fly.",
-        },
-    },
-]
+    "process": [
+        {"title": {"zh": "第 1 张", "en": "Shot 1"},
+         "note": {"zh": "先用大笔铺满了蓝，再画东西。", "en": "Filled the whole sky blue with a big brush first, then started drawing things."}},
+        {"title": {"zh": "第 2 张", "en": "Shot 2"},
+         "note": {"zh": "热气球和飞机定了位，人物还只是轮廓。", "en": "Balloon and jet are placed; the figures are still outlines."}},
+        {"title": {"zh": "第 3 张", "en": "Shot 3"},
+         "note": {"zh": "最后加的小星星把空白填上了。", "en": "The little stars added at the end fill the empty sky."}},
+        {"title": {"zh": "改之前", "en": "Before revision"},
+         "note": {"zh": "改之前船是单色的，改完加了条纹。", "en": "The boat was one color before; stripes were added in the revision."}},
+    ],
+}
 
 
 def rubric_payload() -> Dict[str, Any]:

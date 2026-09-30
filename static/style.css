@@ -1894,7 +1894,14 @@ body[data-room="grade"], body[data-room="rubric"] { --room:var(--blue); --room-d
 .rb-chip b { color:var(--blue-d); margin-left:2px; }
 .rb-ex blockquote { margin:0; padding:10px 12px; border-left:3px solid var(--blue); background:var(--soft); border-radius:0 10px 10px 0;
   font-weight:600; line-height:1.6; font-size:0.9375rem; }
+.rb-proc { gap:8px; }
+.rb-note { display:grid; grid-template-columns:5.5rem 1fr; gap:10px; align-items:start; }
+.rb-note > span { font-size:0.8125rem; font-weight:800; color:var(--muted); padding-top:10px; }
 .rb-cap { margin:8px 0 0; font-size:0.75rem; color:var(--muted); font-weight:600; line-height:1.45; }
+@media (max-width: 520px) {
+  .rb-note { grid-template-columns:1fr; gap:2px; }
+  .rb-note > span { padding-top:0; }
+}
 @media (min-width: 900px) {
   .rb-ex:has(.rb-ex-img) { display:grid; grid-template-columns:minmax(0, 5fr) minmax(0, 6fr); gap:16px; align-items:start; }
 }
