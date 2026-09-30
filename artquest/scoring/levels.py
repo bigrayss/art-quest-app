@@ -11,9 +11,9 @@ Attribute-Aware MLLMs*, EACL 2026（arXiv:2512.12503）附录 A.1 表 3–11，
 一句「这个维度大家一般打几分」：写实一栏几乎全是 1–2，想象几乎全是 5——
 这不是量表出了错，是儿童画的常态。老师照着这个分布校准自己的手，不必和它一样。
 
-评语的例子：公开仓库不含评语文本（论文说明评语只覆盖一部分作品，且随图片
-一起走数据使用协议）。下面 `EXAMPLES` 是按论文对「formative comment」的要求
-（对着量表说、说给孩子听、指出下一步）写的示范，不是数据集标注。
+评语的例子：公开仓库不含评语文本（评语只覆盖一部分作品，且随图片一起走数据使用协议）。
+`EXAMPLES` 是本界面写的示范，不是数据集标注。老师是专业的：界面上不引用论文、不讲流程、
+不教老师怎么写评语；`SOURCE` 只留在这个文件里给开发者查出处。
 """
 from typing import Any, Dict, List
 
@@ -217,74 +217,44 @@ REFERENCE_DISTRIBUTION: Dict[str, Dict[str, Any]] = {
     "transformation": {"n": 1046, "mean": 3.86, "counts": [1, 4, 235, 704, 102]},
 }
 
-# 论文对老师打分流程的描述，老师读一遍就知道自己在做什么样的事。
-PROCEDURE = {
-    "zh": [
-        "每幅作品由至少两位受过培训的美术教师独立打分，九个维度各 1–5 分。",
-        "分歧由一位资深专家仲裁，必要时回访原打分人，定出每维的终评。",
-        "打分人是 12 位教龄 5 年以上的美术教师，平均培训 24 小时。",
-        "一部分作品另附教师评语，评语对着量表说，是给孩子的形成性反馈。",
-    ],
-    "en": [
-        "Each artwork was independently scored by at least two trained art educators on nine dimensions, 1–5 each.",
-        "A senior expert adjudicated discrepancies, consulting the original raters when necessary, to assign a final score per dimension.",
-        "The raters were 12 art educators with more than 5 years' experience, calibrated for 24 hours on average.",
-        "A subset of artworks also carries expert-written formative comments aligned with the rubric.",
-    ],
-}
-
-# 评语示范。评语是写给孩子的：先说看到了什么，再说哪一维用了什么办法，最后给一个能做的下一步。
-# 不打总分、不比较别的孩子。中英各一份，不是互译。
+# 评语示范。短：一句看到了什么，一句可以试什么。中英各一份，不是互译。
 EXAMPLES: List[Dict[str, Any]] = [
     {
         "key": "demo",
         "image": "/static/refs/kidsartbench-demo.jpg",
-        "caption": {"zh": "KidsArtBench 仓库里的示例图（README 的 demo.png）。分数和评语是本界面写的示范，不是数据集标注。",
-                    "en": "The sample artwork from the KidsArtBench repository (demo.png in its README). Scores and comment below are written for this screen, not taken from the dataset."},
+        "caption": {"zh": "示范，不是数据集标注。", "en": "An illustration, not a dataset annotation."},
         "scores": {"realism": 1, "deformation": 4, "imagination": 5, "color_richness": 4, "color_contrast": 4,
                    "line_combination": 3, "line_texture": 3, "picture_organization": 3, "transformation": 4},
         "comment": {
-            "zh": "天上同时有太阳、飞机、热气球、划船的小姑娘和飞起来的人，云朵还有表情。整幅画在讲一个自己的世界，想象很足。\n"
-                  "太阳有脸、云会笑、船在天上划，这些改动都有用，把「天空」变成了游乐场（变形、转化）。\n"
-                  "蓝色底子上的红船、黄飞机、彩条气球很跳，色彩对比用得好。\n"
-                  "下一步可以试试：让物体有大有小、有近有远，比如把热气球画得更大、更靠前，画面会更有层次。",
-            "en": "A sun, a jet, a hot-air balloon, a girl rowing a boat and a flying figure all share one sky, and the clouds have faces. This is a world of your own, full of ideas.\n"
-                  "The sun's face, the smiling clouds and the boat rowing through the air all do real work: they turn the sky into a playground (Deformation, Transformation).\n"
-                  "The red boat, yellow jet and striped balloon stand out sharply against the blue. Good use of contrast.\n"
-                  "Next time, try making things different sizes: a bigger balloon in front, smaller things further back, so the picture has depth.",
+            "zh": "太阳有脸、云会笑、船在天上划，天空变成了游乐场。\n试试近的画大、远的画小，画面会有前后。",
+            "en": "The sun has a face, the clouds smile, a boat rows through the sky. The sky became a playground.\nTry drawing near things bigger and far things smaller, so the picture has depth.",
         },
     },
     {
         "key": "line_low",
         "scores": {"line_combination": 2, "line_texture": 2},
-        "title": {"zh": "线条两项偏低时", "en": "When both line dimensions are low"},
+        "title": {"zh": "线条两项偏低", "en": "Both line dimensions low"},
         "comment": {
-            "zh": "轮廓都是一样粗细的一笔描出来的，头发和草地摸起来会是一样的。\n"
-                  "下次画头发试试用很多短线排一排，画草地用尖尖的小线，线条会多出两种「手感」。",
-            "en": "Every outline is one even stroke, so hair and grass would feel the same to touch.\n"
-                  "Next time, try many short strokes side by side for hair and little spiky lines for grass. That gives your lines two new textures.",
+            "zh": "轮廓都是一样粗细的一笔。\n头发试试用短线排一排，草地用尖尖的小线。",
+            "en": "Every outline is one even stroke.\nTry short strokes side by side for hair, and little spiky lines for grass.",
         },
     },
     {
         "key": "org_mid",
         "scores": {"picture_organization": 3, "color_richness": 4},
-        "title": {"zh": "构图 3、色彩 4 时", "en": "Organization 3, color 4"},
+        "title": {"zh": "画面组织 3、色彩丰富 4", "en": "Organization 3, color richness 4"},
         "comment": {
-            "zh": "颜色用了七八种，暖色的房子和冷色的夜空搭得好看。\n"
-                  "东西都挤在左半边，右边空着。试试把月亮挪到右上角，或者让路一直伸到右边去。",
-            "en": "You used seven or eight colors, and the warm house against the cool night sky looks great.\n"
-                  "Everything sits in the left half and the right side is empty. Try moving the moon to the top right, or let the road run all the way across.",
+            "zh": "暖色的房子和冷色的夜空搭得好看。\n东西都在左半边，试试把月亮挪到右上角。",
+            "en": "The warm house against the cool night sky looks great.\nEverything sits on the left. Try moving the moon to the top right.",
         },
     },
     {
         "key": "realism_low_fine",
         "scores": {"realism": 1, "imagination": 5, "deformation": 4},
-        "title": {"zh": "写实 1 不是坏事", "en": "Realism 1 is not a bad thing"},
+        "title": {"zh": "写实 1、想象 5", "en": "Realism 1, imagination 5"},
         "comment": {
-            "zh": "猫有六条腿、房子长着翅膀，这是你故意的，画面因此有了故事（想象、变形）。写实这一项分低只是说明「不像真的」，不用改。\n"
-                  "可以试试给翅膀画上一根根羽毛，让它更像会飞。",
-            "en": "The cat has six legs and the house has wings, and you meant it. That is what gives the picture a story (Imagination, Deformation). A low Realism score only says it does not look real, and it does not need to.\n"
-                  "You could try drawing the feathers on the wings one by one, so they look ready to fly.",
+            "zh": "猫有六条腿、房子长翅膀，画面因此有了故事。\n给翅膀画上羽毛，它会更像会飞。",
+            "en": "A cat with six legs and a house with wings. That is what gives the picture a story.\nDraw feathers on the wings and they will look ready to fly.",
         },
     },
 ]
@@ -293,7 +263,7 @@ EXAMPLES: List[Dict[str, Any]] = [
 def rubric_payload() -> Dict[str, Any]:
     """老师端 `/teacher/rubric` 的响应体。"""
     return {
-        "source": SOURCE, "categories": CATEGORIES, "procedure": PROCEDURE,
+        "categories": CATEGORIES,
         "dimensions": {k: {"criterion": v["criterion"],
                            "levels": [{"score": s, **v["levels"][s]} for s in (5, 4, 3, 2, 1)],
                            "reference": REFERENCE_DISTRIBUTION[k]} for k, v in RUBRIC.items()},

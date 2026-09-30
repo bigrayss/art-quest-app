@@ -8,6 +8,8 @@ import unittest
 from .env import ADMIN, TMP as _TMP  # noqa: F401  (offline backends, throwaway data dir)
 
 os.environ["ARTQUEST_TEACHER_CODE"] = "code-777"
+# 别的测试不关心分工：每件分给 99 位 = 谁都看得见。分工规则在 test_work_is_shared_out 里单独把 K 调到 2。
+os.environ["ARTQUEST_RATERS_PER_WORK"] = "99"
 
 from fastapi.testclient import TestClient  # noqa: E402
 from PIL import Image, ImageDraw  # noqa: E402
@@ -141,10 +143,58 @@ class TeacherSide(unittest.TestCase):
             ref = d["reference"]
             self.assertEqual(sum(ref["counts"]), ref["n"], k)          # 分布是 1,046 幅的完整计数
             self.assertEqual(len(ref["counts"]), 5)
-        self.assertIn("arxiv.org", rb["source"]["arxiv"])
+        self.assertNotIn("source", rb, "界面上不引用论文")
         self.assertTrue(rb["examples"] and all(e["comment"]["zh"] and e["comment"]["en"] for e in rb["examples"]))
         # 示范图是仓库自带的静态文件
         self.assertEqual(self.c.get(rb["examples"][0]["image"]).status_code, 200)
+
+    def test_work_is_shared_out_so_no_teacher_grades_everything(self):
+        from artquest import assignment
+        # 三位老师、K=2：四件作品 8 个名额，谁手上少给谁 → 3/3/2，没人拿到全部
+        t = [self._teacher(n) for n in ("分工甲", "分工乙", "分工丙")]
+        ids = [r.json()["account"]["account_id"] for r in t]
+        hs = [{"Authorization": f"Bearer {r.json()['token']}"} for r in t]
+        self.assertEqual(self.c.post("/api/teacher/assignments", headers=ADMIN, json={"raters_per_work": 2}).status_code, 200)
+        self.assertEqual(self.c.post("/api/teacher/assignments", headers=hs[0], json={"raters_per_work": 1}).status_code, 401, "老师不能改分工")
+        try:
+            sids = [self._finished_session(f"分工学生{i}", revise=False) for i in range(4)]
+            plan = self.c.get("/api/teacher/assignments", headers=ADMIN).json()
+            self.assertEqual(plan["raters_per_work"], 2)
+            for sid in sids:
+                self.assertEqual(len(plan["works"][sid]), 2, "每件正好两位")
+                self.assertEqual(len(set(plan["works"][sid])), 2)
+            # 老师只看到分给自己的；三人合起来覆盖全部
+            seen = {}
+            for h, aid in zip(hs, ids):
+                rows = self.c.get("/api/teacher/sessions?status=all", headers=h).json()["sessions"]
+                mine = {r["session_id"] for r in rows} & set(sids)
+                self.assertEqual(mine, {sid for sid in sids if aid in plan["works"][sid]})
+                self.assertLess(len(mine), 4, "没有一位老师拿到全部")
+                seen[aid] = len(mine)
+            # （同一数据目录里别的测试注册的老师也在分，所以不断言总数）
+            self.assertLessEqual(max(seen.values()) - min(seen.values()), 1, "负担均衡")
+            # 再分一次名单不变（老师手上的名单不能变来变去）
+            again = self.c.get("/api/teacher/assignments", headers=ADMIN).json()["works"]
+            self.assertEqual({k: again[k] for k in sids}, {k: plan["works"][k] for k in sids})
+            # 研究员手动指定：这件只给甲；不是老师的账号会被拒
+            self.assertEqual(self.c.post("/api/teacher/assignments", headers=ADMIN, json={"works": {sids[0]: ["acc-nope"]}}).status_code, 422)
+            r = self.c.post("/api/teacher/assignments", headers=ADMIN, json={"works": {sids[0]: [ids[0]]}}).json()
+            self.assertEqual(r["works"][sids[0]][0], ids[0], "指定的排最前")
+            self.assertEqual(len(r["works"][sids[0]]), 2, "只指定了一位，自动补到 K 位")
+            # 一位没分到的老师评了这件：算进去，不再拉第三位来凑
+            first = self.c.get(f"/api/teacher/sessions/{sids[0]}", headers=hs[2]).json()["images"][0]["key"]
+            self.assertEqual(self.c.post(f"/api/teacher/sessions/{sids[0]}/grade", headers=hs[2],
+                                         json={"dims": {"imagination": 4}, "image_notes": {first: "起头"}}).status_code, 200)
+            r = self.c.get("/api/teacher/assignments", headers=ADMIN).json()
+            self.assertIn(ids[2], r["works"][sids[0]])
+            self.assertIn(ids[0], r["works"][sids[0]])
+            per = {x["account_id"]: x for x in r["teachers"]}
+            self.assertEqual(per[ids[2]]["n_graded"], 1)
+            # 研究员的列表带 assignees（名字）
+            row = next(x for x in self.c.get("/api/teacher/sessions", headers=ADMIN).json()["sessions"] if x["session_id"] == sids[0])
+            self.assertTrue({"分工甲", "分工丙"} <= set(row["assignees"]))
+        finally:
+            self.c.post("/api/teacher/assignments", headers=ADMIN, json={"raters_per_work": 99})
 
 
 class TeacherEntrance(unittest.TestCase):
