@@ -2,7 +2,7 @@
 #
 # 前提（一次性，都在网页上做）：
 #   1. Apple Developer Program 付费会员（TestFlight 只给付费账号）。
-#   2. App Store Connect → 用户和访问 → 集成 → App Store Connect API：生成一个 key（角色 App Manager），
+#   2. App Store Connect → 用户和访问 → 集成 → App Store Connect API：生成一个 key（角色 **Admin**——导出用的云端托管发布证书要这个权限，App Manager 会报 Cloud signing permission error），
 #      下载 .p8。记下 Key ID 和 Issuer ID。
 #   3. App Store Connect → App → 新建 App，Bundle ID 选 cn.ddhulu.kidsartquest（没有就先在开发者网站 Identifiers 里登记）。
 #   3b. 开发者网站 → Certificates, Identifiers & Profiles → Devices → 登记至少一台设备的 UDID
