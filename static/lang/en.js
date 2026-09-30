@@ -3,6 +3,9 @@
 // 读者是 6–14 岁的孩子：短、日常、口语。彩点 = Dot。
 window.ARTQUEST_LANG_EN = {
   "语言": "Language",
+  "老师入口": "Teacher entrance",
+  "老师注册": "Teacher sign up",
+  "老师登录": "Teacher log in",
   "打分": "Grading",
   "我是学生": "I'm a student",
   "我是老师": "I'm a teacher",

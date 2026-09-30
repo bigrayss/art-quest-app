@@ -104,5 +104,18 @@ class TeacherSide(unittest.TestCase):
         self.assertEqual(self.c.post(f"/api/teacher/sessions/{sid}/grade", headers=t1, json={"dims": {"nope": 3}}).status_code, 422)
 
 
+
+class TeacherEntrance(unittest.TestCase):
+    """/teacher 是同一份 app 的另一个入口，不是第二个网站。"""
+
+    def test_the_teacher_path_serves_the_same_shell_with_no_cache(self):
+        c = TestClient(app)
+        for path in ("/teacher", "/teacher/"):
+            r = c.get(path)
+            self.assertEqual(r.status_code, 200, path)
+            self.assertIn("view-welcome", r.text)
+            self.assertIn("no-cache", r.headers.get("cache-control", ""), "外壳一律 no-cache，/teacher 也是外壳")
+        self.assertEqual(c.get("/").text, c.get("/teacher").text)
+
 if __name__ == "__main__":
     unittest.main()
