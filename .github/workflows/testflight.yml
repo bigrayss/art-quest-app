@@ -28,9 +28,16 @@ jobs:
           brew install xcodegen
           cd ios && xcodegen generate
       - name: App Store Connect API key 落盘
+        # 粘进 secret 时首尾行或换行常常丢（第一次就栽在 invalidPEMDocument）：
+        # 这里只取 base64 正文，按 64 列重新折行，头尾自己补，怎么粘都行。
         run: |
           mkdir -p ~/.private_keys
-          printf '%s' "$ASC_KEY_P8" > ~/.private_keys/AuthKey_${ASC_KEY_ID}.p8
+          body="$(printf '%s' "$ASC_KEY_P8" | tr -d '\r' | sed -e 's/-----[A-Z ]*-----//g' | tr -d ' \n\t')"
+          if [ -z "$body" ]; then echo "::error::ASC_KEY_P8 是空的"; exit 1; fi
+          { echo '-----BEGIN PRIVATE KEY-----'; printf '%s' "$body" | fold -w 64; echo; echo '-----END PRIVATE KEY-----'; } \
+            > ~/.private_keys/AuthKey_${ASC_KEY_ID}.p8
+          # 只报行数和长度，不打印内容
+          echo "p8: $(wc -l < ~/.private_keys/AuthKey_${ASC_KEY_ID}.p8) lines, body ${#body} chars (正常约 200)"
         env:
           ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
