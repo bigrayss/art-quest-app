@@ -3,6 +3,8 @@
 // 读者是 6–14 岁的孩子：短、日常、口语。彩点 = Dot。
 window.ARTQUEST_LANG_EN = {
   "语言": "Language",
+  "过程图至少写一条短评。": "Write at least one note on a process image.",
+  "过程图至少写一条短评": "Write at least one note on a process image",
   "回到首页": "Back to start",
   "老师入口 →": "Teacher entrance →",
   "学生入口 →": "Student entrance →",
@@ -28,7 +30,7 @@ window.ARTQUEST_LANG_EN = {
   "还没有画完的作品。": "No finished drawings yet.",
   "返回列表": "Back to list",
   "过程图": "Process pictures",
-  "每张一句短评": "one short note each",
+  "至少写一条，写在哪张都行": "Write at least one, on any of them",
   "这张没有过程图。": "No process pictures for this one.",
   "改之前": "Before revision",
   "第 {a} 张": "Shot {a}",

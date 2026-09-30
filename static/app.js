@@ -568,6 +568,11 @@
     if (!Object.keys(dims).length && !comment && !Object.keys(notes).length) {
       err.textContent = "还什么都没写。"; err.classList.remove("hidden"); return;
     }
+    // 有过程图就至少写一条（写在哪张都行）
+    const procKeys = [...$("#g-strip").querySelectorAll("input")].map(i => i.dataset.key);
+    if (procKeys.length && !procKeys.some(k => notes[k])) {
+      err.textContent = "过程图至少写一条短评。"; err.classList.remove("hidden"); return;
+    }
     const btn = $("#btn-grade-save"); btn.disabled = true; err.classList.add("hidden");
     try {
       await api(`${API}/teacher/sessions/${encodeURIComponent(grade.sid)}/grade`, { method: "POST",

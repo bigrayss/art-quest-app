@@ -482,7 +482,12 @@ def _session_images(meta: Dict[str, Any]) -> List[Dict[str, Any]]:
     过程图只要一句短评；最终图要九维 + 评语。"""
     sid = sid_of(meta)
     out = []
-    for s in meta.get("snapshots") or []:
+    # 快照每分钟一张，一张画十几张，老师看不过来也不必看：只抽三张——开头、中间、快结束。
+    # 全部快照照存在服务器上，研究分析时都在；这只是老师界面上的抽样。
+    snaps = list(meta.get("snapshots") or [])
+    if len(snaps) > 3:
+        snaps = [snaps[0], snaps[len(snaps) // 2], snaps[-1]]
+    for s in snaps:
         out.append({"key": s["file"], "url": f"/files/{sid}/{s['file']}", "kind": "snapshot", "elapsed_ms": s.get("elapsed_ms")})
     if meta.get("revised"):
         out.append({"key": "before", "url": f"/files/{sid}/before.png", "kind": "before",
@@ -562,6 +567,10 @@ def teacher_grade(sid: str, body: TeacherGrade, request: Request):
         raise HTTPException(422, f"这个任务无法考察这些维度，不能打分：{bad}")
     if not body.dims and not body.comment and not body.image_notes:
         raise HTTPException(422, "什么都没写")
+    # 过程图至少写一条（有过程图才要求）：写在哪一张老师自己挑。写了才算真看过过程，研究也留一个人工的过程判断。
+    process_keys = {im["key"] for im in _session_images(meta) if im["kind"] != "final"}
+    if process_keys and not (set(body.image_notes) & process_keys):
+        raise HTTPException(422, "过程图至少写一条短评")
     rec = store.add_rating(sid, {
         "source": "teacher", "rater_id": me["rater_id"], "rater_name": me["name"],
         "phase": "after" if meta.get("revised") else "before",

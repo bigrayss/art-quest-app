@@ -90,12 +90,28 @@ class TeacherSide(unittest.TestCase):
         self.assertEqual(detail["my_rating"]["comment"], "构图很稳。")
         self.assertEqual(detail["my_rating"]["image_notes"]["before"], "颜色还没上")
 
+    def test_many_snapshots_are_sampled_down_to_three_for_the_teacher(self):
+        sid = self._finished_session("小画家C", revise=False)
+        for ms in (45000, 50000, 55000, 58000):      # 加到 5 张快照
+            self.c.post(f"/api/sessions/{sid}/snapshot", json={"image": _png(), "elapsed_ms": ms, "events": []})
+        t = {"Authorization": f"Bearer {self._teacher('孙老师').json()['token']}"}
+        detail = self.c.get(f"/api/teacher/sessions/{sid}", headers=t).json()
+        snaps = [i for i in detail["images"] if i["kind"] == "snapshot"]
+        self.assertEqual(len(snaps), 3, "老师只看开头、中间、快结束三张")
+        self.assertEqual([s["elapsed_ms"] for s in snaps], [30000, 50000, 58000])
+        row = next(r for r in self.c.get("/api/teacher/sessions", headers=t).json()["sessions"] if r["session_id"] == sid)
+        self.assertEqual(row["n_snapshots"], 5, "服务器上全部快照都在，只是界面抽样")
+
     def test_two_teachers_are_two_ratings_and_bad_input_is_refused(self):
         sid = self._finished_session("小画家B", revise=False)
         t1 = {"Authorization": f"Bearer {self._teacher('赵老师').json()['token']}"}
         t2 = {"Authorization": f"Bearer {self._teacher('钱老师').json()['token']}"}
-        self.assertEqual(self.c.post(f"/api/teacher/sessions/{sid}/grade", headers=t1, json={"dims": {"imagination": 5}}).status_code, 200)
-        self.assertEqual(self.c.post(f"/api/teacher/sessions/{sid}/grade", headers=t2, json={"comment": "只写评语也行"}).status_code, 200)
+        first = self.c.get(f"/api/teacher/sessions/{sid}", headers=t1).json()["images"][0]["key"]
+        self.assertEqual(self.c.post(f"/api/teacher/sessions/{sid}/grade", headers=t1, json={"dims": {"imagination": 5}, "image_notes": {first: "一笔起头"}}).status_code, 200)
+        # 有过程图就至少写一条过程短评：只写评语不行，写在任一张过程图上才行
+        self.assertEqual(self.c.post(f"/api/teacher/sessions/{sid}/grade", headers=t2, json={"comment": "只写评语"}).status_code, 422)
+        snap_key = self.c.get(f"/api/teacher/sessions/{sid}", headers=t2).json()["images"][0]["key"]
+        self.assertEqual(self.c.post(f"/api/teacher/sessions/{sid}/grade", headers=t2, json={"comment": "只写评语", "image_notes": {snap_key: "先画了轮廓"}}).status_code, 200)
         detail = self.c.get(f"/api/teacher/sessions/{sid}", headers=t1).json()
         self.assertEqual(detail["n_graders"], 2)
         self.assertEqual([i["kind"] for i in detail["images"]], ["snapshot", "final"], "没改过就没有 before 那张")
