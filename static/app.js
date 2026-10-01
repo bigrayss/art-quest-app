@@ -888,6 +888,27 @@
   $("#btn-tour-next").onclick = () => nextTour(false);
   $("#btn-tour-skip").onclick = endTour;
   $("#btn-guide-again").onclick = () => { show("world"); renderWorld().then(startTour); };
+
+  // ---------- 课后问卷：对 app 的看法 ----------
+  // 几道开放题，不打分，都可不填。交上去存服务器，和账号 / 设备对上，研究员从 /opinions 看。
+  const opinionModal = $("#opinion-modal");
+  $("#btn-opinion").onclick = () => { $("#opinion-err").classList.add("hidden"); opinionModal.classList.remove("hidden"); };
+  $("#btn-opinion-cancel").onclick = () => opinionModal.classList.add("hidden");
+  $("#btn-opinion-send").onclick = async () => {
+    const answers = {};
+    opinionModal.querySelectorAll("textarea[data-q]").forEach(t => { if (t.value.trim()) answers[t.dataset.q] = t.value.trim(); });
+    const err = $("#opinion-err");
+    if (!Object.keys(answers).length) { err.textContent = "还什么都没写。"; err.classList.remove("hidden"); return; }
+    const btn = $("#btn-opinion-send"); btn.disabled = true;
+    try {
+      await api(`${API}/opinions`, { method: "POST", body: JSON.stringify({
+        answers, account_id: accountId(), anon_id: state.anonId, participant_id: savedPid(), lang: LANG }) });
+      opinionModal.querySelectorAll("textarea[data-q]").forEach(t => { t.value = ""; });
+      opinionModal.classList.add("hidden");
+      alert("收到了，谢谢。");
+    } catch (e) { err.textContent = errText(e); err.classList.remove("hidden"); }
+    finally { btn.disabled = false; }
+  };
   window.addEventListener("resize", () => { if (tourOn) placeTour(); });
   // 转屏、分屏、收起侧栏——地方都挪了，小路得跟着重画
   let mapPathTimer = 0;

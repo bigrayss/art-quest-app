@@ -1,5 +1,6 @@
 """FastAPI application: serves the drawing UI and the session / research API."""
 import hashlib
+import json
 import logging
 import re
 import secrets
@@ -31,6 +32,7 @@ from .reconstruct import check_final
 from .rubric import apply_contract, check_rating
 from .revision import attribute as attribute_revision
 from .schemas import (
+    Opinion,
     TeacherPoolUpdate,
     AssistIn,Abandon, Annotation, ClaimDevice, CreateSession, Curate, DrawEvent, EarnedBadges,
                       FeaturedAnswer, FeedbackIn, Finalize, HARDEST_PARTS_SHOWN, IssueTickets, Login, LogBatch,
@@ -201,6 +203,41 @@ def _run_qc(sid: str, pending: int = 0) -> Dict[str, Any]:
 @app.get("/")
 def index():
     return FileResponse(STATIC_DIR / "index.html")
+
+
+# -- 课后问卷：对 app 的看法 --------------------------------------------------
+# 几道开放题，不打分。一条一个文件，放 data/opinions/。研究员令牌能列全部。
+OPINION_KEYS = ("liked", "stuck", "feedback", "change", "more")
+OPINIONS_DIR = SESSIONS_DIR.parent / "opinions"
+
+
+@api.post("/opinions", status_code=201)
+def post_opinion(body: Opinion):
+    answers = {k: (body.answers.get(k) or "").strip()[:2000] for k in OPINION_KEYS if (body.answers.get(k) or "").strip()}
+    if not answers:
+        raise HTTPException(422, "什么都没写")
+    OPINIONS_DIR.mkdir(parents=True, exist_ok=True)
+    rec = {"opinion_id": "op-" + secrets.token_hex(6), "ts": now_iso(), "answers": answers,
+           "account_id": body.account_id, "anon_id": body.anon_id, "participant_id": body.participant_id, "lang": body.lang}
+    (OPINIONS_DIR / f"{rec['ts'][:19].replace(':', '-')}-{rec['opinion_id']}.json").write_text(
+        json.dumps(rec, ensure_ascii=False, indent=2), encoding="utf-8")
+    return {"ok": True, "opinion_id": rec["opinion_id"]}
+
+
+@api.get("/opinions")
+def list_opinions(request: Request):
+    _require_admin(request)
+    out = []
+    if OPINIONS_DIR.exists():
+        for f in sorted(OPINIONS_DIR.glob("*.json")):
+            try:
+                rec = json.loads(f.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            acc = accounts.load(rec.get("account_id") or "") if rec.get("account_id") else None
+            rec["account_name"] = acc.get("name", "") if acc else ""
+            out.append(rec)
+    return {"opinions": out, "questions": list(OPINION_KEYS)}
 
 
 # 隐私政策：一页静态 HTML，门口和「我的」里链到它；TestFlight / App Store 也要这个地址。

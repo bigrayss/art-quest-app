@@ -244,6 +244,15 @@ class Abandon(BaseModel):
     pending: int = 0
 
 
+class Opinion(BaseModel):
+    """课后问卷：对这个 app 的看法，几道开放题，不打分。存成一条记录，和账号 / 设备对上。"""
+    answers: Dict[str, str] = Field({}, description="{题目 key: 孩子写的话}")
+    account_id: str = ""
+    anon_id: str = ""
+    participant_id: str = ""
+    lang: str = "zh"
+
+
 class Questionnaire(BaseModel):
     """Light self-report: a little ground truth for the behavioural data.
 

@@ -1065,6 +1065,11 @@ body[data-room="flow"]  { --room:var(--yellow); --room-d:var(--yellow-d); --room
 .modal-card { background:var(--card); border-radius:var(--r-lg) var(--r-lg) 0 0; padding:22px 20px calc(22px + env(safe-area-inset-bottom));
   max-width:460px; width:100%; box-shadow:0 -8px 40px rgba(0,0,0,.14); }
 .modal-card h3 { margin:0 0 8px; font-size:1.125rem; font-weight:800; }
+/* 课后问卷：一题一行，题目在上、框在下 */
+.opinion-card { max-height:92dvh; overflow-y:auto; }
+.opinion-card label { display:flex; flex-direction:column; gap:4px; margin:10px 0 0; font-weight:700; font-size:0.9375rem; }
+.opinion-card textarea { max-width:none; min-height:3.2rem; padding:8px 10px; font-size:0.9375rem; resize:vertical; }
+.opinion-card .actions { margin-top:14px; }
 .modal-card .actions.column { margin-top:16px; }
 
 /* ===== 第一次进来的导览 =====

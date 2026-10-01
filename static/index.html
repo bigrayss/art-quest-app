@@ -275,6 +275,8 @@
   <!-- 导览和「这台设备」并成一行：这一屏要装在一页里 -->
   <div class="me-foot">
   <button class="secondary student-only" id="btn-guide-again"><i data-icon="bulb" data-size="17"></i>再看一遍导览</button>
+  <!-- 课后问卷：对这个 app 的看法，几道开放题。老师最后几分钟让学生点开填 -->
+  <button class="secondary student-only" id="btn-opinion"><i data-icon="feather" data-size="17"></i>问卷</button>
   <!-- 语言就摆在这一行，不藏进「这台设备」的折叠里——进来之后也要一眼找得到 -->
   <button class="secondary" id="btn-lang-me"><i data-icon="swap" data-size="17"></i><span data-no-i18n id="lang-me-label"></span></button>
   <!-- 版本也在这一行：简单 / 完整，进来之后随时能换 -->
@@ -482,6 +484,24 @@
 </div><!-- /.app -->
 
 <!-- 被老师选为优秀作品：先问本人 -->
+<!-- 课后问卷：几道开放题，都可不填，不打分。答案存服务器 data/opinions/ -->
+<div class="modal hidden" id="opinion-modal">
+  <div class="modal-card opinion-card">
+    <h3>问卷</h3>
+    <p class="muted small">想到什么写什么，不用每题都写。</p>
+    <label>你最喜欢哪一关？为什么？<textarea rows="2" data-q="liked"></textarea></label>
+    <label>哪里不好用，或者看不懂？<textarea rows="2" data-q="stuck"></textarea></label>
+    <label>画完后彩点说的话，对你有用吗？<textarea rows="2" data-q="feedback"></textarea></label>
+    <label>你希望加点什么，或者改掉什么？<textarea rows="2" data-q="change"></textarea></label>
+    <label>还有什么想说的？<textarea rows="2" data-q="more"></textarea></label>
+    <p class="acct-err hidden" id="opinion-err"></p>
+    <div class="actions">
+      <button class="ghost" id="btn-opinion-cancel">取消</button>
+      <button class="primary grow" id="btn-opinion-send">交给老师</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal hidden" id="featured-modal">
   <div class="modal-card">
     <h3 id="featured-title">老师选中了你的一张画</h3>

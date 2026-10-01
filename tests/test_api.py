@@ -31,6 +31,17 @@ class StageOneLoop(unittest.TestCase):
     def setUp(self):
         self.c = TestClient(app)
 
+    def test_the_opinion_survey_is_stored_and_only_the_researcher_can_read_it(self):
+        self.assertEqual(self.c.post("/api/opinions", json={"answers": {"liked": "  "}}).status_code, 422)
+        r = self.c.post("/api/opinions", json={"answers": {"liked": "线条冒险", "change": "想要更多颜色", "bogus": "x"}, "anon_id": "dev-op"})
+        self.assertEqual(r.status_code, 201, r.text)
+        self.assertEqual(self.c.get("/api/opinions").status_code, 401)
+        rows = self.c.get("/api/opinions", headers=ADMIN).json()["opinions"]
+        mine = next(o for o in rows if o["opinion_id"] == r.json()["opinion_id"])
+        self.assertEqual(mine["answers"], {"liked": "线条冒险", "change": "想要更多颜色"}, "没写的和不认识的题不存")
+        self.assertEqual(mine["anon_id"], "dev-op")
+        self.assertIn('id="opinion-modal"', self.c.get("/").text)
+
     def test_the_privacy_policy_is_served_and_linked(self):
         r = self.c.get("/privacy")
         self.assertEqual(r.status_code, 200)
