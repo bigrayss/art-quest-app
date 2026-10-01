@@ -32,11 +32,11 @@ AIM = {
     "M1": "根据一张受损的参考图重建场景。看的是孩子如何组织整体结构、先抓大局还是先抠局部、怎样利用参考图。",
     "M2": "对着一组静物如实记录。看观察力与空间推理：前后遮挡、大小比例、物体之间的位置关系。",
     "M3": "由几块不完整的图形出发完成一幅画（残缺图形创造力范式）。看孩子如何把无意义的碎片赋予意义。",
-    "M4": "把一件日常物品改造成另一种用途的东西。看变形与转化的想象力；同一题有三种说法，用来比较提示语措辞对创作的影响。",
+    "M4": "把一件日常物品改造成另一种用途的东西。看变形与转化的想象力。",
     "M5": "把两个毫不相干的概念融合成一个新事物。看概念整合的能力，和 M4 的「改造一件」是不同的能力。",
     "M6": "用颜色改变同一个场景的情绪、天气或时间。让色彩的丰富与对比真正成为可观察的对象，而不是要求「多用颜色」。",
     "M7": "先用纯线条表现一个抽象概念，再把这些线发展成完整作品。看线条的组织与质感，以及从抽象到具象的转化。",
-    "M8": "在给定的两条「世界规则」下画出那个世界的生活。最接近真实的自由创作，但由规则提供约束。",
+    "M8": "在给定的两条「世界规则」下画出那个世界的生活（初中版多一条可选的挑战规则）。最接近真实的自由创作，但由规则提供约束。",
     "M9": "开放的故事题。用来检验在受控任务里看到的行为模式，在真实创作中是否仍然存在。",
 }
 
@@ -50,9 +50,15 @@ for row in getattr(_m, "M7_CONCEPTS", []):
     _WORD[row[0]] = row[1]
 
 
+TIER_ZH = {("simple", "full"): "两版共通", ("simple",): "小学版", ("full",): "初中版"}
+
+
 def variant(q):
     c = q.get("condition") or {}
     bits = []
+    t = tuple(q.get("tiers") or [])
+    if t:
+        bits.append(TIER_ZH.get(t, "/".join(t)))
     if q["family"] == "M4" and q.get("prompt_style") in STYLE_ZH:
         bits.append(STYLE_ZH[q["prompt_style"]])
     for k in ("mood_zh", "when_zh"):
@@ -72,6 +78,8 @@ def build_doc():
     """清单的内容，和出口无关：[(家族标题, 研究目的, 主要考察, 其次, [行…])]。"""
     by_fam = OrderedDict()
     for q in QUESTS:
+        if q.get("legacy"):
+            continue          # v1 的 75 道留在库里给旧数据查 id，清单只列孩子现在看到的
         by_fam.setdefault(q["family"], []).append(q)
     fams = {f["id"]: f for f in families()}
     out = []
@@ -87,7 +95,9 @@ def build_doc():
 
 HEAD = ["编号", "标题", "孩子看到的指令", "提示", "变体"]
 WIDTHS = [7, 15, 44, 20, 14]          # 列宽百分比，两个出口同一份
-INTRO = f"共 {len(QUESTS)} 个任务，分 10 个家族。九个评价维度每幅画都评；每个家族另外标出它主要考察的维度。"
+_N_LIVE = sum(1 for q in QUESTS if not q.get("legacy"))
+INTRO = (f"共 {_N_LIVE} 个任务，分 10 个家族；每个家族小学版 5 道、初中版 5 道，其中 2 道两版共通。"
+         "九个评价维度每幅画都评；每个家族另外标出它主要考察的维度。")
 
 
 def build_html() -> str:
@@ -206,7 +216,7 @@ def main() -> int:
                         f"--print-to-pdf={out_pdf}", str(src)], check=True,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     build_docx(out_docx)
-    print(f"wrote {out_docx.name} and {out_pdf.name}: {len(QUESTS)} tasks")
+    print(f"wrote {out_docx.name} and {out_pdf.name}: {_N_LIVE} tasks")
     return 0
 
 

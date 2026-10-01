@@ -84,6 +84,25 @@ def _fragments(seed: str) -> Dict[str, Any]:
               {"type": "corner", "x": 620, "y": 470, "w": 170, "h": 110},
               {"type": "curve", "x1": 180, "y1": 540, "cx": 330, "cy": 440, "x2": 470, "y2": 560},
               {"type": "rect_open", "x": 120, "y": 60, "w": 150, "h": 120, "gap": "right"}],
+        # v2.2（2026-10-01）再加三组，和 A/B 一样七块、一样的元件种类，只是摆法不同
+        "C": [{"type": "arc", "cx": 520, "cy": 180, "r": 110, "a0": 160, "a1": 380},
+              {"type": "dot", "x": 160, "y": 420, "r": 7}, {"type": "dot", "x": 230, "y": 390, "r": 7},
+              {"type": "line", "x1": 700, "y1": 520, "x2": 900, "y2": 400},
+              {"type": "corner", "x": 100, "y": 120, "w": 140, "h": 130},
+              {"type": "curve", "x1": 300, "y1": 600, "cx": 480, "cy": 480, "x2": 640, "y2": 620},
+              {"type": "rect_open", "x": 760, "y": 90, "w": 170, "h": 120, "gap": "bottom"}],
+        "D": [{"type": "arc", "cx": 300, "cy": 520, "r": 95, "a0": 300, "a1": 120},
+              {"type": "dot", "x": 560, "y": 110, "r": 7}, {"type": "dot", "x": 610, "y": 160, "r": 7},
+              {"type": "line", "x1": 120, "y1": 200, "x2": 330, "y2": 260},
+              {"type": "corner", "x": 700, "y": 300, "w": 160, "h": 120},
+              {"type": "curve", "x1": 520, "y1": 560, "cx": 700, "cy": 640, "x2": 880, "y2": 540},
+              {"type": "rect_open", "x": 400, "y": 60, "w": 130, "h": 110, "gap": "left"}],
+        "E": [{"type": "arc", "cx": 820, "cy": 480, "r": 105, "a0": 120, "a1": 330},
+              {"type": "dot", "x": 420, "y": 300, "r": 7}, {"type": "dot", "x": 470, "y": 360, "r": 7},
+              {"type": "line", "x1": 160, "y1": 560, "x2": 360, "y2": 460},
+              {"type": "corner", "x": 560, "y": 120, "w": 150, "h": 120},
+              {"type": "curve", "x1": 120, "y1": 160, "cx": 300, "cy": 60, "x2": 440, "y2": 190},
+              {"type": "rect_open", "x": 760, "y": 160, "w": 160, "h": 130, "gap": "top"}],
     }
     return {"kind": "fragments", "seed": seed, "stimulus_id": f"m3_fragments_{seed.lower()}",
             "items": banks[seed], "stroke": "#3a3a3a", "width": 3}
@@ -271,14 +290,19 @@ def _row(family: str, form_id: str, *, title: str, instruction: str,
          prompt_style: Optional[str] = None, stimulus: Optional[Dict[str, Any]] = None,
          condition: Optional[Dict[str, Any]] = None, hint: str = "",
          time_limit_sec: Optional[int] = None,
-         allowed_tools: Optional[List[str]] = None) -> Dict[str, Any]:
+         allowed_tools: Optional[List[str]] = None,
+         version: str = "", tiers: Optional[List[str]] = None, anchor: bool = False,
+         legacy: bool = True) -> Dict[str, Any]:
     fam = FAMILIES[family]
     stim = stimulus or {"kind": "none"}
     task_id = f"{family}_{form_id}"
     return {
         "task_id": task_id, "id": task_id,          # `id` is the game-facing alias
         "family": family, "family_slug": fam["slug"], "family_name": fam["name"],
-        "form_id": form_id, "version": TASK_VERSION,
+        "form_id": form_id, "version": version or LEGACY_VERSION,
+        # v2.2：哪一版的孩子看到它（simple = 小学，full = 初中，两个都有 = 共通锚定题）；
+        # legacy = v1 的题，留着给旧数据查 id，不再上地图
+        "tiers": list(tiers or []), "anchor": bool(anchor), "legacy": bool(legacy),
         "prompt_style": prompt_style or fam["prompt_style"],
         "title": title, "instruction": instruction, "prompt": instruction,  # `prompt` = legacy alias
         "hint": hint,
@@ -299,7 +323,8 @@ def _row(family: str, form_id: str, *, title: str, instruction: str,
     }
 
 
-TASK_VERSION = "1.0"
+LEGACY_VERSION = "1.0"     # v1 的 75 道：留在库里，不上地图
+TASK_VERSION = "2.2"       # 现在孩子看到的题面（docs/任务库v2.2_双锚定题对齐版.md）
 
 
 def _build_m1() -> List[Dict[str, Any]]:
@@ -469,9 +494,55 @@ _BUILDERS = {"M0": _build_m0, "M1": _build_m1, "M2": _build_m2, "M3": _build_m3,
              "M6": _build_m6, "M7": _build_m7, "M8": _build_m8, "M9": _build_m9}
 
 
+# ---------------------------------------------------------------------------
+# v2.2：按年龄分两版（missions_v2.py 是题面唯一的家，这里只把它变成行）
+# ---------------------------------------------------------------------------
+def _build_v2() -> List[Dict[str, Any]]:
+    from .missions_v2 import V2, M7_STEP1, M7_STEP2, M8_LEAD
+    out = []
+    for fam, forms in V2.items():
+        for f in forms:
+            common = dict(version=TASK_VERSION, tiers=f["tiers"], anchor=f["anchor"], legacy=False,
+                          title=f["title"], hint=f.get("hint", ""))
+            text = f["instruction"]
+            stim, cond = None, {"tiers": list(f["tiers"]), "anchor": f["anchor"]}
+            if fam in ("M1", "M2"):
+                sid = f"{fam.lower()}_scene_{f['scene']}"
+                stim = _reference(f"/static/refs/{fam.lower()}/{sid}.jpg", sid)
+                if fam == "M2":
+                    stim["spec"] = {"objects": 4, "overlaps": 2, "size_difference": True, "depth": True}
+            elif fam == "M3":
+                stim = _fragments(f["seed"]); cond["fragment_seed"] = f["seed"]
+            elif fam == "M4":
+                stim = _reference(f"/static/refs/m4/m4_{f['base']}.png", f"m4_{f['base']}", "on_demand")
+                cond.update(base_object=f["base"], environment=f.get("env", ""), goal=f["goal"])
+            elif fam == "M5":
+                cond.update(concept_a=f["a"], concept_b=f["b"])
+            elif fam == "M6":
+                sid = f"m6_scene_{f['scene']}"
+                stim = _reference(f"/static/refs/m6/{sid}.jpg", sid)
+                cond["mood"] = f["mood"]
+            elif fam == "M7":
+                seconds = FAMILIES["M7"]["phases"][0]["seconds"]
+                text = (M7_STEP1.format(seconds=seconds, text=f["instruction"]) + "\n\n"
+                        + M7_STEP2.format(text=f["step2"]))
+                cond.update(concept=f["concept"], two_phase=True)
+            elif fam == "M8":
+                rules = list(f["rules"])
+                text = M8_LEAD + f["instruction"] + "\n\n" + "\n".join(f"· {r}" for r in rules)
+                if f.get("challenge"):
+                    text += f"\n挑战：{f['challenge']}"
+                cond.update(rules=rules, challenge=f.get("challenge", ""))
+            out.append(_row(fam, f["code"], instruction=text, stimulus=stim, condition=cond, **common))
+    return out
+
+
 def build_library() -> List[Dict[str, Any]]:
-    """Every curated form, in family order. Ids are stable across runs."""
-    out: List[Dict[str, Any]] = []
+    """Every curated form, in family order. Ids are stable across runs.
+
+    v2.2 rows first (what the map shows), then the v1 rows flagged `legacy`
+    (ids that existing sessions point at)."""
+    out: List[Dict[str, Any]] = list(_build_v2())
     for family in FAMILIES:
         out.extend(_BUILDERS[family]())
     return out

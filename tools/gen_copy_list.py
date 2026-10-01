@@ -120,11 +120,11 @@ def build_md() -> str:
     assist = read_py_strings(ROOT / "artquest" / "assist" / "template_assist.py")
 
     n_ui = len(en_rows)
-    n_task = len(QUESTS)
+    n_task = sum(1 for q in QUESTS if not q.get('legacy'))
     parts = [
         "# 彩绘冒险 · 文案清单",
         "",
-        f"界面文案 {n_ui} 条、徽章 {len(badges)} 枚、模板反馈 {len(fb)} 句、彩点的窗 {len(assist)} 句、任务 {n_task} 道。"
+        f"界面文案 {n_ui} 条、徽章 {len(badges)} 枚、模板反馈 {len(fb)} 句、彩点的窗 {len(assist)} 句、任务 {n_task} 道（孩子现在看到的 v2.2）。"
         "由 `tools/gen_copy_list.py` 从代码里抽出来，别手改这个文件；改了源文件再跑一次。",
         "",
         "「标记」是机器按粗规则挑的嫌疑（叹号 / 破折号 / 语气词 / 套话 / 长 / 多问），只是提醒多看一眼。",
@@ -182,7 +182,10 @@ def build_md() -> str:
     parts.append("这是研究刺激材料：改一个字都等于改测量工具，改了要记版本、重跑 `tools/gen_task_list.py`。英文是 missions_en.py 的。")
     parts.append("")
     byfam = OrderedDict()
+    TIER = {("simple", "full"): "共通", ("simple",): "小学", ("full",): "初中"}
     for q in QUESTS:
+        if q.get("legacy"):
+            continue
         byfam.setdefault((q.get("family"), q.get("family_name")), []).append(q)
     t = 0
     for (fam, fname), qs in byfam.items():
@@ -192,9 +195,9 @@ def build_md() -> str:
         for q in qs:
             t += 1
             qe = i18n.quest_for(q, "en")
-            rows.append((f"T{t}", q.get("id", ""), q.get("title", ""), q.get("instruction", ""), q.get("hint", "") or "",
+            rows.append((f"T{t}", q.get("id", ""), TIER.get(tuple(q.get("tiers") or []), ""), q.get("title", ""), q.get("instruction", ""), q.get("hint", "") or "",
                          qe.get("title", ""), qe.get("instruction", ""), flags(q.get("instruction", "") + (q.get("hint") or ""))))
-        parts.append(table(["#", "id", "题目", "说明", "提示", "题目(en)", "说明(en)", "标记"], rows))
+        parts.append(table(["#", "id", "版本", "题目", "说明", "提示", "题目(en)", "说明(en)", "标记"], rows))
         parts.append("")
     return "\n".join(parts)
 

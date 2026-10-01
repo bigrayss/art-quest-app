@@ -21,6 +21,8 @@ class EveryTaskHasAnEnglishTwin(unittest.TestCase):
             en = translate_task(task)
             with self.subTest(task=task["task_id"]):
                 for key in ("title", "instruction", "prompt", "hint", "family_name", "type"):
+                    if key == "hint" and not task.get("hint"):
+                        continue        # v2.2 的 M8 没有提示（规则本身就是提示），英文也没有
                     self.assertTrue(en[key], f"{key} 为空")
                     self.assertIsNone(CJK.search(en[key]), f"{key} 里还有中文：{en[key]!r}")
                 self.assertEqual(en["prompt"], en["instruction"])
@@ -36,9 +38,25 @@ class EveryTaskHasAnEnglishTwin(unittest.TestCase):
                 self.assertEqual(task, before, "translate 改了原行")
 
     def test_the_english_keeps_the_same_moving_parts_as_the_chinese(self):
-        by_family = {}
+        by_family, v2 = {}, {}
         for t in QUESTS:
-            by_family.setdefault(t["family"], []).append(t)
+            (v2 if not t.get("legacy") else by_family).setdefault(t["family"], []).append(t)
+        # v2.2：M8 规则一条不少、挑战那条也在；M7 两步；M5 两个名词都在题目里
+        for t in v2["M8"]:
+            en = translate_task(t)
+            self.assertEqual(en["instruction"].count("\n· "), len(t["condition"]["rules"]))
+            self.assertEqual("Challenge:" in en["instruction"], bool(t["condition"].get("challenge")))
+        for t in v2["M7"]:
+            en = translate_task(t)
+            self.assertIn(f"({t['phases'][0]['seconds']} seconds)", en["instruction"])
+            self.assertIn("Step 2", en["instruction"])
+        for t in v2["M5"]:
+            en = translate_task(t)
+            self.assertIn(" + ", en["title"])
+        for fam, rows in v2.items():
+            self.assertEqual(len(rows), 8, fam)
+            self.assertEqual(sum(1 for r in rows if r["anchor"]), 2, fam)
+        # v1（legacy）的结构照旧
         # M3：末尾那张叙事卡
         for t in by_family["M3"]:
             en = translate_task(t)

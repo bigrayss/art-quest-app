@@ -329,8 +329,8 @@ def translate_task(task: Dict[str, Any]) -> Dict[str, Any]:
     out = dict(task)
     fam = task.get("family")
     builder = _BY_FAMILY.get(fam)
-    en: Optional[Dict[str, str]] = None
-    if builder is not None:
+    en: Optional[Dict[str, str]] = _v2(task)      # v2.2 的题按 task_id 直接给
+    if en is None and builder is not None:
         try:
             en = builder(task)
         except (KeyError, ValueError, IndexError):
@@ -361,3 +361,122 @@ def translate_family(fam: Dict[str, Any]) -> Dict[str, Any]:
 
 def translate_library(tasks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return [translate_task(t) for t in tasks]
+
+
+# ---------------------------------------------------------------------------
+# v2.2（2026-10-01）：按 task_id 直接给英文。中文题面在 missions_v2.py。
+# M7 只给第一步的概念句和第二步；M8 只给说明和规则，开头固定。
+# ---------------------------------------------------------------------------
+V2_EN: Dict[str, Dict[str, Any]] = {
+    # M0
+    "M0_A1": {"title": "A strange superpower", "instruction": "You suddenly have a very strange superpower. Draw what happens the first time you use it.", "hint": "Strange can still be useful."},
+    "M0_A2": {"title": "A car with no wheels", "instruction": "Design a vehicle with no wheels. How does it move?", "hint": "First decide how it moves, then what it looks like."},
+    "M0_E3": {"title": "Monster restaurant", "instruction": "A restaurant only for monsters. What are they eating?", "hint": "What is on the menu?"},
+    "M0_E4": {"title": "Food with a personality", "instruction": "Give a food a personality. How is it feeling today?", "hint": "It can have arms and legs."},
+    "M0_E5": {"title": "The final level", "instruction": "Draw the last level of a game. The boss could be an alarm clock.", "hint": "The boss does not have to be a monster."},
+    "M0_J3": {"title": "Undersea city", "instruction": "Draw a city under the sea. How do people live there?", "hint": "Where does the light come from?"},
+    "M0_J4": {"title": "Machines and plants", "instruction": "A place where a robot and plants live together. Who looks after whom?", "hint": "A machine can grow plants too."},
+    "M0_J5": {"title": "The gym at night", "instruction": "At night the gym turns into another world. Draw what you see.", "hint": "The daytime things are still there, but changed."},
+    # M1
+    "M1_A1": {"title": "The torn photo", "instruction": "The photo is torn. Look at it and draw this place again.", "hint": "Big things first, small things later."},
+    "M1_A2": {"title": "The robot's memory", "instruction": "The robot only remembers this one picture. Help it draw the place back.", "hint": "Find where things are first, then add details."},
+    "M1_E3": {"title": "Treasure map", "instruction": "This is where the treasure is. Copy it so others can find the place.", "hint": "What is on the left, what is on the right?"},
+    "M1_E4": {"title": "The kitten's home", "instruction": "A kitten is lost and only remembers its home looks like this. Draw it from the picture.", "hint": "Place the big things first, then look for details."},
+    "M1_E5": {"title": "The last puzzle piece", "instruction": "A big piece of the puzzle is missing. Complete it from this picture.", "hint": "Look at what connects at the edges."},
+    "M1_J3": {"title": "Lost satellite image", "instruction": "The satellite sent back only this image before going silent. Draw the location.", "hint": "Overall positions first, then sizes."},
+    "M1_J4": {"title": "The dig site", "instruction": "A thousand years from now someone digs up this picture. Help them rebuild the place.", "hint": "Which things touch, which are apart?"},
+    "M1_J5": {"title": "The deleted painting", "instruction": "Half of the museum's painting was deleted. Restore it from the original.", "hint": "Keep the original proportions and positions."},
+    # M2
+    "M2_A1": {"title": "Alien field notes", "instruction": "You have just landed on a planet. Draw what you see, as it is.", "hint": "Look at sizes, positions, and who is in front of whom."},
+    "M2_A2": {"title": "Teach the robot to see", "instruction": "The robot cannot tell big from small or front from back. Draw the picture for it.", "hint": "Draw the sizes, positions and overlaps as in the picture."},
+    "M2_E3": {"title": "Toy shop list", "instruction": "The owner needs a list. Draw these things as they are.", "hint": "Count them, then see where each one sits."},
+    "M2_E4": {"title": "The treasure scene", "instruction": "The treasure is right here. Draw these things so someone else can put them back.", "hint": "Positions matter, and who covers whom."},
+    "M2_E5": {"title": "Detective's notebook", "instruction": "You are a young detective. Draw every object at the scene into your notebook.", "hint": "Draw only the parts you can actually see."},
+    "M2_J3": {"title": "Lab record", "instruction": "Before the experiment, record the objects on the table: shapes, sizes, and positions.", "hint": "Proportions first, then positions and overlaps."},
+    "M2_J4": {"title": "The spy's report", "instruction": "You have ten minutes. Draw this scene and send it back.", "hint": "Which object is in front? Who covers whom?"},
+    "M2_J5": {"title": "Museum catalogue", "instruction": "These items need to be catalogued. Draw a picture that shows sizes and depth.", "hint": "Proportions, positions and overlaps all count."},
+    # M3
+    "M3_A1": {"title": "Pieces of a dream", "instruction": "These pieces fell out of a dream. Turn them into a complete picture.", "hint": "A piece can become anything."},
+    "M3_A2": {"title": "Mystery message", "instruction": "Someone left these strange symbols. Turn them into a whole world.", "hint": "Turn a symbol around, or give it a new meaning."},
+    "M3_E3": {"title": "Shapes of clouds", "instruction": "These lines look like the edges of clouds. What is hiding inside?", "hint": "Use only a few pieces if you like, or change what they mean."},
+    "M3_E4": {"title": "The monster's doodle", "instruction": "A monster ran off halfway through its drawing. Help finish it.", "hint": "First see what the pieces look like."},
+    "M3_E5": {"title": "Fallen puzzle pieces", "instruction": "A few puzzle pieces fell here. Use them to make a new picture.", "hint": "You do not have to put them back the old way."},
+    "M3_J3": {"title": "The last camera frame", "instruction": "The camera broke and left only these pieces. Draw what was happening.", "hint": "Find clues in the pieces first, then decide the story."},
+    "M3_J4": {"title": "Ancient mural", "instruction": "Only these pieces of the mural are left. Draw the story it may have told.", "hint": "Look at the shapes first, then decide what they are in the story."},
+    "M3_J5": {"title": "The torn blueprint", "instruction": "The blueprint was torn. Use what is left to complete a new machine.", "hint": "A line can become a structure, or a part."},
+    # M4
+    "M4_A1": {"title": "Umbrella to submarine", "instruction": "Turn the umbrella into a submarine that can travel under the sea.", "hint": "Which parts of the umbrella can stay?"},
+    "M4_A2": {"title": "Backpack to gear", "instruction": "Turn the backpack into a piece of exploring gear. What can it help you do?", "hint": "Which parts of the backpack can stay?"},
+    "M4_E3": {"title": "Chair to pet", "instruction": "Turn the chair into a pet that follows you around.", "hint": "Which parts of the chair become the body?"},
+    "M4_E4": {"title": "Teapot to rocket", "instruction": "Turn the teapot into a rocket that can fly to space.", "hint": "How can the teapot's shape help?"},
+    "M4_E5": {"title": "Clock to desert car", "instruction": "Turn the clock into a car that can drive across the desert.", "hint": "Which parts of the clock become parts of the car?"},
+    "M4_J3": {"title": "Creature of the giant forest", "instruction": "Turn a shoe into a creature of the giant forest. It must still look like a shoe.", "hint": "Which structures stay, which change?"},
+    "M4_J4": {"title": "Space rescue machine", "instruction": "Build a space rescue machine from a teapot. It must be able to save at least two people.", "hint": "Think about the rescue job first, then how to change the shape."},
+    "M4_J5": {"title": "Bicycle mech", "instruction": "Turn the bicycle into a mech. What can it do?", "hint": "Which parts of the bicycle become parts of the mech?"},
+    # M5
+    "M5_A1": {"title": "Castle + jellyfish", "instruction": "Fuse a castle and a jellyfish into one new thing. It can be a creature or a building.", "hint": "Features of both should still be there."},
+    "M5_A2": {"title": "Robot + flower", "instruction": "Fuse a robot and a flower into a new species.", "hint": "Do not just stick the flower on. Let them really grow together."},
+    "M5_E3": {"title": "Fox + train", "instruction": "Turn a fox and a train into one new thing. Where is it going?", "hint": "Think how each one changes the other."},
+    "M5_E4": {"title": "Shark + backpack", "instruction": "Turn a shark and a backpack into one new thing. Would you dare carry it?", "hint": "Do not just stick one onto the other."},
+    "M5_E5": {"title": "Cake + house", "instruction": "Turn a cake and a house into one new thing. Who lives inside?", "hint": "Think how the two grow into one."},
+    "M5_J3": {"title": "Clock + octopus", "instruction": "Fuse a clock and an octopus into something new.", "hint": "Both should still be recognisable."},
+    "M5_J4": {"title": "Subway + dragon", "instruction": "Fuse a subway train and a dragon into a vehicle.", "hint": "Think how the two structures really connect."},
+    "M5_J5": {"title": "Whale + school", "instruction": "Fuse a whale and a school into one place.", "hint": "Do not just put the school on the whale's back."},
+    # M6
+    "M6_A1": {"title": "Make it night", "instruction": "Keep the scene as it is. Use only colour and light and dark to make it night.", "hint": "Night has bright spots too."},
+    "M6_A2": {"title": "A little scary", "instruction": "Do not add monsters. Use only colour and light and dark to make this place a little scary.", "hint": "Where is it bright, where is it dark?"},
+    "M6_E3": {"title": "Make it cold", "instruction": "Do not change the things in it. Use only colour to make this place feel very cold.", "hint": "Cold colours are not only blue."},
+    "M6_E4": {"title": "Make it lively", "instruction": "Do not add new things. Use only colour to make this place lively.", "hint": "Where could it be brighter, with more contrast?"},
+    "M6_E5": {"title": "Make it warm", "instruction": "Do not change the things in it. Use only colour to make this place feel warm.", "hint": "Warm colours can be light or deep too."},
+    "M6_J3": {"title": "Mysterious", "instruction": "Do not change the things in the scene. Use only colour and light and dark to make it mysterious.", "hint": "Contrast can be strong or soft."},
+    "M6_J4": {"title": "Before the storm", "instruction": "Add as little as possible. Use colour, light and dark, and contrast to show a storm is coming.", "hint": "How do the sky and the ground change?"},
+    "M6_J5": {"title": "Two worlds", "instruction": "Do not add new objects. Use only colour and light and dark so one side of the picture is safe and the other dangerous.", "hint": "The dividing line does not have to be straight."},
+    # M7（step1 = 第一步的概念句；step2 = 第二步）
+    "M7_A1": {"title": "Lines of wind", "step1": "use only lines to draw “wind”.", "step2": "Do not erase. See what the lines look like, and keep drawing from there.", "hint": "Lines can be fast or slow."},
+    "M7_A2": {"title": "Lines of speed", "step1": "use only lines to draw “speed”.", "step2": "Do not erase. See what the lines look like, and keep drawing from there.", "hint": "Direction and spacing change how fast it feels."},
+    "M7_E3": {"title": "Lines of rain", "step1": "use only lines to draw “rain”.", "step2": "Do not erase. See what the lines look like, and keep drawing from there.", "hint": "Dense or sparse: what changes?"},
+    "M7_E4": {"title": "Bouncing lines", "step1": "use only lines to draw “bouncing”.", "step2": "Do not erase. See what the lines look like, and keep drawing from there.", "hint": "A line can bend, or turn suddenly."},
+    "M7_E5": {"title": "Growing lines", "step1": "use only lines to draw “growing”.", "step2": "Do not erase. See what the lines look like, and keep drawing from there.", "hint": "You can start from one point."},
+    "M7_J3": {"title": "Whisper", "step1": "use only lines to show “whisper”.", "step2": "Keep the lines and develop them into a picture.", "hint": "How do you draw a light line?"},
+    "M7_J4": {"title": "Heavy", "step1": "use only lines to show “heavy”.", "step2": "Keep the lines and develop them into a picture.", "hint": "Thick, dense, low: what does that feel like?"},
+    "M7_J5": {"title": "Nervous", "step1": "use only lines to show “nervous”.", "step2": "Keep the lines and develop them into a picture.", "hint": "Lines can shake, or crowd together."},
+    # M8（rules = 规则；challenge = 可选第三条）
+    "M8_A1": {"title": "City on the clouds", "instruction": "Draw how a day goes here.", "rules": ["Everyone lives on the clouds.", "Animals build the houses."]},
+    "M8_A2": {"title": "The shadows ran off", "instruction": "Draw one thing that happens at night.", "rules": ["Shadows walk by themselves.", "At night everything gets lighter."]},
+    "M8_E3": {"title": "Everything shrank", "instruction": "Draw what happens in one day.", "rules": ["People are smaller than bugs.", "Plants are taller than buildings."]},
+    "M8_E4": {"title": "Water in the sky", "instruction": "Draw how everyone lives.", "rules": ["Water floats in the sky.", "Houses are alive."]},
+    "M8_E5": {"title": "A world inside a tree", "instruction": "Draw the busiest place here.", "rules": ["The whole world is inside one tree.", "Machines and plants live together."]},
+    "M8_J3": {"title": "Sideways gravity", "instruction": "Draw with the two core rules first. If you want a challenge, add the third.", "rules": ["Gravity goes sideways.", "People are smaller than insects."], "challenge": "Water floats in the sky."},
+    "M8_J4": {"title": "The living city", "instruction": "Draw with the two core rules first. If you want a challenge, add the third.", "rules": ["Houses are alive.", "The whole city is underwater."], "challenge": "The ground is a moving island."},
+    "M8_J5": {"title": "Animal civilisation", "instruction": "Draw with the two core rules first. If you want a challenge, add the third.", "rules": ["Animals build the cities.", "Plants are bigger than buildings."], "challenge": "Machines and plants live together."},
+    # M9
+    "M9_A1": {"title": "A new door at school", "instruction": "After school, a door nobody has seen before appears. What is behind it?", "hint": "Draw the moment it opens."},
+    "M9_A2": {"title": "Only one thing stayed big", "instruction": "Everything in the city shrank, except one thing. Draw what happens.", "hint": "First decide which thing stayed the same."},
+    "M9_E3": {"title": "The talking desk", "instruction": "Your desk suddenly starts talking. What does it say?", "hint": "Draw the first moment you hear it."},
+    "M9_E4": {"title": "A shark comes to school", "instruction": "A shark joins your class. What happens?", "hint": "Where does it sit? What is everyone doing?"},
+    "M9_E5": {"title": "The pet's secret", "instruction": "Your pet has a secret superpower. Draw the day you found out.", "hint": "When did it give itself away?"},
+    "M9_J3": {"title": "One thing goes missing every day", "instruction": "Every day something disappears from the classroom. Draw the day you found a clue.", "hint": "Clues matter more than answers."},
+    "M9_J4": {"title": "Convenience store on Mars", "instruction": "A convenience store on Mars. Who shops there, and what does it sell?", "hint": "Let the shelves and the customers tell the story."},
+    "M9_J5": {"title": "A place that does not exist", "instruction": "The map marks a place that does not exist. Draw the place you finally found.", "hint": "Leave a clue or two so others can guess what happened here."},
+}
+M8_LEAD_EN = "Design a world where all of these rules are true. "
+M7_STEP1_EN = "Step 1 ({seconds} seconds): do not draw any real thing, {text}"
+M7_STEP2_EN = "Step 2: {text}"
+
+
+def _v2(task: Dict[str, Any]) -> Optional[Dict[str, str]]:
+    en = V2_EN.get(task.get("task_id") or "")
+    if not en:
+        return None
+    fam = task.get("family")
+    if fam == "M7":
+        phases = task.get("phases") or []
+        seconds = phases[0]["seconds"] if phases else 60
+        text = M7_STEP1_EN.format(seconds=seconds, text=en["step1"]) + "\n\n" + M7_STEP2_EN.format(text=en["step2"])
+        return {"title": en["title"], "instruction": text, "hint": en["hint"]}
+    if fam == "M8":
+        text = M8_LEAD_EN + en["instruction"] + "\n\n" + "\n".join(f"· {r}" for r in en["rules"])
+        if en.get("challenge"):
+            text += f"\nChallenge: {en['challenge']}"
+        return {"title": en["title"], "instruction": text, "hint": en.get("hint", "")}
+    return {"title": en["title"], "instruction": en["instruction"], "hint": en.get("hint", "")}

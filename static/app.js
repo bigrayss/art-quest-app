@@ -407,7 +407,8 @@
       await loadCollection(); renderQuests();
       // 年龄小的推荐简单版：不替他决定，弹选择框，「推荐」只是个标签
       const acc = state.account || {};
-      const recommend = acctMode === "register" && acc.age != null && acc.age <= 8 && state.mode !== "simple";
+      // v2.2：简单版 = 小学的题，完整版 = 初中的题。12 岁及以下推荐简单版（只是推荐，孩子自己点）
+      const recommend = acctMode === "register" && acc.age != null && acc.age <= 12 && state.mode !== "simple";
       // 从门口进来的：先进世界、看完导览，再推荐——导览的暗幕会压住选择框
       if (welcomeOn) { state.recommendMode = recommend; await finishWelcome(); return; }
       if (recommend) openMode();
@@ -981,7 +982,7 @@
   }
   function openMode() {
     const age = (state.account || {}).age;
-    const rec = age == null ? "" : (age <= 8 ? "simple" : "full");
+    const rec = age == null ? "" : (age <= 12 ? "simple" : "full");
     modeModal.querySelectorAll("[data-mode]").forEach(o => {
       o.classList.toggle("on", o.dataset.mode === state.mode);
       o.querySelector(".tag")?.remove();
@@ -2396,9 +2397,27 @@
   // ---------- flow ----------
   /** Pick which parallel form of a family this child gets in free play.
    *  In Study Mode the protocol has already chosen; here it is just variety. */
+  // v2.2：每个家族小学版 5 道、初中版 5 道（其中 2 道两版共用）。孩子看哪一版跟着
+  // 简单/完整版走（quiet 对照组按完整版）。抽一道**没做过**的，按「谁 + 家族 + 做过几道」
+  // 取种子：没做完之前重进还是这一道，做完下一次换一道。v1 的题（legacy）不再上地图。
+  const myTier = () => (isSimple() ? "simple" : "full");
+  function tierForms(familyId) {
+    const tier = myTier();
+    return state.quests.filter(q => q.family === familyId && !q.legacy && (q.tiers || []).includes(tier));
+  }
+  function seededIndex(key, n) {
+    let h = 2166136261;
+    for (const ch of String(key)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+    return n ? h % n : 0;
+  }
   function randomForm(familyId) {
-    const forms = state.quests.filter(q => q.family === familyId);
-    return forms.length ? forms[Math.floor(Math.random() * forms.length)] : null;
+    const forms = tierForms(familyId);
+    if (!forms.length) return null;
+    const done = new Set((state.allSessions || []).filter(r => r.status === "done").map(r => r.task_id || r.quest_id));
+    const left = forms.filter(q => !done.has(q.id));
+    const pool = left.length ? left : forms;
+    const who = `${accountId() || ""}|${state.anonId || ""}|${familyId}|${forms.length - left.length}`;
+    return pool[seededIndex(who, pool.length)];
   }
 
   // 进了世界看到的是**一张地图上的十个地方**，不是一条排队的线。
@@ -2452,8 +2471,8 @@
           key: q.id, icon: q.icon, color: q.color, kind: q.type, title: q.title,
           locked: i !== state.seqIdx, task: q }))
       // 家族卡：标题已经是家族名了，副标题换成「这个家族有几种玩法」
-      : (state.families || []).filter(f => f.n_forms).map(f => ({
-          key: f.id, icon: f.icon, color: f.color, kind: `${f.n_forms} 种玩法`,
+      : (state.families || []).filter(f => tierForms(f.id).length).map(f => ({
+          key: f.id, icon: f.icon, color: f.color, kind: `${tierForms(f.id).length} 种玩法`,
           title: f.name, locked: false, family: f.id }));
 
     const doneRows2 = (state.allSessions || []).filter(r => r.status === "done");

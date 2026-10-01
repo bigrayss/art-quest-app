@@ -40,6 +40,8 @@ TASK_DEFAULTS: Dict[str, Any] = {
     "process_targets": [],
     "research_goal": "",
     "hint": "", "icon": "🎨", "color": "#f79433", "enabled": True,
+    # v2.2：tiers = 哪一版的孩子看到（simple / full）；legacy = v1 的题，只给旧数据查 id
+    "tiers": [], "anchor": False, "legacy": False,
 }
 
 CUSTOM_TASKS_PATH = DATA_DIR / "tasks.json"
@@ -147,6 +149,7 @@ def condition_snapshot(task: Dict[str, Any], *, app_version: str = "",
         "allowed_tools": task.get("allowed_tools"),
         "phases": task.get("phases"),
         "task_condition": dict(task.get("condition") or {}),
+        "tiers": list(task.get("tiers") or []), "anchor": bool(task.get("anchor")),
         "rubric": task.get("rubric"),
         "process_targets": list(task.get("process_targets") or []),
         "study_condition": dict(condition or {}),
@@ -177,11 +180,18 @@ def reload_quests() -> List[Dict[str, Any]]:
 def families() -> List[Dict[str, Any]]:
     """Family-level metadata, for protocols and for the map UI."""
     counts: Dict[str, int] = {}
+    by_tier: Dict[str, Dict[str, int]] = {}
     for q in QUESTS:
-        counts[q.get("family", "")] = counts.get(q.get("family", ""), 0) + 1
+        if q.get("legacy"):
+            continue            # 地图上不再有 v1 的题
+        fam = q.get("family", "")
+        counts[fam] = counts.get(fam, 0) + 1
+        for t in q.get("tiers") or []:
+            by_tier.setdefault(fam, {})[t] = by_tier.setdefault(fam, {}).get(t, 0) + 1
     return [{"id": fid, "name": f["name"], "slug": f["slug"], "icon": f["icon"],
              "color": f["color"], "difficulty": f["difficulty"],
-             "research_goal": f["research_goal"], "n_forms": counts.get(fid, 0)}
+             "research_goal": f["research_goal"], "n_forms": counts.get(fid, 0),
+             "n_forms_by_tier": by_tier.get(fid, {})}
             for fid, f in FAMILIES.items()]
 
 

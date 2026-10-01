@@ -66,6 +66,7 @@ DEFAULT_PROTOCOL: Dict[str, Any] = {
     "heldout_task": "",        # kept for the prediction / personalisation evaluation
     "randomization_rule": "latin",     # latin | random | fixed
     "prompt_style_rule": "balanced",   # balanced | random | fixed:<style>
+    "tier": "",                # "" = 两版的题都轮；simple / full = 只轮那一版（锚定题两版都有）
 }
 
 DEFAULT_STUDY: Dict[str, Any] = {
@@ -199,11 +200,13 @@ def task_sequence(participant_id: str = "", tasks: Optional[List[str]] = None,
 
 
 # -- protocol: families -> one balanced, reproducible run per participant ----
-def _forms_of(family: str, pool: Dict[str, Any]) -> List[str]:
+def _forms_of(family: str, pool: Dict[str, Any], tier: str = "") -> List[str]:
     allowed = pool.get(family)
     if allowed:
         return [t for t in allowed if t in QUESTS_BY_ID]
-    return [q["id"] for q in QUESTS if q.get("family") == family]
+    # v1 的题不再分给任何人；protocol 写了 tier 就只在那一版里轮
+    return [q["id"] for q in QUESTS if q.get("family") == family and not q.get("legacy")
+            and (not tier or tier in (q.get("tiers") or []))]
 
 
 def _pick_style(forms: List[str], rule: str, index: int) -> List[str]:
@@ -249,7 +252,7 @@ def plan(participant_id: str = "", index: Optional[int] = None,
     for i, fam in enumerate(fams):
         if fam in pinned:
             continue
-        forms = _pick_style(_forms_of(fam, proto.get("task_pool") or {}),
+        forms = _pick_style(_forms_of(fam, proto.get("task_pool") or {}, proto.get("tier") or ""),
                             proto.get("prompt_style_rule") or "balanced", idx)
         if forms:
             # rotate which parallel form this participant gets, per family
