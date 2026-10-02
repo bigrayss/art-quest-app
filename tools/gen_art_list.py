@@ -307,7 +307,12 @@ def main() -> int:
     w("---\n")
 
     # ---- 1 参考图 ----
-    w("## 1. 参考图 · 19 张 🔴\n")
+    _todo = [sid for sid, *_ in STIM
+             if not any((ROOT / "static/refs" / sid.split("_", 1)[0] / f"{sid}{e}").exists()
+                        for e in (".png", ".jpg", ".jpeg"))]
+    w(f"## 1. 参考图 · {len(STIM)} 张，{len(STIM) - len(_todo)} 张在、**{len(_todo)} 张还没画**\n")
+    if _todo:
+        w("还没画的：" + "、".join(f"`{t}`" for t in _todo) + "。详见 `docs/缺参考图清单.md`。\n")
     w("孩子画画时**看着画**的那张图。它们是研究任务的测量对象，所以每张「有什么」有硬要求，"
       "写在表里。M3 的碎片是程序画的**不要换**；M0 / M5 / M7 / M8 / M9 是纯文字任务，没有参考图。\n")
     w("**尺寸与格式**\n")
