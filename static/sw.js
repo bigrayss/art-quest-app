@@ -36,6 +36,8 @@ const SHELL_URLS = [
   "/static/fonts/nunito-latin.woff2",
   "/static/fonts/rhr-sc-400.woff2",
   "/static/fonts/rhr-sc-700.woff2",
+  "/static/art/buddy/hero.webp",       // 门口那张立绘（身体）：首屏就要，走缓存优先
+  "/static/art/buddy/hero-paint.webp", // 身上那几点颜料，染色用的剪影
   "/static/icons/icon-180.png",
   "/static/icons/icon-192.png",
   "/static/icons/icon-512.png",

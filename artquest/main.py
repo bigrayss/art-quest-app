@@ -56,7 +56,8 @@ PROMPT_VERSION = "feedback/1"
 # 以前 sw.js 里写死一个 `v3`，改完前端忘了跟着 bump，装在 iPad 主屏上的那份
 # 就一直拿旧外壳；而且当时**没有任何地方看得出设备上跑的是哪一版**，
 # 于是「到底更新了没有」只能靠猜。
-_SHELL_FILES = ("index.html", "app.js", "log.js", "style.css", "sw.js", "i18n.js", "lang/en.js")
+_SHELL_FILES = ("index.html", "app.js", "log.js", "style.css", "sw.js", "i18n.js", "lang/en.js",
+                "art/buddy/hero.webp", "art/buddy/hero-paint.webp")
 
 
 def shell_version() -> str:
@@ -287,9 +288,10 @@ def art_available() -> Dict[str, List[str]]:
     不用等 61 张齐了才换。清单在 docs/ART_LIST.md。
     """
     out: Dict[str, List[str]] = {}
-    for kind in ("families", "badges", "map"):
+    for kind in ("families", "badges", "map", "buddy"):
         d = STATIC_DIR / "art" / kind
-        out[kind] = sorted(p.stem for p in list(d.glob("*.png")) + list(d.glob("*.jpg"))) if d.is_dir() else []
+        out[kind] = sorted(p.stem for p in list(d.glob("*.png")) + list(d.glob("*.jpg"))
+                           + list(d.glob("*.webp"))) if d.is_dir() else []
     return out
 
 

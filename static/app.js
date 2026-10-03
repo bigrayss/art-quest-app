@@ -228,6 +228,31 @@
   }
   const buddyColor = () => state.color || "#f79433";
 
+  // ===== 彩点的立绘 =====
+  // 用户 2026-10-03 给的分层素材（static/art/buddy/README.md）：身体是一张定色的图，
+  // 身上那几点颜料是另一张纯白剪影，用 CSS mask 染成孩子当前用的颜色。
+  // **「还没画过所以是灰的」这条设定没变**，只是从「整只变灰」挪到了「颜料点不上色」——
+  // 彩点本来就是一坨会变色的颜料精灵，颜色长在颜料上比长在整个身体上更对。
+  // 图要是加载不出来（旧缓存、文件缺了），`onerror` 把容器标成 noart，CSS 换回
+  // spriteInner 画的 SVG 线稿——和 families/badges「有图用图、没图用线稿」一个路子。
+  const BUDDY_DIR = "/static/art/buddy";
+  function buddyInner(expr, color, big) {
+    const body = big ? "hero" : (expr === "happy" ? "icon-happy" : "icon");
+    const paint = big ? "hero-paint" : "icon-paint";
+    const mask = `url("${BUDDY_DIR}/${paint}.webp")`;
+    return `<img class="bd-body" src="${BUDDY_DIR}/${body}.webp" alt="" draggable="false" decoding="async"`
+         + ` onerror="this.parentNode.dataset.noart=1">`
+         + `<i class="bd-paint" style="background-color:${color};-webkit-mask-image:${mask};mask-image:${mask}"></i>`
+         + `<svg class="bd-svg" viewBox="0 0 200 200">${spriteInner(color, expr)}</svg>`;
+  }
+  /** 把一个 .sprite 容器画成彩点。big = 用大图（门口、「彩点」那一屏）。 */
+  function paintBuddy(el, expr, color, big) {
+    if (el) el.innerHTML = buddyInner(expr, color || buddyColor(), !!big);
+  }
+  /** 要拼进别人 innerHTML 的时候用这个。 */
+  const buddyHtml = (cls, expr, color) =>
+    `<span class="sprite ${cls}">${buddyInner(expr, color || buddyColor(), false)}</span>`;
+
   // ===== 伙伴的名字 =====
   // 「彩点」只是个占位的默认名。它是孩子的伙伴，名字该由孩子起——
   // 起了名字的东西才会被惦记着回来看。名字存在本机，并冻进 session，
@@ -824,7 +849,7 @@
     $("#flow-fill").style.width = `${((idx + 1) / STAGES.length) * 100}%`;
     $("#flow-step").textContent = `${STAGES[idx].name} · ${idx + 1}/${STAGES.length}`;
     const sp = $("#flow-sprite");
-    if (sp) sp.innerHTML = spriteInner(buddyColor(), currentKey === "final" ? "happy" : "normal");
+    paintBuddy(sp, currentKey === "final" ? "happy" : "normal", buddyColor());
   }
 
   // ---------- views ----------
@@ -852,7 +877,7 @@
     const av = $("#btn-world");
     if (av) {
       av.classList.toggle("hidden", name !== "quest");
-      if (name === "quest") $("#avatar-sprite").innerHTML = spriteInner(buddyColor(), "normal");
+      if (name === "quest") paintBuddy($("#avatar-sprite"), "normal", buddyColor());
     }
     // 返回键归顶栏管：哪个流程界面，用哪个已有的返回逻辑
     $("#btn-back-quest").classList.toggle("hidden", name !== "intent");
@@ -937,7 +962,7 @@
   function paintWorldLocal() {
     const sp = $("#world-sprite"); if (!sp) return;
     const col = state.worldColor || "#cfcbc4";
-    sp.innerHTML = spriteInner(col, "normal");
+    paintBuddy(sp, "normal", col, true);
     sp.classList.toggle("grey", !state.worldColor);
   }
   async function renderWorld() {
@@ -951,7 +976,9 @@
     const best = lit ? Object.entries(g.dims).sort((a, b) => b[1].practice - a[1].practice)[0] : null;
     const col = lit && best && best[1].practice ? FAMILIES[DIM_FAMILY[best[0]]].color : "#cfcbc4";
     state.worldColor = col;
-    sp.innerHTML = spriteInner(col, lit && g.total_level >= 9 ? "happy" : "normal");
+    // 大图只有常态这一张：用户给的 large_happy 那版脸是坏的（见 art/buddy/README.md），
+    // 等重出一版再按 total_level 换表情。小图标两种表情都齐了。
+    paintBuddy(sp, "normal", col, true);
     sp.classList.toggle("grey", !lit);
 
     // 封面这张照片的饱和度就是进度：九处里还原了几处，颜色就回来几成。
@@ -1093,12 +1120,21 @@
   }
   const welcomeSeen = () => { try { return localStorage.getItem(WELCOME_KEY) === "1"; } catch (e) { return true; } };
   let welcomeOn = false;
+  // 门口的彩点和界面里别处的是同一套立绘（paintBuddy）。
+  // 这里额外接一件事：戳一下它会弹一下。动画跑完摘掉类，所以能连着戳。
   function paintWelcome() {
-    const sp = $("#welcome-sprite");
-    // 整只一个颜色。门口上它是暖灰的不是没上色——彩点是一坨会变色的颜料精灵，
-    // 孩子还没画过它就是灰的（见 renderWorld 里的 .grey），画出颜色才亮起来。
-    // 这和「一张还没开始画的画纸」是同一句话，所以别在门口给它另外加一块品牌色。
-    if (sp && !sp.innerHTML) sp.innerHTML = spriteInner("#d6d1c8", "normal");
+    const sp = $("#welcome-sprite"); if (!sp) return;
+    if (!sp.firstChild) paintBuddy(sp, "normal", buddyColor(), true);
+    if (sp.dataset.poke) return;
+    sp.dataset.poke = "1";
+    sp.addEventListener("pointerdown", () => {
+      sp.classList.remove("poke");
+      void sp.offsetWidth;                 // 强制回流，不然连着戳第二下不会重播
+      sp.classList.add("poke");
+    });
+    sp.addEventListener("animationend", (e) => {
+      if (e.animationName === "hero-poke") sp.classList.remove("poke");
+    });
   }
   async function finishWelcome() {
     welcomeOn = false;
@@ -1962,7 +1998,7 @@
   const BUDDY_LINES = ["选个颜色，我就变成它！", "我变成这个颜色了。", "画错也没关系。", "换个颜色试试？", "我在看你画。"];
   function updateBuddy() {
     state.color = color;
-    const sp = $("#draw-sprite"); if (sp) sp.innerHTML = spriteInner(color, "normal");
+    paintBuddy($("#draw-sprite"), "normal", color);
     // 那行「选个颜色，我就变成它！」的静态台词退役了：彩点现在在窗里真的说话。
     // sprite 还留着（窗的头像），所以它仍然跟着当前颜色变。
     if (!$("#view-draw").classList.contains("hidden")) renderFlow(state.phase === "after" ? "evolve" : "draw");
@@ -2663,7 +2699,7 @@
              onerror="this.closest('.node-btn').classList.remove('has-shot');this.remove()">`
         : c.locked ? icon("lock", 30) : glyphMark;
       el.innerHTML =
-        (isNext ? `<svg class="sprite node-here" viewBox="0 0 200 200">${spriteInner(buddyColor(), "normal")}</svg>` : "")
+        (isNext ? buddyHtml("node-here", "normal") : "")
         + `<div class="node-btn${shot ? " has-shot" : ""}">${mark}`
         // 挂着自己画的画的时候不用再盖一颗星：那张画本身就是「来过」
         + (done && !shot ? `<span class="node-star">${icon("star", 14)}</span>` : "")
@@ -2740,7 +2776,7 @@
     // 这张卡上不写小字（原来有一行「从这儿开始 · 走过 n/10 关」）：精灵、家族名、按钮，够了。
     // 走过几关，地图上的圆钮亮着就是答案。
     box.innerHTML =
-      `<svg class="sprite t-sprite" viewBox="0 0 200 200">${spriteInner(buddyColor(), all ? "happy" : "normal")}</svg>`
+      buddyHtml("t-sprite", all ? "happy" : "normal")
       + `<div class="t-body">`
       +   `<div class="t-title">${all ? "再挑一个" : card.title}</div>`
       + `</div>`
@@ -3072,7 +3108,7 @@
       $("#result-img").src = image; renderScores($("#scores"), r.scores, null);
       // 评分后端的那句摘要（「离线启发式评分：画面覆盖率 1%…」）是研究员看的，不是孩子看的——只在实验模式下露
       $("#score-summary").textContent = state.study ? (r.scores.summary || "") : "";
-      const fbSp = $("#fb-sprite"); if (fbSp) fbSp.innerHTML = spriteInner(buddyColor(), "happy");
+      paintBuddy($("#fb-sprite"), "happy", buddyColor());
       // remember which feedback this is, so the revision can be attributed to it
       state.feedback = { id: r.feedback.feedback_id || "", text: r.feedback.text || "", shown_ms: elapsed() };
       $("#feedback-text").textContent = r.feedback.text; show("result");
@@ -3147,7 +3183,7 @@
       };
       chips.appendChild(b);
     });
-    const sp = $("#survey-sprite"); if (sp) sp.innerHTML = spriteInner(buddyColor(), "happy");
+    paintBuddy($("#survey-sprite"), "happy", buddyColor());
     $("#survey").innerHTML = SURVEY.map(item => `<div class="sq" data-key="${item.key}">
       <div class="sq-q">${item.q}</div>
       <div class="sq-scale"><span class="sq-end">${item.lo}</span>${[1, 2, 3, 4, 5].map(v => `<button data-v="${v}">${v}</button>`).join("")}<span class="sq-end">${item.hi}</span></div></div>`).join("");
@@ -3188,7 +3224,7 @@
     document.querySelector("#view-final .compare")?.classList.toggle("single", noRevision);
     const cap = $("#final-after").nextElementSibling;
     if (cap) cap.textContent = noRevision ? "你的作品" : "修改后";
-    const cmpSp = $("#cmp-sprite"); if (cmpSp) cmpSp.innerHTML = spriteInner(buddyColor(), session.revised ? "happy" : "normal");
+    paintBuddy($("#cmp-sprite"), session.revised ? "happy" : "normal", buddyColor());
     // In a no-feedback condition the child is shown their work and their
     // badges, but no evaluation: assessment keeps running server-side, it just
     // stops being an intervention this session.

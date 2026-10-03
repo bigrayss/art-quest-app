@@ -288,6 +288,7 @@ h2 .muted { font-weight:700; }
 .flow-track { position:relative; flex:1; height:12px; border-radius:999px; background:var(--line); overflow:hidden; }
 .flow-fill { height:100%; border-radius:999px; background:var(--green); width:0; transition:width .35s ease; }
 .flow-sprite { width:30px; height:30px; flex:none; overflow:visible; }
+.sprite.flow-sprite { position:relative; }
 .flow-step { font-size:0.75rem; font-weight:800; color:var(--muted-2); white-space:nowrap; }
 
 /* ===== 任务卡（画画时侧边那张小卡） ===== */
@@ -666,7 +667,26 @@ figcaption { text-align:center; color:var(--muted-2); font-size:0.75rem; font-we
 .dim.na .wait { font-size:0.75rem; color:var(--muted); }
 
 /* ===== 彩点 ===== */
-.sprite { width:54px; height:54px; display:block; overflow:visible; }
+/* ===== 彩点：身体一层图 + 颜料一层染色的 mask（素材见 static/art/buddy/README.md）=====
+   容器尺寸照旧由 .sprite / .lg / .big / .hero 各档决定，两层都铺满它。
+   图挂了（旧缓存、文件缺了）就由 onerror 把容器标成 data-noart，换回 SVG 线稿。 */
+.sprite { width:54px; height:54px; display:block; overflow:visible; position:relative; }
+.sprite .bd-body, .sprite .bd-paint, .sprite .bd-svg {
+  position:absolute; left:0; top:0; width:100%; height:100%; }
+.sprite .bd-body { object-fit:contain; }
+.sprite .bd-paint { -webkit-mask-size:contain; mask-size:contain;
+  -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat;
+  -webkit-mask-position:center; mask-position:center; pointer-events:none; }
+.sprite .bd-svg { display:none; }
+.sprite[data-noart] .bd-body, .sprite[data-noart] .bd-paint { display:none; }
+.sprite[data-noart] .bd-svg { display:block; }
+/* 不认识 mask 的引擎上，那一层会变成一块纯色方块——宁可不要颜料点 */
+@supports not ((-webkit-mask-image: url("a.webp")) or (mask-image: url("a.webp"))) {
+  .sprite .bd-paint { display:none; }
+}
+/* 「还没画过」从「整只变灰」改成「颜料点不上色」：颜色是 JS 传的灰，
+   所以这里只管旧的 SVG 兜底那一层，别再把整张图去色。 */
+.sprite.grey .bd-svg { filter:grayscale(.9) opacity(.95); }
 .sprite.lg { width:62px; height:62px; }
 .sprite.big { width:120px; height:120px; margin:0 auto; }
 .buddy-say { font-size:0.6875rem; line-height:1.55; color:var(--muted-2); font-weight:700; }
@@ -1130,9 +1150,10 @@ body.quiet #collection-wrap { display:none; }
 .cover-glow { position: absolute; width: min(400px, 74%); aspect-ratio: 1; border-radius: 50%;
   background: radial-gradient(closest-side, var(--glow, #cfcbc4), rgba(255,255,255,0) 100%);
   opacity: var(--glow-a, .1); transition: opacity 1s ease, background 1s ease; pointer-events: none; }
-.sprite.hero { position: relative; height: 100%; width: auto; max-width: 62%; aspect-ratio: 1;
-  filter: drop-shadow(0 14px 16px rgba(120,95,60,.22)); }
-.sprite.grey { filter: grayscale(.9) opacity(.95) drop-shadow(0 14px 16px rgba(120,95,60,.16)); }
+.sprite.hero { position: relative; height: 100%; width: auto; max-width: 62%; aspect-ratio: 1; }
+/* 立绘自带软阴影，别再叠一层 CSS 的——叠上去是两层影子。只有退回 SVG 那层才需要 */
+.sprite.hero[data-noart] { filter: drop-shadow(0 14px 16px rgba(120,95,60,.22)); }
+.sprite.grey[data-noart] { filter: grayscale(.9) opacity(.95) drop-shadow(0 14px 16px rgba(120,95,60,.16)); }
 
 .world-name { display: flex; justify-content: center; align-items: baseline; gap: 10px;
   font-size:1.5625rem; font-weight: 800; margin-top: 14px; }
@@ -1221,10 +1242,36 @@ body.teacher-entrance #btn-welcome-login { width:100% !important; min-height:56p
   0%, 100% { transform: translate3d(0,0,0) scale(1); opacity: 1; }
   50%      { transform: translate3d(0,-10px,0) scale(1.06); opacity: .78; }
 }
-/* 彩点：4–6 秒一次，最多 4px。门口上不去色——去了色尾巴的橙也没了 */
-.world.welcome .sprite.hero { animation: hero-float 5.4s ease-in-out infinite;
-  filter: drop-shadow(0 14px 16px rgba(120,95,60,.18)); }
-@keyframes hero-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+/* 彩点的立绘（用户给的素材，见 static/art/buddy/README.md）。
+   它自己带软阴影和落地的蜡笔痕，所以不再叠 CSS 的 drop-shadow——叠上去是两层影子。 */
+.world.welcome .sprite.hero {
+  filter: none; height: 100%; width: auto; max-width: 78%; aspect-ratio: 1;
+  transform-origin: 50% 88%;      /* 脚底附近：拉伸压扁才像站在地上，不是在空中变形 */
+  animation: hero-idle 4.6s cubic-bezier(.34,.1,.3,1) infinite;
+  cursor: pointer; -webkit-tap-highlight-color: transparent; }
+
+/* 待机：一次小跳。黏土角色全靠挤压拉伸活起来——起跳前先压一下蓄力，
+   升空时拉长，落地压扁，再补一个小回弹，然后安静两秒。
+   整段只有 13px 的位移，所以是「有生气」不是「在蹦迪」。 */
+@keyframes hero-idle {
+   0%      { transform: translateY(0)     scale(1, 1)         rotate(0deg); }
+   7%      { transform: translateY(2px)   scale(1.035, .965)  rotate(0deg); }
+  21%      { transform: translateY(-13px) scale(.975, 1.035)  rotate(-1.4deg); }
+  33%      { transform: translateY(-11px) scale(.985, 1.02)   rotate(1.2deg); }
+  44%      { transform: translateY(0)     scale(1.05, .95)    rotate(0deg); }
+  52%      { transform: translateY(-4px)  scale(.99, 1.012)   rotate(0deg); }
+  60%      { transform: translateY(0)     scale(1.012, .988)  rotate(0deg); }
+  66%,100% { transform: translateY(0)     scale(1, 1)         rotate(0deg); }
+}
+/* 戳一下：压扁再弹回来。动画跑完由 JS 把类摘掉，所以能连着戳 */
+.world.welcome .sprite.hero.poke { animation: hero-poke .52s cubic-bezier(.3,1.4,.4,1) 1; }
+@keyframes hero-poke {
+   0%   { transform: translateY(0)    scale(1, 1); }
+  22%   { transform: translateY(3px)  scale(1.11, .89); }
+  55%   { transform: translateY(-9px) scale(.95, 1.07); }
+  78%   { transform: translateY(0)    scale(1.03, .97); }
+ 100%   { transform: translateY(0)    scale(1, 1); }
+}
 
 .welcome-title { margin: 14px 0 0; font-size: 2rem; font-weight: 800; letter-spacing: .02em; line-height: 1.2;
   color: #3F3F3F; }

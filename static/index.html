@@ -47,13 +47,13 @@
     <!-- 做一幅画的六步：一条细进度条，彩点走在最前面 -->
     <div class="flow hidden" id="flow">
       <div class="flow-track"><div class="flow-fill" id="flow-fill"></div></div>
-      <svg class="flow-sprite" id="flow-sprite" viewBox="0 0 200 200"></svg>
+      <span class="sprite flow-sprite" id="flow-sprite"></span>
       <span class="flow-step" id="flow-step"></span>
     </div>
   </div>
   <div class="appbar-right">
     <div class="recstat hidden" id="recstat" title="过程数据先存本地，再同步到服务器"><i></i><span id="recstat-text">我看着呢</span></div>
-    <button class="avatar hidden" id="btn-world" title="看看彩点"><svg class="sprite" id="avatar-sprite" viewBox="0 0 200 200"></svg></button>
+    <button class="avatar hidden" id="btn-world" title="看看彩点"><span class="sprite" id="avatar-sprite"></span></button>
   </div>
 </header>
 
@@ -77,7 +77,7 @@
   <div class="world welcome">
     <div class="cover">
       <div class="cover-glow"></div>
-      <svg class="sprite hero" id="welcome-sprite" viewBox="0 0 200 200"></svg>
+      <span class="sprite hero" id="welcome-sprite" role="img" aria-label="彩点"></span>
     </div>
     <h1 class="welcome-title">彩绘冒险</h1>
     <p class="welcome-tag">画画 · 探索 · 创造</p>
@@ -106,7 +106,7 @@
          只是门口不摆成九个东西，也不摆分数。 -->
     <div class="cover">
       <div class="cover-glow"></div>
-      <svg class="sprite hero" id="world-sprite" viewBox="0 0 200 200"></svg>
+      <span class="sprite hero" id="world-sprite"></span>
     </div>
 
     <!-- 封面只有主角、它的名字和一颗按钮。等级、进度条、说明都不在这儿：
@@ -394,7 +394,7 @@
            dialogue_mode=none 的对照组整扇窗都不出现。 -->
       <div class="assist hidden veiled" id="assist">
         <div class="assist-head">
-          <svg class="sprite" id="draw-sprite" viewBox="0 0 200 200"></svg>
+          <span class="sprite" id="draw-sprite"></span>
           <b class="buddy-word">彩点</b>
         </div>
         <div class="assist-log" id="assist-log" aria-live="polite"></div>
@@ -427,7 +427,7 @@
       <p class="muted small" id="score-summary"></p>
     </div>
     <div class="feedback-card buddy-card">
-      <div class="buddy-head"><svg class="sprite lg" id="fb-sprite" viewBox="0 0 200 200"></svg>
+      <div class="buddy-head"><span class="sprite lg" id="fb-sprite"></span>
         <div><div class="buddy-name"><span class="buddy-word">彩点</span></div></div></div>
       <div class="feedback-text" id="feedback-text"></div>
       <div class="actions column">
@@ -443,7 +443,7 @@
   <!-- 画完之后问三句。一张卡、三行、每行一个短问题和五颗钮，两端各一个词。
        都可以不答——「跳过」就在旁边，不用再在每一行写「可不写」。 -->
   <div class="survey-card">
-    <div class="survey-head"><svg class="sprite" id="survey-sprite" viewBox="0 0 200 200"></svg><b>画完啦！</b></div>
+    <div class="survey-head"><span class="sprite" id="survey-sprite"></span><b>画完啦！</b></div>
     <div class="survey" id="survey"></div>
     <!-- 九个格子，三三排：八个选项 + 「其他」那一格就是输入框本身，写字等于选了它 -->
     <div class="sq sq-hard">
@@ -465,7 +465,7 @@
     <figure><img id="final-after" class="artwork"><figcaption>修改后</figcaption></figure>
   </div>
   <div class="feedback-card buddy-card">
-    <div class="buddy-head"><svg class="sprite lg" id="cmp-sprite" viewBox="0 0 200 200"></svg>
+    <div class="buddy-head"><span class="sprite lg" id="cmp-sprite"></span>
       <div><div class="buddy-name buddy-word">彩点</div></div></div>
     <div class="feedback-text" id="comparison-text"></div>
   </div>
