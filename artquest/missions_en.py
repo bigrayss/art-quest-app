@@ -383,7 +383,7 @@ V2_EN: Dict[str, Dict[str, Any]] = {
     "M1_E3": {"title": "Treasure map", "instruction": "This is where the treasure is. Copy it so others can find the place.", "hint": "What is on the left, what is on the right?"},
     "M1_E4": {"title": "The kitten's home", "instruction": "A kitten is lost and only remembers its home looks like this. Draw it from the picture.", "hint": "Place the big things first, then look for details."},
     "M1_E5": {"title": "The last puzzle piece", "instruction": "A big piece of the puzzle is missing. Complete it from this picture.", "hint": "Look at what connects at the edges."},
-    "M1_J3": {"title": "Lost satellite image", "instruction": "The satellite sent back only this image before going silent. Draw the location.", "hint": "Overall positions first, then sizes."},
+    "M1_J3": {"title": "Drone lost", "instruction": "The drone sent back only this image before going silent. Draw the location.", "hint": "Overall positions first, then sizes."},
     "M1_J4": {"title": "The dig site", "instruction": "A thousand years from now someone digs up this picture. Help them rebuild the place.", "hint": "Which things touch, which are apart?"},
     "M1_J5": {"title": "The deleted painting", "instruction": "Half of the museum's painting was deleted. Restore it from the original.", "hint": "Keep the original proportions and positions."},
     # M2
