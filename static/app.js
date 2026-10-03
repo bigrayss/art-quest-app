@@ -238,11 +238,12 @@
   const BUDDY_DIR = "/static/art/buddy";
   function buddyInner(expr, color, big) {
     const body = big ? "hero" : (expr === "happy" ? "icon-happy" : "icon");
-    const paint = big ? "hero-paint" : "icon-paint";
-    const mask = `url("${BUDDY_DIR}/${paint}.webp")`;
+    // 颜料那张剪影由 CSS 按 .sprite / .sprite.hero 挂（见 style.css）。
+    // **别写回 style 属性里**：`url("…")` 的双引号会把 style="…" 当场截断，
+    // mask 解析成页面地址，颜料点就整个不显示——2026-10-03 线上栽过一次。
     return `<img class="bd-body" src="${BUDDY_DIR}/${body}.webp" alt="" draggable="false" decoding="async"`
          + ` onerror="this.parentNode.dataset.noart=1">`
-         + `<i class="bd-paint" style="background-color:${color};-webkit-mask-image:${mask};mask-image:${mask}"></i>`
+         + `<i class="bd-paint" style="background-color:${color}"></i>`
          + `<svg class="bd-svg" viewBox="0 0 200 200">${spriteInner(color, expr)}</svg>`;
   }
   /** 把一个 .sprite 容器画成彩点。big = 用大图（门口、「彩点」那一屏）。 */
