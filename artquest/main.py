@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
@@ -87,6 +88,13 @@ app = FastAPI(title="KidsArtQuest", version=__version__, default_response_class=
 api = APIRouter()
 # iOS 壳从 `artquest://app` 发请求（外壳打在 app 包里，不是从服务器载入的），
 # 这是跨源；`Authorization` 头要在预检里点名放行。
+# 文本按 gzip 压过再出门。装在这儿而不是 Caddy 里，是因为那台机器上的 Caddyfile 是 root 的、
+# 没有免密 sudo，改不动；Caddy 反代会把 Content-Encoding 原样透传。
+# 实测原来全是裸传：app.js 234 KB、style.css 134 KB、/quests 102 KB、index.html 38 KB，
+# 加起来占冷启动的大头。压完 /quests 9.6 KB、index.html 11.9 KB。
+# 图片、字体、视频由 GZipMiddleware 自己的 exclude_content_types 跳过，不用管。
+app.add_middleware(GZipMiddleware, minimum_size=1024)
+
 app.add_middleware(CORSMiddleware, allow_origins=cfg.CORS_ORIGINS,
                    allow_methods=["GET", "POST", "OPTIONS"],
                    allow_headers=["Authorization", "Content-Type"], max_age=600)
