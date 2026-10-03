@@ -1201,23 +1201,21 @@ body.teacher-entrance #btn-welcome-login { width:100% !important; min-height:56p
    系统开了「减少动态」就全部静止（本节末尾那条 @media）。 */
 #view-welcome { min-height: 100vh; min-height: 100dvh; display:flex; align-items:center; justify-content:center;
   padding: env(safe-area-inset-top) 20px env(safe-area-inset-bottom);
-  background: #FFFDF8; overflow: hidden; }
+  background: #FBF6EA; overflow: hidden; }
 
-/* 第二层：画纸的辅助线。不是科技网格——暖灰、1px、透明度 6%，
-   36px 一格，45 秒整整漂过一格再回到原位，所以看不见「开头和结尾」。 */
-.paper-grid { position: absolute; inset: -48px; pointer-events: none; z-index: 0;
-  background-image:
-    linear-gradient(to right, rgba(150,134,110,.065) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(150,134,110,.065) 1px, transparent 1px);
-  background-size: 38px 38px;
-  animation: paper-drift 45s linear infinite; }
-@keyframes paper-drift { from { transform: translate3d(0,0,0); } to { transform: translate3d(38px,38px,0); } }
+/* 第二层：纸纹。原来这里是方格辅助线，用户说竖线难看——他是对的，看得见的格线
+   会在按钮和文字上横穿过去。换成一层极细的颗粒（SVG feTurbulence 生成，去饱和），
+   暗处看得出纹理、亮处几乎不存在，读起来是「纸」而不是「格」。
+   它**不动**：颗粒这么细，一动就成了电视雪花。动的留给柔光和彩点。 */
+.paper-grid { position: absolute; inset: 0; pointer-events: none; z-index: 0; opacity: .30;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+  background-size: 160px 160px; }
 
 .world.welcome { position: relative; z-index: 1; }
 .world.welcome .cover { height: 36vh; height: 36dvh; }
 /* 第三层：柔光。不是「发光」，是颜料在纸上轻轻晕开——范围约角色的 1.7 倍，模糊很重、透明度很低 */
 .world.welcome .cover-glow { width: min(420px, 108%); opacity: 1;
-  background: radial-gradient(closest-side, rgba(243,154,53,.17), rgba(245,194,67,.10) 55%, rgba(255,253,248,0) 100%);
+  background: radial-gradient(closest-side, rgba(243,154,53,.17), rgba(245,194,67,.10) 55%, rgba(251,246,234,0) 100%);
   filter: blur(14px); animation: glow-breathe 26s ease-in-out infinite; }
 @keyframes glow-breathe {
   0%, 100% { transform: translate3d(0,0,0) scale(1); opacity: 1; }
@@ -1268,7 +1266,7 @@ body:not(.booting) .welcome-actions > .welcome-foot { animation-delay: .46s; }
 /* 彩点进场之后还要接着浮——两条动画叠在同一个元素上会打架，所以浮动挂在 svg、进场挂在 .cover */
 
 @media (prefers-reduced-motion: reduce) {
-  .paper-grid, .world.welcome .cover-glow, .world.welcome .sprite.hero,
+  .world.welcome .cover-glow, .world.welcome .sprite.hero,
   body:not(.booting) #view-welcome .cover, body:not(.booting) .welcome-title,
   body:not(.booting) .welcome-tag, body:not(.booting) .welcome-actions > * { animation: none; }
 }

@@ -206,7 +206,7 @@
   };
 
   // ===== 创作伙伴「彩点」：一坨会变色的颜料精灵 =====
-  function spriteInner(color, expr, tail) {
+  function spriteInner(color, expr) {
     const dark = "#3a2f2a";
     const mouth = expr === "happy" ? `<path d="M84,120 Q100,138 116,120" fill="none" stroke="${dark}" stroke-width="4" stroke-linecap="round"/>`
       : expr === "wow" ? `<ellipse cx="100" cy="126" rx="8" ry="11" fill="${dark}"/>`
@@ -219,7 +219,7 @@
     return `<ellipse class="cd-shadow" cx="100" cy="184" rx="44" ry="8" fill="rgba(0,0,0,.07)"/>`
       + `<g class="cd-body">`
       + `<path d="${blob}" fill="${color}" stroke="rgba(0,0,0,.12)" stroke-width="2"/>`
-      + `<path d="M150,150 q14,10 8,26 q-12,4 -14,-10" fill="${tail || color}"/>`
+      + `<path d="M150,150 q14,10 8,26 q-12,4 -14,-10" fill="${color}"/>`
       + `<g class="cd-eyes">`
       + `<ellipse cx="84" cy="92" rx="15" ry="17" fill="#fff"/><ellipse cx="116" cy="92" rx="15" ry="17" fill="#fff"/>`
       + `<circle cx="86" cy="95" r="${p}" fill="${dark}"/><circle cx="114" cy="95" r="${p}" fill="${dark}"/>`
@@ -1095,7 +1095,10 @@
   let welcomeOn = false;
   function paintWelcome() {
     const sp = $("#welcome-sprite");
-    if (sp && !sp.innerHTML) sp.innerHTML = spriteInner("#d6d1c8", "normal", "#f39a35");
+    // 整只一个颜色。门口上它是暖灰的不是没上色——彩点是一坨会变色的颜料精灵，
+    // 孩子还没画过它就是灰的（见 renderWorld 里的 .grey），画出颜色才亮起来。
+    // 这和「一张还没开始画的画纸」是同一句话，所以别在门口给它另外加一块品牌色。
+    if (sp && !sp.innerHTML) sp.innerHTML = spriteInner("#d6d1c8", "normal");
   }
   async function finishWelcome() {
     welcomeOn = false;
