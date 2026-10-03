@@ -320,11 +320,33 @@ def get_families(request: Request):
     return i18n.families_for(task_families(), i18n.pick_lang(request))
 
 
+# 孩子的界面真正读得到的字段。其余（rubric_summary / applicable_dims / process_targets /
+# research_goal / prompt_style / form_id / phases / hint …）是研究员元数据，
+# app.js 里一处都没用到，却占了这个接口一半的体积 —— 冷启动时它是最大的一笔，
+# 所以默认不发，研究员用 `?full=1` 拿完整的那份。
+QUEST_FIELDS_APP = (
+    "id", "task_id", "family", "family_name", "type", "title", "instruction", "prompt",
+    "icon", "color", "difficulty", "time_limit_sec", "allowed_tools",
+    "stimulus", "reference", "condition", "rubric", "focus_dims", "tiers", "legacy", "lang",
+)
+# v1 的 75 道不上地图，只用来给旧作品的卡片写个标题 —— 够写标题就行。
+QUEST_FIELDS_LEGACY = ("id", "task_id", "family", "family_name", "type", "title", "icon", "color", "legacy")
+
+
+def _slim(q: Dict[str, Any]) -> Dict[str, Any]:
+    keys = QUEST_FIELDS_LEGACY if q.get("legacy") else QUEST_FIELDS_APP
+    return {k: q[k] for k in keys if k in q}
+
+
 @api.get("/quests")
-def quests(request: Request):
-    # 英文界面拿英文题目；id、条件、刺激材料一样，只有给孩子看的字不同
+def quests(request: Request, full: int = 0):
+    """英文界面拿英文题目；id、条件、刺激材料一样，只有给孩子看的字不同。
+
+    默认只发孩子界面用得到的字段（`full=1` 发全部，给研究员和导出用）。
+    """
     lang = i18n.pick_lang(request)
-    return [i18n.quest_for(q, lang) for q in QUESTS]
+    rows = [i18n.quest_for(q, lang) for q in QUESTS]
+    return rows if full else [_slim(q) for q in rows]
 
 
 # -- study mode ------------------------------------------------------------

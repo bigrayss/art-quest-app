@@ -787,8 +787,16 @@
   // 游戏的开场：先看见这只精灵和它身上的九个属性，再进世界，再挑任务。
   // 属性不是分数——它长在「练过什么」上：做一个训练某维度的任务，那一格就涨。
   // 没画过画的时候它是灰的，这是设定的一部分：孩子用的颜色把它点亮。
+  /** 封面上的彩点，用本机已经知道的东西先画一版：别让它空着等网络回来。 */
+  function paintWorldLocal() {
+    const sp = $("#world-sprite"); if (!sp) return;
+    const col = state.worldColor || "#cfcbc4";
+    sp.innerHTML = spriteInner(col, "normal");
+    sp.classList.toggle("grey", !state.worldColor);
+  }
   async function renderWorld() {
     const sp = $("#world-sprite"); if (!sp) return;
+    paintWorldLocal();
     let g = null;
     try {
       g = await api(`${API}/participants/${encodeURIComponent(savedPid() || " ")}/growth?${whoQuery()}`);
@@ -2661,13 +2669,43 @@
   addEventListener("online", () => { topUpTickets(); ArtLog.flush(); });
   addEventListener("resize", () => paintMapBackground());
 
+  // 上一次启动时服务器说的那一档 ui。只用来决定**先显示哪一屏**，
+  // 真正生效的仍然是这一次 /config 回来的那份（下面 applyCondition 会盖掉）。
+  const UI_KEY = "artquest.ui";
+  const lastUi = () => { try { return localStorage.getItem(UI_KEY) || ""; } catch (e) { return ""; } };
+
+  /** 不问服务器就能定下来的那一屏。定不下来返回 ""，那就还按老办法等数据。
+   *
+   *  为什么要有它：门口和封面这两屏**不需要服务器的任何东西**（彩点的颜色、
+   *  名字、看没看过导览全在本机），可原来的 init 要等 config + quests + families
+   *  + accounts/me + sessions 五个来回才把 `booting` 收掉，线上实测 3.2 秒按钮才露面。
+   *  对照组（quiet）落在地图，那一屏确实要任务数据，所以不在这里提前显示。 */
+  function earlyLanding() {
+    if (lastUi() === "quiet") return "";                 // 对照组落地图，地图要任务数据
+    if (TEACHER_ENTRANCE) return "welcome";
+    if ((cachedAccount() || {}).role === "teacher") return "";   // 老师落打分列表，要服务器数据
+    if (!welcomeSeen() && !cachedAccount()) return "welcome";
+    if (!guideSeen()) return "world";                    // 导览第一步指着封面上的彩点
+    try { if (sessionStorage.getItem("artquest.entered") === "1") return ""; } catch (e) { /* 无所谓 */ }
+    return "world";
+  }
+
   async function init() {
     paintWelcome();                  // JS 一起来就把门口的彩点画上，别让封面空着等网络
+    state.anonId = anonId();
+    loadBuddyName(); paintBuddyName();
+    state.account = cachedAccount(); // 本机那份先用着，/accounts/me 回来再校正
+    // 先把该落的那一屏显示出来，再去问服务器。门口 / 封面要的东西本机全有。
+    const early = earlyLanding();
+    if (early) {
+      if (early === "world") paintWorldLocal();
+      if (early === "welcome") welcomeOn = true;
+      show(early);
+      document.body.classList.remove("booting");
+    }
     // 三个都是静态配置，谁也不依赖谁：一起发。串行的时候连上海要等三个来回。
     [state.cfg, state.quests, state.families] = await Promise.all([
       api(`${API}/config`), api(`${API}/quests`), api(`${API}/families`)]);
-    state.anonId = anonId();
-    loadBuddyName(); paintBuddyName();
     // 账号要在取任何「我的」数据之前问清楚：画廊、地图上的星都按它来筛
     await loadAccount();
     $("#backend-badge").textContent = `${state.cfg.scorer} · ${state.cfg.feedback}` + (state.cfg.claude_available ? "" : "（离线）");
@@ -2707,6 +2745,7 @@
     //   导览没看完 → 封面 + 导览（导览第一步指的是封面上的彩点，得让它在屏幕上）；
     //   这个标签页里进过地图 → 地图；否则封面。
     const quiet = state.condition.ui === "quiet";
+    try { localStorage.setItem(UI_KEY, state.condition.ui || "full"); } catch (e) { /* 无所谓 */ }
     applyRole();
     if (isTeacher()) { await openTab("grade"); }
     else if (TEACHER_ENTRANCE) { welcomeOn = true; show("welcome"); }     // 老师入口：先登录，别的什么都没有
