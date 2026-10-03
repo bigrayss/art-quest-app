@@ -687,6 +687,8 @@
   // 四个 tab 是四块独立的界面；做任务时导航整个收起来，只剩画画。
   const VIEWS = ["welcome", "world", "quest", "dex", "buddy", "sessions", "intent", "draw", "result", "survey", "final",
                  "teacher", "grade", "rubric"];
+  /** 现在显示的是哪一屏。启动时用来判断「人是不是已经自己走开了」。 */
+  const curView = () => VIEWS.find(v => !$(`#view-${v}`).classList.contains("hidden")) || "";
   const TAB_VIEW = { map: "quest", dex: "dex", buddy: "buddy", me: "sessions", grade: "teacher", rubric: "rubric" };
   const VIEW_TAB = { world: "map", quest: "map", dex: "dex", buddy: "buddy", sessions: "me", teacher: "grade", grade: "grade", rubric: "rubric" };
   const TITLES = { world: "彩点的世界", quest: "地图", dex: "画廊", buddy: "彩点", sessions: "我的", teacher: "打分", grade: "打分", rubric: "评分参考" };
@@ -2709,7 +2711,10 @@
       document.body.classList.remove("booting");
       // 打分列表只认令牌（localStorage 里就有），不等 config 也不等 accounts/me。
       // 排在它们后面要多花两个来回：实测 880 ms → 470 ms。
-      if (early === "teacher") teacherList = loadTeacherList();
+      // 打分列表回来之后，顺手把评分参考也取了。那一份是静态内容（9 维 × 5 档 + 示范，
+      // gzip 后 6 KB），老师迟早要点，预取之后第一次点开从 850 ms 变成即时；
+      // 打分屏里的五档说明也靠它，顺带不用再等一次。不 await：它不该挡住任何事。
+      if (early === "teacher") teacherList = loadTeacherList().then((r) => { loadRubric(); return r; });
     }
     // 三个都是静态配置，谁也不依赖谁：一起发。串行的时候连上海要等三个来回。
     [state.cfg, state.quests, state.families] = await Promise.all([
@@ -2759,10 +2764,13 @@
     const quiet = state.condition.ui === "quiet";
     try { localStorage.setItem(UI_KEY, state.condition.ui || "full"); } catch (e) { /* 无所谓 */ }
     applyRole();
-    if (isTeacher()) {
-      if (teacherList) { show("teacher"); await teacherList; }   // 上面已经发出去了，别再要一遍
-      else await openTab("grade");
-    }
+    if (teacherList) await teacherList;        // 上面已经发出去了，别再要一遍
+    // **早显示之后这一屏就能点了，而这里还在等服务器。** 等回来的时候人可能已经
+    // 自己点去了别的 tab —— 这一步再 show 一次就是把他拽回来。实测：老师启动后
+    // 立刻点「评分参考」，几百毫秒后被拽回打分列表。所以只有「他还停在我们早显示
+    // 的那一屏」时，这一步才作数。
+    if (early && curView() !== early) { document.body.classList.remove("booting"); return; }
+    if (isTeacher()) { if (!teacherList) await openTab("grade"); else show("teacher"); }
     else if (TEACHER_ENTRANCE) { welcomeOn = true; show("welcome"); }     // 老师入口：先登录，别的什么都没有
     else if (quiet) { show("quest"); checkFeatured(); }
     else if (!welcomeSeen() && !state.account) { welcomeOn = true; show("welcome"); }
