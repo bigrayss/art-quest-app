@@ -46,6 +46,9 @@ const SHELL_URLS = [
 // 拿一份说不清多旧的实验配置去渲染界面，比转个圈等服务器糟得多。
 // （真正生效的那份条件是 POST /api/sessions 时服务端冻下来的，那条路从不缓存。）
 const PUBLIC_API = ["/api/v1/config", "/api/v1/families", "/api/v1/quests", "/api/v1/achievements"];
+// 发同一份 index.html 的那几条路径。`/privacy` 不在里面：那是另一个页面，
+// 拿外壳顶替它会让隐私政策变成地图。
+const SHELL_PATHS = ["/", "/teacher", "/teacher/"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil((async () => {
@@ -86,7 +89,36 @@ self.addEventListener("activate", (e) => {
   })());
 });
 
-/** 有网就用网上的，没网才用存下来的。
+/** 外壳：有存下来的就直接给，没有才去网上拿。
+ *
+ *  **这里一度是全局网络优先**，理由写在下面那段注释里：「不能 stale-while-revalidate，
+ *  否则新的 HTML 配旧的 CSS 和 JS」。那条担心对 stale-while-revalidate 成立——
+ *  每个文件各自过期，版本会错配。但对**缓存优先 + 带版本的缓存名**不成立：
+ *  `SHELL` 这个名字里带着 VERSION（服务端发 sw.js 时换成外壳七个文件的哈希），
+ *  同一个缓存里的文件必然是同一版；新版本装进新缓存，activate 时把旧的整个删掉
+ *  再 claim。要么全旧要么全新，中间没有状态。
+ *
+ *  换过来的理由是实测的：服务器 RTT 211 ms，网络优先意味着**每次点开 app 都要把
+ *  外壳重拉一遍**——这就是「每次启动都卡一下」的根因。改完外壳是即时的。
+ *  新版本照旧会装：浏览器每次导航都重新查 sw.js（服务端给它发 no-cache），
+ *  装好之后 controllerchange 让页面在安全的时候重载一次（见 app.js 末尾）。
+ *
+ *  带身份的 API 和 /files/ 仍然一个字节都不缓存，文件头那三条没变。 */
+async function cacheFirst(req) {
+  const hit = await caches.match(req);     // 外壳在 SHELL 里，按需存的在 ASSETS 里
+  if (hit) return hit;
+  try {
+    const res = await fetch(req);
+    if (res && res.ok) (await caches.open(ASSETS)).put(req, res.clone());
+    return res;
+  } catch (e) {
+    return new Response("", { status: 504, statusText: "offline" });
+  }
+}
+
+/** 有网就用网上的，没网才用存下来的。**公共读接口和参考图还走这条**：
+ *  它们的内容改了不会让外壳哈希变（换一张参考图、改一道题都不会），
+ *  缓存优先会让设备上一直是旧的。
  *
  *  **不能用 stale-while-revalidate。** 那个策略先给旧的、后台换新的，听起来
  *  只是「慢一步」，实际后果严重得多：HTML、CSS、JS 各自独立地过期，于是会出现
@@ -122,19 +154,24 @@ self.addEventListener("fetch", (e) => {
     return;                                               // 其余的：网络，连不上就是连不上
   }
 
-  // 导航（点主屏图标、刷新）：有网就拿新的，没网用存下来的那份外壳
+  // 导航（点主屏图标、刷新）：外壳直接给存下来的那一份，不等网络。
   if (req.mode === "navigate") {
+    if (!SHELL_PATHS.includes(url.pathname)) return;     // /privacy 之类照常走网络
     e.respondWith((async () => {
+      const hit = await caches.match("/");
+      if (hit) return hit;
       try {
         const res = await fetch(req);
         if (res && res.ok) (await caches.open(SHELL)).put("/", res.clone());
         return res;
       } catch (e2) {
-        return (await caches.match("/")) || new Response("", { status: 504 });
+        return new Response("", { status: 504 });
       }
     })());
     return;
   }
 
-  if (url.pathname.startsWith("/static/")) e.respondWith(networkFirst(req, ASSETS));
+  if (url.pathname.startsWith("/static/")) {
+    e.respondWith(SHELL_URLS.includes(url.pathname) ? cacheFirst(req) : networkFirst(req, ASSETS));
+  }
 });
