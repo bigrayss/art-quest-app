@@ -2682,8 +2682,11 @@
    *  对照组（quiet）落在地图，那一屏确实要任务数据，所以不在这里提前显示。 */
   function earlyLanding() {
     if (lastUi() === "quiet") return "";                 // 对照组落地图，地图要任务数据
+    // 老师这一条**必须排在 TEACHER_ENTRANCE 前面**：已经登录的老师从 /teacher 进来，
+    // 先给他看一眼登录页再跳到打分列表，等于每次启动闪一下。打分列表的壳
+    // （筛选条 + 空列表）不需要服务器任何东西，作品回来了再填进去。
+    if ((cachedAccount() || {}).role === "teacher") return "teacher";
     if (TEACHER_ENTRANCE) return "welcome";
-    if ((cachedAccount() || {}).role === "teacher") return "";   // 老师落打分列表，要服务器数据
     if (!welcomeSeen() && !cachedAccount()) return "welcome";
     if (!guideSeen()) return "world";                    // 导览第一步指着封面上的彩点
     try { if (sessionStorage.getItem("artquest.entered") === "1") return ""; } catch (e) { /* 无所谓 */ }
@@ -2697,11 +2700,16 @@
     state.account = cachedAccount(); // 本机那份先用着，/accounts/me 回来再校正
     // 先把该落的那一屏显示出来，再去问服务器。门口 / 封面要的东西本机全有。
     const early = earlyLanding();
+    let teacherList = null;
     if (early) {
       if (early === "world") paintWorldLocal();
       if (early === "welcome") welcomeOn = true;
+      if (early === "teacher") applyRole();   // 先把 tab 条换成老师那套，别闪一下学生的
       show(early);
       document.body.classList.remove("booting");
+      // 打分列表只认令牌（localStorage 里就有），不等 config 也不等 accounts/me。
+      // 排在它们后面要多花两个来回：实测 880 ms → 470 ms。
+      if (early === "teacher") teacherList = loadTeacherList();
     }
     // 三个都是静态配置，谁也不依赖谁：一起发。串行的时候连上海要等三个来回。
     [state.cfg, state.quests, state.families] = await Promise.all([
@@ -2735,9 +2743,13 @@
       };
       chips.appendChild(b);
     });
-    await loadCollection();          // 地图要知道哪几关走过了
-    renderQuests();
-    topUpTickets();                  // 不 await：领票慢也不该让界面等着
+    // 老师不看画廊、不看地图、也不画画 —— 这三件事在他的启动路径上是白等的。
+    // `/sessions` 那一个来回实测占 400 ms（RTT 200 ms 的条件下）。
+    if (!isTeacher()) {
+      await loadCollection();        // 地图要知道哪几关走过了
+      renderQuests();
+      topUpTickets();                // 不 await：领票慢也不该让界面等着
+    }
     try { state.entered = sessionStorage.getItem("artquest.entered") === "1"; } catch (e) { /* 无所谓 */ }
     // 落在哪一屏，按这个顺序定：
     //   对照组（quiet）直接进地图；
@@ -2747,7 +2759,10 @@
     const quiet = state.condition.ui === "quiet";
     try { localStorage.setItem(UI_KEY, state.condition.ui || "full"); } catch (e) { /* 无所谓 */ }
     applyRole();
-    if (isTeacher()) { await openTab("grade"); }
+    if (isTeacher()) {
+      if (teacherList) { show("teacher"); await teacherList; }   // 上面已经发出去了，别再要一遍
+      else await openTab("grade");
+    }
     else if (TEACHER_ENTRANCE) { welcomeOn = true; show("welcome"); }     // 老师入口：先登录，别的什么都没有
     else if (quiet) { show("quest"); checkFeatured(); }
     else if (!welcomeSeen() && !state.account) { welcomeOn = true; show("welcome"); }
