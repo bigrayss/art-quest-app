@@ -3,96 +3,477 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>隐私政策 · 彩绘冒险 KidsArtQuest</title>
+<title>隐私政策 Privacy Policy · 彩绘冒险 KidsArtQuest</title>
 <style>
-  :root { color-scheme: light; }
-  body { margin:0; padding:32px 20px 60px; background:#fbfaf8; color:#2b2a28; font:16px/1.7 -apple-system, "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif; }
-  main { max-width:44rem; margin:0 auto; }
-  h1 { font-size:1.6rem; margin:0 0 4px; }
-  .sub { color:#6f6b66; margin:0 0 28px; font-size:0.9375rem; }
-  h2 { font-size:1.125rem; margin:32px 0 8px; padding-top:8px; border-top:1px solid #e6e2dc; }
-  p, li { margin:0 0 8px; }
-  ul { padding-left:1.3em; margin:0 0 8px; }
-  table { border-collapse:collapse; width:100%; margin:8px 0 12px; font-size:0.9375rem; }
-  th, td { text-align:left; vertical-align:top; padding:8px 10px; border-bottom:1px solid #e6e2dc; }
-  th { color:#6f6b66; font-weight:600; width:9em; }
-  .en { margin-top:48px; padding-top:16px; border-top:2px solid #e6e2dc; }
-  .en h2 { border:none; }
-  a { color:#2b6fbf; }
+  :root { color-scheme: light; --ink:#2b2a28; --dim:#6f6b66; --line:#e6e2dc; --paper:#fbfaf8; --link:#2b6fbf; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:0 0 72px; background:var(--paper); color:var(--ink);
+         font:16px/1.75 -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+         -webkit-text-size-adjust:100%; }
+  main { max-width:46rem; margin:0 auto; padding:28px 20px 0; }
+  header { border-bottom:1px solid var(--line); padding-bottom:20px; margin-bottom:8px; }
+  h1 { font-size:1.5rem; line-height:1.35; margin:0 0 2px; }
+  h1 .alt { color:var(--dim); font-weight:600; }
+  .sub { color:var(--dim); margin:0; font-size:0.9375rem; }
+  .meta { margin:12px 0 0; font-size:0.875rem; color:var(--dim); }
+  .meta b { color:var(--ink); font-weight:600; }
+  .langbar { display:flex; gap:8px; margin:16px 0 0; }
+  .langbar button { font:inherit; font-size:0.875rem; padding:5px 14px; border:1px solid var(--line);
+                    background:#fff; color:var(--dim); border-radius:999px; cursor:pointer; }
+  .langbar button[aria-current="true"] { background:var(--ink); border-color:var(--ink); color:#fff; }
+  h2 { font-size:1.0625rem; margin:34px 0 10px; padding-top:14px; border-top:1px solid var(--line); }
+  h2 .n { color:var(--dim); font-weight:600; margin-right:6px; }
+  h3 { font-size:0.9375rem; margin:18px 0 6px; }
+  p, li { margin:0 0 9px; }
+  ul, ol { padding-left:1.35em; margin:0 0 9px; }
+  li > ul { margin-top:6px; }
+  table { border-collapse:collapse; width:100%; margin:10px 0 14px; font-size:0.9375rem; }
+  caption { text-align:left; color:var(--dim); font-size:0.875rem; padding-bottom:6px; }
+  th, td { text-align:left; vertical-align:top; padding:9px 10px; border-bottom:1px solid var(--line); }
+  thead th { color:var(--dim); font-weight:600; border-bottom:1px solid #cfc9c0; white-space:nowrap; }
+  tbody th { color:var(--ink); font-weight:600; width:8.5em; }
+  .glance { background:#fff; border:1px solid var(--line); border-radius:10px; padding:4px 16px 8px; margin:18px 0 0; }
+  .glance h2 { border:none; margin:14px 0 4px; padding:0; font-size:1rem; }
+  .glance table { margin:4px 0 8px; }
+  .glance th, .glance td { border-bottom:1px solid #f0ece6; padding:7px 0; }
+  .glance th { width:7.5em; padding-right:12px; }
+  nav.toc { font-size:0.9375rem; color:var(--dim); margin:24px 0 0; }
+  nav.toc ol { columns:2; column-gap:28px; padding-left:1.4em; }
+  nav.toc a { color:var(--link); text-decoration:none; }
+  nav.toc a:hover { text-decoration:underline; }
+  a { color:var(--link); }
   .todo { background:#fff3c4; padding:0 4px; border-radius:4px; }
+  .note { font-size:0.9375rem; color:var(--dim); }
+  footer { max-width:46rem; margin:40px auto 0; padding:16px 20px 0; border-top:1px solid var(--line);
+           font-size:0.875rem; color:var(--dim); }
+  [hidden] { display:none !important; }
+  @media (max-width:520px) {
+    nav.toc ol { columns:1; }
+    tbody th { width:auto; }
+    table, thead, tbody, tr, th, td { display:block; }
+    thead { display:none; }
+    tr { border-bottom:1px solid var(--line); padding:6px 0; }
+    th, td, .glance th, .glance td { border:none; padding:2px 0; }
+    .glance tr { border-bottom:1px solid #f0ece6; }
+    tbody th { color:var(--dim); font-size:0.8125rem; }
+  }
 </style>
 </head>
 <body>
 <main>
-<h1>隐私政策</h1>
-<p class="sub">彩绘冒险 · KidsArtQuest（网页版与 iPad 版）· 最后更新 2026 年 10 月 3 日</p>
+<header>
+  <h1>隐私政策 <span class="alt">· Privacy Policy</span></h1>
+  <p class="sub">彩绘冒险 KidsArtQuest · 网页版与 iPadOS 版</p>
+  <p class="meta"><b>版本 1.0</b> · 生效日期 2026 年 10 月 3 日 · 最后更新 2026 年 10 月 3 日<br>
+     <b>Version 1.0</b> · Effective 3 October 2026 · Last updated 3 October 2026</p>
+  <div class="langbar" role="group" aria-label="语言 / Language">
+    <button type="button" data-lang="zh" aria-current="true">中文</button>
+    <button type="button" data-lang="en">English</button>
+  </div>
+</header>
 
-<p>彩绘冒险是一个美术教育研究项目里的绘画应用。孩子在里面完成绘画任务，得到反馈，再改一改。这一页说清楚它收什么、用来干什么、谁能看到、怎么删。</p>
+<!-- ======================= 中文 ======================= -->
+<section id="zh" lang="zh-CN">
 
-<h2>谁在做这个项目</h2>
-<p><span class="todo">[机构名称，例如：华东师范大学 × 伦敦国王学院 儿童美术教育研究组]</span>。研究负责人：叶明睿。联系邮箱：<a href="mailto:mingrui.ye@kcl.ac.uk">mingrui.ye@kcl.ac.uk</a>。<span class="todo">[伦理审批编号：待填]</span></p>
+<p>彩绘冒险（KidsArtQuest）是一个美术教育研究项目中使用的儿童绘画应用。孩子在应用里完成绘画任务，得到一段不打分的反馈，再回去改一改。研究团队借此了解儿童绘画与修改的过程。</p>
+<p>本政策说明我们处理哪些个人信息、为什么处理、谁能看到、保存多久，以及孩子和监护人如何行使权利。请监护人在同意孩子参加研究前通读本政策；我们也会用孩子能听懂的话向孩子本人说明一遍。</p>
 
-<h2>收集什么</h2>
+<div class="glance">
+<h2>一页看完</h2>
 <table>
-<tr><th>账号</th><td>孩子自己起的名字和一个四位数字密码。名字可以是昵称或代号，我们要求学校不要让孩子填真名。密码经过加密存储，我们看不到原文。年龄可填可不填。</td></tr>
-<tr><th>画</th><td>每一笔的轨迹和时间、画的过程中每分钟一张截图、改之前和改之后的成品图。</td></tr>
-<tr><th>画之前和之后写的</th><td>选的心情、想画什么的一句话、画完后的三道自评题（难不难、画得怎么样、开心吗）和「哪里最难」。</td></tr>
-<tr><th>操作记录</th><td>在应用里点了什么、什么时候点的、用了哪些工具、有没有撤销、有没有看参考图。</td></tr>
-<tr><th>老师的评分</th><td>参与研究的美术老师对每幅画的九个维度打分和评语。</td></tr>
-<tr><th>设备信息</th><td>屏幕大小、浏览器或系统版本、界面语言、时区、应用版本。用来判断画布显示是否正常。</td></tr>
+<tr><th>谁在处理</th><td>华东师范大学 × 伦敦国王学院 AI 美术教育研究组（联合处理者）</td></tr>
+<tr><th>使用者</th><td>6 至 14 岁儿童，在取得监护人书面同意后使用</td></tr>
+<tr><th>处理什么</th><td>孩子自设的昵称与四位数字暗号、绘画作品与绘画过程记录、画前画后的简短自述与自评、应用内操作日志、参与研究的美术教师的评分与评语、基本设备信息</td></tr>
+<tr><th>不处理什么</th><td>真实姓名、学校与班级、精确位置、通讯录、相册、生物识别信息、任何其他应用的数据</td></tr>
+<tr><th>为什么</th><td>美术教育研究、改进应用的任务与反馈、训练与评估儿童绘画自动评价模型</td></tr>
+<tr><th>商业用途</th><td>没有广告，没有第三方统计工具，不出售、不交换个人信息</td></tr>
+<tr><th>跨境传输</th><td>仅在生成 AI 反馈时，将画面与任务文本等内容发往境外 AI 服务（美国），不含昵称、账号与设备信息</td></tr>
+<tr><th>存在哪里</th><td>中国大陆境内服务器（腾讯云，上海地域），传输全程加密</td></tr>
+<tr><th>存多久</th><td>原始数据在研究结束后保留 5 年，之后删除或彻底去标识化</td></tr>
+<tr><th>怎么退出</th><td>随时退出，无需理由，不影响孩子在学校的任何事；孩子可自行删除单幅作品，监护人可要求删除全部数据</td></tr>
 </table>
-<p>不收集的：真实姓名、学校和班级、地理位置、通讯录、照片库、任何其他应用的数据。没有广告，没有第三方统计工具。</p>
-
-<h2>用来干什么</h2>
-<ul>
-<li>研究孩子怎样画画、怎样理解反馈、反馈之后画面怎么变。</li>
-<li>改进应用里的反馈和任务设计。</li>
-<li>训练和评估自动评价儿童画的模型。用于此目的的画会先经过人工逐张检查。</li>
-<li>研究结果会以论文和报告的形式发表。发表的是统计结果，不是某个孩子的名字。</li>
-</ul>
-
-<h2>AI 反馈</h2>
-<p>孩子画完后，画面和任务说明会发送给一个 AI 服务生成一段反馈。发送的只有画和任务，不包含孩子的名字、账号或设备信息。<span class="todo">[目前使用的服务：Anthropic Claude API；若研究员未配置该服务，则使用本地模板反馈，画不会离开我们的服务器。]</span></p>
-
-<h2>谁能看到</h2>
-<ul>
-<li><b>研究团队</b>：全部数据，用于上面说的目的。</li>
-<li><b>参与研究的老师</b>：孩子的画、过程截图和账号名，用于打分。老师看不到密码。</li>
-<li><b>其他孩子</b>：只有孩子自己在应用里同意「挂上墙」之后，这一幅画才会出现在大家的画廊里。同意是一幅一幅给的，随时可以收回，收回后立刻从画廊消失。</li>
-<li><b>公开数据集</b>：只有在监护人单独勾选了「作品可以公开」时，孩子的画才可能进入公开发布的研究数据集。同意参加研究不等于同意公开作品。</li>
-</ul>
-<p>除此之外不会向任何人提供数据，不出售，不用于广告。</p>
-
-<h2>存在哪里，存多久</h2>
-<p>数据存放在位于中国大陆的服务器（<span class="todo">[腾讯云，上海]</span>），传输全程加密。原始数据在研究结束后保存 <span class="todo">[5]</span> 年，之后删除或彻底去标识化。</p>
-
-<h2>孩子和家长的权利</h2>
-<ul>
-<li><b>随时退出</b>。退出不需要理由，不影响孩子在学校的任何事。</li>
-<li><b>删除单幅作品</b>。孩子自己在应用里就能删：画廊里点开那张画，「删掉这张」，确认一次。服务器上的那一份同时删除，包括笔触记录、过程截图和老师的评分，不可恢复。</li>
-<li><b>删除全部数据</b>。发邮件告诉我们账号名或代号，我们会删除这个孩子的全部数据，包括画、记录和评分，并给一份删除回执。已经发表的统计结果无法撤回，但里面没有可识别的信息。</li>
-<li><b>查看</b>。可以要求我们提供这个孩子的全部数据副本。</li>
-</ul>
-
-<h2>安全</h2>
-<p>密码加密存储。应用和服务器之间全程 HTTPS。研究员和老师访问数据需要各自的令牌。服务器不对外开放任何列出全部数据的接口。</p>
-
-<h2>关于儿童</h2>
-<p>使用者是 6 到 14 岁的孩子。参加研究前由学校和研究团队取得监护人书面同意，并用孩子能懂的话向孩子本人说明一遍。应用本身不要求孩子填写任何真实身份信息。</p>
-
-<h2>这页会改吗</h2>
-<p>会。改了会更新顶部的日期，重大变化会通过学校通知家长。</p>
-
-<div class="en">
-<h2>Privacy Policy (English summary)</h2>
-<p>KidsArtQuest is a drawing app used in a children's art-education research project. Children complete drawing tasks, receive feedback, and revise.</p>
-<p><b>We collect</b>: a self-chosen nickname and a 4-digit PIN (hashed); age (optional); the drawing, every stroke with timestamps, a snapshot every minute, before- and after-revision images; chosen mood, a one-line intent, and a short self-report; in-app actions; teachers' ratings and comments; basic device info (screen size, browser/OS version, language, time zone). <b>We do not collect</b> real names, school or class, location, contacts, or photos. No ads, no third-party analytics.</p>
-<p><b>We use it</b> to study how children draw and respond to feedback, to improve the app, and to train and evaluate models that assess children's drawings. Results are published as statistics.</p>
-<p><b>AI feedback</b>: the drawing and task text are sent to an AI service to generate feedback. No name, account, or device data is sent.</p>
-<p><b>Who can see it</b>: the research team; participating teachers (drawings and nicknames, for grading); other children only for drawings the child has chosen to share, which can be withdrawn at any time; public datasets only where a guardian has separately consented to publication of artwork.</p>
-<p><b>Storage</b>: servers in mainland China, encrypted in transit; raw data kept for <span class="todo">[5]</span> years after the study, then deleted or fully de-identified.</p>
-<p><b>Your rights</b>: a child can delete any single drawing from inside the app (gallery → open it → delete, with one confirmation); the server copy, including stroke logs, snapshots and teachers' ratings, goes with it and cannot be recovered. You can also withdraw at any time without reason, request deletion of all of a child's data (we send a receipt), or request a copy. Contact: <a href="mailto:mingrui.ye@kcl.ac.uk">mingrui.ye@kcl.ac.uk</a>.</p>
 </div>
+
+<nav class="toc" aria-label="目录">
+<ol>
+<li><a href="#zh-1">适用范围</a></li>
+<li><a href="#zh-2">我们是谁</a></li>
+<li><a href="#zh-3">我们处理哪些个人信息</a></li>
+<li><a href="#zh-4">我们不处理的信息</a></li>
+<li><a href="#zh-5">处理目的与法律依据</a></li>
+<li><a href="#zh-6">AI 反馈与数据跨境传输</a></li>
+<li><a href="#zh-7">信息的共享与公开</a></li>
+<li><a href="#zh-8">存储地点与保留期限</a></li>
+<li><a href="#zh-9">安全措施</a></li>
+<li><a href="#zh-10">对未成年人的专门规则</a></li>
+<li><a href="#zh-11">您和孩子的权利</a></li>
+<li><a href="#zh-12">投诉与监管</a></li>
+<li><a href="#zh-13">本政策的变更</a></li>
+<li><a href="#zh-14">联系我们</a></li>
+</ol>
+</nav>
+
+<h2 id="zh-1"><span class="n">1</span>适用范围</h2>
+<p>本政策适用于彩绘冒险的网页版（art.ddhulu.cn）与 iPadOS 版应用，以及研究团队与参与研究的美术教师在研究过程中对上述应用所产生数据的处理。</p>
+<p>本政策不适用于：学校自行收集并保管的名单、同意书与课堂记录；孩子或教师在本应用之外使用的其他软件与服务。</p>
+
+<h2 id="zh-2"><span class="n">2</span>我们是谁</h2>
+<p>本研究由<b>华东师范大学</b>与<b>伦敦国王学院</b>的<b>AI 美术教育研究组</b>共同开展。两校共同决定本研究中个人信息的处理目的与处理方式，因此就本政策所述处理活动构成<b>联合处理者</b>（joint controllers）。</p>
+<p>研究组联系邮箱：<a href="mailto:mingrui.ye@kcl.ac.uk">mingrui.ye@kcl.ac.uk</a>（数据相关请求、查阅、删除、撤回同意均可发至此邮箱）。</p>
+<p>本研究已通过伦理审查：华东师范大学 <span class="todo">[伦理审批编号：待填]</span>；伦敦国王学院 <span class="todo">[Ethics reference：待填]</span>。</p>
+
+<h2 id="zh-3"><span class="n">3</span>我们处理哪些个人信息</h2>
+<table>
+<caption>下表逐项列出处理的信息、用途与来源。括号内为信息的产生方式。</caption>
+<thead><tr><th scope="col">信息类别</th><th scope="col">具体内容</th><th scope="col">处理目的</th></tr></thead>
+<tbody>
+<tr><th scope="row">账号信息</th>
+    <td>孩子自己起的昵称（可用代号；我们要求学校不让孩子填真名）、四位数字暗号、可选填的年龄、账号创建与登录时间。暗号以 PBKDF2-HMAC-SHA256 加盐哈希存储，我们无法还原原文。（由孩子在应用内填写）</td>
+    <td>让孩子下次回来能找到自己的画；把同一个孩子的多次创作串起来分析</td></tr>
+<tr><th scope="row">绘画作品</th>
+    <td>修改前与修改后的成品图（PNG）。（应用生成）</td>
+    <td>研究分析、教师评分、生成反馈、模型训练与评估</td></tr>
+<tr><th scope="row">绘画过程</th>
+    <td>每一笔的轨迹、颜色、笔刷与时间戳；创作过程中每分钟一张画面截图；撤销与重做记录。（应用自动记录）</td>
+    <td>研究儿童的作画顺序、停顿与修改行为</td></tr>
+<tr><th scope="row">自述与自评</th>
+    <td>画前选择的心情、写下的「想画什么」一句话；画后三道自评题（难度、自我评价、愉悦度）与「哪里最难」。（由孩子填写，均可跳过）</td>
+    <td>把孩子的意图与作品对照；研究自我评价与他人评价的差异</td></tr>
+<tr><th scope="row">操作日志</th>
+    <td>在应用内的点击与页面停留、使用了哪些工具、是否查看参考图、是否打开提示、界面语言与简单版／完整版的选择、时间戳。（应用自动记录）</td>
+    <td>研究工具使用与反馈阅读行为；排查故障</td></tr>
+<tr><th scope="row">教师评分</th>
+    <td>参与研究的美术教师对作品在九个维度上的评分与文字评语、评分时间。（由教师填写）</td>
+    <td>作为研究中的专家评价基准；训练与评估自动评价模型</td></tr>
+<tr><th scope="row">设备信息</th>
+    <td>屏幕尺寸与像素比、浏览器或操作系统版本、界面语言、时区、应用版本。（请求头与浏览器接口）</td>
+    <td>判断画布是否正常显示；区分设备差异带来的作画差异</td></tr>
+</tbody>
+</table>
+<p class="note">我们不使用用于广告或跨站追踪的 Cookie。应用仅使用维持登录状态与保存当前语言所必需的本地存储。</p>
+
+<h2 id="zh-4"><span class="n">4</span>我们不处理的信息</h2>
+<p>我们<b>不收集、不要求、不推断</b>：真实姓名、身份证号、学号、学校与班级、家庭住址、电话号码、监护人联系方式（同意书由学校保管，不进入应用）、精确地理位置、通讯录、相册与摄像头内容、人脸或其他生物识别信息、健康信息、设备唯一标识符用于广告追踪、其他应用的使用数据。</p>
+<p>孩子可以把作品保存到自己设备的相册；该操作在设备本地完成，我们不会读取相册。</p>
+
+<h2 id="zh-5"><span class="n">5</span>处理目的与法律依据</h2>
+<h3>处理目的</h3>
+<ol>
+<li>研究儿童如何绘画、如何理解反馈，以及收到反馈后画面发生了什么变化。</li>
+<li>改进应用的任务设计、反馈措辞与界面。</li>
+<li>训练与评估自动评价儿童绘画的模型。用于此目的的作品会先经人工逐张检查，含可识别信息（例如孩子把自己的名字写进画面）的不予使用。</li>
+<li>以论文、会议报告与课程材料的形式发表研究结果。发表的是统计结果与经去标识化的示例，不含孩子的真实身份。</li>
+</ol>
+<h3>法律依据</h3>
+<ul>
+<li><b>中国内地</b>：依据《中华人民共和国个人信息保护法》第十三条第一款第一项（取得个人同意），并按第三十一条就未满十四周岁未成年人的个人信息取得其父母或其他监护人的同意。</li>
+<li><b>英国</b>：依据 UK GDPR 第六条第一款第(e)项（为公共利益执行任务——高等教育机构开展的学术研究）；如处理涉及特殊类别个人数据，依据第九条第二款第(j)项（科学研究目的）结合 Data Protection Act 2018 Schedule 1 Part 1。</li>
+</ul>
+<p>撤回同意不影响撤回之前已经进行的处理的合法性，但撤回之后我们将停止处理，并按第 11 节删除数据。</p>
+
+<h2 id="zh-6"><span class="n">6</span>AI 反馈与数据跨境传输</h2>
+<p>孩子画完后，应用会生成一段不打分的反馈；创作过程中的「彩点」陪伴也由同一服务生成。为此，以下内容会发送给境外 AI 服务提供方 <b>Anthropic PBC（美国）</b>的 Claude API：</p>
+<ul>
+<li>画面图像（成品图；比较修改前后时会同时发送两张）；</li>
+<li>任务标题与任务说明文字；</li>
+<li>孩子画前选择的心情与写下的那句「想画什么」；</li>
+<li>孩子画后的三道自评答案；</li>
+<li>在为孩子挑选下一个任务时，还包括该孩子过往创作的摘要（任务编号、时长、是否修改过、自评与各维度评价）。</li>
+</ul>
+<p><b>不会发送</b>：昵称、账号编号、暗号、年龄、设备信息、教师评语原文。</p>
+<p>关于该传输：服务提供方按其商用条款仅为生成本次回复而处理上述内容，不将其用于训练模型；传输使用 HTTPS 加密。<span class="todo">[跨境传输的法律机制与所依据的影响评估结论：待填（中国内地侧的出境路径／英国侧的 IDTA 或等效安排）]</span></p>
+<p>如果研究员未为服务器配置该 AI 服务，应用会改用预先写好的本地模板生成反馈；此时作品与上述内容<b>不会离开我们的服务器</b>。应用内「我的」页面会显示当前使用的是哪一种。孩子的作品<b>不会</b>被发送给任何其他第三方服务。</p>
+
+<h2 id="zh-7"><span class="n">7</span>信息的共享与公开</h2>
+<table>
+<thead><tr><th scope="col">谁</th><th scope="col">能看到什么</th><th scope="col">条件</th></tr></thead>
+<tbody>
+<tr><th scope="row">研究团队</th><td>第 3 节所列全部信息</td><td>仅限本政策第 5 节所述目的；访问需各自的令牌</td></tr>
+<tr><th scope="row">参与研究的美术教师</th><td>作品、过程截图与昵称</td><td>仅为打分；看不到暗号、设备信息与其他孩子的账号信息；教师受保密约定约束</td></tr>
+<tr><th scope="row">其他孩子</th><td>被挂上墙的单幅作品与昵称</td><td>需孩子本人在应用内对<b>该幅作品</b>单独同意「挂上墙」；可随时收回，收回后立即从画廊消失</td></tr>
+<tr><th scope="row">AI 服务提供方</th><td>第 6 节所列内容</td><td>仅为生成反馈；不用于训练</td></tr>
+<tr><th scope="row">公开研究数据集</th><td>经去标识化的作品与过程记录</td><td>需监护人在同意书上<b>单独勾选</b>「作品可以公开」。同意参加研究不等于同意公开作品</td></tr>
+</tbody>
+</table>
+<p>除上表所列情形，以及法律法规要求或司法机关依法定程序要求的情形外，我们不向任何第三方提供个人信息，不出售、不交换、不用于广告。服务器托管方（腾讯云）作为受托处理方仅提供计算与存储，不得为自身目的使用数据。</p>
+
+<h2 id="zh-8"><span class="n">8</span>存储地点与保留期限</h2>
+<p>数据存放在位于中国大陆的服务器（腾讯云，上海地域），应用与服务器之间全程使用 HTTPS 加密传输。</p>
+<ul>
+<li><b>原始数据</b>（作品、过程记录、自评、日志、教师评分）：在研究结束后保留 <b>5 年</b>，以便同行复核；期满后删除或彻底去标识化。</li>
+<li><b>账号信息</b>：在研究结束时删除；昵称在研究数据中以随机编号替代。</li>
+<li><b>已退出或要求删除的数据</b>：按第 11 节处理，自收到请求起 30 日内删除。</li>
+<li><b>已发表的统计结果与经同意公开的数据集</b>：无法撤回，其中不含可识别孩子身份的信息。</li>
+</ul>
+
+<h2 id="zh-9"><span class="n">9</span>安全措施</h2>
+<ul>
+<li>暗号以 PBKDF2-HMAC-SHA256 加盐哈希存储，不保存原文，忘记暗号只能重设、无法找回。</li>
+<li>应用与服务器之间全程 HTTPS；服务器仅开放必要端口。</li>
+<li>研究员接口与教师接口各自需要独立令牌；教师需邀请码注册；服务器不提供任何可列出全部数据的公开接口。</li>
+<li>作品与过程记录按会话分目录存放，访问受账号归属校验限制：一个账号只能读写属于自己的会话。</li>
+<li>如发生可能危害个人权益的个人信息泄露，我们将按法律要求通知监管机构，并通过学校通知监护人。</li>
+</ul>
+
+<h2 id="zh-10"><span class="n">10</span>对未成年人的专门规则</h2>
+<p>本应用的使用者是 6 至 14 岁儿童。依据《个人信息保护法》第三十一条，我们制定本节作为处理未满十四周岁未成年人个人信息的专门规则：</p>
+<ul>
+<li>参加研究前，由学校与研究团队向监护人说明并取得<b>书面同意</b>；未取得同意的孩子不会被纳入研究，也不会在应用内创建账号。</li>
+<li>在孩子第一次使用前，用孩子能听懂的话向孩子本人说明一遍：会记录什么、谁会看到、可以不做、可以随时停下。</li>
+<li>应用<b>不要求</b>孩子填写任何真实身份信息；昵称栏的提示语明确建议使用代号。</li>
+<li>收集的信息限于研究与应用运行所必需的最小范围；不对孩子做画像、不做个性化广告推送。</li>
+<li>作品是否出现在「大家的画廊」由<b>孩子本人</b>逐幅决定；作品是否进入公开数据集由<b>监护人</b>单独决定。两者缺一不可。</li>
+<li>孩子在应用内可以自己删除自己的作品，无需经过研究团队。</li>
+</ul>
+
+<h2 id="zh-11"><span class="n">11</span>您和孩子的权利</h2>
+<p>孩子及其监护人享有下列权利。行使权利免费，不需要说明理由，也不会影响孩子在学校的学习与评价。</p>
+<table>
+<tbody>
+<tr><th scope="row">随时退出</th><td>告知带班教师或发邮件给研究组即可。退出后我们停止收集，并按您的选择保留或删除已收集的数据。</td></tr>
+<tr><th scope="row">删除单幅作品</th><td>孩子自己在应用里就能做：画廊 → 点开那幅画 → 「删掉这张」→ 确认一次。服务器上的那一份同时删除，包括笔触记录、过程截图与教师评分，不可恢复。</td></tr>
+<tr><th scope="row">删除全部数据</th><td>发邮件告知昵称或研究代号，我们在 30 日内删除该孩子的全部数据，并回复一份删除回执。</td></tr>
+<tr><th scope="row">查阅与复制</th><td>可要求提供该孩子全部数据的副本，含作品、记录与教师评分，以常用的机器可读格式提供。</td></tr>
+<tr><th scope="row">更正</th><td>发现昵称、年龄等信息有误，可要求更正。</td></tr>
+<tr><th scope="row">撤回同意</th><td>包括单独撤回「作品可以公开」而继续参加研究。</td></tr>
+<tr><th scope="row">限制与反对处理</th><td>可要求我们暂停对特定数据的处理（UK GDPR 第十八条、第二十一条；科学研究目的下的例外依法适用）。</td></tr>
+</tbody>
+</table>
+<p>我们会在收到请求后 30 日内答复。为避免误删他人数据，我们可能需要通过学校核实请求人与孩子的关系。</p>
+
+<h2 id="zh-12"><span class="n">12</span>投诉与监管</h2>
+<p>如果您认为我们处理个人信息的方式不当，请先联系研究组邮箱，我们会在 30 日内答复。您也可以直接向下列机构投诉：</p>
+<ul>
+<li>本研究的伦理审查委员会：<span class="todo">[伦理委员会名称与投诉邮箱：待填（两校各一）]</span></li>
+<li>英国信息专员办公室（Information Commissioner's Office, ICO）：<a href="https://ico.org.uk/make-a-complaint/" target="_blank" rel="noopener">ico.org.uk/make-a-complaint</a></li>
+<li>中国内地：可向履行个人信息保护职责的部门投诉、举报，或依法向人民法院提起诉讼。</li>
+</ul>
+
+<h2 id="zh-13"><span class="n">13</span>本政策的变更</h2>
+<p>本政策可能随研究进展更新。我们会更新顶部的版本号与日期；涉及处理目的、范围或跨境传输的重大变更，会通过学校另行通知监护人，并在必要时重新取得同意。</p>
+
+<h2 id="zh-14"><span class="n">14</span>联系我们</h2>
+<p>华东师范大学 × 伦敦国王学院 AI 美术教育研究组<br>
+邮箱：<a href="mailto:mingrui.ye@kcl.ac.uk">mingrui.ye@kcl.ac.uk</a></p>
+
+</section>
+
+<!-- ======================= English ======================= -->
+<section id="en" lang="en" hidden>
+
+<p>KidsArtQuest (彩绘冒险) is a children's drawing app used in an art-education research project. Children complete drawing tasks, receive feedback that carries no score, and go back to revise. The research team uses what happens in between to study how children draw and revise.</p>
+<p>This policy explains what personal information we process, why, who can see it, how long we keep it, and how children and their guardians can exercise their rights. Guardians should read it in full before consenting; we also explain it to each child in words they can understand.</p>
+
+<div class="glance">
+<h2>At a glance</h2>
+<table>
+<tr><th>Who processes</th><td>East China Normal University × King's College London — AI Art Education Research Group (joint controllers)</td></tr>
+<tr><th>Who uses it</th><td>Children aged 6–14, after written guardian consent</td></tr>
+<tr><th>What we process</th><td>A self-chosen nickname and 4-digit PIN, the drawings and the drawing process, short pre- and post-drawing self-reports, in-app activity logs, participating art teachers' ratings and comments, basic device information</td></tr>
+<tr><th>What we never process</th><td>Real names, school or class, precise location, contacts, photo library, biometric data, data from any other app</td></tr>
+<tr><th>Why</th><td>Art-education research, improving the app's tasks and feedback, training and evaluating models that assess children's drawings</td></tr>
+<tr><th>Commercial use</th><td>No advertising, no third-party analytics, no sale or exchange of personal information</td></tr>
+<tr><th>Transfers abroad</th><td>Only to generate AI feedback: the drawing and task text and related content go to an AI service in the United States — never the nickname, account or device information</td></tr>
+<tr><th>Where it is stored</th><td>Servers in mainland China (Tencent Cloud, Shanghai region), encrypted in transit</td></tr>
+<tr><th>How long</th><td>Raw data kept for 5 years after the study ends, then deleted or fully de-identified</td></tr>
+<tr><th>Opting out</th><td>At any time, without giving a reason, with no effect on anything at school; a child can delete any single drawing, and a guardian can request deletion of everything</td></tr>
+</table>
+</div>
+
+<nav class="toc" aria-label="Contents">
+<ol>
+<li><a href="#en-1">Scope</a></li>
+<li><a href="#en-2">Who we are</a></li>
+<li><a href="#en-3">What we process</a></li>
+<li><a href="#en-4">What we do not process</a></li>
+<li><a href="#en-5">Purposes and legal bases</a></li>
+<li><a href="#en-6">AI feedback and transfers abroad</a></li>
+<li><a href="#en-7">Sharing and publication</a></li>
+<li><a href="#en-8">Storage and retention</a></li>
+<li><a href="#en-9">Security</a></li>
+<li><a href="#en-10">Specific rules for children</a></li>
+<li><a href="#en-11">Your rights</a></li>
+<li><a href="#en-12">Complaints</a></li>
+<li><a href="#en-13">Changes to this policy</a></li>
+<li><a href="#en-14">Contact</a></li>
+</ol>
+</nav>
+
+<h2 id="en-1"><span class="n">1</span>Scope</h2>
+<p>This policy covers the KidsArtQuest web app (art.ddhulu.cn) and the iPadOS app, and the processing by the research team and participating art teachers of the data those apps produce.</p>
+<p>It does not cover registers, consent forms or classroom records that a school collects and keeps itself, nor any other software a child or teacher uses outside this app.</p>
+
+<h2 id="en-2"><span class="n">2</span>Who we are</h2>
+<p>The study is run jointly by the <b>AI Art Education Research Group</b> at <b>East China Normal University</b> and <b>King's College London</b>. The two institutions jointly determine the purposes and means of processing described here and are therefore <b>joint controllers</b>.</p>
+<p>Research group contact: <a href="mailto:mingrui.ye@kcl.ac.uk">mingrui.ye@kcl.ac.uk</a> — for access, deletion, withdrawal of consent, and any question about data.</p>
+<p>Ethics approval: East China Normal University <span class="todo">[approval number: to be filled]</span>; King's College London <span class="todo">[ethics reference: to be filled]</span>.</p>
+
+<h2 id="en-3"><span class="n">3</span>What we process</h2>
+<table>
+<caption>How each item arises is noted in brackets.</caption>
+<thead><tr><th scope="col">Category</th><th scope="col">Details</th><th scope="col">Purpose</th></tr></thead>
+<tbody>
+<tr><th scope="row">Account</th>
+    <td>A nickname the child chooses (a code name is fine; we ask schools not to let children enter real names), a 4-digit PIN, optional age, and account creation and sign-in times. The PIN is stored salted and hashed with PBKDF2-HMAC-SHA256 and cannot be recovered by us. (Entered by the child.)</td>
+    <td>So a child can find their drawings again, and so one child's sessions can be analysed together</td></tr>
+<tr><th scope="row">Drawings</th>
+    <td>The finished image before and after revision (PNG). (Produced by the app.)</td>
+    <td>Research analysis, teacher grading, feedback generation, model training and evaluation</td></tr>
+<tr><th scope="row">Drawing process</th>
+    <td>Every stroke's path, colour, brush and timestamp; a snapshot of the canvas every minute; undo and redo events. (Recorded automatically.)</td>
+    <td>Studying the order, pauses and revisions in children's drawing</td></tr>
+<tr><th scope="row">Self-reports</th>
+    <td>The mood chosen before drawing and one line on what the child wanted to draw; three short questions afterwards (difficulty, self-assessment, enjoyment) and "what was hardest". (Entered by the child; all skippable.)</td>
+    <td>Comparing intention with outcome; comparing self-assessment with others' assessment</td></tr>
+<tr><th scope="row">Activity log</th>
+    <td>In-app taps and time on each screen, which tools were used, whether reference images or hints were opened, interface language, simple/full mode, and timestamps. (Recorded automatically.)</td>
+    <td>Studying tool use and how feedback is read; fault diagnosis</td></tr>
+<tr><th scope="row">Teacher ratings</th>
+    <td>Participating art teachers' ratings on nine dimensions, written comments, and the time of rating. (Entered by teachers.)</td>
+    <td>Expert benchmark for the study; training and evaluating automatic assessment</td></tr>
+<tr><th scope="row">Device information</th>
+    <td>Screen size and pixel ratio, browser or OS version, interface language, time zone, app version. (Request headers and browser APIs.)</td>
+    <td>Checking the canvas renders correctly; separating device effects from drawing behaviour</td></tr>
+</tbody>
+</table>
+<p class="note">We use no advertising or cross-site tracking cookies. The app uses local storage only to keep a child signed in and to remember the chosen language.</p>
+
+<h2 id="en-4"><span class="n">4</span>What we do not process</h2>
+<p>We do <b>not</b> collect, request or infer: real names, national ID or student numbers, school or class, home address, phone numbers, guardian contact details (consent forms stay with the school and never enter the app), precise location, contacts, photo library or camera content, faces or other biometric data, health data, advertising identifiers, or usage data from other apps.</p>
+<p>A child can save a drawing to their own device's photo library; that happens locally on the device and we never read the library.</p>
+
+<h2 id="en-5"><span class="n">5</span>Purposes and legal bases</h2>
+<h3>Purposes</h3>
+<ol>
+<li>To study how children draw, how they understand feedback, and what changes in the picture afterwards.</li>
+<li>To improve the app's tasks, the wording of its feedback, and its interface.</li>
+<li>To train and evaluate models that assess children's drawings. Every drawing used for this is checked by a person first; any drawing containing identifying information (for example a child who wrote their own name on it) is excluded.</li>
+<li>To publish findings in papers, conference reports and teaching material. What is published is statistics and de-identified examples, never a child's identity.</li>
+</ol>
+<h3>Legal bases</h3>
+<ul>
+<li><b>Mainland China</b>: consent under Article 13(1)(1) of the Personal Information Protection Law (PIPL), together with the consent of a parent or other guardian for children under 14 under Article 31.</li>
+<li><b>United Kingdom</b>: UK GDPR Article 6(1)(e) — a task carried out in the public interest, namely academic research by higher-education institutions. Where special category data is involved, Article 9(2)(j) (scientific research) with Schedule 1 Part 1 of the Data Protection Act 2018.</li>
+</ul>
+<p>Withdrawing consent does not affect the lawfulness of processing carried out before the withdrawal; after it, we stop processing and delete data as described in section 11.</p>
+
+<h2 id="en-6"><span class="n">6</span>AI feedback and transfers abroad</h2>
+<p>After a child finishes a drawing, the app generates feedback that carries no score; the in-canvas companion uses the same service. For this, the following is sent to <b>Anthropic PBC (United States)</b> via the Claude API:</p>
+<ul>
+<li>the drawing (and both images when before and after are compared);</li>
+<li>the task title and task text;</li>
+<li>the mood the child chose and the one line they wrote about what they wanted to draw;</li>
+<li>the child's three short self-report answers;</li>
+<li>when choosing the child's next task, a digest of their earlier sessions (task ids, duration, whether revised, self-reports and dimension notes).</li>
+</ul>
+<p><b>Never sent</b>: nickname, account id, PIN, age, device information, or teachers' written comments.</p>
+<p>Under the provider's commercial terms this content is processed only to generate that response and is not used to train models; it is transmitted over HTTPS. <span class="todo">[Transfer mechanism and the conclusion of the related assessment: to be filled (export route on the mainland China side; IDTA or equivalent on the UK side).]</span></p>
+<p>If researchers have not configured that AI service on the server, the app falls back to locally written templates and the drawing and the content above <b>never leave our server</b>. The app's "Me" screen shows which of the two is in use. Children's drawings are sent to <b>no other</b> third-party service.</p>
+
+<h2 id="en-7"><span class="n">7</span>Sharing and publication</h2>
+<table>
+<thead><tr><th scope="col">Who</th><th scope="col">What they see</th><th scope="col">Condition</th></tr></thead>
+<tbody>
+<tr><th scope="row">Research team</th><td>Everything in section 3</td><td>Only for the purposes in section 5; access requires individual tokens</td></tr>
+<tr><th scope="row">Participating art teachers</th><td>Drawings, process snapshots and nicknames</td><td>For grading only; no PINs, device data or other account information; teachers are bound by a confidentiality undertaking</td></tr>
+<tr><th scope="row">Other children</th><td>A single drawing put on the wall, with its nickname</td><td>Only if the child chose to share <b>that drawing</b> in the app; they can withdraw at any time and it leaves the gallery immediately</td></tr>
+<tr><th scope="row">AI service provider</th><td>The content in section 6</td><td>To generate feedback only; not used for training</td></tr>
+<tr><th scope="row">Public research dataset</th><td>De-identified drawings and process records</td><td>Only where a guardian <b>separately ticked</b> "artwork may be published" on the consent form. Consenting to the study is not consenting to publication</td></tr>
+</tbody>
+</table>
+<p>Apart from the above, and requests made by authorities through lawful process, we disclose personal information to no one, and never sell, exchange or advertise with it. Our hosting provider (Tencent Cloud) acts as an entrusted processor supplying compute and storage only and may not use the data for its own purposes.</p>
+
+<h2 id="en-8"><span class="n">8</span>Storage and retention</h2>
+<p>Data is held on servers in mainland China (Tencent Cloud, Shanghai region). Traffic between the app and the server is encrypted with HTTPS throughout.</p>
+<ul>
+<li><b>Raw data</b> (drawings, process records, self-reports, logs, teacher ratings): kept for <b>5 years</b> after the study ends so that findings can be checked, then deleted or fully de-identified.</li>
+<li><b>Account data</b>: deleted when the study ends; nicknames are replaced by random identifiers in the research data.</li>
+<li><b>Withdrawn or deletion-requested data</b>: handled under section 11 and deleted within 30 days of the request.</li>
+<li><b>Published statistics and consented public datasets</b>: cannot be recalled, and contain nothing that identifies a child.</li>
+</ul>
+
+<h2 id="en-9"><span class="n">9</span>Security</h2>
+<ul>
+<li>PINs are stored salted and hashed (PBKDF2-HMAC-SHA256); the original is never stored, so a forgotten PIN can be reset but not retrieved.</li>
+<li>HTTPS between app and server; only the necessary ports are open.</li>
+<li>Researcher and teacher endpoints each require their own token, and teachers register with an invitation code. No public endpoint can list all data.</li>
+<li>Drawings and process records are stored per session and access is checked against account ownership: an account can read and write only its own sessions.</li>
+<li>If a breach occurs that could harm someone's rights, we will notify the regulator as required by law and notify guardians through the school.</li>
+</ul>
+
+<h2 id="en-10"><span class="n">10</span>Specific rules for children</h2>
+<p>Our users are children aged 6–14. As required by PIPL Article 31 for children under 14, these are our specific rules:</p>
+<ul>
+<li>Before taking part, the school and research team explain the study to the guardian and obtain <b>written consent</b>. A child without consent is not enrolled and no account is created.</li>
+<li>Before a child's first use, we explain to the child, in words they can follow: what is recorded, who sees it, that they may decline, and that they may stop at any time.</li>
+<li>The app <b>never asks</b> for real identity information; the nickname field tells children a code name is fine.</li>
+<li>We collect only what the research and the app need; we build no profiles for advertising and send no personalised ads.</li>
+<li>Whether a drawing appears in the shared gallery is decided by <b>the child</b>, drawing by drawing. Whether it enters a public dataset is decided <b>separately by a guardian</b>. Both are required.</li>
+<li>A child can delete their own drawings inside the app without going through the research team.</li>
+</ul>
+
+<h2 id="en-11"><span class="n">11</span>Your rights</h2>
+<p>Children and their guardians have the rights below. Exercising them is free, needs no reason, and affects nothing about the child's schooling or assessment.</p>
+<table>
+<tbody>
+<tr><th scope="row">Withdraw</th><td>Tell the class teacher or email the research group. We stop collecting, and keep or delete what was already collected as you prefer.</td></tr>
+<tr><th scope="row">Delete one drawing</th><td>The child can do this in the app: gallery → open the drawing → "delete this one" → confirm once. The server copy goes with it, including stroke logs, snapshots and teacher ratings, and cannot be recovered.</td></tr>
+<tr><th scope="row">Delete everything</th><td>Email us the nickname or study code and we delete all of that child's data within 30 days and send a confirmation of deletion.</td></tr>
+<tr><th scope="row">Access and copy</th><td>Ask us for a copy of all of a child's data — drawings, records and teacher ratings — in a common machine-readable format.</td></tr>
+<tr><th scope="row">Correction</th><td>Ask us to correct a nickname, age or other detail that is wrong.</td></tr>
+<tr><th scope="row">Withdraw a consent</th><td>Including withdrawing only "artwork may be published" while staying in the study.</td></tr>
+<tr><th scope="row">Restrict or object</th><td>Ask us to pause processing of particular data (UK GDPR Articles 18 and 21; research exemptions apply where the law provides them).</td></tr>
+</tbody>
+</table>
+<p>We answer requests within 30 days. To avoid deleting the wrong child's data, we may need the school to confirm your relationship to the child.</p>
+
+<h2 id="en-12"><span class="n">12</span>Complaints</h2>
+<p>If you believe we are handling personal information improperly, please contact the research group first; we reply within 30 days. You may also complain directly to:</p>
+<ul>
+<li>The study's research ethics committee: <span class="todo">[committee name and complaints address: to be filled, one per institution]</span></li>
+<li>The UK Information Commissioner's Office: <a href="https://ico.org.uk/make-a-complaint/" target="_blank" rel="noopener">ico.org.uk/make-a-complaint</a></li>
+<li>In mainland China: the departments responsible for personal information protection, or the People's Court.</li>
+</ul>
+
+<h2 id="en-13"><span class="n">13</span>Changes to this policy</h2>
+<p>This policy may be updated as the research proceeds. We update the version and date at the top; for material changes to purposes, scope or transfers abroad we notify guardians through the school and seek consent again where needed.</p>
+
+<h2 id="en-14"><span class="n">14</span>Contact</h2>
+<p>AI Art Education Research Group<br>
+East China Normal University × King's College London<br>
+Email: <a href="mailto:mingrui.ye@kcl.ac.uk">mingrui.ye@kcl.ac.uk</a></p>
+
+</section>
 </main>
+
+<footer>
+  <p>彩绘冒险 KidsArtQuest · 隐私政策 Privacy Policy · 版本 1.0 / Version 1.0 · 2026-10-03</p>
+</footer>
+
+<script>
+(function () {
+  var sections = { zh: document.getElementById('zh'), en: document.getElementById('en') };
+  var buttons = Array.prototype.slice.call(document.querySelectorAll('.langbar button'));
+  function show(lang) {
+    if (!sections[lang]) lang = 'zh';
+    sections.zh.hidden = lang !== 'zh';
+    sections.en.hidden = lang !== 'en';
+    document.documentElement.lang = lang === 'en' ? 'en' : 'zh-CN';
+    buttons.forEach(function (b) { b.setAttribute('aria-current', String(b.dataset.lang === lang)); });
+    try { localStorage.setItem('privacy_lang', lang); } catch (e) {}
+  }
+  var want = new URLSearchParams(location.search).get('lang');
+  if (!want) { try { want = localStorage.getItem('privacy_lang'); } catch (e) {} }
+  if (!want) want = (navigator.language || '').toLowerCase().indexOf('zh') === 0 ? 'zh' : 'en';
+  show(want === 'en' ? 'en' : 'zh');
+  buttons.forEach(function (b) { b.addEventListener('click', function () { show(b.dataset.lang); }); });
+  // an in-page anchor in the hidden half should switch language first
+  window.addEventListener('hashchange', function () {
+    var id = location.hash.slice(1);
+    if (id.indexOf('en-') === 0) show('en');
+    else if (id.indexOf('zh-') === 0) show('zh');
+  });
+})();
+</script>
 </body>
 </html>
