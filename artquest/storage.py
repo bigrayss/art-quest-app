@@ -289,6 +289,19 @@ class SessionStore:
                 out[stream] = {"sha256": hashlib.sha256(data).hexdigest()[:32], "bytes": len(data)}
         return out
 
+    def delete(self, sid: str) -> bool:
+        """把一条 session 从盘上整个删掉。
+
+        这个项目别处的规矩是**只标记不删**（QC 失败是标记，撤销的笔仍留在日志里）。
+        真删只有两处：`tools/withdraw.py` 的撤回，和孩子在画廊里删自己的那一张。
+        两处都是「同意被收回」，所以数据必须真的消失，而不是被标成可忽略。
+        """
+        d = self.root / sid
+        if not d.is_dir():
+            return False
+        shutil.rmtree(d)
+        return True
+
     def load(self, sid: str) -> Dict[str, Any]:
         meta = read_json(self._meta_path(sid))
         if meta is None:

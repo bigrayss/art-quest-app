@@ -4,6 +4,7 @@
 共用一台 iPad 的两个孩子会不会看见对方的画、认领会不会把别人的画顺走、
 换台设备登录之后伙伴还认不认得你。
 """
+import json
 import base64
 import io
 import unittest
@@ -299,3 +300,69 @@ class StoreRules(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DeletingMyOwnDrawing(unittest.TestCase):
+    """画廊里删掉自己的一张：**真删**，而且只能删自己的。
+
+    这是全项目第二处真删（第一处是 tools/withdraw.py 的撤回）。护栏：一次一张、
+    只能删归自己的、不是自己的和不存在的回同一个 404、留一张不含内容的回执。
+    """
+
+    def setUp(self):
+        self.c = TestClient(app)
+
+    def test_the_owner_can_really_delete_and_a_stranger_cannot_even_tell_it_exists(self):
+        r = self.c.post("/api/accounts/register", json={"name": "删删", "pin": "1357", "anon_id": "dev-del"}).json()
+        tok, acc = r["token"], r["account"]["account_id"]
+        sid = _draw(self.c, anon_id="dev-del", account_id=acc, token=tok)
+        d = store.root / sid
+        self.assertTrue(d.is_dir())
+
+        # 陌生人：既不是归属人也没有令牌 —— 404，不是 403（403 等于告诉他这张画在）
+        self.assertEqual(self.c.delete(f"/api/sessions/{sid}?anon_id=dev-other").status_code, 404)
+        self.assertTrue(d.is_dir(), "陌生人删不掉")
+        # 冒认别人的账号：带错令牌是 403（和 /sessions 的 _check_owner 一致）
+        other = self.c.post("/api/accounts/register", json={"name": "路人", "pin": "2468", "anon_id": "dev-x"}).json()
+        self.assertEqual(self.c.delete(f"/api/sessions/{sid}?account_id={acc}",
+                                       headers=_bearer(other["token"])).status_code, 403)
+        self.assertTrue(d.is_dir())
+
+        # 本人：真的从盘上消失
+        r = self.c.delete(f"/api/sessions/{sid}?anon_id=dev-del&account_id={acc}", headers=_bearer(tok))
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertFalse(d.exists(), "目录要真的删掉，不是标记")
+        self.assertEqual(self.c.get(f"/api/sessions/{sid}").status_code, 404)
+        # 画廊里也没有了
+        rows = self.c.get(f"/api/sessions?anon_id=dev-del&account_id={acc}", headers=_bearer(tok)).json()
+        self.assertNotIn(sid, [x["session_id"] for x in rows])
+        # 删第二次：同样 404
+        self.assertEqual(self.c.delete(f"/api/sessions/{sid}?anon_id=dev-del&account_id={acc}",
+                                       headers=_bearer(tok)).status_code, 404)
+
+    def test_the_receipt_says_what_went_and_carries_no_content(self):
+        r = self.c.post("/api/accounts/register", json={"name": "回执", "pin": "1111", "anon_id": "dev-rec"}).json()
+        tok, acc = r["token"], r["account"]["account_id"]
+        sid = _draw(self.c, anon_id="dev-rec", account_id=acc, token=tok)
+        self.c.delete(f"/api/sessions/{sid}?anon_id=dev-rec&account_id={acc}", headers=_bearer(tok))
+
+        self.assertEqual(self.c.get("/api/deletions").status_code, 401, "回执只给研究员")
+        rec = next(x for x in self.c.get("/api/deletions", headers=ADMIN).json()["deletions"]
+                   if x["session_id"] == sid)
+        self.assertEqual(rec["by"], "owner")
+        self.assertEqual(rec["account_id"], acc)
+        self.assertEqual(rec["task_id"], "emotion_alone")   # protocol 上空了哪一格，研究员要看得见
+        self.assertTrue(rec["deleted_at"])
+        # 内容一个字都不留
+        blob = json.dumps(rec, ensure_ascii=False)
+        for forbidden in ("png", "data:", "intent", "开心", "笔画", "comment"):
+            self.assertNotIn(forbidden, blob, forbidden)
+
+    def test_a_researcher_can_delete_on_someones_behalf(self):
+        sid = _draw(self.c, anon_id="dev-admin-del")
+        r = self.c.delete(f"/api/sessions/{sid}", headers=ADMIN)
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertFalse((store.root / sid).exists())
+        rec = next(x for x in self.c.get("/api/deletions", headers=ADMIN).json()["deletions"]
+                   if x["session_id"] == sid)
+        self.assertEqual(rec["by"], "admin")

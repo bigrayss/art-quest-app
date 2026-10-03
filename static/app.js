@@ -3723,7 +3723,31 @@
     if (state.study) raw.innerHTML = `${qid} · ${sid} · <a href="${API}/sessions/${sid}" target="_blank">json</a>`;
     $("#btn-work-again").classList.toggle("hidden", !q);
     $("#btn-work-again").onclick = () => { workModal.classList.add("hidden"); if (q) chooseQuest(q); };
+    // 删掉这张：服务器上也一起删，删了找不回来。只能删自己的（后端照 belongs_to 再查一遍）。
+    // 第二步问在卡片里换一组按钮，不弹系统框——系统框会顶着域名出现，像浏览器在警告，
+    // 而且「删掉」在里面和「取消」一样大。这里「不删了」才是那颗主钮。
+    $("#work-err").classList.add("hidden");
+    askDelete(false);
+    $("#btn-work-delete").onclick = () => askDelete(true);
+    $("#btn-work-delete-no").onclick = () => askDelete(false);
+    $("#btn-work-delete-yes").onclick = async () => {
+      const yes = $("#btn-work-delete-yes"); yes.disabled = true;
+      try {
+        await api(`${API}/sessions/${encodeURIComponent(sid)}?${whoQuery()}`, { method: "DELETE" });
+        workModal.classList.add("hidden");
+        await loadCollection();
+        renderQuests();
+      } catch (e) {
+        $("#work-err").textContent = errText(e); $("#work-err").classList.remove("hidden");
+        askDelete(false);
+      } finally { yes.disabled = false; }
+    };
     workModal.classList.remove("hidden");
+  }
+  /** 问 / 不问删除那一步：两组按钮同时只有一组在。 */
+  function askDelete(on) {
+    $("#work-actions").classList.toggle("hidden", on);
+    $("#work-confirm").classList.toggle("hidden", !on);
   }
   $("#btn-work-close").onclick = () => workModal.classList.add("hidden");
   workModal.onclick = (e) => { if (e.target === workModal) workModal.classList.add("hidden"); };

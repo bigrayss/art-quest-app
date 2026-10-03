@@ -555,9 +555,19 @@
     <p class="muted small" id="work-sub"></p>
     <img id="work-img" class="featured-shot" alt="这张画">
     <p class="muted small hidden" id="work-raw"></p>
-    <div class="actions column">
+    <p class="acct-err hidden" id="work-err"></p>
+    <div class="actions column" id="work-actions">
       <button class="primary" id="btn-work-again">再画一次</button>
       <button class="ghost" id="btn-work-close">关掉</button>
+      <button class="linkbtn work-del" id="btn-work-delete">删掉这张</button>
+    </div>
+    <!-- 删除是孩子能做的唯一不可逆操作：第二步问在卡片里，不弹系统框 -->
+    <div class="work-confirm hidden" id="work-confirm">
+      <p>真的删掉这张画？服务器上的也一起删，找不回来。</p>
+      <div class="actions column">
+        <button class="ghost danger" id="btn-work-delete-yes">删掉</button>
+        <button class="primary" id="btn-work-delete-no">不删了</button>
+      </div>
     </div>
   </div>
 </div>

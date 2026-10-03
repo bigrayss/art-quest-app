@@ -40,7 +40,8 @@ from .schemas import (
                       Stroke, Submit, TokenOnly)
 from .scoring import DIMENSIONS, SCALE_MAX, get_scorer
 from .scoring.levels import rubric_payload
-from .storage import SCHEMA_VERSION, SessionStore, decode_data_url, now_iso, sid_of
+from .storage import (SCHEMA_VERSION, SessionStore, belongs_to as storage_belongs_to,
+                      decode_data_url, now_iso, sid_of)
 
 log = logging.getLogger("artquest")
 
@@ -693,6 +694,69 @@ def list_sessions(request: Request, participant_id: str = "", anon_id: str = "",
         _require_admin(request)
     _check_owner(request, account_id)
     return store.list(participant_id=participant_id, anon_id=anon_id, **_scope(account_id))
+
+
+# 删掉自己的一张画。**真删**，不是标记——隐私政策里写的「删除」就是这个意思。
+#
+# `tools/withdraw.py` 里写过一条相反的设计决定：撤回故意只做成 CLI，因为「一台能通过
+# 网络删孩子作品的研究服务器比不能删的更糟」。那条针对的是**整个被试的批量撤回**，
+# 一次管理动作。孩子在画廊里删掉自己刚画的一张是另一回事：范围是一件、主体是本人、
+# 是产品本来就该有的东西。护栏按那条顾虑来设：
+#
+#   · 一次一张，没有批量接口
+#   · 只能删**归自己**的（`storage.belongs_to` 那一份实现，说自己是某账号就得拿它的令牌）
+#   · 不是自己的和不存在的回同一个 404 —— 403 等于告诉陌生人「这张画在」
+#   · 留一张**不含任何内容**的回执：谁、什么时候、删了哪一条、里面有多少笔。
+#     没有图、没有心愿、没有评语。研究员据此知道 protocol 上空了一格。
+DELETIONS_DIR = SESSIONS_DIR.parent / "deletions"
+
+
+def _owner_windows(account_id: str) -> Dict[str, str]:
+    acc = accounts.load(account_id) if account_id else None
+    return accounts.device_windows(acc) if acc else {}
+
+
+@api.delete("/sessions/{sid}")
+def delete_session(sid: str, request: Request, participant_id: str = "",
+                   anon_id: str = "", account_id: str = ""):
+    _check_owner(request, account_id)
+    try:
+        meta = store.load(sid)
+    except KeyError:
+        raise HTTPException(404, "没有这张画")
+    mine = storage_belongs_to(meta, participant_id=participant_id, anon_id=anon_id,
+                              account_id=account_id, windows=_owner_windows(account_id))
+    if not (mine or _is_admin(request)):
+        raise HTTPException(404, "没有这张画")
+    rec = {
+        "session_id": sid, "deleted_at": now_iso(), "by": "admin" if not mine else "owner",
+        "account_id": (meta.get("participant") or {}).get("account_id", "") if isinstance(meta.get("participant"), dict) else "",
+        "anon_id": (meta.get("participant") or {}).get("anon_id", "") if isinstance(meta.get("participant"), dict) else "",
+        "participant_id": (meta.get("participant") or {}).get("participant_id", "") if isinstance(meta.get("participant"), dict) else "",
+        "task_id": (meta.get("task") or {}).get("task_id") or meta.get("quest_id", ""),
+        "created_at": meta.get("created_at", ""), "status": meta.get("status", ""),
+        "n_strokes": len(store.strokes(sid) or []) if meta.get("status") else 0,
+        "n_snapshots": len(meta.get("snapshots") or []),
+    }
+    store.delete(sid)
+    DELETIONS_DIR.mkdir(parents=True, exist_ok=True)
+    (DELETIONS_DIR / f"{rec['deleted_at'][:19].replace(':', '-')}-{sid}.json").write_text(
+        json.dumps(rec, ensure_ascii=False, indent=2), encoding="utf-8")
+    return {"ok": True, "session_id": sid}
+
+
+@api.get("/deletions")
+def list_deletions(request: Request):
+    """研究员看哪些作品被本人删掉了。回执里没有内容，只有「哪一条、什么时候、多少笔」。"""
+    _require_admin(request)
+    out = []
+    if DELETIONS_DIR.exists():
+        for f in sorted(DELETIONS_DIR.glob("*.json")):
+            try:
+                out.append(json.loads(f.read_text(encoding="utf-8")))
+            except (OSError, ValueError):
+                continue
+    return {"deletions": out}
 
 
 @api.get("/sessions/{sid}")

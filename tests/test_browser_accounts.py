@@ -202,5 +202,44 @@ class AccountsInARealBrowser(unittest.TestCase):
                 browser.close()
 
 
+    def test_deleting_my_own_drawing_takes_two_taps_and_really_removes_it(self):
+        """画廊里删掉自己的一张：第二步问在卡片里（不弹系统框），点了才真删。"""
+        from artquest.main import store
+        r = self._post("/api/accounts/register", {"name": "删画", "pin": "1357", "anon_id": "dev-del"})
+        acc = r["account"]["account_id"]
+        keep = self._finished_drawing(anon_id="dev-del", account_id=acc)
+        gone = self._finished_drawing(anon_id="dev-del", account_id=acc)
+
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(channel="chrome")
+            try:
+                page = self._open(browser, anon_id="dev-del")
+                page.evaluate("""([t, a]) => { localStorage.setItem('artquest.token', t);
+                    localStorage.setItem('artquest.account', a); }""", [r["token"], json.dumps(r["account"])])
+                page.reload(); page.wait_for_selector("#view-quest:not(.hidden)")
+                self._gallery(page)
+                page.wait_for_selector(f'.dex-open[data-sid="{gone}"]')
+                self.assertEqual(page.locator(".dex-card").count(), 2)
+
+                page.click(f'.dex-open[data-sid="{gone}"]')
+                page.wait_for_selector("#work-modal:not(.hidden)")
+                page.click("#btn-work-delete")
+                page.wait_for_selector("#work-confirm:not(.hidden)")
+                # 「不删了」退回去，一张都不少
+                page.click("#btn-work-delete-no")
+                page.wait_for_selector("#work-actions:not(.hidden)")
+                self.assertTrue((store.root / gone).is_dir(), "点了「不删了」还是删了")
+
+                page.click("#btn-work-delete")
+                page.wait_for_selector("#work-confirm:not(.hidden)")
+                page.click("#btn-work-delete-yes")
+                page.wait_for_selector("#work-modal", state="hidden")
+                page.wait_for_function("() => document.querySelectorAll('.dex-card').length === 1")
+            finally:
+                browser.close()
+
+        self.assertFalse((store.root / gone).exists(), "服务器上要真的删掉")
+        self.assertTrue((store.root / keep).is_dir(), "只删点中的那一张")
+
 if __name__ == "__main__":
     unittest.main()

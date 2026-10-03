@@ -1168,6 +1168,12 @@ body.teacher-entrance #btn-welcome-login { order:-1; }      /* 登录是主钮�
 .entrance-link { text-decoration:none; margin-top:10px; display:inline-flex; align-items:center; justify-content:center; }
 .entrance-link.privacy-link { font-size:0.75rem; color:var(--muted); margin-top:4px; }
 .acct-privacy { margin:6px 0 0; }
+/* 删掉这张：放在「关掉」下面，比两颗主钮轻 —— 它是不可逆的，不该抢着被点 */
+.work-del { background:none; border:none; box-shadow:none; color:var(--muted); font-weight:700;
+  font-size:0.875rem; min-height:0; padding:6px; }
+.work-del:hover { color:var(--red-d); background:none; transform:none; }
+.work-confirm p { margin:0 0 12px; font-weight:700; line-height:1.5; }
+.work-confirm .danger { color:var(--red-d); }
 .acct-privacy a { color:var(--muted); }
 .langbtn { position:absolute; top:calc(14px + env(safe-area-inset-top)); right:18px; z-index:2;
   background:var(--card); border:2px solid var(--line); box-shadow:none; color:var(--muted-2);
