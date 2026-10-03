@@ -206,7 +206,7 @@
   };
 
   // ===== 创作伙伴「彩点」：一坨会变色的颜料精灵 =====
-  function spriteInner(color, expr) {
+  function spriteInner(color, expr, tail) {
     const dark = "#3a2f2a";
     const mouth = expr === "happy" ? `<path d="M84,120 Q100,138 116,120" fill="none" stroke="${dark}" stroke-width="4" stroke-linecap="round"/>`
       : expr === "wow" ? `<ellipse cx="100" cy="126" rx="8" ry="11" fill="${dark}"/>`
@@ -219,7 +219,7 @@
     return `<ellipse class="cd-shadow" cx="100" cy="184" rx="44" ry="8" fill="rgba(0,0,0,.07)"/>`
       + `<g class="cd-body">`
       + `<path d="${blob}" fill="${color}" stroke="rgba(0,0,0,.12)" stroke-width="2"/>`
-      + `<path d="M150,150 q14,10 8,26 q-12,4 -14,-10" fill="${color}"/>`
+      + `<path d="M150,150 q14,10 8,26 q-12,4 -14,-10" fill="${tail || color}"/>`
       + `<g class="cd-eyes">`
       + `<ellipse cx="84" cy="92" rx="15" ry="17" fill="#fff"/><ellipse cx="116" cy="92" rx="15" ry="17" fill="#fff"/>`
       + `<circle cx="86" cy="95" r="${p}" fill="${dark}"/><circle cx="114" cy="95" r="${p}" fill="${dark}"/>`
@@ -515,6 +515,7 @@
     catch (e) { alert(errText(e)); return; }
     const mine = d.my_rating || {};
     grade = { sid, dims: { ...(mine.dims || {}) }, notes: { ...(mine.image_notes || {}) },
+              marks: JSON.parse(JSON.stringify(mine.image_marks || {})),
               na: new Set(d.not_applicable || []), startedAt: Date.now(), scaleMax: d.scale_max || 5,
               dimsMeta: d.dimensions || [] };
     $("#g-student").textContent = d.student || "";
@@ -530,17 +531,19 @@
     const imgs = d.images || [];
     const fin = imgs.find(i => i.kind === "final") || imgs[imgs.length - 1];
     $("#g-final-img").src = fin ? fileUrl(fin.url) : "";
-    $("#g-final").onclick = () => fin && openPic(fileUrl(fin.url));
+    $("#g-final").onclick = () => fin && openPic(fileUrl(fin.url), fin.key);
+    $("#g-final-marks").dataset.markCount = fin ? fin.key : "";
     // 过程图：快照 + 改之前那张；最终图不在这条带上
     const proc = imgs.filter(i => i.kind !== "final");
     const strip = $("#g-strip");
     strip.dataset.empty = "这张没有过程图。";
     strip.innerHTML = proc.map((im, i) => `<div class="gshot">
-      <button type="button" data-url="${fileUrl(im.url)}"><img src="${fileUrl(im.url)}" alt="" loading="lazy"></button>
-      <div class="gtag"><span>${im.kind === "before" ? "改之前" : `第 ${i + 1} 张`}</span><span>${im.elapsed_ms != null ? fmtClock(im.elapsed_ms) : ""}</span></div>
+      <button type="button" data-url="${fileUrl(im.url)}" data-key="${escapeHtml(im.key)}"><img src="${fileUrl(im.url)}" alt="" loading="lazy"></button>
+      <div class="gtag"><span>${im.kind === "before" ? "改之前" : `第 ${i + 1} 张`}${im.elapsed_ms != null ? ` · 画了 ${sinceStart(im.elapsed_ms)}` : ""}</span><span class="gmark hidden" data-mark-count="${escapeHtml(im.key)}"></span></div>
       <input type="text" data-key="${escapeHtml(im.key)}" placeholder="一句短评" value="${escapeHtml(grade.notes[im.key] || "")}">
     </div>`).join("");
-    strip.querySelectorAll("button").forEach(b => b.onclick = () => openPic(b.dataset.url));
+    strip.querySelectorAll("button").forEach(b => b.onclick = () => openPic(b.dataset.url, b.dataset.key));
+    paintMarkCounts();
     strip.querySelectorAll("input").forEach(inp => inp.oninput = () => { grade.notes[inp.dataset.key] = inp.value; });
     // 九维。量表（KidsArtBench 五档原文）从 /teacher/rubric 来：分数钮的 title 是那一档的话，
     // 点维度名把五档摊开在这一行底下——老师不用离开打分屏就能对着量表打。
@@ -570,14 +573,19 @@
     $("#g-err").classList.add("hidden");
     show("grade");
   }
-  const fmtClock = (ms) => { const s = Math.round(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+  // 这张过程图拍在开画之后多久。别用 mm:ss：隔夜没关的 session 会写成「963:45」，没人读得出来
+  const sinceStart = (ms) => ms == null ? ""
+    : ms >= 3600000 ? `${Math.round(ms / 3600000)} 小时`
+    : ms >= 60000 ? `${Math.round(ms / 60000)} 分钟`
+    : `${Math.round(ms / 1000)} 秒`;
   async function saveGrade() {
     if (!grade) return;
     const dims = {}; Object.keys(grade.dims).forEach(k => { if (!grade.na.has(k)) dims[k] = grade.dims[k]; });
     const notes = {}; Object.keys(grade.notes).forEach(k => { if ((grade.notes[k] || "").trim()) notes[k] = grade.notes[k].trim(); });
     const comment = $("#g-comment").value.trim();
     const err = $("#g-err");
-    if (!Object.keys(dims).length && !comment && !Object.keys(notes).length) {
+    const nMarks = Object.keys(grade.marks || {}).length;
+    if (!Object.keys(dims).length && !comment && !Object.keys(notes).length && !nMarks) {
       err.textContent = "还什么都没写。"; err.classList.remove("hidden"); return;
     }
     // 有过程图就至少写一条（写在哪张都行）
@@ -588,7 +596,8 @@
     const btn = $("#btn-grade-save"); btn.disabled = true; err.classList.add("hidden");
     try {
       await api(`${API}/teacher/sessions/${encodeURIComponent(grade.sid)}/grade`, { method: "POST",
-        body: JSON.stringify({ dims, comment, image_notes: notes, t_ms: Date.now() - grade.startedAt }) });
+        body: JSON.stringify({ dims, comment, image_notes: notes, image_marks: grade.marks || {},
+                              t_ms: Date.now() - grade.startedAt }) });
       grade = null;
       await openTab("grade");
     } catch (e) {
@@ -599,9 +608,144 @@
   $("#btn-grade-back").onclick = () => { grade = null; openTab("grade"); };
   // 看大图
   const picModal = $("#pic-modal");
-  function openPic(url) { $("#pic-img").src = url; picModal.classList.remove("hidden"); }
-  $("#btn-pic-close").onclick = () => picModal.classList.add("hidden");
-  picModal.onclick = (e) => { if (e.target === picModal) picModal.classList.add("hidden"); };
+  // ---- 隐私政策：在应用里盖一层，不另开一个网页 ----
+  // 链接的 href 留着 /privacy（没有 JS、长按分享、搜索引擎都还走得通），
+  // 这里只是把点击接住。里面装的就是那一页本身，内容不抄第二遍。
+  const privacySheet = $("#privacy-sheet");
+  function openPrivacy() {
+    const f = $("#privacy-frame");
+    // 每次都重设 src：跟着应用当前的语言，顺便回到页首
+    f.src = `/privacy?lang=${LANG === "en" ? "en" : "zh"}`;
+    privacySheet.classList.remove("hidden");
+  }
+  function closePrivacy() { privacySheet.classList.add("hidden"); $("#privacy-frame").src = "about:blank"; }
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest("[data-privacy]");
+    if (!a) return;
+    e.preventDefault();
+    openPrivacy();
+  });
+  $("#btn-privacy-close").onclick = closePrivacy;
+
+  // ---- 大图 + 老师在图上的标记 ----
+  // 标记只住在老师这条 rating 里（image_marks），孩子的画面文件一个像素都不动，
+  // 孩子那一侧也看不到。坐标按图归一化成 0–1：换屏幕、换缩放都落在同一处，
+  // 也能和笔触坐标直接对上。传 key 才开标注；量表示例图没有 key，就是纯看图。
+  let picKey = null, markTool = "arrow", markDrawing = null;
+  const MARK_SVG = "http://www.w3.org/2000/svg";
+
+  function openPic(url, key) {
+    picKey = key || null;
+    $("#pic-img").src = url;
+    $("#picbar").classList.toggle("hidden", !picKey);
+    picModal.classList.toggle("marking", !!picKey);
+    picModal.classList.remove("hidden");
+    const img = $("#pic-img");
+    if (img.complete) renderMarks(); else img.onload = renderMarks;
+  }
+  function closePic() { picModal.classList.add("hidden"); picKey = null; markDrawing = null; }
+  $("#btn-pic-close").onclick = closePic;
+  picModal.onclick = (e) => { if (e.target === picModal) closePic(); };
+
+  const marksOf = (key) => (grade && grade.marks && grade.marks[key]) || [];
+  function setMarks(key, list) {
+    if (!grade) return;
+    grade.marks = grade.marks || {};
+    if (list.length) grade.marks[key] = list; else delete grade.marks[key];
+  }
+  // 归一化 ←→ 屏幕像素：SVG 和图一样大，所以直接乘图的实际显示尺寸
+  function picBox() { const r = $("#pic-img").getBoundingClientRect(); return { w: r.width, h: r.height, left: r.left, top: r.top }; }
+  function toNorm(e) {
+    const b = picBox();
+    return [Math.min(1, Math.max(0, (e.clientX - b.left) / (b.w || 1))),
+            Math.min(1, Math.max(0, (e.clientY - b.top) / (b.h || 1)))];
+  }
+  function markPath(m, b) {
+    const P = m.p.map(([x, y]) => [x * b.w, y * b.h]);
+    if (m.t === "circle") {
+      const [a, c] = [P[0], P[P.length - 1]];
+      const el = document.createElementNS(MARK_SVG, "ellipse");
+      el.setAttribute("cx", (a[0] + c[0]) / 2); el.setAttribute("cy", (a[1] + c[1]) / 2);
+      el.setAttribute("rx", Math.abs(c[0] - a[0]) / 2); el.setAttribute("ry", Math.abs(c[1] - a[1]) / 2);
+      el.setAttribute("fill", "none");
+      return [el];
+    }
+    if (m.t === "arrow") {
+      const [a, c] = [P[0], P[P.length - 1]];
+      const line = document.createElementNS(MARK_SVG, "line");
+      line.setAttribute("x1", a[0]); line.setAttribute("y1", a[1]);
+      line.setAttribute("x2", c[0]); line.setAttribute("y2", c[1]);
+      // 箭头自己画：marker 在不同引擎里继承描边的方式不一样，两条线最稳
+      const ang = Math.atan2(c[1] - a[1], c[0] - a[0]);
+      const len = Math.min(22, Math.max(10, Math.hypot(c[0] - a[0], c[1] - a[1]) * 0.25));
+      const head = document.createElementNS(MARK_SVG, "polyline");
+      const p1 = [c[0] - len * Math.cos(ang - 0.42), c[1] - len * Math.sin(ang - 0.42)];
+      const p2 = [c[0] - len * Math.cos(ang + 0.42), c[1] - len * Math.sin(ang + 0.42)];
+      head.setAttribute("points", `${p1[0]},${p1[1]} ${c[0]},${c[1]} ${p2[0]},${p2[1]}`);
+      head.setAttribute("fill", "none");
+      return [line, head];
+    }
+    const pl = document.createElementNS(MARK_SVG, "polyline");
+    pl.setAttribute("points", P.map(q => `${q[0]},${q[1]}`).join(" "));
+    pl.setAttribute("fill", "none");
+    return [pl];
+  }
+  function renderMarks() {
+    const svg = $("#pic-marks"); if (!svg) return;
+    const b = picBox();
+    svg.setAttribute("width", b.w); svg.setAttribute("height", b.h);
+    svg.innerHTML = "";
+    if (!picKey) return;
+    const all = marksOf(picKey).concat(markDrawing ? [markDrawing] : []);
+    all.forEach(m => markPath(m, b).forEach(el => {
+      // 每一笔画两遍：底下一道白的描边，画面再花也看得见
+      const halo = el.cloneNode(true);
+      halo.setAttribute("class", "mk-halo"); svg.appendChild(halo);
+      el.setAttribute("class", "mk"); svg.appendChild(el);
+    }));
+  }
+  window.addEventListener("resize", () => { if (!picModal.classList.contains("hidden")) renderMarks(); });
+
+  $("#pic-stage").addEventListener("pointerdown", (e) => {
+    if (!picKey || e.button) return;
+    e.preventDefault();
+    $("#pic-stage").setPointerCapture(e.pointerId);
+    markDrawing = { t: markTool, p: [toNorm(e)] };
+    renderMarks();
+  });
+  $("#pic-stage").addEventListener("pointermove", (e) => {
+    if (!markDrawing) return;
+    const q = toNorm(e);
+    if (markDrawing.t === "free") markDrawing.p.push(q);
+    else markDrawing.p[1] = q;
+    renderMarks();
+  });
+  const endMark = () => {
+    if (!markDrawing) return;
+    const m = markDrawing; markDrawing = null;
+    // 手抖点一下不算一笔
+    const far = m.p.length > 1 && Math.hypot(m.p[m.p.length - 1][0] - m.p[0][0], m.p[m.p.length - 1][1] - m.p[0][1]) > 0.015;
+    if (far) setMarks(picKey, marksOf(picKey).concat([m]));
+    renderMarks(); paintMarkCounts();
+  };
+  $("#pic-stage").addEventListener("pointerup", endMark);
+  $("#pic-stage").addEventListener("pointercancel", endMark);
+
+  $("#picbar").querySelectorAll("button[data-mark]").forEach(b => b.onclick = () => {
+    markTool = b.dataset.mark;
+    $("#picbar").querySelectorAll("button[data-mark]").forEach(x => x.classList.toggle("on", x === b));
+  });
+  $("#btn-mark-undo").onclick = () => { setMarks(picKey, marksOf(picKey).slice(0, -1)); renderMarks(); paintMarkCounts(); };
+  $("#btn-mark-clear").onclick = () => { setMarks(picKey, []); renderMarks(); paintMarkCounts(); };
+
+  // 打分屏上的小角标：哪张图标过、标了几处——老师合上大图之后还认得出来
+  function paintMarkCounts() {
+    document.querySelectorAll("#view-grade [data-mark-count]").forEach(el => {
+      const n = marksOf(el.dataset.markCount).length;
+      el.textContent = n ? `标了 ${n} 处` : "";
+      el.classList.toggle("hidden", !n);
+    });
+  }
 
   // ---- 评分参考 ----
   // KidsArtBench（EACL 2026）的九维五档量表原文 + 中译、1,046 幅作品里专家打分的分布、评语示范。
@@ -951,7 +1095,7 @@
   let welcomeOn = false;
   function paintWelcome() {
     const sp = $("#welcome-sprite");
-    if (sp && !sp.innerHTML) sp.innerHTML = spriteInner("#cfcbc4", "normal");
+    if (sp && !sp.innerHTML) sp.innerHTML = spriteInner("#d6d1c8", "normal", "#f39a35");
   }
   async function finishWelcome() {
     welcomeOn = false;
@@ -1752,11 +1896,6 @@
   function assistReset(intent) {
     const box = $("#assist"); if (!box) return;
     box.classList.toggle("hidden", !assistOn());
-    // 计时器：有窗的时候坐进窗的标题行右侧，窗的底边才能和画布底边对齐；
-    // 对照组没有窗，它就还是右栏里自己的一行。
-    const timer = $(".timer");
-    if (timer) (assistOn() ? box.querySelector(".assist-head") : $(".brief-spacer").parentNode)
-      .insertBefore(timer, assistOn() ? null : $(".brief-spacer"));
     if (!assistOn()) return;
     $("#assist-log").innerHTML = "";
     box.classList.add("veiled"); box.classList.remove("open-fb");
@@ -1994,12 +2133,10 @@
     state.dirtySinceSnapshot = false;
     try {
       await api(`${API}/sessions/${state.sessionId}/snapshot`, { method: "POST", body: JSON.stringify({ image: canvas.toDataURL("image/png"), elapsed_ms: elapsed() }) });
-      $("#snap-info").textContent = `已记录 ${new Date().toLocaleTimeString()}`;
     } catch (e) { console.warn("snapshot failed", e); }
   }
   function startTimers() {
     stopTimers();
-    state.timers.push(setInterval(() => { const s = Math.floor(elapsed() / 1000); $("#timer").textContent = `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`; }, 500));
     // 0 = 不拍：任何时刻的画面都能从 stroke/event 日志重建，定时截图只是它的副本
     if (state.cfg.snapshot_interval_sec > 0)
       state.timers.push(setInterval(snapshot, state.cfg.snapshot_interval_sec * 1000));
@@ -2223,7 +2360,7 @@
       logEvent(EV.REFERENCE_SHOW, { reference_id: ref.id, mode: ref.mode,
         placeholder: !!(q.stimulus && q.stimulus.placeholder), task_id: q.id });
     }
-    state.timeUp = false; $("#limit-info").textContent = ""; $("#limit-info").classList.remove("low");
+    state.timeUp = false;
     const allowed = q.allowed_tools;
     document.querySelectorAll("#tools button").forEach(b => {
       const ok = !allowed || allowed.indexOf(b.dataset.tool) >= 0;
@@ -2855,6 +2992,7 @@
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
     [leaveModal, clearModal, pkModal].forEach(m => m.classList.add("hidden"));
+    if (!privacySheet.classList.contains("hidden")) closePrivacy();
     if (!$("#ref-modal").classList.contains("hidden")) toggleRef(false);
     if (eyedrop) setEyedrop(false);
   });
@@ -2901,7 +3039,6 @@
     applyTask(state.quest);
     $("#draw-quest-card").innerHTML = `<div class="type">${state.quest.type}</div><h3>${state.quest.title}</h3><p>${state.quest.prompt}</p>`;
     assistReset(intent);
-    $("#snap-info").textContent = "";
     // 不承诺走不到的站：条件里没有 AI 反馈时，这颗按钮后面根本没有「支招」那一步。
     // 「画好了」什么都不许诺，两臂用同一句；有没有反馈是后面那一屏的事。
     $("#btn-submit").innerHTML = "画好了" + icon("arrowRight", 18);

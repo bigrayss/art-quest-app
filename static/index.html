@@ -69,23 +69,30 @@
      HTML 里它是唯一不带 hidden 的视图，所以 JS 还在问服务器的那一两秒，屏幕上就是它：
      彩点、名字，别的什么都没有。问完了再决定是留在这儿（第一次来）还是直接进世界（来过）。
      这一屏只做一件事：让画跟着人走。不注册也能进去——「先随便看看」。 -->
+<!-- 门口 = 一张还没开始画的暖白画纸。三层：暖白底、极淡的手绘方格、彩点身后的一团柔光。
+     层级只有一条主线：开始冒险 → 已有账号？登录 → 先看看。老师入口和隐私政策退到底下一档。 -->
 <section class="view" id="view-welcome">
   <button class="langbtn" id="btn-lang-welcome" data-no-i18n aria-label="Language"></button>
+  <div class="paper-grid" aria-hidden="true"></div>
   <div class="world welcome">
     <div class="cover">
       <div class="cover-glow"></div>
-      <svg class="sprite hero grey" id="welcome-sprite" viewBox="0 0 200 200"></svg>
+      <svg class="sprite hero" id="welcome-sprite" viewBox="0 0 200 200"></svg>
     </div>
     <h1 class="welcome-title">彩绘冒险</h1>
+    <p class="welcome-tag">画画 · 探索 · 创造</p>
     <p class="world-say hidden" id="welcome-sub">老师入口</p>
     <div class="actions column welcome-actions" id="welcome-actions">
-      <button class="primary big clay" id="btn-welcome-register">注册</button>
-      <button class="ghost" id="btn-welcome-login">登录</button>
-      <button class="skip" id="btn-welcome-skip">跳过</button>
-      <!-- 门口底下一行小字：学生的门口指向老师入口，老师的门口指回学生入口 -->
-      <a class="skip entrance-link" id="link-teacher" href="/teacher">老师入口 →</a>
-      <a class="skip entrance-link hidden" id="link-student" href="/">学生入口 →</a>
-      <a class="skip entrance-link privacy-link" href="/privacy" target="_blank" rel="noopener">隐私政策</a>
+      <button class="primary big clay" id="btn-welcome-register">开始冒险 <i data-icon="arrowRight" data-size="18"></i></button>
+      <!-- 「登录」是给已经有账号的人的，不该和主钮一样重 -->
+      <div class="welcome-have" id="welcome-have"><span>已有账号？</span><button class="linkbtn" id="btn-welcome-login">登录</button></div>
+      <button class="skip" id="btn-welcome-skip">先看看</button>
+      <!-- 底下一档：老师入口和隐私政策不参与第一眼的层级竞争 -->
+      <div class="welcome-foot">
+        <a class="skip entrance-link" id="link-teacher" href="/teacher">老师入口 →</a>
+        <a class="skip entrance-link hidden" id="link-student" href="/">学生入口 →</a>
+        <a class="skip entrance-link privacy-link" href="/privacy" data-privacy>隐私政策</a>
+      </div>
     </div>
   </div>
 </section>
@@ -209,7 +216,7 @@
         <p id="g-task-text"></p>
         <p class="muted small" id="g-intent"></p>
       </details>
-      <button class="gfinal" id="g-final" title="放大看"><img id="g-final-img" alt="最终图"></button>
+      <button class="gfinal" id="g-final" title="放大看，可以在图上标"><img id="g-final-img" alt="最终图"><span class="gmark hidden" id="g-final-marks" data-mark-count=""></span></button>
       <div class="gprocess">
         <div class="gsub">过程图 <span class="muted small">至少写一条，写在哪张都行</span></div>
         <div class="gstrip" id="g-strip"></div>
@@ -251,7 +258,7 @@
       <button class="ghost" id="btn-home">回到首页</button>
     </div>
   </div>
-  <p class="muted small acct-privacy"><a href="/privacy" target="_blank" rel="noopener">隐私政策</a></p>
+  <p class="muted small acct-privacy"><a href="/privacy" data-privacy>隐私政策</a></p>
 
   <div class="acct hidden" id="acct-in">
     <div class="acct-row">
@@ -395,7 +402,6 @@
           <span class="assist-veil-t">听听彩点怎么说</span>
         </button>
       </div>
-      <div class="timer"><i data-icon="clock" data-size="16"></i><span id="timer">00:00</span> <span class="limit" id="limit-info"></span> <span class="muted small" id="snap-info"></span></div>
       <div class="brief-spacer"></div>
       <div class="actions">
         <button id="btn-submit" class="primary big grow">画好了</button>
@@ -647,8 +653,30 @@
      和这个 app 里别的弹窗不是一家的。撤销键能找回来，所以这儿不必吓人。 -->
 <!-- 参考图的大图。整屏、深底，孩子在这儿看清楚；缩放/拖动的事件照旧记。 -->
 <!-- 老师看大图：一张图、一个关闭，不记任何事件 -->
+<!-- 隐私政策：在应用里开一层，关掉就回到原地，不另开一个网页。
+     里面装的就是 /privacy 那一页，内容只有一份。 -->
+<div class="sheet hidden" id="privacy-sheet">
+  <!-- 条上不再写一遍标题：底下那一页自己就是个大标题，重复两遍在手机上白占半屏 -->
+  <div class="sheet-bar">
+    <button type="button" class="sheet-close" id="btn-privacy-close">关闭</button>
+  </div>
+  <iframe id="privacy-frame" title="隐私政策" src="about:blank"></iframe>
+</div>
+
 <div class="modal pic-modal hidden" id="pic-modal">
-  <img id="pic-img" alt="">
+  <div class="pic-stage" id="pic-stage">
+    <img id="pic-img" alt="">
+    <!-- 标记画在图上面的一层 SVG 里，图本身一个像素都不动 -->
+    <svg class="pic-marks" id="pic-marks" aria-hidden="true"></svg>
+  </div>
+  <div class="picbar hidden" id="picbar">
+    <span class="pic-hint" id="pic-hint">圈出你在说的地方</span>
+    <button type="button" data-mark="arrow" class="on">箭头</button>
+    <button type="button" data-mark="circle">圈出来</button>
+    <button type="button" data-mark="free">随手画</button>
+    <button type="button" id="btn-mark-undo">撤销</button>
+    <button type="button" id="btn-mark-clear">清空</button>
+  </div>
   <button class="pic-close" id="btn-pic-close">关闭</button>
 </div>
 

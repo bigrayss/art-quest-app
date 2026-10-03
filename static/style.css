@@ -420,7 +420,6 @@ textarea::placeholder, input::placeholder { color:var(--muted); font-weight:600;
 .assist-head { display:flex; align-items:center; gap:7px; margin-bottom:9px;
   font-size:0.75rem; font-weight:800; color:var(--muted-2); }
 .assist-head .sprite { width:26px; height:26px; flex:0 0 auto; }
-.assist-head .timer { margin:0 0 0 auto; font-size:0.75rem; color:var(--muted-2); }
 .assist-log { display:flex; flex-direction:column; gap:7px;
   font-size:0.8125rem; line-height:1.65;
   max-height:15rem; overflow-y:auto; }        /* 说得多了自己滚，别把右栏撑长 */
@@ -533,9 +532,6 @@ input[type=range]::-webkit-slider-thumb { appearance:none; width:26px; height:26
   background:var(--accent); border:3px solid #fff; box-shadow:0 2px 0 var(--accent-d); cursor:pointer; }
 input[type=range]::-moz-range-thumb { width:22px; height:22px; border-radius:50%; background:var(--accent);
   border:3px solid #fff; cursor:pointer; }
-.timer { display:flex; align-items:center; gap:6px; font-size:0.875rem; font-weight:800; margin-bottom:10px; }
-.timer .limit { color:var(--muted-2); font-variant-numeric:tabular-nums; }
-.timer .limit.low { color:var(--red-d); }
 /* 原来画布外面裹着一层带边框和 10px 内边距的卡片，加上 section 自己的 padding，
    画布四周有三层留白。现在只留画布本身的圆角和一道极淡的描边。
    **这里绝不能出现 transform**：缩放靠的是 canvas 自己的 transform，取点走
@@ -1162,9 +1158,18 @@ body.quiet #collection-wrap { display:none; }
    booting 的时候钮先不露——先让封面静静地在那儿，服务器答了再把钮亮出来，
    而不是空地图闪一下、满地图闪一下、再跳到封面。 */
 body.welcome .appbar, body.welcome .studybar { display:none; }
+/* 门口那一屏自己就占满视口高度（见下面 #view-welcome），main 再加一圈内衬，
+   整页就正好比屏幕高 44–58px、能往下拉一点。门口把它收掉——第一屏不该能滚。 */
+body.welcome main { padding:0; }
 /* /teacher 打开的门口：没有「跳过」——老师必须登录 */
 body.teacher-entrance #btn-welcome-skip { display:none; }
-body.teacher-entrance #btn-welcome-login { order:-1; }      /* 登录是主钮，放上面 */
+body.teacher-entrance .welcome-tag { display:none; }        /* 老师门口不喊口号 */
+/* 登录是主钮，放上面。它住在 .welcome-have 那一行里，所以 order 给那一行，
+   「已有账号？」那半句在老师这边没有意义，收掉。 */
+body.teacher-entrance #welcome-have { order:-1; margin-top:0; width:min(248px,100%); }
+body.teacher-entrance #welcome-have span { display:none; }
+body.teacher-entrance #btn-welcome-login { width:100% !important; min-height:56px; border-radius:18px;
+  text-decoration:none; color:#fff; }
 .entrance-link { text-decoration:none; margin-top:10px; display:inline-flex; align-items:center; justify-content:center; }
 .entrance-link.privacy-link { font-size:0.75rem; color:var(--muted); margin-top:4px; }
 .acct-privacy { margin:6px 0 0; }
@@ -1175,10 +1180,11 @@ body.teacher-entrance #btn-welcome-login { order:-1; }      /* 登录是主钮�
 .work-confirm p { margin:0 0 12px; font-weight:700; line-height:1.5; }
 .work-confirm .danger { color:var(--red-d); }
 .acct-privacy a { color:var(--muted); }
-.langbtn { position:absolute; top:calc(14px + env(safe-area-inset-top)); right:18px; z-index:2;
-  background:var(--card); border:2px solid var(--line); box-shadow:none; color:var(--muted-2);
-  font-weight:800; font-size:0.8125rem; padding:6px 12px; min-height:0; border-radius:999px; }
-.langbtn:hover { color:var(--ink); }
+.langbtn { position:absolute; top:calc(14px + env(safe-area-inset-top)); right:18px; z-index:3;
+  background:none; border:none; box-shadow:none; color:var(--muted);
+  font-weight:700; font-size:0.8125rem; padding:6px 10px; min-height:0; border-radius:999px; }
+.langbtn::after { content:" \25BE"; opacity:.7; }        /* 中文 ▾ */
+.langbtn:hover { color:var(--muted-2); background:rgba(150,134,110,.07); }
 #view-welcome { position:relative; }
 
 /* 选择框：一行一个选项，当前那个带钩 */
@@ -1188,17 +1194,84 @@ body.teacher-entrance #btn-welcome-login { order:-1; }      /* 登录是主钮�
 .choice button .ico { opacity:0; color:var(--accent-d); }
 .choice button.on { border-color:var(--accent); background:var(--accent-l); color:var(--accent-d); }
 .choice button.on .ico { opacity:1; }
+/* ===== 门口：一张还没开始画的暖白画纸 =====
+   三层叠起来：暖白底 → 极淡的手绘方格 → 彩点身后的柔光。
+   动的东西只有三样，而且都慢到「不盯着看不会发现」：方格漂移、彩点浮动、柔光呼吸。
+   文字和按钮一律不动——它们要被读、被点，不该抢注意力。
+   系统开了「减少动态」就全部静止（本节末尾那条 @media）。 */
 #view-welcome { min-height: 100vh; min-height: 100dvh; display:flex; align-items:center; justify-content:center;
-  padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
-.world.welcome .cover { height: 40vh; height: 40dvh; }
-.welcome-title { margin: 12px 0 0; font-size: 2rem; font-weight: 800; letter-spacing: .02em; line-height: 1.2; }
-.welcome-actions { align-items: center; margin-top: 22px; transition: opacity .35s ease; }
+  padding: env(safe-area-inset-top) 20px env(safe-area-inset-bottom);
+  background: #FFFDF8; overflow: hidden; }
+
+/* 第二层：画纸的辅助线。不是科技网格——暖灰、1px、透明度 6%，
+   36px 一格，45 秒整整漂过一格再回到原位，所以看不见「开头和结尾」。 */
+.paper-grid { position: absolute; inset: -48px; pointer-events: none; z-index: 0;
+  background-image:
+    linear-gradient(to right, rgba(150,134,110,.065) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(150,134,110,.065) 1px, transparent 1px);
+  background-size: 38px 38px;
+  animation: paper-drift 45s linear infinite; }
+@keyframes paper-drift { from { transform: translate3d(0,0,0); } to { transform: translate3d(38px,38px,0); } }
+
+.world.welcome { position: relative; z-index: 1; }
+.world.welcome .cover { height: 36vh; height: 36dvh; }
+/* 第三层：柔光。不是「发光」，是颜料在纸上轻轻晕开——范围约角色的 1.7 倍，模糊很重、透明度很低 */
+.world.welcome .cover-glow { width: min(420px, 108%); opacity: 1;
+  background: radial-gradient(closest-side, rgba(243,154,53,.17), rgba(245,194,67,.10) 55%, rgba(255,253,248,0) 100%);
+  filter: blur(14px); animation: glow-breathe 26s ease-in-out infinite; }
+@keyframes glow-breathe {
+  0%, 100% { transform: translate3d(0,0,0) scale(1); opacity: 1; }
+  50%      { transform: translate3d(0,-10px,0) scale(1.06); opacity: .78; }
+}
+/* 彩点：4–6 秒一次，最多 4px。门口上不去色——去了色尾巴的橙也没了 */
+.world.welcome .sprite.hero { animation: hero-float 5.4s ease-in-out infinite;
+  filter: drop-shadow(0 14px 16px rgba(120,95,60,.18)); }
+@keyframes hero-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+
+.welcome-title { margin: 14px 0 0; font-size: 2rem; font-weight: 800; letter-spacing: .02em; line-height: 1.2;
+  color: #3F3F3F; }
+.welcome-tag { margin: 7px 0 0; font-size: 0.9375rem; font-weight: 700; letter-spacing: .06em; color: #8A857D; }
+.welcome-actions { align-items: center; margin-top: 26px; transition: opacity .35s ease; }
 /* .world .actions button 给的是 flex-basis 260px——在竖排里那是高度，不是宽度 */
 .world.welcome .actions button { flex: 0 0 auto; width: min(300px, 100%); }
+#btn-welcome-register { width: min(248px, 100%); min-height: 56px; border-radius: 18px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.welcome-have { margin-top: 14px; font-size: 0.875rem; font-weight: 700; color: var(--muted-2);
+  display: flex; align-items: baseline; justify-content: center; gap: 2px; }
+.linkbtn { background: none; border: none; box-shadow: none; padding: 4px 2px; min-height: 0;
+  font: inherit; font-weight: 800; color: var(--accent-d); text-decoration: underline;
+  text-underline-offset: 3px; width: auto !important; }
+.linkbtn:hover { background: none; color: var(--orange-d); }
 .welcome-actions .skip { background: none; border: none; box-shadow: none; color: var(--muted);
   font-size: 0.875rem; font-weight: 700; padding: 8px; min-height: 0; }
 .welcome-actions .skip:hover { color: var(--ink); background: none; }
+#btn-welcome-skip { margin-top: 2px; }
+/* 底下一档：和上面隔开，再轻一级 */
+.welcome-foot { display: flex; flex-direction: column; align-items: center;
+  margin-top: 26px; padding-top: 16px; border-top: 1px solid rgba(150,134,110,.13); width: min(248px, 100%); }
+.welcome-foot .entrance-link { margin-top: 0; font-size: 0.8125rem; color: var(--muted); }
+.welcome-foot .entrance-link.privacy-link { margin-top: 8px; font-size: 0.75rem; }
 body.booting .welcome-actions { opacity: 0; pointer-events: none; }
+
+/* 进场：收掉 booting 那一刻顺次亮起来，900 毫秒内走完。不是开场动画，是「页面活过来了」 */
+body:not(.booting) #view-welcome .cover,
+body:not(.booting) .welcome-title,
+body:not(.booting) .welcome-tag,
+body:not(.booting) .welcome-actions > * { animation: welcome-in .42s ease-out both; }
+body:not(.booting) #view-welcome .cover        { animation-delay: .04s; }
+body:not(.booting) .welcome-title              { animation-delay: .16s; }
+body:not(.booting) .welcome-tag                { animation-delay: .24s; }
+body:not(.booting) .welcome-actions > *        { animation-delay: .32s; }
+body:not(.booting) .welcome-actions > .skip    { animation-delay: .38s; }
+body:not(.booting) .welcome-actions > .welcome-foot { animation-delay: .46s; }
+@keyframes welcome-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+/* 彩点进场之后还要接着浮——两条动画叠在同一个元素上会打架，所以浮动挂在 svg、进场挂在 .cover */
+
+@media (prefers-reduced-motion: reduce) {
+  .paper-grid, .world.welcome .cover-glow, .world.welcome .sprite.hero,
+  body:not(.booting) #view-welcome .cover, body:not(.booting) .welcome-title,
+  body:not(.booting) .welcome-tag, body:not(.booting) .welcome-actions > * { animation: none; }
+}
 
 /* 黏土按钮：厚、软、按下去会陷 */
 button.clay { border: none; border-radius: 24px; padding: 15px 22px; font-size:1.0625rem;
@@ -1921,9 +1994,37 @@ body[data-room="grade"], body[data-room="rubric"] { --room:var(--blue); --room-d
 }
 
 /* 看大图 */
-.pic-modal { align-items:center; background:rgba(20,18,16,.92); padding:16px; }
+/* 隐私政策那一层：整屏盖上来，关掉就回到原地，不跳走也不另开标签页 */
+.sheet { position:fixed; inset:0; z-index:60; background:var(--paper, #fbfaf8);
+  display:flex; flex-direction:column; }
+.sheet.hidden { display:none; }
+.sheet-bar { display:flex; align-items:center; justify-content:flex-end; gap:12px;
+  padding:calc(10px + env(safe-area-inset-top)) 16px 10px; border-bottom:1px solid var(--line);
+  background:var(--card); }
+.sheet-close { font:inherit; font-size:0.875rem; font-weight:800; padding:7px 16px; border-radius:999px;
+  border:1px solid var(--line); background:var(--card); color:var(--ink); cursor:pointer; }
+.sheet iframe { flex:1 1 auto; width:100%; border:0; background:#fff; }
+
+.pic-modal { align-items:center; background:rgba(20,18,16,.92); padding:16px; flex-direction:column; gap:12px; }
 .pic-modal img { max-width:100%; max-height:82vh; max-height:82dvh; border-radius:12px; background:#fff; }
 .pic-close { position:absolute; top:calc(14px + env(safe-area-inset-top)); right:16px; }
+
+/* 老师在图上的标记：一层和图同样大的 SVG 盖在上面，图本身不动 */
+.pic-stage { position:relative; display:flex; line-height:0; max-width:100%; }
+.pic-marks { position:absolute; left:0; top:0; pointer-events:none; }
+.pic-modal.marking #pic-stage { touch-action:none; cursor:crosshair; }   /* 标注时别让浏览器去滚页面 */
+.pic-marks .mk { stroke:#e5342b; stroke-width:4; stroke-linecap:round; stroke-linejoin:round; }
+.pic-marks .mk-halo { stroke:#fff; stroke-width:9; stroke-linecap:round; stroke-linejoin:round; opacity:.92; }
+.picbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:center;
+  background:#fff; border-radius:999px; padding:7px 12px; max-width:100%; }
+.picbar .pic-hint { font-size:0.8125rem; color:var(--muted-2); font-weight:700; margin-right:2px; }
+.picbar button { font:inherit; font-size:0.875rem; font-weight:800; padding:6px 13px; border-radius:999px;
+  border:1px solid var(--line); background:#fff; color:var(--ink); cursor:pointer; }
+.picbar button.on { background:var(--ink); border-color:var(--ink); color:#fff; }
+.gmark { color:#e5342b; font-weight:800; }
+.gfinal { position:relative; }
+.gfinal .gmark { position:absolute; right:8px; bottom:8px; background:#fff; border-radius:999px;
+  padding:2px 9px; font-size:0.75rem; box-shadow:0 1px 4px rgba(0,0,0,.18); }
 
 /* 参考图里吸色：钮亮着的时候，图上不是拖，是指哪儿吸哪儿；钮里那个小方块跟着指尖显示颜色 */
 #btn-ref-drop.on { background:var(--accent-l); border-color:var(--accent); color:var(--accent-d); }

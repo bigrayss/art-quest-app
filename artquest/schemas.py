@@ -409,15 +409,27 @@ class TeacherPoolUpdate(BaseModel):
     ratings_per_work: int = Field(..., ge=1, le=20)
 
 
+MARK_KINDS = ("arrow", "circle", "free")
+MARKS_MAX_PER_IMAGE = 40
+MARK_MAX_POINTS = 200
+
+
 class TeacherGrade(BaseModel):
     """老师给一次创作打分：最终图九维 + 评语；过程图各一句短评。
 
     存成一条 Rating（source=teacher, rater_id=老师账号），所以两位老师评同一张是正常情况，
-    评分者一致性算得出来。`image_notes` 的键是图片的 key（"before" 或 "checkpoints/xxx.png"）。
+    评分者一致性算得出来。`image_notes` 和 `image_marks` 的键都是图片的 key
+    （"before" 或 "checkpoints/xxx.png"）。
+
+    `image_marks` 是老师在图上画的标记（箭头/圈/随手画的线），坐标**按图片归一化到 0–1**，
+    所以换个屏幕、换个缩放都落在同一处，也能直接和笔触坐标对上。标记只进老师的这条
+    rating，不碰孩子的画面文件，孩子那一侧永远看不到。
     """
     dims: Dict[str, int] = Field({}, description="九维打分，与模型同一量表 1–5")
     comment: str = Field("", max_length=2000, description="最终图的评语")
     image_notes: Dict[str, str] = Field({}, description="过程图的短评：{图片 key: 一句话}")
+    image_marks: Dict[str, List[Dict[str, Any]]] = Field(
+        {}, description="图上的标记：{图片 key: [{t: arrow|circle|free, p: [[x,y]…]}]}，坐标 0–1")
     t_ms: int = 0
 
     @field_validator("dims")
@@ -435,6 +447,40 @@ class TeacherGrade(BaseModel):
     @classmethod
     def _short_notes(cls, v):
         return {k: (t or "").strip()[:300] for k, t in v.items() if k and (t or "").strip()}
+
+    @field_validator("image_marks")
+    @classmethod
+    def _clean_marks(cls, v):
+        """只收认识的形状，坐标夹进 0–1 并限量——这是从浏览器直接来的，别让它无限长。
+
+        箭头和圈各吃两个点（起止 / 对角），随手画的线可以多，但封顶 MARK_MAX_POINTS；
+        超出的点按比例抽稀而不是截断，形状还在，只是糙一点。
+        """
+        out = {}
+        for key, marks in (v or {}).items():
+            if not key or not isinstance(marks, list):
+                continue
+            kept = []
+            for m in marks[:MARKS_MAX_PER_IMAGE]:
+                if not isinstance(m, dict):
+                    continue
+                kind = m.get("t")
+                if kind not in MARK_KINDS:
+                    continue
+                pts = [q for q in (m.get("p") or []) if isinstance(q, (list, tuple)) and len(q) == 2]
+                pts = [[round(min(1.0, max(0.0, float(x))), 4), round(min(1.0, max(0.0, float(y))), 4)]
+                       for x, y in pts]
+                if kind in ("arrow", "circle"):
+                    pts = pts[:2]
+                elif len(pts) > MARK_MAX_POINTS:
+                    step = len(pts) / MARK_MAX_POINTS
+                    pts = [pts[int(i * step)] for i in range(MARK_MAX_POINTS)]
+                if len(pts) < 2:
+                    continue
+                kept.append({"t": kind, "p": pts})
+            if kept:
+                out[key] = kept
+        return out
 
 
 class StudyAssign(BaseModel):

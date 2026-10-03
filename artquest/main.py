@@ -684,7 +684,8 @@ def teacher_session(sid: str, request: Request):
         "not_applicable": list(rubric.get("not_applicable_dimensions") or []),
         "scale_max": SCALE_MAX,
         "my_rating": ({"dims": last.get("dims") or {}, "comment": last.get("note") or "",
-                       "image_notes": last.get("image_notes") or {}, "at": last.get("ts")} if last else None),
+                       "image_notes": last.get("image_notes") or {},
+                       "image_marks": last.get("image_marks") or {}, "at": last.get("ts")} if last else None),
         "n_graders": len({r.get("rater_id") for r in _teacher_ratings(sid)}),
     }
 
@@ -700,7 +701,7 @@ def teacher_grade(sid: str, body: TeacherGrade, request: Request):
     bad = check_rating(body.dims, rubric)
     if bad:
         raise HTTPException(422, f"这个任务无法考察这些维度，不能打分：{bad}")
-    if not body.dims and not body.comment and not body.image_notes:
+    if not body.dims and not body.comment and not body.image_notes and not body.image_marks:
         raise HTTPException(422, "什么都没写")
     # 过程图至少写一条（有过程图才要求）：写在哪一张老师自己挑。写了才算真看过过程，研究也留一个人工的过程判断。
     process_keys = {im["key"] for im in _session_images(meta) if im["kind"] != "final"}
@@ -710,11 +711,13 @@ def teacher_grade(sid: str, body: TeacherGrade, request: Request):
         "source": "teacher", "rater_id": me["rater_id"], "rater_name": me["name"],
         "phase": "after" if meta.get("revised") else "before",
         "overall": None, "dims": body.dims, "note": body.comment, "image_notes": body.image_notes,
+        "image_marks": body.image_marks,
         "t_ms": body.t_ms, "featured": False, "rubric_version": (rubric or {}).get("version"),
     })
     store.add_server_event(sid, "RATING_ADDED", body.t_ms,
                            {"rating_id": rec["rating_id"], "source": "teacher", "rater_id": me["rater_id"],
-                            "overall": None, "n_dims": len(body.dims), "n_image_notes": len(body.image_notes)})
+                            "overall": None, "n_dims": len(body.dims), "n_image_notes": len(body.image_notes),
+                            "n_image_marks": sum(len(v) for v in body.image_marks.values())})
     return {"ok": True, "rating_id": rec["rating_id"]}
 
 

@@ -94,6 +94,51 @@ class TeacherSide(unittest.TestCase):
         self.assertEqual(detail["my_rating"]["comment"], "构图很稳。")
         self.assertEqual(detail["my_rating"]["image_notes"]["before"], "颜色还没上")
 
+    def test_marks_drawn_on_the_image_ride_along_with_the_grade(self):
+        """老师在图上画的箭头/圈进自己这条 rating，重新打开要能看见；脏数据进不来。"""
+        sid = self._finished_session("小画家M")
+        teacher = {"Authorization": f"Bearer {self._teacher('陈老师').json()['token']}"}
+        detail = self.c.get(f"/api/teacher/sessions/{sid}", headers=teacher).json()
+        shot, final = detail["images"][0]["key"], detail["images"][-1]["key"]
+
+        marks = {
+            final: [{"t": "arrow", "p": [[0.1, 0.2], [0.4, 0.5]]},
+                    {"t": "circle", "p": [[0.6, 0.6], [0.8, 0.9]]},
+                    {"t": "free", "p": [[i / 400, 0.5] for i in range(400)]}],   # 400 点，要被抽稀
+            shot: [{"t": "arrow", "p": [[-0.5, 0.2], [1.9, 0.5]]},               # 坐标越界，要被夹住
+                   {"t": "laser", "p": [[0.1, 0.1], [0.2, 0.2]]},                # 不认识的形状，丢掉
+                   {"t": "arrow", "p": [[0.3, 0.3]]}],                           # 只有一个点，丢掉
+        }
+        r = self.c.post(f"/api/teacher/sessions/{sid}/grade", headers=teacher, json={
+            "dims": {"imagination": 4}, "comment": "这里的线条很有劲。",
+            "image_notes": {shot: "开头先铺了大色块"}, "image_marks": marks})
+        self.assertEqual(r.status_code, 200, r.text)
+
+        mine = self.c.get(f"/api/teacher/sessions/{sid}", headers=teacher).json()["my_rating"]
+        got = mine["image_marks"]
+        self.assertEqual([m["t"] for m in got[final]], ["arrow", "circle", "free"])
+        self.assertEqual(got[final][0]["p"], [[0.1, 0.2], [0.4, 0.5]], "原样存下来")
+        self.assertLessEqual(len(got[final][2]["p"]), 200, "随手画的线封顶 200 点")
+        self.assertEqual(len(got[shot]), 1, "不认识的形状和不成一笔的都丢掉")
+        self.assertEqual(got[shot][0]["p"], [[0.0, 0.2], [1.0, 0.5]], "坐标夹进 0–1")
+
+        # 标记不碰孩子那一侧：session 的图片列表和 /sessions 里一个字都没多
+        imgs = self.c.get(f"/api/teacher/sessions/{sid}", headers=teacher).json()["images"]
+        self.assertFalse(any("mark" in str(i) for i in imgs), "标记不写进图片文件")
+
+    def test_only_marks_still_counts_as_having_written_something(self):
+        sid = self._finished_session("小画家N", revise=False)
+        teacher = {"Authorization": f"Bearer {self._teacher('赵老师').json()['token']}"}
+        detail = self.c.get(f"/api/teacher/sessions/{sid}", headers=teacher).json()
+        shot = detail["images"][0]["key"]
+        r = self.c.post(f"/api/teacher/sessions/{sid}/grade", headers=teacher, json={})
+        self.assertEqual(r.status_code, 422, "什么都没写照旧挡住")
+        # 只画了标记、过程图也写了一条：收
+        r = self.c.post(f"/api/teacher/sessions/{sid}/grade", headers=teacher, json={
+            "image_notes": {shot: "起手很快"},
+            "image_marks": {shot: [{"t": "circle", "p": [[0.2, 0.2], [0.5, 0.5]]}]}})
+        self.assertEqual(r.status_code, 200, r.text)
+
     def test_many_snapshots_are_sampled_down_to_three_for_the_teacher(self):
         sid = self._finished_session("小画家C", revise=False)
         for ms in (45000, 50000, 55000, 58000):      # 加到 5 张快照
