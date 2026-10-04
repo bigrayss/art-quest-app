@@ -1239,14 +1239,11 @@ body.teacher-entrance #btn-welcome-login { width:100% !important; min-height:56p
 
 .world.welcome { position: relative; z-index: 1; }
 .world.welcome .cover { height: 36vh; height: 36dvh; }
-/* 第三层：柔光。不是「发光」，是颜料在纸上轻轻晕开——范围约角色的 1.7 倍，模糊很重、透明度很低 */
-.world.welcome .cover-glow { width: min(420px, 108%); opacity: 1;
-  background: radial-gradient(closest-side, rgba(243,154,53,.17), rgba(245,194,67,.10) 55%, rgba(251,246,234,0) 100%);
-  filter: blur(14px); animation: glow-breathe 26s ease-in-out infinite; }
-@keyframes glow-breathe {
-  0%, 100% { transform: translate3d(0,0,0) scale(1); opacity: 1; }
-  50%      { transform: translate3d(0,-10px,0) scale(1.06); opacity: .78; }
-}
+/* 门口不要那团柔光。用户 2026-10-04：「首頁爲啥小精靈背景有顏色」——
+   立绘换成干净的透明 PNG 之后，背后再垫一层橙黄的晕就是**平白多出来的一块颜色**，
+   在暖纸上看着像没抠干净。彩点自己带软阴影，不需要它。
+   「彩点的世界」那一屏的光还留着：那一圈的亮度是九维进度，有意义。 */
+.world.welcome .cover-glow { display: none; }
 /* 彩点的立绘（用户给的素材，见 static/art/buddy/README.md）。
    它自己带软阴影和落地的蜡笔痕，所以不再叠 CSS 的 drop-shadow——叠上去是两层影子。 */
 .world.welcome .sprite.hero {
@@ -1318,7 +1315,7 @@ body:not(.booting) .welcome-actions > .welcome-foot { animation-delay: .46s; }
 /* 彩点进场之后还要接着浮——两条动画叠在同一个元素上会打架，所以浮动挂在 svg、进场挂在 .cover */
 
 @media (prefers-reduced-motion: reduce) {
-  .world.welcome .cover-glow, .world.welcome .sprite.hero,
+  .world.welcome .sprite.hero,
   body:not(.booting) #view-welcome .cover, body:not(.booting) .welcome-title,
   body:not(.booting) .welcome-tag, body:not(.booting) .welcome-actions > * { animation: none; }
 }
