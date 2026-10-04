@@ -324,7 +324,7 @@
     if (!el) return;
     buddyCheerStop();
     paintBuddy(el, "happy", buddyColor(), "fig");
-    const still = document.hidden || matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const still = buddyStill();
     mascotLog("happy", still ? "static" : "one_shot", reason, { view: viewOf(el) });
     if (still) { if (thenExpr) el.innerHTML = buddyInner(thenExpr, buddyColor(), "fig"); return; }
     const fig = el.querySelector(".bd-fig");
@@ -347,6 +347,24 @@
     if (on) { document.body.classList.add("painting"); return; }
     quietTimer = setTimeout(() => document.body.classList.remove("painting"), QUIET_AFTER_MS);
   }
+  // ---- 精灵动画开关（地图右卡精灵下面那一行）----
+  // 关了就是自然的静态姿势：帧图停第 0 帧、不呼吸、不戳弹、不播庆祝。任务选择和画画入口不受影响。
+  const MOTION_KEY = "artquest.mascot_motion";
+  const motionOn = () => { try { return localStorage.getItem(MOTION_KEY) !== "off"; } catch (e) { return true; } };
+  function applyMotion() {
+    document.body.classList.toggle("motion-off", !motionOn());
+    document.querySelectorAll(".motion-toggle").forEach(b => {
+      b.textContent = motionOn() ? "精灵动画：开" : "精灵动画：关";
+      b.setAttribute("aria-pressed", String(motionOn()));
+    });
+  }
+  function toggleMotion() {
+    try { localStorage.setItem(MOTION_KEY, motionOn() ? "off" : "on"); } catch (e) { /* 无所谓 */ }
+    if (!motionOn()) buddyCheerStop();
+    applyMotion();
+  }
+  applyMotion();
+  const buddyStill = () => document.hidden || !motionOn() || matchMedia("(prefers-reduced-motion: reduce)").matches;
   // 页面不可见：动画暂停，正在播的庆祝直接收掉——回来不补播
   document.addEventListener("visibilitychange", () => {
     document.body.classList.toggle("page-hidden", document.hidden);
@@ -1241,7 +1259,7 @@
   // 事件挂在 document 上，后来渲染出来的也管；动画跑完摘掉类，所以能连着戳。
   document.addEventListener("pointerdown", (e) => {
     const sp = e.target.closest && e.target.closest(".sprite");
-    if (!sp) return;
+    if (!sp || !motionOn()) return;
     sp.classList.remove("poke");
     void sp.offsetWidth;                 // 强制回流，不然连着戳第二下不会重播
     sp.classList.add("poke");
@@ -2795,6 +2813,12 @@
 
     const doneRows2 = (state.allSessions || []).filter(r => r.status === "done");
     const doneFam = new Set(doneRows2.map(r => familyOf(r.task_id)).filter(Boolean));
+    // 上面那一行：研究模式里任务是定好的，不能一边限制一边写「随便选」
+    $("#map-lead-text").textContent = seq ? "今天的任务在这儿，点「开始画」。" : "选一个主题，开始今天的创作。";
+    // 「已体验 n 个主题」= 存过作品的不同主题数：点过不算，同一主题画三次算一个。没有就不显示。
+    const cnt = $("#map-count");
+    cnt.textContent = doneFam.size ? `已体验 ${doneFam.size} 个主题` : "";
+    cnt.classList.toggle("hidden", !doneFam.size);
     // 去过的地方挂**自己画的那张画**当地标：服务端按时间倒序给，所以第一张就是最近的。
     // 这是这张地图上唯一不需要美术资源、而且只有这个 app 才有的素材——
     // 一排一模一样的图标谁都做得出来，十扇开着自己画的窗做不到。
@@ -2925,8 +2949,11 @@
       + `</div>`
       + `<div class="t-go"><button class="primary big grow" id="btn-today">`
       +   `${all ? "随便一个" : "开始画"}${icon("arrowRight", 17)}</button></div>`
-      + buddyHtml("t-sprite", all ? "happy" : "explore", null, "fig");
+      + buddyHtml("t-sprite", all ? "happy" : "explore", null, "fig")
+      + `<button class="linkbtn motion-toggle" id="btn-motion" type="button">精灵动画：开</button>`;
     box.classList.remove("hidden");
+    applyMotion();
+    $("#btn-motion").onclick = toggleMotion;
     $("#btn-today").onclick = () => {
       const q = card ? (card.task || randomForm(card.family))
         : randomForm(((state.families || [])[Math.floor(Math.random() * (state.families || []).length)] || {}).id);

@@ -184,6 +184,25 @@ h2 .muted { font-weight:700; }
   stroke-dasharray:2 15; opacity:.9; }
 /* 2026-10-04 用户：这两条跨行的斜虚线只是装饰，先藏起来；等背景和地标升级再决定要不要 */
 .map-path { display:none; }
+/* 「纸上探索」的底纹：三段很浅的铅笔弧线，只在地图面板的角落和边缘，完全静止，
+   不穿过任务名、不把十个主题串起来、不表示顺序。暖灰 #8b7968，8% 不透明——只是装饰起点，
+   选中的橙边和引导文字不跟着淡。（内联 SVG，不用大背景图） */
+.map::before { content:""; position:absolute; inset:0; z-index:0; pointer-events:none; opacity:.08;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 260 120'%3E%3Cpath d='M6 108 C 40 40, 120 10, 250 14' fill='none' stroke='%238b7968' stroke-width='3' stroke-linecap='round'/%3E%3Cpath d='M14 118 C 60 70, 130 46, 210 42' fill='none' stroke='%238b7968' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 130'%3E%3Cpath d='M8 118 C 90 124, 200 100, 294 14' fill='none' stroke='%238b7968' stroke-width='3' stroke-linecap='round'/%3E%3Cpath d='M70 124 C 150 118, 230 98, 290 50' fill='none' stroke='%238b7968' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 160'%3E%3Cpath d='M52 6 C 14 50, 14 110, 54 154' fill='none' stroke='%238b7968' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:left 14px top 10px, right 12px bottom 8px, right 6px top 44%;
+  background-size:260px 120px, 300px 130px, 60px 160px; }
+/* 两栏上方那一行：左边引导，右边探索记录 */
+.map-lead { display:flex; align-items:baseline; justify-content:space-between; gap:16px; flex-wrap:wrap;
+  margin:0 0 12px; padding:0 4px; font-weight:800; color:#5b5048; font-size:1rem; }
+.map-lead .map-count { font-size:0.8125rem; color:var(--muted-2); }
+/* 精灵动画开关：精灵下面一行小字，不是设置卡 */
+.today .motion-toggle { align-self:center; margin-top:6px; font-size:0.75rem; font-weight:700; color:var(--muted-2);
+  background:none; border:none; box-shadow:none; min-height:0; padding:4px 10px; border-radius:999px; }
+.today .motion-toggle:hover { background:var(--soft); }
+body.motion-off .sprite, body.motion-off .sprite .bd-part { animation:none !important; }
+body.motion-off .sprite .bd-part { background-position:0% 0% !important; }
+body.motion-off .sprite { cursor:default; }
 
 .map .quest-card { position:absolute; left:var(--mx,50%); top:var(--my,50%);
   transform:translate(-50%,-50%); z-index:1; width:168px; text-align:center; cursor:pointer;
@@ -255,8 +274,9 @@ h2 .muted { font-weight:700; }
   /* 2026-10-04 第二轮：卡的高度由内容决定（顶边和地图对齐，不拉满）；
      地图横着展开、矮一点——高度夹在 560–620 之间，不再跟着视口一直长 */
   /* 2026-10-04：用户要左右两边对齐——卡拉到和地图同高，内容还是贴顶、精灵接在按钮下面，余量留在卡底 */
-  #view-quest { display:grid; grid-template-columns:minmax(0, 1fr) 300px; gap:24px; align-items:stretch;
+  #view-quest { display:grid; grid-template-columns:minmax(0, 1fr) 300px; gap:0 24px; align-items:stretch;
     max-width:none; height:auto; }
+  #view-quest .map-lead { grid-column:1 / -1; }
   #view-quest .map { aspect-ratio:auto; min-height:0; max-width:none;
     /* 本机 Chrome 106 不认 dvh，整条 clamp 会作废、高度变 0——先写 vh 兜底，再写 dvh 盖上 */
     height:clamp(560px, calc(100vh - 190px), 620px); height:clamp(560px, calc(100dvh - 190px), 620px); }
@@ -293,6 +313,7 @@ h2 .muted { font-weight:700; }
   .today .t-body { flex:1 1 180px; }
   .today .t-sprite { width:96px; height:88px; margin:0; order:1; }
   .today .t-go { flex:1 1 100%; order:2; }
+  .today .motion-toggle { flex:1 1 100%; order:3; margin:0; }
 }
 
 /* ===== 流程进度条：做一幅画的六步 ===== */
