@@ -198,7 +198,7 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
             page.goto(self.base)
             # #view-quest 初始就没有 hidden 类，所以等的是关卡真的渲染出来；
             # init 收尾时还会自己 show 一次，撞上了就再点一下
-            page.wait_for_selector("#quest-grid > *")
+            page.wait_for_selector("#quest-grid .quest-card")   # 第一个子元素是那条藏起来的小路
             for _ in range(4):
                 page.click(".tab[data-tab='dex']")
                 try:
@@ -233,7 +233,7 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
               sessionStorage.setItem('artquest.entered', '1');
             """)
             page.goto(self.base)
-            page.wait_for_selector("#quest-grid > *")
+            page.wait_for_selector("#quest-grid .quest-card")   # 第一个子元素是那条藏起来的小路
             for _ in range(4):
                 page.click(".tab[data-tab='buddy']")
                 try:
@@ -283,7 +283,7 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
               sessionStorage.setItem('artquest.entered', '1');
             """)
             page.goto(self.base)
-            page.wait_for_selector("#quest-grid > *")
+            page.wait_for_selector("#quest-grid .quest-card")   # 第一个子元素是那条藏起来的小路
 
             for _ in range(4):
                 page.click(".tab[data-tab='dex']")
