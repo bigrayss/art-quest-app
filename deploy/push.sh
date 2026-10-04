@@ -24,7 +24,7 @@ echo "==> 同步代码（跳过 data/.env/.venv/.git）"
 rsync -az --delete \
   --exclude 'data/' --exclude '.env' --exclude '.venv/' --exclude '.git/' \
   --exclude '__pycache__/' --exclude '*.pyc' --exclude '.pytest_cache/' \
-  --exclude 'tools/fonts-src/' --exclude 'ios/' --exclude '.github/' --exclude 'docs/*.pdf' --exclude 'docs/*.docx' \
+  --exclude 'tools/fonts-src/' --exclude 'ios/' --exclude '.github/' --exclude 'docs/*.pdf' --exclude 'docs/*.docx' --exclude 'docs/*.zip' --exclude 'docs/*.webp' --exclude 'docs/*.png' --exclude 'docs/*.html' \
   -e "ssh" ./ "$TARGET:artquest/"
 
 echo "==> 建/更新 venv、装依赖、装服务、重启"
