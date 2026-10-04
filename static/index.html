@@ -310,7 +310,7 @@
     <div class="intent-form">
       <label>现在的心情</label>
       <div class="chips" id="emotion-chips"></div>
-      <label for="intent-text">想画什么？</label>
+      <div class="intent-ask"><label for="intent-text">想画什么？</label><span class="sprite intent-sprite" id="intent-sprite"></span></div>
       <textarea id="intent-text" rows="2" placeholder="比如：一个安静的房间"></textarea>
       <!-- 代号是**研究员的把手**，不是给孩子的东西：它只在实验模式下露出来。
            孩子自己的身份是账号（「我的」那一屏），画跟着它走。 -->
@@ -720,7 +720,7 @@
 <!-- 结算页点一枚徽章，贴着它浮出的那句说明 -->
 <div class="pop pop-badge hidden" id="pop-badge"></div>
 
-<div id="overlay" class="hidden"><div class="spinner"></div><div id="overlay-text">正在观察你的画……</div></div>
+<div id="overlay" class="hidden"><span class="sprite overlay-sprite" id="overlay-sprite"></span><div class="spinner"></div><div id="overlay-text">正在观察你的画……</div></div>
 <!-- 语言表先于运行时，运行时先于界面：i18n.js 一跑就把页上的中文换掉，后面渲染的由它盯着换 -->
 <script src="/static/lang/en.js"></script>
 <script src="/static/i18n.js"></script>

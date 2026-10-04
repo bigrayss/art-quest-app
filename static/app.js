@@ -240,21 +240,114 @@
   // 要把染色做回来，需要一份**干净的 body（无颜料）+ 颜料剪影**，不是我再抠一次。
   const BUDDY_DIR = "/static/art/buddy";
   const HERO_PARTS = ["hand", "feet", "eyes"];
-  function buddyInner(expr, color, big) {
-    const body = big ? "hero" : (expr === "happy" ? "icon-happy" : "icon");
-    return `<img class="bd-body" src="${BUDDY_DIR}/${body}.webp" alt="" draggable="false" decoding="async"`
-         + ` onerror="this.parentNode.dataset.noart=1">`
-         + (big ? HERO_PARTS.map(k =>
-              `<i class="bd-part bd-${k}" style="background-image:url(${BUDDY_DIR}/hero-${k}.webp)"></i>`).join("") : "")
-         + `<svg class="bd-svg" viewBox="0 0 200 200">${spriteInner(color, expr)}</svg>`;
+
+  // ===== 六个形象：页面决定显示哪个，用户的操作决定什么时候回应，画画时保持安静 =====
+  // normal 是主形象（门口、世界、所有小头像位），走上面那套挖空 + 帧图的路。
+  // 其余五个是用户 2026-10-04 给的素材，tools/build_buddy_roles.py 出成
+  // static/art/buddy/<角色>/：body.webp 整只静态图、icon.webp 头部特写，
+  // 会眨眼的再加一张 eyes.webp 贴片——贴在整只图**上面**而不是挖空，缩小不露缝。
+  //
+  //   explore    地图上「今天」卡旁边，只眨眼；下一关旁边那只是静态的（一屏只动一只）
+  //   reading    任务说明页，只眨眼，不挡任务文字和参考图
+  //   thinking   等 AI 回话：求助的请求**真的发出去之后**、提交后的等待层
+  //   happy      提交并保存成功后播一次（3 秒），然后停在静态图上
+  //   encourage  问卷和结算那张卡——明确设计的鼓励环节，不按分数或速度出现
+  //
+  // 教师端 / 隐私页 / 设置里不放精灵。「是哪个形象」和「动不动」分开控制：
+  // body.painting（落笔即进入，最后一笔后 2 秒退出）把所有帧图停回第 0 帧，
+  // body.page-hidden（页面不可见）暂停动画，回来不补播错过的庆祝。
+  const BUDDY_ASSET_V = "2026-10-04";          // 记进 MASCOT_STATE；换素材时改这里
+  const BUDDY_ROLES = { normal: {}, happy: {}, thinking: {}, explore: { blink: true }, reading: { blink: true }, encourage: {} };
+  const roleOf = (expr) => (BUDDY_ROLES[expr] ? expr : "normal");
+  const roleUrl = (role, file) => `${BUDDY_DIR}/${role}/${file}`;
+  const BD_IMG = `alt="" draggable="false" decoding="async" onerror="this.closest('.sprite').dataset.noart=1"`;
+  /** mode：undefined = 头部小头像；"fig" = 整只静态图（会眨眼的带贴片）；true = 门口那张大图（只有 normal 有）。 */
+  function buddyInner(expr, color, mode) {
+    const role = roleOf(expr);
+    const svg = `<svg class="bd-svg" viewBox="0 0 200 200">${spriteInner(color, role === "normal" ? "normal" : "happy")}</svg>`;
+    if (role === "normal") {
+      const hero = mode === true;
+      return `<img class="bd-body" src="${BUDDY_DIR}/${hero ? "hero" : "icon"}.webp" ${BD_IMG}>`
+           + (hero ? HERO_PARTS.map(k =>
+                `<i class="bd-part bd-${k}" style="background-image:url(${BUDDY_DIR}/hero-${k}.webp)"></i>`).join("") : "")
+           + svg;
+    }
+    if (!mode) return `<img class="bd-body" src="${roleUrl(role, "icon.webp")}" ${BD_IMG}>` + svg;
+    return `<span class="bd-fig" data-role="${role}"><img class="bd-body" src="${roleUrl(role, "body.webp")}" ${BD_IMG}>`
+         + (BUDDY_ROLES[role].blink ? `<i class="bd-part bd-eyes" style="background-image:url(${roleUrl(role, "eyes.webp")})"></i>` : "")
+         + `</span>` + svg;
   }
-  /** 把一个 .sprite 容器画成彩点。big = 用大图（门口、「彩点的世界」）。 */
-  function paintBuddy(el, expr, color, big) {
-    if (el) el.innerHTML = buddyInner(expr, color || buddyColor(), !!big);
+  /** 把一个 .sprite 容器画成彩点。mode 见 buddyInner。 */
+  function paintBuddy(el, expr, color, mode) {
+    if (!el) return;
+    buddyCheerStop(el);
+    el.innerHTML = buddyInner(expr, color || buddyColor(), mode);
   }
   /** 要拼进别人 innerHTML 的时候用这个。 */
-  const buddyHtml = (cls, expr, color) =>
-    `<span class="sprite ${cls}">${buddyInner(expr, color || buddyColor(), false)}</span>`;
+  const buddyHtml = (cls, expr, color, mode) =>
+    `<span class="sprite ${cls}">${buddyInner(expr, color || buddyColor(), mode)}</span>`;
+  /** 提前把一个形象的图拉进缓存：第一次切过去不要有空档。 */
+  function buddyPrefetch(...roles) {
+    roles.forEach(role => {
+      const files = ["icon.webp", "body.webp"];
+      if (BUDDY_ROLES[role].blink) files.push("eyes.webp");
+      if (role === "happy") files.push("cheer.webp");
+      files.forEach(f => { const im = new Image(); im.src = roleUrl(role, f); });
+    });
+  }
+
+  // ---- 形象切换记进时间线（形象、模式、原因、在哪一屏、素材版本）----
+  // 安静模式的进出不记：它是「落笔 / 最后一笔后 2 秒」的确定规则，从 stroke 流里能一字不差地算回来。
+  const mascotLog = (role, mode, reason, extra) =>
+    logEvent(EV.MASCOT_STATE, Object.assign({ role, mode, reason, view: curView(), asset_v: BUDDY_ASSET_V }, extra || {}));
+  /** 精灵在哪一屏上（它可能画在还没 show 出来的下一屏里）。 */
+  const viewOf = (el) => { const v = el && el.closest(".view"); return v ? v.id.replace(/^view-/, "") : curView(); };
+
+  // ---- 单次回应：保存成功后 happy 播一次 ----
+  // 自动保存 / 重试 / 重进页面都不触发：只有 state.cheerPending 被提交成功那一刻点亮，
+  // 下一屏的精灵才播；播完摘掉帧图，停在这一屏本来的形象上。
+  const CHEER_MS = 3000;
+  let cheer = null;   // { el, timer }
+  function buddyCheerStop(el) {
+    if (!cheer || (el && cheer.el !== el)) return;
+    clearTimeout(cheer.timer);
+    const c = cheer; cheer = null;
+    c.el.classList.remove("cheering");
+    if (c.then) c.el.innerHTML = buddyInner(c.then, buddyColor(), "fig");
+    else c.el.querySelectorAll(".bd-cheer").forEach(x => x.remove());
+  }
+  function buddyCheer(el, thenExpr, reason) {
+    if (!el) return;
+    buddyCheerStop();
+    paintBuddy(el, "happy", buddyColor(), "fig");
+    const still = document.hidden || matchMedia("(prefers-reduced-motion: reduce)").matches;
+    mascotLog("happy", still ? "static" : "one_shot", reason, { view: viewOf(el) });
+    if (still) { if (thenExpr) el.innerHTML = buddyInner(thenExpr, buddyColor(), "fig"); return; }
+    const fig = el.querySelector(".bd-fig");
+    fig.insertAdjacentHTML("beforeend", `<i class="bd-part bd-cheer" style="background-image:url(${roleUrl("happy", "cheer.webp")})"></i>`);
+    el.classList.add("cheering");
+    cheer = { el, then: thenExpr, timer: setTimeout(() => buddyCheerStop(el), CHEER_MS + 80) };
+  }
+  /** 提交成功后的下一屏调用：有庆祝欠着就播，没有就按这一屏本来的形象画。 */
+  function paintOrCheer(el, expr, reason) {
+    if (state.cheerPending) { state.cheerPending = false; buddyCheer(el, expr === "happy" ? null : expr, reason); }
+    else paintBuddy(el, expr, buddyColor(), "fig");
+  }
+
+  // ---- 安静模式：落笔即进入，最后一笔后等 2 秒再恢复眨眼（别每画一笔启停一次）----
+  // 安静 ≠ 睡着：帧图停回第 0 帧（自然睁眼），不是 paused 停在半闭眼上。
+  const QUIET_AFTER_MS = 2000;
+  let quietTimer = 0;
+  function buddyQuiet(on) {
+    clearTimeout(quietTimer);
+    if (on) { document.body.classList.add("painting"); return; }
+    quietTimer = setTimeout(() => document.body.classList.remove("painting"), QUIET_AFTER_MS);
+  }
+  // 页面不可见：动画暂停，正在播的庆祝直接收掉——回来不补播
+  document.addEventListener("visibilitychange", () => {
+    document.body.classList.toggle("page-hidden", document.hidden);
+    if (document.hidden) buddyCheerStop();
+  });
 
   // ===== 伙伴的名字 =====
   // 「彩点」只是个占位的默认名。它是孩子的伙伴，名字该由孩子起——
@@ -864,8 +957,15 @@
   const TAB_VIEW = { map: "quest", dex: "dex", buddy: "buddy", me: "sessions", grade: "teacher", rubric: "rubric" };
   const VIEW_TAB = { world: "map", quest: "map", dex: "dex", buddy: "buddy", sessions: "me", teacher: "grade", grade: "grade", rubric: "rubric" };
   const TITLES = { world: "彩点的世界", quest: "地图", dex: "画廊", buddy: "彩点", sessions: "我的", teacher: "打分", grade: "打分", rubric: "评分参考" };
+  const VIEW_ROLE = { draw: "normal", result: "happy", survey: "encourage" };
   function show(name) {
+    // 离开一屏就取消这一屏没结束的回应：精灵始终回应当前页面，不是迟到的上一条
+    // （下一屏的精灵是在 show 之前画好的，那一只的庆祝要留着）
+    if (cheer && !$(`#view-${name}`).contains(cheer.el)) buddyCheerStop();
+    if (name !== "draw") { clearTimeout(quietTimer); document.body.classList.remove("painting"); }
     VIEWS.forEach(v => $(`#view-${v}`).classList.toggle("hidden", v !== name));
+    const role = name === "final" ? (state.revised ? "encourage" : "normal") : VIEW_ROLE[name];
+    if (role) mascotLog(role, name === "draw" ? "companion_quiet" : "companion", "view", { view: name });
     native("keepAwake", { on: name === "draw" });     // 画着画的时候屏幕别自己暗下去
     const tab = VIEW_TAB[name];
     document.body.classList.toggle("inflow", !tab);
@@ -915,7 +1015,14 @@
     else if (view === "rubric") await openRubric();
   }
   document.querySelectorAll(".tab").forEach(b => { b.onclick = () => openTab(b.dataset.tab); });
-  const overlay = (text) => { $("#overlay").classList.toggle("hidden", !text); if (text) $("#overlay-text").textContent = text; };
+  // 等待层上是「想一想」的彩点：这是真的在等一个请求，不是装饰
+  const overlay = (text) => {
+    $("#overlay").classList.toggle("hidden", !text);
+    if (!text) return;
+    $("#overlay-text").textContent = text;
+    paintBuddy($("#overlay-sprite"), "thinking", buddyColor(), "fig");
+    mascotLog("thinking", "waiting", "request");
+  };
 
   // ---------- 被选为优秀作品：先问本人 ----------
   // `share_consent` 回答的是「我的画可不可以被人看见」，画之前就冻结了。
@@ -1274,7 +1381,7 @@
     PAUSE_START: "PAUSE_START", PAUSE_END: "PAUSE_END",
     TIME_LIMIT_REACHED: "TIME_LIMIT_REACHED", CANVAS_GEOMETRY: "CANVAS_GEOMETRY",
     STROKE_CANCELLED: "STROKE_CANCELLED",
-    ASSIST_OPEN: "ASSIST_OPEN",
+    ASSIST_OPEN: "ASSIST_OPEN", MASCOT_STATE: "MASCOT_STATE",
     FEEDBACK_DISMISS: "FEEDBACK_DISMISS", REVISION_START: "REVISION_START",
     TASK_SUBMIT: "TASK_SUBMIT", DOWNLOAD: "DOWNLOAD",
   };
@@ -1403,6 +1510,7 @@
             pen ? Math.round(e.tiltY || 0) : null];
   }
   function beginStroke(e) {
+    buddyQuiet(true);
     const t0 = elapsed();
     const id = "s" + String(++strokeCount).padStart(5, "0");
     curStroke = { id, t0, tool, color: TOOLS[tool].color || color, size, opacity: toolAlpha(),
@@ -1553,6 +1661,7 @@
     }
     if (panning) return panEnd();
     if (drawing) { drawing = false; ctx.globalAlpha = 1; finishStroke(); }
+    buddyQuiet(false);
   };
   canvas.addEventListener("pointerup", endStroke); canvas.addEventListener("pointercancel", endStroke); canvas.addEventListener("pointerleave", endStroke);
 
@@ -1983,6 +2092,9 @@
       return;
     }
     const wait = assistSay("……", "wait");
+    // 请求真的发出去了才换成「想一想」；回来（或挂了）就换回来。点开窗本身不换。
+    paintBuddy($("#draw-sprite"), "thinking", color);
+    mascotLog("thinking", "waiting", "assist_request", { nth: assistNth });
     try {
       const r = await api(`${API}/sessions/${state.sessionId}/assist`, {
         method: "POST",
@@ -1996,6 +2108,8 @@
       // 陪伴挂了绝不能挡住画画
       wait.remove(); assistSay("我在这儿呢，接着画。");
     }
+    paintBuddy($("#draw-sprite"), "normal", color);
+    mascotLog("normal", "companion_quiet", "assist_reply");
   };
 
   const BUDDY_LINES = ["选个颜色，我就变成它！", "我变成这个颜色了。", "画错也没关系。", "换个颜色试试？", "我在看你画。"];
@@ -2702,7 +2816,7 @@
              onerror="this.closest('.node-btn').classList.remove('has-shot');this.remove()">`
         : c.locked ? icon("lock", 30) : glyphMark;
       el.innerHTML =
-        (isNext ? buddyHtml("node-here", "normal") : "")
+        (isNext ? buddyHtml("node-here still", "explore", null, "fig") : "")
         + `<div class="node-btn${shot ? " has-shot" : ""}">${mark}`
         // 挂着自己画的画的时候不用再盖一颗星：那张画本身就是「来过」
         + (done && !shot ? `<span class="node-star">${icon("star", 14)}</span>` : "")
@@ -2779,7 +2893,7 @@
     // 这张卡上不写小字（原来有一行「从这儿开始 · 走过 n/10 关」）：精灵、家族名、按钮，够了。
     // 走过几关，地图上的圆钮亮着就是答案。
     box.innerHTML =
-      buddyHtml("t-sprite", all ? "happy" : "normal")
+      buddyHtml("t-sprite", all ? "happy" : "explore", null, "fig")
       + `<div class="t-body">`
       +   `<div class="t-title">${all ? "再挑一个" : card.title}</div>`
       + `</div>`
@@ -2968,6 +3082,8 @@
     const refImg = showRef ? `<img class="intent-ref" src="${ref.file || `/static/refs/${ref.id}.png`}" alt="参考图">` : "";
     $("#intent-quest-card").innerHTML = `<div class="type">${q.type}</div><h3 id="intent-quest-title">${q.title}</h3><p id="intent-quest-prompt">${q.prompt}</p>${refImg}`;
     paintIntentIdentity();
+    paintBuddy($("#intent-sprite"), "reading", buddyColor(), "fig");
+    buddyPrefetch("thinking", "happy", "encourage");   // 画画屏要用的，趁写心愿的时候拉
     show("intent");
   }
 
@@ -3100,6 +3216,7 @@
       const pending = await flushLog();
       const r = await api(`${API}/sessions/${state.sessionId}/submit`, { method: "POST", body: JSON.stringify({ image, elapsed_ms: elapsed(), phase: "before", pending }) });
       state.before = { image, scores: r.scores };
+      state.cheerPending = true;    // 保存成功了：下一屏的精灵播一次 happy
       if (!r.feedback) {
         // the frozen condition says this session carries no feedback, so there
         // is nothing to read and nothing to revise in response to
@@ -3111,7 +3228,7 @@
       $("#result-img").src = image; renderScores($("#scores"), r.scores, null);
       // 评分后端的那句摘要（「离线启发式评分：画面覆盖率 1%…」）是研究员看的，不是孩子看的——只在实验模式下露
       $("#score-summary").textContent = state.study ? (r.scores.summary || "") : "";
-      paintBuddy($("#fb-sprite"), "happy", buddyColor());
+      paintOrCheer($("#fb-sprite"), "happy", "save_ok");
       // remember which feedback this is, so the revision can be attributed to it
       state.feedback = { id: r.feedback.feedback_id || "", text: r.feedback.text || "", shown_ms: elapsed() };
       $("#feedback-text").textContent = r.feedback.text; show("result");
@@ -3150,6 +3267,7 @@
     try {
       const pending = await flushLog();
       const r = await api(`${API}/sessions/${state.sessionId}/submit`, { method: "POST", body: JSON.stringify({ image, elapsed_ms: elapsed(), phase: "after", pending }) });
+      state.cheerPending = true;
       endSession(r.session, state.before.image, image, r.comparison);
     } catch (e) { alert("提交失败：" + e.message); startTimers(); }
     overlay(null);
@@ -3186,7 +3304,7 @@
       };
       chips.appendChild(b);
     });
-    paintBuddy($("#survey-sprite"), "happy", buddyColor());
+    paintOrCheer($("#survey-sprite"), "encourage", "save_ok");
     $("#survey").innerHTML = SURVEY.map(item => `<div class="sq" data-key="${item.key}">
       <div class="sq-q">${item.q}</div>
       <div class="sq-scale"><span class="sq-end">${item.lo}</span>${[1, 2, 3, 4, 5].map(v => `<button data-v="${v}">${v}</button>`).join("")}<span class="sq-end">${item.hi}</span></div></div>`).join("");
@@ -3227,7 +3345,7 @@
     document.querySelector("#view-final .compare")?.classList.toggle("single", noRevision);
     const cap = $("#final-after").nextElementSibling;
     if (cap) cap.textContent = noRevision ? "你的作品" : "修改后";
-    paintBuddy($("#cmp-sprite"), session.revised ? "happy" : "normal", buddyColor());
+    paintOrCheer($("#cmp-sprite"), session.revised ? "encourage" : "normal", "save_ok");
     // In a no-feedback condition the child is shown their work and their
     // badges, but no evaluation: assessment keeps running server-side, it just
     // stops being an intervention this session.

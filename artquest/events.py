@@ -68,6 +68,11 @@ TIME_LIMIT_REACHED = "TIME_LIMIT_REACHED"
 # 流对得上，是「AI 什么时候被需要」的直接证据，比一段聊天记录好编码得多。
 # 连点命中冷却时也照记（带 cached=true），否则「想看」的次数会被吃掉。
 ASSIST_OPEN = "ASSIST_OPEN"
+# 精灵换了形象 / 模式：role（normal/happy/thinking/explore/reading/encourage）、
+# mode（companion / companion_quiet / waiting / one_shot / static）、reason（view /
+# assist_request / assist_reply / request / save_ok）、view、asset_v（素材版本）。
+# 安静模式的进出不记：那是「落笔 / 最后一笔后 2 秒」的确定规则，能从 stroke 流算回来。
+MASCOT_STATE = "MASCOT_STATE"
 
 # -- feedback / revision -----------------------------------------------------
 FEEDBACK_SHOW = "FEEDBACK_SHOW"
@@ -101,7 +106,7 @@ VOCABULARY: Set[str] = {
     REFERENCE_SHOW, REFERENCE_OPEN, REFERENCE_CLOSE, REFERENCE_ZOOM,
     REFERENCE_PAN, REFERENCE_FOCUS, CANVAS_FOCUS, REFERENCE_COLOR_PICK,
     PAUSE_START, PAUSE_END, TIME_LIMIT_REACHED,
-    ASSIST_OPEN,
+    ASSIST_OPEN, MASCOT_STATE,
     FEEDBACK_SHOW, FEEDBACK_DISMISS, REVISION_START, REVISION_SKIPPED,
     HISTORY_SHOWN, RATING_ADDED, QUESTIONNAIRE_SUBMITTED, DOWNLOAD,
     FEATURED_PROPOSED, FEATURED_ACCEPTED, FEATURED_DECLINED,

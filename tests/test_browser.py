@@ -639,6 +639,57 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
         sources = [(e.get("payload") or e.get("detail") or {}).get("source") for e in events if e.get("type") == "COLOR_CHANGE"]
         self.assertIn("eyedropper", sources, "从画里吸的颜色和从色板点的，日志里得分得开")
 
+    def test_the_mascot_is_quiet_while_drawing_and_cheers_once_after_a_save(self):
+        """精灵回应的是操作，不是时间。
+
+        落笔那一刻整站的帧图都停回第 0 帧（body.painting），最后一笔之后两秒才恢复；
+        「画好了」存成功之后的那一屏播一次 happy（3 秒），播完停在静态图上，重进那一屏不再播。
+        求助的请求在途时窗头像是 thinking，回来就换回 normal。每次切换都在时间线里。
+        """
+        if type(self) is not ZoomKeepsStrokesInCanvasSpace:
+            self.skipTest("基类跑一次就够")
+        before = self._ids()
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(channel="chrome")
+            page = browser.new_page(viewport={"width": 1194, "height": 834})
+            errors = []
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            held = []
+            page.route("**/assist", lambda route: held.append(route))   # 把请求攥在手里，等待态才看得见
+            self._start(page, "精灵")
+            _, _, stroke_from = self._canvas_tools(page)
+            painting = lambda: page.evaluate("document.body.classList.contains('painting')")
+            self.assertFalse(painting())
+            stroke_from(200, 200, 160, 40)
+            self.assertTrue(painting(), "落笔即安静")
+            page.wait_for_timeout(2300)
+            self.assertFalse(painting(), "最后一笔后两秒恢复")
+            sprite_src = lambda: page.eval_on_selector("#draw-sprite img", "e => e.getAttribute('src')")
+            if page.is_visible("#btn-assist"):
+                page.click("#btn-assist")
+                page.wait_for_timeout(300)
+                self.assertIn("/thinking/", sprite_src(), "请求在途：想一想")
+                held.pop().continue_()
+                page.wait_for_function("!document.querySelector('#assist-log .wait')")
+                self.assertNotIn("/thinking/", sprite_src(), "回话了：换回来")
+            page.wait_for_timeout(3000)     # QC 的最短时长
+            page.click("#btn-submit")
+            page.wait_for_selector("#view-result:not(.hidden)")
+            self.assertIn("cheering", page.eval_on_selector("#fb-sprite", "e => e.className"), "存成功：播一次")
+            self.assertIn("/happy/", page.eval_on_selector("#fb-sprite img", "e => e.getAttribute('src')"))
+            page.wait_for_function("!document.querySelector('#fb-sprite').classList.contains('cheering')", timeout=6000)
+            self.assertIsNone(page.query_selector("#fb-sprite .bd-cheer"), "播完帧图就摘掉，停在静态图上")
+            page.click("#btn-skip-revise")
+            page.wait_for_selector("#view-final:not(.hidden)", timeout=20000)
+            self.assertNotIn("cheering", page.eval_on_selector("#cmp-sprite", "e => e.className"), "结算页不再播")
+            browser.close()
+        self.assertEqual(errors, [], "JS errors on the page")
+        sid = (self._ids() - before).pop()
+        states = [e for e in self._get(f"/api/sessions/{sid}")["events"] if e["type"] == "MASCOT_STATE"]
+        self.assertTrue(states, "形象切换记进时间线")
+        self.assertIn(("happy", "one_shot", "save_ok"), {(e["payload"]["role"], e["payload"]["mode"], e["payload"]["reason"]) for e in states})
+        self.assertTrue(all(e["payload"].get("asset_v") for e in states), "每条都带素材版本")
+
     def test_looking_at_the_reference_is_recorded_as_behaviour(self):
         """Look → draw → check → correct only exists if the reference records it."""
         errors, before = [], self._ids()

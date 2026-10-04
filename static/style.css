@@ -267,7 +267,7 @@ h2 .muted { font-weight:700; }
 .today { display:flex; align-items:center; gap:13px; margin:0 0 18px;
   background:var(--card); border:2px solid var(--line); border-radius:var(--r-lg);
   padding:12px 14px; box-shadow:0 var(--edge) 0 var(--line); }
-.today .t-sprite { width:44px; height:44px; flex:none; overflow:visible; }
+.today .t-sprite { width:56px; height:52px; flex:none; overflow:visible; }
 .today .t-body { flex:1 1 auto; min-width:0; }
 /* 中文不做 uppercase，letter-spacing 也只会把字拆散 */
 .today .t-kicker { font-size:0.75rem; font-weight:800; color:var(--muted-2); }
@@ -277,7 +277,7 @@ h2 .muted { font-weight:700; }
 @media (max-width: 420px) {
   /* 最窄的那批手机：按钮收成一枚圆钮，字让给任务名 */
   .today { gap:10px; padding:10px 11px; }
-  .today .t-sprite { width:38px; height:38px; }
+  .today .t-sprite { width:44px; height:40px; }
   .today .t-title { font-size:1.0625rem; }
   .today .t-go button { padding:9px 12px; }
   .today .t-go button .ico { margin:0; }
@@ -749,6 +749,31 @@ figcaption { text-align:center; color:var(--muted-2); font-size:0.75rem; font-we
 }
 .sprite.lg { width:62px; height:62px; }
 .sprite.big { width:120px; height:120px; margin:0 auto; }
+
+/* ---- 其余五个形象（static/art/buddy/<角色>/，见那里的 README）----
+   整只静态图装在 .bd-fig 里：它自己是 1312:1199 的框，在 .sprite 的方框里竖向居中；
+   眨眼贴片按**这个框**的百分比定位，贴在整只图上面（不挖空），所以缩到多小都不露缝。
+   百分比由 tools/build_buddy_roles.py 打印出来，别手改。 */
+.sprite .bd-fig { position:absolute; left:0; top:50%; width:100%; aspect-ratio:1312 / 1199; transform:translateY(-50%); }
+.sprite.hero .bd-fig { top:0; height:100%; transform:none; }
+.sprite .bd-fig .bd-body { object-fit:fill; }
+.bd-fig[data-role=explore] .bd-eyes { left:35.416667%; top:39.635535%; width:27.083333%; height:18.451025%; }
+.bd-fig[data-role=reading] .bd-eyes { left:39.166667%; top:38.952164%; width:31.041667%; height:20.501139%; }
+/* 庆祝：保存成功后整只换成帧图播一遍——30 帧 6×5 格，和 bd-limb 同一张走格表，
+   3 秒后 JS 摘掉帧图停回静态图（100% 那一格就是第 0 帧，所以摘的那一下不跳） */
+.sprite.cheering .bd-fig .bd-body { visibility:hidden; }
+.bd-cheer { left:0; top:0; width:100%; height:100%; background-size:600% 500%; animation:bd-limb 3s steps(1,end) 1 forwards; }
+/* 一屏最多一只在动：.still 的那只是静态的 */
+.sprite.still .bd-part { animation:none; background-position:0% 0%; }
+/* 安静模式（落笔即进入）：帧图停回第 0 帧的自然睁眼——不是 paused 停在半闭眼上 */
+body.painting .sprite .bd-part { animation:none !important; background-position:0% 0% !important; }
+/* 页面不可见：暂停，回来接着播（正在播的庆祝由 JS 直接收掉，不补播） */
+body.page-hidden .sprite .bd-part { animation-play-state:paused; }
+/* 等待层上的「想一想」、任务说明页上的「看书」 */
+.overlay-sprite { width:132px; height:121px; }
+.intent-ask { display:flex; align-items:flex-end; justify-content:space-between; gap:10px; }
+.intent-ask label { margin-bottom:10px; }
+.intent-sprite { width:66px; height:60px; margin-bottom:4px; }
 .buddy-say { font-size:0.6875rem; line-height:1.55; color:var(--muted-2); font-weight:700; }
 .buddy-card .buddy-head { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
 .buddy-name { font-weight:800; font-size:0.9375rem; }

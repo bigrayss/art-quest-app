@@ -52,7 +52,46 @@ v2 的 README 明说「颜料点保留原来的颜色和位置，**本包不包�
 图加载不出来时 `onerror` 把容器标成 `data-noart`，CSS 换回 `spriteInner()` 的 SVG 线稿——
 和 families/badges「有图用图、没图用线稿」一个路子，**那条兜底别删**。
 
+## 六个形象（2026-10-04 起）
+
+上面说的是 `normal`。另外五个在各自的子目录里，由 **`tools/build_buddy_roles.py`** 从 `docs/`
+里用户给的素材出（换素材重跑一次，它会打印要抄进 style.css 的百分比）：
+
+| 角色 | 用在哪 | 动不动 | 素材来源 |
+| --- | --- | --- | --- |
+| `explore/` | 地图「今天」卡（`.t-sprite`）；下一关旁边那只（`.node-here`）是 `.still` 静态的 | 只眨眼 | `docs/04_explore_complete.zip`（有分层） |
+| `reading/` | 任务说明页「想画什么？」右边（`#intent-sprite`） | 只眨眼 | `docs/demo_standalone.html`（05 的分层内嵌在 HTML 里） |
+| `thinking/` | 求助请求**真的发出去之后**的窗头像；提交后的等待层 `#overlay` | 静态 | `docs/03_thinking.png` |
+| `happy/` | 提交并保存成功后的下一屏播一次（3 秒），然后停在静态图 | 单次 | `docs/02_happy_painter_transparent.webp`（烤死的动图，取 30 帧） |
+| `encourage/` | 问卷头、结算页改过之后的那张卡 | 静态 | `docs/06_橙帽眨眼抱心萌球.png` |
+
+每个目录：`body.webp` 整只 480 宽、`icon.webp` 256 头部特写（给 26–40px 的小头像位）；
+会眨眼的多一张 `eyes.webp`（9 帧）；happy 多一张 `cheer.webp`（6×5 格，走 `bd-limb` 同一张表）。
+**它们不进外壳**（sw.js / main.py 的清单只有 normal 那四张）：地图一出来拉 explore，写心愿时预取
+thinking / happy / encourage（`buddyPrefetch`），第一次切过去不留空档。
+
+### 眨眼贴片为什么不挖空
+
+normal 那套是身体挖洞 + 帧图填洞，所以帧图**不能缩**（上面第 2 个坑）。新形象反过来：
+`body.webp` 是整只完整的图，`eyes.webp` 的第 0 帧就是从**同一次缩放**出来的整图上裁的那块，
+贴上去像素一样（脚本里有 assert），闭眼帧盖上去也只换眼睛。所以缩到 26px 也不露缝。
+贴片按 `.bd-fig`（1312:1199 的框，在 `.sprite` 方框里竖向居中）的百分比定位，
+**百分比是脚本算的，别手改。**
+
+### 三种模式（`style.css` 彩点那段）
+
+- **日常陪伴**：帧图照常走。一屏最多一只在动：`.sprite.still` 的那只停在第 0 帧。
+- **安静**：`body.painting`——`beginStroke` 加、最后一笔后 2 秒摘（`buddyQuiet`），
+  所有帧图 `animation:none` + 停回第 0 帧。**不是 `paused`**：paused 会停在半闭眼上。
+- **单次回应**：`buddyCheer(el, then, reason)` 往 `.bd-fig` 里塞 `.bd-cheer` 帧图，`.cheering` 把
+  静态图藏起来，3 秒后摘掉、换回 `then` 那个形象。**只有 `state.cheerPending` 点亮才播**
+  （两处 submit 成功后），`paintOrCheer()` 消费它——自动保存、重试、重进页面都碰不到。
+  `show()` 切屏时收掉不在新屏上的庆祝；页面不可见（`body.page-hidden`）直接收掉，回来不补播。
+
+每次换形象记一条 `MASCOT_STATE`（role / mode / reason / view / asset_v），见 `artquest/events.py`。
+安静模式进出不记——从 stroke 流能一字不差算回来。
+
 ## 还缺
 
-`icon-happy.webp` 现在是 `icon.webp` 的副本：新角色本来就是笑脸，手上只有这一个表情，
-「支招页 / 问卷页 / 改过之后换开心脸」那条等于没生效。要恢复得请用户再给一张同角色的大笑版。
+`icon-happy.webp` 现在是 `icon.webp` 的副本，已经没人用它（happy 有自己的目录）；留着是怕旧缓存里的
+页面还引用。下次 bump 外壳版本时可以删。
