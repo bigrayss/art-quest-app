@@ -269,7 +269,7 @@
   function buddyInner(expr, color, mode) {
     const role = roleOf(expr);
     const svg = `<svg class="bd-svg" viewBox="0 0 200 200">${spriteInner(color, role === "normal" ? "normal" : "happy")}</svg>`;
-    if (role === "normal") {
+    if (role === "normal" && mode !== "fig") {
       const hero = mode === true;
       return `<img class="bd-body" src="${BUDDY_DIR}/${hero ? "hero" : "icon"}.webp" ${BD_IMG}>`
            + (hero ? HERO_PARTS.map(k =>
@@ -984,7 +984,8 @@
     const av = $("#btn-world");
     if (av) {
       av.classList.toggle("hidden", name !== "quest");
-      if (name === "quest") paintBuddy($("#avatar-sprite"), "normal", buddyColor());
+      // 整只，不是硬裁的头：头像那张的底边切平，放在圆里像缺了一块
+      if (name === "quest") paintBuddy($("#avatar-sprite"), "normal", buddyColor(), "fig");
     }
     // 返回键归顶栏管：哪个流程界面，用哪个已有的返回逻辑
     $("#btn-back-quest").classList.toggle("hidden", name !== "intent");
@@ -1236,10 +1237,9 @@
   let welcomeOn = false;
   // 门口的彩点和界面里别处的是同一套立绘（paintBuddy）。
   // 这里额外接一件事：戳一下它会弹一下。动画跑完摘掉类，所以能连着戳。
-  function paintWelcome() {
-    const sp = $("#welcome-sprite"); if (!sp) return;
-    if (!sp.firstChild) paintBuddy(sp, "normal", buddyColor(), true);
-    if (sp.dataset.poke) return;
+  /** 戳一下会弹一下（封面那只的 Q 弹）。动画跑完摘掉类，所以能连着戳。地图上那只也用它。 */
+  function wirePoke(sp) {
+    if (!sp || sp.dataset.poke) return;
     sp.dataset.poke = "1";
     sp.addEventListener("pointerdown", () => {
       sp.classList.remove("poke");
@@ -1249,6 +1249,11 @@
     sp.addEventListener("animationend", (e) => {
       if (e.animationName === "hero-poke") sp.classList.remove("poke");
     });
+  }
+  function paintWelcome() {
+    const sp = $("#welcome-sprite"); if (!sp) return;
+    if (!sp.firstChild) paintBuddy(sp, "normal", buddyColor(), true);
+    wirePoke(sp);
   }
   async function finishWelcome() {
     welcomeOn = false;
@@ -2924,6 +2929,7 @@
       +   `${all ? "随便一个" : "开始画"}${icon("arrowRight", 17)}</button></div>`
       + buddyHtml("t-sprite", all ? "happy" : "explore", null, "fig");
     box.classList.remove("hidden");
+    wirePoke(box.querySelector(".t-sprite"));
     $("#btn-today").onclick = () => {
       const q = card ? (card.task || randomForm(card.family))
         : randomForm(((state.families || [])[Math.floor(Math.random() * (state.families || []).length)] || {}).id);

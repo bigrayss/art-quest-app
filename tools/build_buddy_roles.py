@@ -221,8 +221,18 @@ def happy():
     print("  }")
 
 
+def normal_body():
+    """normal 的整只静态图（顶栏头像用）。normal 的头像 icon.webp 是硬裁的头部，底边切平，
+    放在圆头像里像缺了一块——顶栏改用整只。原图就是 docs/橙色贝雷帽的开心小画家.png（= v2 包的 00_original）。"""
+    print("normal (01) 整只")
+    full = Image.open(DOCS / "橙色贝雷帽的开心小画家.png").convert("RGBA")
+    assert full.size == (W, H)
+    save_webp(full.resize((BODY_W, BODY_H), Image.LANCZOS), OUT / "normal" / "body.webp")
+
+
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
+    normal_body()
     happy()
     static_role("thinking", "03", "03_thinking.png", dict(cx_frac=0.55, side_frac=0.64))
     explore()
