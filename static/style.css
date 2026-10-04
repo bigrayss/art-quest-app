@@ -196,13 +196,7 @@ h2 .muted { font-weight:700; }
 .map-lead { display:flex; align-items:baseline; justify-content:space-between; gap:16px; flex-wrap:wrap;
   margin:0 0 12px; padding:0 4px; font-weight:800; color:#5b5048; font-size:1rem; }
 .map-lead .map-count { font-size:0.8125rem; color:var(--muted-2); }
-/* 精灵动画开关：精灵下面一行小字，不是设置卡 */
-.today .motion-toggle { align-self:center; margin-top:6px; font-size:0.75rem; font-weight:700; color:var(--muted-2);
-  background:none; border:none; box-shadow:none; min-height:0; padding:4px 10px; border-radius:999px; }
-.today .motion-toggle:hover { background:var(--soft); }
-body.motion-off .sprite, body.motion-off .sprite .bd-part { animation:none !important; }
-body.motion-off .sprite .bd-part { background-position:0% 0% !important; }
-body.motion-off .sprite { cursor:default; }
+
 
 .map .quest-card { position:absolute; left:var(--mx,50%); top:var(--my,50%);
   transform:translate(-50%,-50%); z-index:1; width:168px; text-align:center; cursor:pointer;
@@ -313,7 +307,6 @@ body.motion-off .sprite { cursor:default; }
   .today .t-body { flex:1 1 180px; }
   .today .t-sprite { width:96px; height:88px; margin:0; order:1; }
   .today .t-go { flex:1 1 100%; order:2; }
-  .today .motion-toggle { flex:1 1 100%; order:3; margin:0; }
 }
 
 /* ===== 流程进度条：做一幅画的六步 ===== */

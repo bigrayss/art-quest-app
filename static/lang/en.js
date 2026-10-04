@@ -185,8 +185,6 @@ window.ARTQUEST_LANG_EN = {
   "选一个主题，开始今天的创作。": "Pick a theme and start today's drawing.",
   "今天的任务在这儿，点「开始画」。": "Today's task is here. Tap Draw.",
   "已体验 {n} 个主题": "Explored {n} themes",
-  "精灵动画：开": "Sprite motion: on",
-  "精灵动画：关": "Sprite motion: off",
   "随便一个": "Any one",
   "稍后解锁": "Unlocks later",
   "{n} 种玩法": "{n} ways to play",

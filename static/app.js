@@ -347,24 +347,8 @@
     if (on) { document.body.classList.add("painting"); return; }
     quietTimer = setTimeout(() => document.body.classList.remove("painting"), QUIET_AFTER_MS);
   }
-  // ---- 精灵动画开关（地图右卡精灵下面那一行）----
-  // 关了就是自然的静态姿势：帧图停第 0 帧、不呼吸、不戳弹、不播庆祝。任务选择和画画入口不受影响。
-  const MOTION_KEY = "artquest.mascot_motion";
-  const motionOn = () => { try { return localStorage.getItem(MOTION_KEY) !== "off"; } catch (e) { return true; } };
-  function applyMotion() {
-    document.body.classList.toggle("motion-off", !motionOn());
-    document.querySelectorAll(".motion-toggle").forEach(b => {
-      b.textContent = motionOn() ? "精灵动画：开" : "精灵动画：关";
-      b.setAttribute("aria-pressed", String(motionOn()));
-    });
-  }
-  function toggleMotion() {
-    try { localStorage.setItem(MOTION_KEY, motionOn() ? "off" : "on"); } catch (e) { /* 无所谓 */ }
-    if (!motionOn()) buddyCheerStop();
-    applyMotion();
-  }
-  applyMotion();
-  const buddyStill = () => document.hidden || !motionOn() || matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // （曾经有过一个「精灵动画：开/关」，用户 2026-10-04 说没必要，去掉了。系统的「减少动态效果」照旧管用。）
+  const buddyStill = () => document.hidden || matchMedia("(prefers-reduced-motion: reduce)").matches;
   // 页面不可见：动画暂停，正在播的庆祝直接收掉——回来不补播
   document.addEventListener("visibilitychange", () => {
     document.body.classList.toggle("page-hidden", document.hidden);
@@ -1259,7 +1243,7 @@
   // 事件挂在 document 上，后来渲染出来的也管；动画跑完摘掉类，所以能连着戳。
   document.addEventListener("pointerdown", (e) => {
     const sp = e.target.closest && e.target.closest(".sprite");
-    if (!sp || !motionOn()) return;
+    if (!sp) return;
     sp.classList.remove("poke");
     void sp.offsetWidth;                 // 强制回流，不然连着戳第二下不会重播
     sp.classList.add("poke");
@@ -2949,11 +2933,8 @@
       + `</div>`
       + `<div class="t-go"><button class="primary big grow" id="btn-today">`
       +   `${all ? "随便一个" : "开始画"}${icon("arrowRight", 17)}</button></div>`
-      + buddyHtml("t-sprite", all ? "happy" : "explore", null, "fig")
-      + `<button class="linkbtn motion-toggle" id="btn-motion" type="button">精灵动画：开</button>`;
+      + buddyHtml("t-sprite", all ? "happy" : "explore", null, "fig");
     box.classList.remove("hidden");
-    applyMotion();
-    $("#btn-motion").onclick = toggleMotion;
     $("#btn-today").onclick = () => {
       const q = card ? (card.task || randomForm(card.family))
         : randomForm(((state.families || [])[Math.floor(Math.random() * (state.families || []).length)] || {}).id);
