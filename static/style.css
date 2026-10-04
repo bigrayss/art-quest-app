@@ -667,52 +667,86 @@ figcaption { text-align:center; color:var(--muted-2); font-size:0.75rem; font-we
 .dim.na .wait { font-size:0.75rem; color:var(--muted); }
 
 /* ===== 彩点 ===== */
-/* ===== 彩点：身体一层图 + 颜料一层染色的 mask（素材见 static/art/buddy/README.md）=====
-   容器尺寸照旧由 .sprite / .lg / .big / .hero 各档决定，两层都铺满它。
+/* ===== 彩点 =====
+   用户 2026-10-04 给的 v2 绑定包（docs/彩绘精灵_眨眼与手脚微动_v2.zip）：身体一张图
+   （右手 / 双脚 / 眼睛三块留空）+ 三张帧图，CSS 用 steps 走格子。
+   **位置和大小的百分比照抄包里的 mascot.css，别改**：帧图和原图 1312×1199 的坐标是绑死的。
    图挂了（旧缓存、文件缺了）就由 onerror 把容器标成 data-noart，换回 SVG 线稿。 */
 .sprite { width:54px; height:54px; display:block; overflow:visible; position:relative; }
-.sprite .bd-body, .sprite .bd-paint, .sprite .bd-svg {
-  position:absolute; left:0; top:0; width:100%; height:100%; }
+.sprite .bd-body, .sprite .bd-svg { position:absolute; left:0; top:0; width:100%; height:100%; }
 .sprite .bd-body { object-fit:contain; }
-.sprite .bd-paint { -webkit-mask-size:contain; mask-size:contain;
-  -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat;
-  -webkit-mask-position:center; mask-position:center; pointer-events:none;
-  -webkit-mask-image:url("/static/art/buddy/icon-paint.webp");
-  mask-image:url("/static/art/buddy/icon-paint.webp"); }
-/* 大图那两处（门口、「彩点的世界」）用大图的剪影 */
-.sprite.hero .bd-paint { -webkit-mask-image:url("/static/art/buddy/hero-paint.webp");
-  mask-image:url("/static/art/buddy/hero-paint.webp"); }
+/* 大图那张用 fill 不用 contain：身体图缩成 656×599，长宽比 1.0952 和画框的 1.09424
+   差 0.08%——contain 会为这 0.08% 留一道边，活动区就跟着错开。fill 直接铺满，
+   形变 0.08% 看不出来，但对齐是**构造上保证**的。 */
+.sprite.hero .bd-body { object-fit:fill; }
 .sprite .bd-svg { display:none; }
-/* ===== 大图的分层：眨眼 + 手脚轻轻摆 =====
-   用户 2026-10-04：「整體浮動沒什麼用 幅度可以小一點 主要是眨眼和手腳輕微擺動」。
-   所以整只只剩 3px 的呼吸，动作都落在部件上。transform-origin 是从原图量出来的
-   （mkrig.py 末尾会打印），**改图就要重新量**，不然眼睛会歪着闭、手会从身上掉下来。 */
-.sprite .bd-part { position:absolute; left:0; top:0; width:100%; height:100%;
-  object-fit:contain; pointer-events:none; }
-.sprite.hero .bd-eye-l { transform-origin:48.7% 53.2%; animation:bd-blink 5.2s ease-in-out infinite; }
-.sprite.hero .bd-eye-r { transform-origin:62.0% 50.4%; animation:bd-blink 5.2s ease-in-out infinite; }
-/* 一次眨眼 130 毫秒，五秒一次。闭的那一下要快，慢了像犯困 */
-@keyframes bd-blink {
-  0%, 91%, 100% { transform:scaleY(1); }
-  93.5%         { transform:scaleY(.06); }
-  96%           { transform:scaleY(1); }
-}
-.sprite.hero .bd-arm   { transform-origin:80.5% 57.2%; animation:bd-arm 3.6s ease-in-out infinite; }
-@keyframes bd-arm { 0%,100% { transform:rotate(0deg); } 50% { transform:rotate(-5deg); } }
-/* 两只脚错开半个周期：像把重心从一只脚换到另一只，不是两只一起抖 */
-.sprite.hero .bd-foot-l { transform-origin:40.9% 77.8%; animation:bd-foot 3.1s ease-in-out infinite; }
-.sprite.hero .bd-foot-r { transform-origin:64.5% 77.4%; animation:bd-foot 3.1s ease-in-out infinite -1.55s; }
-@keyframes bd-foot { 0%,100% { transform:rotate(0deg); } 50% { transform:rotate(2.6deg); } }
-@media (prefers-reduced-motion: reduce) { .sprite .bd-part { animation:none !important; } }
-.sprite[data-noart] .bd-body, .sprite[data-noart] .bd-paint { display:none; }
+.sprite[data-noart] .bd-body, .sprite[data-noart] .bd-part { display:none; }
 .sprite[data-noart] .bd-svg { display:block; }
-/* 不认识 mask 的引擎上，那一层会变成一块纯色方块——宁可不要颜料点 */
-@supports not ((-webkit-mask-image: url("a.webp")) or (mask-image: url("a.webp"))) {
-  .sprite .bd-paint { display:none; }
-}
-/* 「还没画过」从「整只变灰」改成「颜料点不上色」：颜色是 JS 传的灰，
-   所以这里只管旧的 SVG 兜底那一层，别再把整张图去色。 */
 .sprite.grey .bd-svg { filter:grayscale(.9) opacity(.95); }
+/* 三块活动区。只有大图（.hero）有，小图标是单张静态图 */
+.sprite .bd-part { position:absolute; background-repeat:no-repeat; pointer-events:none; }
+.bd-hand { left:70.960366%; top:43.119266%; width:18.445122%; height:23.185988%;
+  background-size:600% 500%; animation:bd-limb 3s steps(1,end) infinite; }
+.bd-feet { left:35.289634%; top:67.306088%; width:39.100610%; height:20.850709%;
+  background-size:600% 500%; animation:bd-limb 3s steps(1,end) infinite; }
+.bd-eyes { left:44.054878%; top:40.783987%; width:25.076220%; height:16.346956%;
+  background-size:900% 100%; animation:bd-blink 6s steps(1,end) infinite; }
+/* 眨眼：6 秒里眨两次（1.4s 和 4.45s），一次闭合+睁开约 0.30 秒。时间表照抄 v2 */
+@keyframes bd-blink {
+  0%, 23.333333% { background-position:0% 0%; }
+  23.883333% { background-position:25% 0%; }
+  24.433333% { background-position:62.5% 0%; }
+  25.000000% { background-position:87.5% 0%; }
+  25.550000%, 26.116667% { background-position:100% 0%; }
+  26.666667% { background-position:75% 0%; }
+  27.216667% { background-position:50% 0%; }
+  27.766667% { background-position:25% 0%; }
+  28.333333%, 74.166667% { background-position:0% 0%; }
+  74.716667% { background-position:25% 0%; }
+  75.266667% { background-position:62.5% 0%; }
+  75.833333% { background-position:87.5% 0%; }
+  76.383333%, 76.950000% { background-position:100% 0%; }
+  77.500000% { background-position:75% 0%; }
+  78.050000% { background-position:50% 0%; }
+  78.600000% { background-position:25% 0%; }
+  79.166667%, 100% { background-position:0% 0%; }
+}
+@keyframes bd-limb {
+  0.0000% { background-position:0.0000% 0.0000%; }
+  3.3333% { background-position:20.0000% 0.0000%; }
+  6.6667% { background-position:40.0000% 0.0000%; }
+  10.0000% { background-position:60.0000% 0.0000%; }
+  13.3333% { background-position:80.0000% 0.0000%; }
+  16.6667% { background-position:100.0000% 0.0000%; }
+  20.0000% { background-position:0.0000% 25.0000%; }
+  23.3333% { background-position:20.0000% 25.0000%; }
+  26.6667% { background-position:40.0000% 25.0000%; }
+  30.0000% { background-position:60.0000% 25.0000%; }
+  33.3333% { background-position:80.0000% 25.0000%; }
+  36.6667% { background-position:100.0000% 25.0000%; }
+  40.0000% { background-position:0.0000% 50.0000%; }
+  43.3333% { background-position:20.0000% 50.0000%; }
+  46.6667% { background-position:40.0000% 50.0000%; }
+  50.0000% { background-position:60.0000% 50.0000%; }
+  53.3333% { background-position:80.0000% 50.0000%; }
+  56.6667% { background-position:100.0000% 50.0000%; }
+  60.0000% { background-position:0.0000% 75.0000%; }
+  63.3333% { background-position:20.0000% 75.0000%; }
+  66.6667% { background-position:40.0000% 75.0000%; }
+  70.0000% { background-position:60.0000% 75.0000%; }
+  73.3333% { background-position:80.0000% 75.0000%; }
+  76.6667% { background-position:100.0000% 75.0000%; }
+  80.0000% { background-position:0.0000% 100.0000%; }
+  83.3333% { background-position:20.0000% 100.0000%; }
+  86.6667% { background-position:40.0000% 100.0000%; }
+  90.0000% { background-position:60.0000% 100.0000%; }
+  93.3333% { background-position:80.0000% 100.0000%; }
+  96.6667% { background-position:100.0000% 100.0000%; }
+  100% { background-position:0% 0%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sprite .bd-part { animation:none !important; background-position:0% 0% !important; }
+}
 .sprite.lg { width:62px; height:62px; }
 .sprite.big { width:120px; height:120px; margin:0 auto; }
 .buddy-say { font-size:0.6875rem; line-height:1.55; color:var(--muted-2); font-weight:700; }
@@ -1172,11 +1206,15 @@ body.quiet #collection-wrap { display:none; }
 .world { max-width: 620px; margin: 0 auto; width: 100%; text-align: center; }
 
 .cover { position: relative; display: flex; align-items: center; justify-content: center;
-  height: 34vh; height: 34dvh; min-height: 180px; }
+  height: 34vh; height: min(34dvh, 88vw); min-height: 180px; }
 .cover-glow { position: absolute; width: min(400px, 74%); aspect-ratio: 1; border-radius: 50%;
   background: radial-gradient(closest-side, var(--glow, #cfcbc4), rgba(255,255,255,0) 100%);
   opacity: var(--glow-a, .1); transition: opacity 1s ease, background 1s ease; pointer-events: none; }
-.sprite.hero { position: relative; height: 100%; width: auto; max-width: 62%; aspect-ratio: 1; }
+/* ⚠️ max-width 不能把宽度夹住。身体图是 object-fit:contain（夹住就居中留边），
+   而三块活动区是按**元素**的百分比定位的——元素一旦不是 1312:1199，两者就错开，
+   屏幕上会露出一截方框。所以这里给 100%，宽度由高度和长宽比算出来；
+   真的放不下时去收 .cover 的高度（下面那条 min()），别回来夹宽度。 */
+.sprite.hero { position: relative; height: 100%; width: auto; max-width: 100%; aspect-ratio: 1312 / 1199; }
 /* 立绘自带软阴影，别再叠一层 CSS 的——叠上去是两层影子。只有退回 SVG 那层才需要 */
 .sprite.hero[data-noart] { filter: drop-shadow(0 14px 16px rgba(120,95,60,.22)); }
 .sprite.grey[data-noart] { filter: grayscale(.9) opacity(.95) drop-shadow(0 14px 16px rgba(120,95,60,.16)); }
@@ -1259,7 +1297,7 @@ body.teacher-entrance #btn-welcome-login { width:100% !important; min-height:56p
   background-size: 160px 160px; }
 
 .world.welcome { position: relative; z-index: 1; }
-.world.welcome .cover { height: 36vh; height: 36dvh; }
+.world.welcome .cover { height: 36vh; height: min(36dvh, 88vw); }
 /* 门口不要那团柔光。用户 2026-10-04：「首頁爲啥小精靈背景有顏色」——
    立绘换成干净的透明 PNG 之后，背后再垫一层橙黄的晕就是**平白多出来的一块颜色**，
    在暖纸上看着像没抠干净。彩点自己带软阴影，不需要它。
@@ -1268,7 +1306,7 @@ body.teacher-entrance #btn-welcome-login { width:100% !important; min-height:56p
 /* 彩点的立绘（用户给的素材，见 static/art/buddy/README.md）。
    它自己带软阴影和落地的蜡笔痕，所以不再叠 CSS 的 drop-shadow——叠上去是两层影子。 */
 .world.welcome .sprite.hero {
-  filter: none; height: 100%; width: auto; max-width: 78%; aspect-ratio: 1;
+  filter: none; height: 100%; width: auto; max-width: 100%; aspect-ratio: 1312 / 1199;
   transform-origin: 50% 88%;      /* 脚底附近：拉伸压扁才像站在地上，不是在空中变形 */
   animation: hero-idle 4.8s ease-in-out infinite;
   cursor: pointer; -webkit-tap-highlight-color: transparent; }

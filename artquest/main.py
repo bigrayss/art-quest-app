@@ -57,9 +57,8 @@ PROMPT_VERSION = "feedback/1"
 # 就一直拿旧外壳；而且当时**没有任何地方看得出设备上跑的是哪一版**，
 # 于是「到底更新了没有」只能靠猜。
 _SHELL_FILES = ("index.html", "app.js", "log.js", "style.css", "sw.js", "i18n.js", "lang/en.js",
-                "art/buddy/hero.webp", "art/buddy/hero-paint.webp",
-                "art/buddy/hero-eye-l.webp", "art/buddy/hero-eye-r.webp", "art/buddy/hero-arm.webp",
-                "art/buddy/hero-foot-l.webp", "art/buddy/hero-foot-r.webp")
+                "art/buddy/hero.webp", "art/buddy/hero-hand.webp",
+                "art/buddy/hero-feet.webp", "art/buddy/hero-eyes.webp")
 
 
 def shell_version() -> str:

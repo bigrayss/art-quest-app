@@ -229,29 +229,26 @@
   const buddyColor = () => state.color || "#f79433";
 
   // ===== 彩点的立绘 =====
-  // 用户 2026-10-03 给的分层素材（static/art/buddy/README.md）：身体是一张定色的图，
-  // 身上那几点颜料是另一张纯白剪影，用 CSS mask 染成孩子当前用的颜色。
-  // **「还没画过所以是灰的」这条设定没变**，只是从「整只变灰」挪到了「颜料点不上色」——
-  // 彩点本来就是一坨会变色的颜料精灵，颜色长在颜料上比长在整个身体上更对。
-  // 图要是加载不出来（旧缓存、文件缺了），`onerror` 把容器标成 noart，CSS 换回
-  // spriteInner 画的 SVG 线稿——和 families/badges「有图用图、没图用线稿」一个路子。
+  // 用户 2026-10-04 给的 v2 绑定包（docs/彩绘精灵_眨眼与手脚微动_v2.zip）：身体一张图
+  // （右手/双脚/眼睛那三块留空）+ 三张帧图，CSS 用 steps 走格子。位置百分比在 style.css 里，
+  // 和原图 1312×1199 的坐标绑死，别单独挪。
+  //
+  // ⚠️ **这一版不再给颜料点染色**。v2 的 README 明说「颜料点保留原来的颜色和位置，
+  // 本包不包含用于动态染色的 body/paint 分层」——我上一版是自己从原图里抠颜料再染，
+  // 用户看线上第一眼就是「精灵脸上的颜料有点问题」。所以颜色这条线现在只剩
+  // 身后那圈光（renderWorld 里的 --glow / --glow-a），那一圈仍然跟着孩子的画走。
+  // 要把染色做回来，需要一份**干净的 body（无颜料）+ 颜料剪影**，不是我再抠一次。
   const BUDDY_DIR = "/static/art/buddy";
-  // 大图是拆成层的（身体/颜料/两只眼/手臂/两只脚，见 static/art/buddy/README.md）：
-  // 扁平一张图眨不了眼也摆不了手。每一层都是同一个方形画框，绝对定位叠起来就还原原图。
-  const HERO_PARTS = ["eye-l", "eye-r", "arm", "foot-l", "foot-r"];
+  const HERO_PARTS = ["hand", "feet", "eyes"];
   function buddyInner(expr, color, big) {
     const body = big ? "hero" : (expr === "happy" ? "icon-happy" : "icon");
-    // 颜料那张剪影由 CSS 按 .sprite / .sprite.hero 挂（见 style.css）。
-    // **别写回 style 属性里**：`url("…")` 的双引号会把 style="…" 当场截断，
-    // mask 解析成页面地址，颜料点就整个不显示——2026-10-03 线上栽过一次。
     return `<img class="bd-body" src="${BUDDY_DIR}/${body}.webp" alt="" draggable="false" decoding="async"`
          + ` onerror="this.parentNode.dataset.noart=1">`
-         + `<i class="bd-paint" style="background-color:${color}"></i>`
          + (big ? HERO_PARTS.map(k =>
-              `<img class="bd-part bd-${k}" src="${BUDDY_DIR}/hero-${k}.webp" alt="" draggable="false" decoding="async">`).join("") : "")
+              `<i class="bd-part bd-${k}" style="background-image:url(${BUDDY_DIR}/hero-${k}.webp)"></i>`).join("") : "")
          + `<svg class="bd-svg" viewBox="0 0 200 200">${spriteInner(color, expr)}</svg>`;
   }
-  /** 把一个 .sprite 容器画成彩点。big = 用大图（门口、「彩点」那一屏）。 */
+  /** 把一个 .sprite 容器画成彩点。big = 用大图（门口、「彩点的世界」）。 */
   function paintBuddy(el, expr, color, big) {
     if (el) el.innerHTML = buddyInner(expr, color || buddyColor(), !!big);
   }

@@ -36,11 +36,11 @@ const SHELL_URLS = [
   "/static/fonts/nunito-latin.woff2",
   "/static/fonts/rhr-sc-400.woff2",
   "/static/fonts/rhr-sc-700.woff2",
-  "/static/art/buddy/hero.webp",       // 门口那张立绘（身体）：首屏就要，走缓存优先
-  "/static/art/buddy/hero-paint.webp", // 身上那几点颜料，染色用的剪影
-  "/static/art/buddy/hero-eye-l.webp", "/static/art/buddy/hero-eye-r.webp",
-  "/static/art/buddy/hero-arm.webp",
-  "/static/art/buddy/hero-foot-l.webp", "/static/art/buddy/hero-foot-r.webp",
+  // 彩点：身体 + 三张动效帧图。身体那张**把活动区留空了**，少一张脸上就缺眼睛，
+  // 所以四张必须一起进外壳，不能让帧图慢慢加载。
+  "/static/art/buddy/hero.webp",
+  "/static/art/buddy/hero-hand.webp", "/static/art/buddy/hero-feet.webp",
+  "/static/art/buddy/hero-eyes.webp",
   "/static/icons/icon-180.png",
   "/static/icons/icon-192.png",
   "/static/icons/icon-512.png",
