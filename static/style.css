@@ -176,7 +176,7 @@ h2 .muted { font-weight:700; }
   background:
     radial-gradient(70% 50% at 50% -6%, #fdf6ec, rgba(255,255,255,0) 70%),
     linear-gradient(180deg, #fefdfb, #f5f3ee);
-  box-shadow: inset 0 2px 0 rgba(255,255,255,.9), 0 20px 40px -24px rgba(90,70,40,.5); }
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.9), 0 10px 24px -20px rgba(90,70,40,.28); }
 /* 十个地方之间的小路：不带箭头、不编号、粗细不变——家族之间没有先后，
    它说的是「这十个地方连在一起」，不是「按这个顺序走」。 */
 .map-path { position:absolute; inset:0; width:100%; height:100%; z-index:0; pointer-events:none; }
@@ -192,22 +192,22 @@ h2 .muted { font-weight:700; }
 /* 2026-10-04 第二轮：大光晕收掉（它比地点本身还显眼，还贴着地图顶边）。
    每家脚下一块小小的椭圆底座，选中的那块深一点、圆圈外加一道细环，名字加深——
    不放大、不发光，点的时候周围什么都不挪。 */
-.map .quest-card::before { content:""; position:absolute; left:50%; top:86px; z-index:-1;
-  width:112px; height:26px; margin:0 0 0 -56px; border-radius:50%;
-  background:var(--qc,var(--accent)); opacity:.14; transition:opacity .2s; }
-.map .quest-card:hover::before { opacity:.26; }
+/* 2026-10-04 第三轮（用户：十个入口要像同一套按钮）：彩色椭圆底座也不要了，只剩钮自己的轻中性阴影 */
+.map .quest-card::before { display:none; }
 .map .quest-card:active { transform:translate(-50%,-50%) scale(.97); }
+/* 十个入口是同一种钮：浅米白圆底 + 暖灰细边 + 很轻的中性阴影。家族色只留在中心的插画上。
+   选中 = 浅橙底 + 一道橙边，不放大、不发光、不变位置。 */
 .node-btn { position:relative; width:92px; height:92px; margin:0 auto; border-radius:50%;
-  background:var(--qc, var(--accent)); color:#fff; display:flex; align-items:center; justify-content:center;
-  box-shadow:0 6px 0 var(--qc-edge, var(--accent-d)), 0 14px 22px -10px rgba(60,45,25,.45);
-  transition:transform .1s, box-shadow .1s; }
+  background:#fff9f0; color:var(--qc, var(--accent)); border:2.5px solid #ddd6cb;
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 3px 0 #ece6db, 0 8px 14px -10px rgba(60,45,25,.22);
+  transition:transform .1s, box-shadow .1s, border-color .15s, background-color .15s; }
+.map .quest-card:hover .node-btn { border-color:#cdc4b6; }
 /* ===== 去过的地方挂着自己画的那张画 =====
    一排一模一样的图标谁都做得出来；十扇开着自己画的窗做不到。而且这张地图
    会**跟着画画长出内容**：第一天十块空地，画过三次之后地图上就有三扇窗。
    白边 + 家族色的外圈，让它读起来像一枚纪念章，不像一张贴上去的截图。 */
-.node-btn.has-shot { background:#fff; overflow:hidden;
-  box-shadow:0 0 0 4px var(--qc, var(--accent)), 0 6px 0 var(--qc-edge, var(--accent-d)),
-             0 14px 22px -10px rgba(60,45,25,.45); }
+.node-btn.has-shot { background:#fff; overflow:hidden; }
 .node-shot { width:100%; height:100%; object-fit:cover; display:block; }
 /* 彩色插画版的地方：图占圆的 72%，圆本身仍是家族色（插画是透明底，画在色圆上） */
 /* 插画本身要大：PNG 自带透明边，92% 看着只有圆的一半。放到 118%，圆不裁它（只有 has-shot 才 overflow:hidden） */
@@ -215,14 +215,8 @@ h2 .muted { font-weight:700; }
 /* 没去过的地方是**一块空地**：一圈虚线、颜色还没填上。它要读起来像
    「这儿还没画」，不是像「这个按钮被禁用了」——所以留着自己的颜色，
    只是淡，而且没有那层厚厚的下沿（那是给能按下去的东西的）。 */
-/* 没去过的地方都能进，不能看着像禁用：淡色实心底 + 细实线环，插画照常显示。虚线圈不要了。 */
-.map .quest-card:not(.done):not(.next):not(.locked) .node-btn { background:var(--qc-soft, #fdeacf);
-  color:var(--qc, var(--accent)); border:2.5px solid var(--qc, var(--accent));
-  box-shadow:0 4px 0 var(--qc-soft, #fdeacf), 0 10px 18px -12px rgba(60,45,25,.3); }
-.map .quest-card:not(.done):not(.next):not(.locked):active .node-btn { transform:translateY(3px);
-  box-shadow:0 0 0 var(--qc-soft, #fdeacf); }
-.map .quest-card:active .node-btn { transform:translateY(5px);
-  box-shadow:0 0 0 var(--qc-edge, var(--accent-d)), 0 8px 14px -10px rgba(60,45,25,.4); }
+/* 去过 / 没去过长得一样（去过的靠右上那颗星说）；按下去只是轻轻下沉 */
+.map .quest-card:active .node-btn { transform:translateY(3px); box-shadow:0 0 0 #ece6db, 0 4px 8px -6px rgba(60,45,25,.2); }
 /* 关卡名**不许串行**：两行的卡片会把下面那一圈顶乱，而且十个名字长短不一，
    有的一行有的两行看着就不齐。最长的「变异物体实验室」占 132/150，
    留着 12% 余量给不同设备的字形宽度差异。 */
@@ -230,29 +224,25 @@ h2 .muted { font-weight:700; }
    放 <wbr>，keep-all 禁掉任意位置的断行），不会再出现「博物馆修复／师」。
    字比插画小一号：这一屏的主角是地点，不是名字。 */
 .map .quest-card h3 { margin:10px 0 0; font-size:0.875rem; line-height:1.3; font-weight:800;
-  word-break:keep-all; overflow-wrap:normal; color:var(--muted-2); }
-.map .quest-card.next h3, .map .quest-card.done h3 { color:var(--ink); }
+  word-break:keep-all; overflow-wrap:normal; color:#5b5048; }   /* 清楚的深暖灰：都能进，别弱化成「暂不可用」 */
+.map .quest-card.next h3 { color:#3d342e; }
 .node-sub { display:none; }          /* 「N 种玩法」是个数量，不是给孩子的话 */
 /* 走过的关：盖一颗星 */
 .node-star { position:absolute; right:-4px; top:-4px; width:26px; height:26px; border-radius:50%;
   background:var(--yellow); color:#fff; border:3px solid #fff; display:flex;
   align-items:center; justify-content:center; }
-/* 走过的地块淡一点，没走过的还亮着——一眼看得出哪儿没去过 */
-.map .quest-card.done::before { opacity:.16; }
-.map .quest-card.done h3 { color:var(--ink); }
 .map .quest-card.locked { cursor:default; }
-.map .quest-card.locked .node-btn { background:var(--line); box-shadow:0 6px 0 var(--line-d); color:#fff; }
-.map .quest-card.locked:active .node-btn { transform:none; box-shadow:0 6px 0 var(--line-d); }
+.map .quest-card.locked .node-btn { background:var(--line); border-color:var(--line); box-shadow:none; color:#fff; }
+.map .quest-card.locked:active .node-btn { transform:none; box-shadow:none; }
 .map .quest-card.locked h3 { color:var(--muted); }
 /* 下一关：彩点站在这儿，头上一个小气泡 */
 .node-here { position:absolute; left:calc(50% + 28px); top:-12px; width:40px; height:40px; z-index:2; }
 .node-tip { position:absolute; left:50%; top:-26px; transform:translateX(-50%);
   background:var(--accent); color:#fff; font-size:0.6875rem; font-weight:800; padding:3px 10px;
   border-radius:999px; white-space:nowrap; box-shadow:0 2px 0 var(--accent-d); }
-/* 下一关：地块更大更亮，钮外面一圈呼吸的光——该往哪儿走不用文字说 */
-.map .quest-card.next .node-btn { box-shadow:0 6px 0 var(--qc-edge, var(--accent-d)),
-  0 14px 22px -10px rgba(60,45,25,.45), 0 0 0 4px #fff, 0 0 0 7px var(--qc, var(--accent)); }
-.map .quest-card.next::before { opacity:.4; }
+/* 当前选中：浅橙底 + 单层橙边。点别的地方，这套样式就挪过去，原来那个回到默认 */
+.map .quest-card.next .node-btn { background:#fff1e0; border-color:var(--accent);
+  box-shadow:0 3px 0 #f3d9b8, 0 8px 14px -10px rgba(60,45,25,.22); }
 /* 大屏上地图铺满整块屏幕，不要上面一张图下面一片空白——
    十个地方本来就该占住一整片地。（窄屏和矮屏走的是下面那套两列，不受影响。）
    **必须同时看高度**：横过来的手机宽 852 却只有 393 高，只看宽度就会把十个
@@ -1446,11 +1436,7 @@ button.clay:active { transform: translateY(6px);
 .avatar .sprite { width: 42px; height: 42px; }
 .avatar:hover { background: none; }
 .avatar:active { transform: scale(.94); }
-/* 关卡圆钮也用同一套「捏出来的」质感 */
-.node-btn { box-shadow: 0 6px 0 var(--qc-edge, var(--accent-d)),
-                        0 16px 24px -12px var(--qc-edge, var(--accent-d)),
-                        inset 0 -10px 16px -10px rgba(0,0,0,.24),
-                        inset 0 12px 18px -10px rgba(255,255,255,.45); }
+/* （关卡圆钮原来也套这层「捏出来的」厚质感；2026-10-04 起十个入口统一成浅米白平钮，见地图那段） */
 /* 换屏是滑进来的，不是闪出来的。画画那屏不做：动画期间祖先有 transform，
    会让 getBoundingClientRect 报出偏移的盒子，落笔坐标就不准了。 */
 .view:not(.hidden):not(#view-draw) { animation: view-in .26s cubic-bezier(.22,1,.36,1); }
