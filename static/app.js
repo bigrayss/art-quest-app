@@ -236,6 +236,9 @@
   // 图要是加载不出来（旧缓存、文件缺了），`onerror` 把容器标成 noart，CSS 换回
   // spriteInner 画的 SVG 线稿——和 families/badges「有图用图、没图用线稿」一个路子。
   const BUDDY_DIR = "/static/art/buddy";
+  // 大图是拆成层的（身体/颜料/两只眼/手臂/两只脚，见 static/art/buddy/README.md）：
+  // 扁平一张图眨不了眼也摆不了手。每一层都是同一个方形画框，绝对定位叠起来就还原原图。
+  const HERO_PARTS = ["eye-l", "eye-r", "arm", "foot-l", "foot-r"];
   function buddyInner(expr, color, big) {
     const body = big ? "hero" : (expr === "happy" ? "icon-happy" : "icon");
     // 颜料那张剪影由 CSS 按 .sprite / .sprite.hero 挂（见 style.css）。
@@ -244,6 +247,8 @@
     return `<img class="bd-body" src="${BUDDY_DIR}/${body}.webp" alt="" draggable="false" decoding="async"`
          + ` onerror="this.parentNode.dataset.noart=1">`
          + `<i class="bd-paint" style="background-color:${color}"></i>`
+         + (big ? HERO_PARTS.map(k =>
+              `<img class="bd-part bd-${k}" src="${BUDDY_DIR}/hero-${k}.webp" alt="" draggable="false" decoding="async">`).join("") : "")
          + `<svg class="bd-svg" viewBox="0 0 200 200">${spriteInner(color, expr)}</svg>`;
   }
   /** 把一个 .sprite 容器画成彩点。big = 用大图（门口、「彩点」那一屏）。 */

@@ -683,6 +683,27 @@ figcaption { text-align:center; color:var(--muted-2); font-size:0.75rem; font-we
 .sprite.hero .bd-paint { -webkit-mask-image:url("/static/art/buddy/hero-paint.webp");
   mask-image:url("/static/art/buddy/hero-paint.webp"); }
 .sprite .bd-svg { display:none; }
+/* ===== 大图的分层：眨眼 + 手脚轻轻摆 =====
+   用户 2026-10-04：「整體浮動沒什麼用 幅度可以小一點 主要是眨眼和手腳輕微擺動」。
+   所以整只只剩 3px 的呼吸，动作都落在部件上。transform-origin 是从原图量出来的
+   （mkrig.py 末尾会打印），**改图就要重新量**，不然眼睛会歪着闭、手会从身上掉下来。 */
+.sprite .bd-part { position:absolute; left:0; top:0; width:100%; height:100%;
+  object-fit:contain; pointer-events:none; }
+.sprite.hero .bd-eye-l { transform-origin:48.7% 53.2%; animation:bd-blink 5.2s ease-in-out infinite; }
+.sprite.hero .bd-eye-r { transform-origin:62.0% 50.4%; animation:bd-blink 5.2s ease-in-out infinite; }
+/* 一次眨眼 130 毫秒，五秒一次。闭的那一下要快，慢了像犯困 */
+@keyframes bd-blink {
+  0%, 91%, 100% { transform:scaleY(1); }
+  93.5%         { transform:scaleY(.06); }
+  96%           { transform:scaleY(1); }
+}
+.sprite.hero .bd-arm   { transform-origin:80.5% 57.2%; animation:bd-arm 3.6s ease-in-out infinite; }
+@keyframes bd-arm { 0%,100% { transform:rotate(0deg); } 50% { transform:rotate(-5deg); } }
+/* 两只脚错开半个周期：像把重心从一只脚换到另一只，不是两只一起抖 */
+.sprite.hero .bd-foot-l { transform-origin:40.9% 77.8%; animation:bd-foot 3.1s ease-in-out infinite; }
+.sprite.hero .bd-foot-r { transform-origin:64.5% 77.4%; animation:bd-foot 3.1s ease-in-out infinite -1.55s; }
+@keyframes bd-foot { 0%,100% { transform:rotate(0deg); } 50% { transform:rotate(2.6deg); } }
+@media (prefers-reduced-motion: reduce) { .sprite .bd-part { animation:none !important; } }
 .sprite[data-noart] .bd-body, .sprite[data-noart] .bd-paint { display:none; }
 .sprite[data-noart] .bd-svg { display:block; }
 /* 不认识 mask 的引擎上，那一层会变成一块纯色方块——宁可不要颜料点 */
@@ -1249,21 +1270,14 @@ body.teacher-entrance #btn-welcome-login { width:100% !important; min-height:56p
 .world.welcome .sprite.hero {
   filter: none; height: 100%; width: auto; max-width: 78%; aspect-ratio: 1;
   transform-origin: 50% 88%;      /* 脚底附近：拉伸压扁才像站在地上，不是在空中变形 */
-  animation: hero-idle 4.6s cubic-bezier(.34,.1,.3,1) infinite;
+  animation: hero-idle 4.8s ease-in-out infinite;
   cursor: pointer; -webkit-tap-highlight-color: transparent; }
 
-/* 待机：一次小跳。黏土角色全靠挤压拉伸活起来——起跳前先压一下蓄力，
-   升空时拉长，落地压扁，再补一个小回弹，然后安静两秒。
-   整段只有 13px 的位移，所以是「有生气」不是「在蹦迪」。 */
+/* 整只只做很轻的呼吸：3px。原来是一次 13px 的小跳，用户说「整體浮動沒什麼用」——
+   角色活不活不在于整个上下窜，在于眼睛和手脚。那些在上面的 .bd-part 里。 */
 @keyframes hero-idle {
-   0%      { transform: translateY(0)     scale(1, 1)         rotate(0deg); }
-   7%      { transform: translateY(2px)   scale(1.035, .965)  rotate(0deg); }
-  21%      { transform: translateY(-13px) scale(.975, 1.035)  rotate(-1.4deg); }
-  33%      { transform: translateY(-11px) scale(.985, 1.02)   rotate(1.2deg); }
-  44%      { transform: translateY(0)     scale(1.05, .95)    rotate(0deg); }
-  52%      { transform: translateY(-4px)  scale(.99, 1.012)   rotate(0deg); }
-  60%      { transform: translateY(0)     scale(1.012, .988)  rotate(0deg); }
-  66%,100% { transform: translateY(0)     scale(1, 1)         rotate(0deg); }
+   0%, 100% { transform: translateY(0)    scale(1, 1); }
+  50%       { transform: translateY(-3px) scale(.998, 1.003); }
 }
 /* 戳一下：压扁再弹回来。动画跑完由 JS 把类摘掉，所以能连着戳 */
 .world.welcome .sprite.hero.poke { animation: hero-poke .52s cubic-bezier(.3,1.4,.4,1) 1; }
