@@ -182,20 +182,22 @@ h2 .muted { font-weight:700; }
 .map-path { position:absolute; inset:0; width:100%; height:100%; z-index:0; pointer-events:none; }
 .map-path path { fill:none; stroke:var(--line-d); stroke-width:4; stroke-linecap:round;
   stroke-dasharray:2 15; opacity:.9; }
+/* 2026-10-04 用户：这两条跨行的斜虚线只是装饰，先藏起来；等背景和地标升级再决定要不要 */
+.map-path { display:none; }
 
 .map .quest-card { position:absolute; left:var(--mx,50%); top:var(--my,50%);
-  transform:translate(-50%,-50%); z-index:1; width:150px; text-align:center; cursor:pointer;
+  transform:translate(-50%,-50%); z-index:1; width:160px; text-align:center; cursor:pointer;
   background:none; border:none; padding:0; box-shadow:none; transition:transform .15s; }
 /* 这一家的地：钮底下一块它自己颜色的软地块 */
-.map .quest-card::before { content:""; position:absolute; left:50%; top:38px; z-index:-1;
-  width:172px; height:172px; margin:-86px 0 0 -86px; border-radius:50%;
+.map .quest-card::before { content:""; position:absolute; left:50%; top:46px; z-index:-1;
+  width:196px; height:196px; margin:-98px 0 0 -98px; border-radius:50%;
   background:radial-gradient(closest-side, var(--qc,var(--accent)), rgba(255,255,255,0));
   /* 十个光晕一样亮，等于十个都不亮——整片地图糊成一袋糖。
      底色压到很淡，把对比全留给「下一关」那一个。 */
   opacity:.13; transition:opacity .2s, transform .2s; }
 .map .quest-card:hover::before { opacity:.26; transform:scale(1.06); }
 .map .quest-card:active { transform:translate(-50%,-50%) scale(.97); }
-.node-btn { position:relative; width:76px; height:76px; margin:0 auto; border-radius:50%;
+.node-btn { position:relative; width:92px; height:92px; margin:0 auto; border-radius:50%;
   background:var(--qc, var(--accent)); color:#fff; display:flex; align-items:center; justify-content:center;
   box-shadow:0 6px 0 var(--qc-edge, var(--accent-d)), 0 14px 22px -10px rgba(60,45,25,.45);
   transition:transform .1s, box-shadow .1s; }
@@ -222,7 +224,8 @@ h2 .muted { font-weight:700; }
 /* 关卡名**不许串行**：两行的卡片会把下面那一圈顶乱，而且十个名字长短不一，
    有的一行有的两行看着就不齐。最长的「变异物体实验室」占 132/150，
    留着 12% 余量给不同设备的字形宽度差异。 */
-.map .quest-card h3 { margin:12px 0 0; font-size:0.875rem; font-weight:800; white-space:nowrap; }
+/* 2026-10-04 起名字允许两行（钮放大到 92px 后卡宽 160 放不下「变异物体实验室」一行） */
+.map .quest-card h3 { margin:12px 0 0; font-size:1rem; line-height:1.25; font-weight:800; }
 .node-sub { display:none; }          /* 「N 种玩法」是个数量，不是给孩子的话 */
 /* 走过的关：盖一颗星 */
 .node-star { position:absolute; right:-4px; top:-4px; width:26px; height:26px; border-radius:50%;
@@ -243,7 +246,7 @@ h2 .muted { font-weight:700; }
 /* 下一关：地块更大更亮，钮外面一圈呼吸的光——该往哪儿走不用文字说 */
 .map .quest-card.next .node-btn { box-shadow:0 6px 0 var(--qc-edge, var(--accent-d)),
   0 14px 22px -10px rgba(60,45,25,.45), 0 0 0 5px var(--qc-soft, #fdeacf); }
-.map .quest-card.next::before { opacity:.52; width:208px; height:208px; margin:-104px 0 0 -104px; }
+.map .quest-card.next::before { opacity:.52; width:232px; height:232px; margin:-116px 0 0 -116px; }
 @media (prefers-reduced-motion: no-preference) {
   .map .quest-card.next::before { animation: land-breathe 3.4s ease-in-out infinite; }
   @keyframes land-breathe { 50% { opacity:.58; transform:scale(1.06); } }
@@ -253,10 +256,14 @@ h2 .muted { font-weight:700; }
    **必须同时看高度**：横过来的手机宽 852 却只有 393 高，只看宽度就会把十个
    关卡钮塞进一条 164px 的窄带里，它们会互相压住——点「探险家速写」会点到
    「融合发明家」。地图是一片地，不是一条线，矮屏上就该滚。 */
+/* 2026-10-04 用户定的两栏：左边地图吃掉剩下的宽度，右边 300px 任务卡，中间 24px；
+   主内容区最宽 1240（main 的 max-width 在 body[data-room=map] 上放开）。 */
 @media (min-width: 701px) and (min-height: 600px) {
-  #view-quest { display:flex; flex-direction:column;
-    height:calc(100vh - 168px); height:calc(100dvh - 168px); }
-  #view-quest .map { flex:1 1 auto; aspect-ratio:auto; min-height:0; max-width:none; }
+  body[data-room="map"] main { max-width:calc(1240px + 52px); padding-left:26px; padding-right:26px; }
+  #view-quest { display:grid; grid-template-columns:minmax(0, 1fr) 300px; gap:24px; align-items:stretch;
+    max-width:none; height:calc(100vh - 168px); height:calc(100dvh - 168px); }
+  #view-quest .map { aspect-ratio:auto; min-height:0; max-width:none; height:100%; }
+  #view-quest .today { margin:0; }
 }
 
 /* ===== 「今天从这儿开始」 ===== */
@@ -264,23 +271,25 @@ h2 .muted { font-weight:700; }
    这张卡是**默认的入口**：不替他决定（十个仍然全开着），
    但让「不想决定」也是一条能走通的路。 */
 .map.has-bg { background-size:cover; background-position:center; }
-.today { display:flex; align-items:center; gap:13px; margin:0 0 18px;
+/* 2026-10-04 起是地图右边那张竖卡：当前选择 / 任务名 / 简介 / 开始画 / 探索精灵（160px，会眨眼、手脚微动，整只不浮）。
+   窄屏上它排在地图下面，同样的内容。 */
+.today { display:flex; flex-direction:column; gap:14px; margin:18px 0 0;
   background:var(--card); border:2px solid var(--line); border-radius:var(--r-lg);
-  padding:12px 14px; box-shadow:0 var(--edge) 0 var(--line); }
-.today .t-sprite { width:56px; height:52px; flex:none; overflow:visible; }
-.today .t-body { flex:1 1 auto; min-width:0; }
+  padding:20px 20px 16px; box-shadow:0 var(--edge) 0 var(--line); }
+.today .t-body { flex:0 0 auto; min-width:0; }
 /* 中文不做 uppercase，letter-spacing 也只会把字拆散 */
 .today .t-kicker { font-size:0.75rem; font-weight:800; color:var(--muted-2); }
-.today .t-title { font-size:1.25rem; font-weight:800; margin:1px 0 0; letter-spacing:-.01em;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.today .t-go { flex:none; }
-@media (max-width: 420px) {
-  /* 最窄的那批手机：按钮收成一枚圆钮，字让给任务名 */
-  .today { gap:10px; padding:10px 11px; }
-  .today .t-sprite { width:44px; height:40px; }
-  .today .t-title { font-size:1.0625rem; }
-  .today .t-go button { padding:9px 12px; }
-  .today .t-go button .ico { margin:0; }
+.today .t-title { font-size:1.375rem; font-weight:800; margin:4px 0 0; letter-spacing:-.01em; line-height:1.25; }
+.today .t-blurb { margin:8px 0 0; font-size:0.875rem; line-height:1.6; color:var(--muted-2); font-weight:600; }
+.today .t-go { flex:none; display:flex; }
+.today .t-go button { width:100%; }
+.today .t-sprite { width:160px; height:146px; max-width:100%; flex:none; overflow:visible; align-self:center; margin-top:auto; }
+@media (max-width: 700px), (max-height: 599px) {
+  /* 窄屏：地图在上、卡在下，内容横着排，精灵在右边 */
+  .today { flex-direction:row; flex-wrap:wrap; align-items:center; gap:12px 16px; padding:14px 16px; }
+  .today .t-body { flex:1 1 180px; }
+  .today .t-sprite { width:96px; height:88px; margin:0; order:1; }
+  .today .t-go { flex:1 1 100%; order:2; }
 }
 
 /* ===== 流程进度条：做一幅画的六步 ===== */
@@ -758,6 +767,11 @@ figcaption { text-align:center; color:var(--muted-2); font-size:0.75rem; font-we
 .sprite.hero .bd-fig { top:0; height:100%; transform:none; }
 .sprite .bd-fig .bd-body { object-fit:fill; }
 .bd-fig[data-role=explore] .bd-eyes { left:35.416667%; top:39.635535%; width:27.083333%; height:18.451025%; }
+.bd-fig[data-role=explore] .bd-feet { left:26.458333%; top:68.792711%; width:41.250000%; height:20.273349%; }
+.bd-fig[data-role=explore] .bd-rest { left:11.041667%; top:55.580866%; width:15.000000%; height:15.034169%; }
+.bd-fig[data-role=explore] .bd-mag { left:66.041667%; top:24.373576%; width:24.791667%; height:37.585421%; }
+/* 两只手和脚一样走 bd-limb（30 帧 6×5 格，3 秒一周期，和 rig.json 的周期一致） */
+.bd-fig .bd-rest, .bd-fig .bd-mag { background-size:600% 500%; animation:bd-limb 3s steps(1,end) infinite; }
 .bd-fig[data-role=reading] .bd-eyes { left:39.166667%; top:38.952164%; width:31.041667%; height:20.501139%; }
 /* 庆祝：保存成功后整只换成帧图播一遍——30 帧 6×5 格，和 bd-limb 同一张走格表，
    3 秒后 JS 摘掉帧图停回静态图（100% 那一格就是第 0 帧，所以摘的那一下不跳） */

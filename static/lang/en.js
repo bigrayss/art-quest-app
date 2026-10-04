@@ -181,6 +181,7 @@ window.ARTQUEST_LANG_EN = {
   // ---------- 地图 ----------
   "开始画": "Draw",
   "再挑一个": "Pick another",
+  "当前选择": "Current pick",
   "随便一个": "Any one",
   "稍后解锁": "Unlocks later",
   "{n} 种玩法": "{n} ways to play",

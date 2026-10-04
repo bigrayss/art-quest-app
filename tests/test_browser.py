@@ -333,6 +333,7 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
                 page.goto(self.base)
                 page.wait_for_selector("#quest-grid .quest-card")
                 page.click("#quest-grid .quest-card")
+                page.click("#btn-today")
                 page.wait_for_selector("#view-intent:not(.hidden)")
 
                 self.assertTrue(page.is_hidden("#pidbox"), "代号框不该出现在孩子面前")
@@ -356,6 +357,7 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
                 # 卡片会互相压住（点第一个会被一个 locked 的挡住）。这条测的是
                 # 代号框露不露面，不是点击手感，所以直接让那张卡自己 click。
                 page2.eval_on_selector("#quest-grid .quest-card:not(.locked)", "e => e.click()")
+                page2.click("#btn-today")
                 page2.wait_for_selector("#view-intent:not(.hidden)")
                 self.assertTrue(page2.is_visible("#pidbox"))
                 self.assertEqual(page2.input_value("#participant"), "P07")
@@ -418,6 +420,7 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
             page.eval_on_selector_all("#quest-grid .quest-card", f"(e)=>e[{titles.index(family)}].click()")
         else:
             page.click("#quest-grid .quest-card")
+        page.click("#btn-today")           # 点地点只是选中，右边那颗「开始画」才进去
         page.click("#emotion-chips button")
         page.fill("#intent-text", intent)
         page.click("#btn-start-draw")

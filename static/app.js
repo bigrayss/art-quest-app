@@ -257,7 +257,11 @@
   // body.painting（落笔即进入，最后一笔后 2 秒退出）把所有帧图停回第 0 帧，
   // body.page-hidden（页面不可见）暂停动画，回来不补播错过的庆祝。
   const BUDDY_ASSET_V = "2026-10-04";          // 记进 MASCOT_STATE；换素材时改这里
-  const BUDDY_ROLES = { normal: {}, happy: {}, thinking: {}, explore: { blink: true }, reading: { blink: true }, encourage: {} };
+  // parts：整只图上面的贴片。eyes 9 帧走 bd-blink（6 秒眨两次），其余 30 帧走 bd-limb（3 秒一周期）。
+  // 位置百分比在 style.css，由 tools/build_buddy_roles.py 打印，别手改。
+  const BUDDY_ROLES = { normal: {}, happy: {}, thinking: {}, encourage: {},
+    explore: { parts: ["rest", "feet", "eyes", "mag"] },   // 放大镜手压在最上面，和包里的层序一致
+    reading: { parts: ["eyes"] } };
   const roleOf = (expr) => (BUDDY_ROLES[expr] ? expr : "normal");
   const roleUrl = (role, file) => `${BUDDY_DIR}/${role}/${file}`;
   const BD_IMG = `alt="" draggable="false" decoding="async" onerror="this.closest('.sprite').dataset.noart=1"`;
@@ -274,7 +278,8 @@
     }
     if (!mode) return `<img class="bd-body" src="${roleUrl(role, "icon.webp")}" ${BD_IMG}>` + svg;
     return `<span class="bd-fig" data-role="${role}"><img class="bd-body" src="${roleUrl(role, "body.webp")}" ${BD_IMG}>`
-         + (BUDDY_ROLES[role].blink ? `<i class="bd-part bd-eyes" style="background-image:url(${roleUrl(role, "eyes.webp")})"></i>` : "")
+         + (BUDDY_ROLES[role].parts || []).map(k =>
+              `<i class="bd-part bd-${k}" style="background-image:url(${roleUrl(role, k + ".webp")})"></i>`).join("")
          + `</span>` + svg;
   }
   /** 把一个 .sprite 容器画成彩点。mode 见 buddyInner。 */
@@ -289,8 +294,7 @@
   /** 提前把一个形象的图拉进缓存：第一次切过去不要有空档。 */
   function buddyPrefetch(...roles) {
     roles.forEach(role => {
-      const files = ["icon.webp", "body.webp"];
-      if (BUDDY_ROLES[role].blink) files.push("eyes.webp");
+      const files = ["icon.webp", "body.webp", ...(BUDDY_ROLES[role].parts || []).map(k => k + ".webp")];
       if (role === "happy") files.push("cheer.webp");
       files.forEach(f => { const im = new Image(); im.src = roleUrl(role, f); });
     });
@@ -2789,15 +2793,19 @@
       if (f && !shotOf[f]) shotOf[f] = r.session_id;
     });
     const spots = mapSpots(cards.length);
+    // 初始选中的还是原来「今天从这儿开始」那一个：第一个没走过的地方。
+    // 孩子自己点过别的地方，回到地图时还选着它（state.mapPick），不另加推荐规则。
     let nextMarked = false, nDone = 0, nextCard = null;
+    const pickable = cards.find(c => c.key === state.mapPick && !c.locked);
     cards.forEach((c, i) => {
       const fam = c.family || (c.task && c.task.family) || "";
       const done = !c.locked && doneFam.has(fam);
-      const isNext = !c.locked && !done && !nextMarked;
+      const isNext = pickable ? c === pickable : (!c.locked && !done && !nextMarked);
       if (done) nDone++;
       if (isNext) nextMarked = true;
       const el = document.createElement("div");
       el.className = "quest-card" + (c.locked ? " locked" : "") + (done ? " done" : "") + (isNext ? " next" : "");
+      el.dataset.key = c.key;
       el.style.setProperty("--qc", c.color || "#f79433");
       const qc = c.color || "#f79433";
       el.style.setProperty("--qc-edge", mixHex(qc, 72, "#000"));
@@ -2815,16 +2823,18 @@
         ? `<img class="node-shot" src="${FILES}/${shot}/after.png" alt="" loading="lazy"
              onerror="this.closest('.node-btn').classList.remove('has-shot');this.remove()">`
         : c.locked ? icon("lock", 30) : glyphMark;
+      // 精灵不站在节点上了：它在右边的任务卡里（一屏只有一只）
       el.innerHTML =
-        (isNext ? buddyHtml("node-here still", "explore", null, "fig") : "")
-        + `<div class="node-btn${shot ? " has-shot" : ""}">${mark}`
+        `<div class="node-btn${shot ? " has-shot" : ""}">${mark}`
         // 挂着自己画的画的时候不用再盖一颗星：那张画本身就是「来过」
         + (done && !shot ? `<span class="node-star">${icon("star", 14)}</span>` : "")
         + `</div><h3>${c.title}</h3>`
         + `<div class="node-sub">${c.locked ? "稍后解锁" : c.kind}</div>`;
+      // 点一个地方 = 选中它：右边的任务卡跟着换，进去的那一步由卡上的「开始画」做
       if (!c.locked) el.onclick = () => {
-        const q = c.task || randomForm(c.family);
-        if (q) chooseQuest(q);
+        state.mapPick = c.key;
+        grid.querySelectorAll(".quest-card").forEach(x => x.classList.toggle("next", x === el));
+        paintToday(c, nDone, cards.length);
       };
       if (isNext) nextCard = c;
       grid.appendChild(el);
@@ -2892,13 +2902,19 @@
     box.style.setProperty("--tc-d", mixHex(c, 72, "#000"));
     // 这张卡上不写小字（原来有一行「从这儿开始 · 走过 n/10 关」）：精灵、家族名、按钮，够了。
     // 走过几关，地图上的圆钮亮着就是答案。
+    // 右边那张卡（2026-10-04 用户定的顺序）：当前选择 / 任务名 / 一句简介（没有就不放）/ 开始画 / 探索精灵。
+    // 地图上的地点被点中就换这张卡；「开始画」还是原来那条进入逻辑。
+    const fam = card && (card.family || (card.task && card.task.family)) || "";
+    const blurb = card ? (FAMILY_BLURB[fam] || "") : "";
     box.innerHTML =
-      buddyHtml("t-sprite", all ? "happy" : "explore", null, "fig")
-      + `<div class="t-body">`
+      `<div class="t-body">`
+      +   `<div class="t-kicker">当前选择</div>`
       +   `<div class="t-title">${all ? "再挑一个" : card.title}</div>`
+      +   (blurb ? `<p class="t-blurb">${blurb}</p>` : "")
       + `</div>`
-      + `<div class="t-go"><button class="primary big" id="btn-today">`
-      +   `${all ? "随便一个" : "开始画"}${icon("arrowRight", 17)}</button></div>`;
+      + `<div class="t-go"><button class="primary big grow" id="btn-today">`
+      +   `${all ? "随便一个" : "开始画"}${icon("arrowRight", 17)}</button></div>`
+      + buddyHtml("t-sprite", all ? "happy" : "explore", null, "fig");
     box.classList.remove("hidden");
     $("#btn-today").onclick = () => {
       const q = card ? (card.task || randomForm(card.family))

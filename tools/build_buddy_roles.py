@@ -68,48 +68,79 @@ def head_icon(full, cx_frac=None, top_frac=0.0, side_frac=0.62):
     return full.crop(box).resize((ICON, ICON), Image.LANCZOS)
 
 
-def blink_role(name, full, eye_frames, box):
-    """full：整只静态图；eye_frames：9 张原生尺寸的眼睛贴片；box：贴片在原图里的 (x,y,w,h)。
-    输出 body.webp + eyes.webp，并打印 CSS 百分比。"""
-    x, y, w, h = box
-    # 先在原生分辨率合成 9 张整图，再整图缩小、再裁——贴片和身体是同一次缩放出来的
-    frames = []
-    for k, ef in enumerate(eye_frames):
-        f = full.copy()
-        f.alpha_composite(ef, (x, y))
-        frames.append(f.resize((BODY_W, BODY_H), Image.LANCZOS))
-    body = frames[0]
-    # 缩小后的框，外扩 4px 盖住重采样核
+def parts_role(name, frames_of, boxes, eye_timeline=False):
+    """通用：frames_of(k) 给第 k 帧的**整只**原生尺寸图；boxes = {部件名: (x,y,w,h) 原图像素框}。
+    每个部件：9 帧（eyes，走 bd-blink）或 30 帧（其余，走 bd-limb 3 秒）。
+    先合成整图、整图缩小、再裁——贴片和身体是同一次缩放出来的，第 0 帧贴回去像素一样。"""
     m = 4
-    sx, sy = max(0, int(x * S) - m), max(0, int(y * S) - m)
-    ex, ey = min(BODY_W, int((x + w) * S + 1) + m), min(BODY_H, int((y + h) * S + 1) + m)
-    cw, ch = ex - sx, ey - sy
-    sheet = Image.new("RGBA", (cw * 9, ch), (0, 0, 0, 0))
-    for k, f in enumerate(frames):
-        sheet.alpha_composite(f.crop((sx, sy, ex, ey)), (k * cw, 0))
-    # 自检：第 0 帧贴回去必须和身体一模一样
-    chk = body.copy(); chk.alpha_composite(sheet.crop((0, 0, cw, ch)), (sx, sy))
-    assert ndiff(chk, body) == 0, f"{name}: 第 0 帧和身体对不上"
+    body = None
+    css = []
+    for part, (x, y, w, h) in boxes.items():
+        n = 9 if part == "eyes" else 30
+        frames = [frames_of(part, k).resize((BODY_W, BODY_H), Image.LANCZOS) for k in range(n)]
+        if body is None:
+            body = frames[0]
+        sx, sy = max(0, int(x * S) - m), max(0, int(y * S) - m)
+        ex, ey = min(BODY_W, int((x + w) * S + 1) + m), min(BODY_H, int((y + h) * S + 1) + m)
+        cw, ch = ex - sx, ey - sy
+        cols = 9 if part == "eyes" else CHEER_COLS
+        rows = 1 if part == "eyes" else -(-n // CHEER_COLS)
+        sheet = Image.new("RGBA", (cw * cols, ch * rows), (0, 0, 0, 0))
+        for k, f in enumerate(frames):
+            sheet.alpha_composite(f.crop((sx, sy, ex, ey)), ((k % cols) * cw, (k // cols) * ch))
+        chk = body.copy(); chk.alpha_composite(sheet.crop((0, 0, cw, ch)), (sx, sy))
+        assert ndiff(chk, body) == 0, f"{name}/{part}: 第 0 帧和身体对不上 ({ndiff(chk, body)})"
+        save_webp(sheet, OUT / name / f"{part}.webp", q=90)
+        css.append(f"  .bd-fig[data-role={name}] .bd-{part} {{ left:{sx / BODY_W * 100:.6f}%; top:{sy / BODY_H * 100:.6f}%;"
+                   f" width:{cw / BODY_W * 100:.6f}%; height:{ch / BODY_H * 100:.6f}%; }}")
     save_webp(body, OUT / name / "body.webp")
-    save_webp(sheet, OUT / name / "eyes.webp", q=90)
-    print(f"  CSS .bd-fig[data-role={name}] .bd-eyes {{ left:{sx / BODY_W * 100:.6f}%; top:{sy / BODY_H * 100:.6f}%;"
-          f" width:{cw / BODY_W * 100:.6f}%; height:{ch / BODY_H * 100:.6f}%; }}")
+    print("\n".join(css))
     return body
 
 
+def blink_role(name, full, eye_frames, box):
+    """只眨眼的角色：整只静态图 + 9 帧眼睛贴片。"""
+    def frames_of(part, k):
+        f = full.copy(); f.alpha_composite(eye_frames[k], box[:2]); return f
+    return parts_role(name, frames_of, {"eyes": box})
+
+
 def explore():
+    """04 有分层：身体（挖了眼睛和双脚）+ 放大镜手 + 另一只手 + 脚的 60 帧 + 眨眼 9 帧。
+    两只手按 rig.json 绕各自的轴小幅转（±1.3° / ±2.6°，3 秒一周期），脚取每 2 帧一帧凑 30 帧。
+    全部在原生尺寸合成整图再缩再裁，所以四块贴片之间、贴片和身体之间都严丝合缝。"""
     print("explore (04)")
+    import math
     z = zipfile.ZipFile(DOCS / "04_explore_complete.zip")
     rd = lambda n: Image.open(io.BytesIO(z.read("04_explore/" + n))).convert("RGBA")
+    body, mag, rest = rd("assets/01_body.png"), rd("assets/02_magnifier_hand.png"), rd("assets/03_rest_hand.png")
+    sprite, feet_sheet = rd("assets/05_blink_sprite.png"), rd("assets/04_feet_motion.png")
     full = rd("assets/04_explore.png")
-    sprite = rd("assets/05_blink_sprite.png")
+    eye_box = (478, 489, 807 - 478, 685 - 489)
+    feet_box = (360, 837, 875 - 360, 1057 - 837)
     fw = sprite.size[0] // 9
-    box = (478, 489, 807 - 478, 685 - 489)                      # rig.json eye_patch
     eyes = [sprite.crop((k * fw, 0, (k + 1) * fw, sprite.size[1])) for k in range(9)]
-    # 包里给了闭眼检查帧：静态图 + 第 8 帧 必须等于它
-    chk = full.copy(); chk.alpha_composite(eyes[8], box[:2])
-    assert ndiff(chk, rd("assets/04_explore_closed.png")) == 0
-    body = blink_role("explore", full, eyes, box)
+    fcw, fch = feet_sheet.size[0] // 8, feet_sheet.size[1] // 8
+    feet = [feet_sheet.crop(((k % 8) * fcw, (k // 8) * fch, (k % 8 + 1) * fcw, (k // 8 + 1) * fch)) for k in range(60)]
+    MAG_PIVOT, REST_PIVOT = (902, 688), (282, 744)            # rig.json
+    def rot(layer, deg, pivot):
+        # PIL 的 rotate 正角是逆时针；CSS rotate 正角是顺时针，所以取负
+        return layer.rotate(-deg, resample=Image.BICUBIC, center=pivot)
+    def frames_of(part, k):
+        t = 0 if part == "eyes" else k / 30 * 3          # 秒
+        ang = math.sin(2 * math.pi * t / 3)
+        f = rot(rest, -2.6 * ang, REST_PIVOT)             # 另一只手在身体后面
+        f.alpha_composite(body)
+        f.alpha_composite(feet[(2 * k) % 60] if part != "eyes" else feet[0], feet_box[:2])
+        f.alpha_composite(eyes[k] if part == "eyes" else eyes[0], eye_box[:2])
+        f.alpha_composite(rot(mag, 1.3 * ang, MAG_PIVOT))
+        return f
+    # 自检：不转、第 0 帧 ≈ 包里的完整静态图（分层叠回去应该就是它）
+    print(f"  分层叠回去 vs 04_explore.png 差异像素 {ndiff(frames_of('eyes', 0), full)}")
+    # 手的框：各自 bbox 外扩，盖住 ±角度转出去的范围
+    def box_of(layer, pad=18):
+        b = layer.getbbox(); return (b[0] - pad, b[1] - pad, b[2] - b[0] + 2 * pad, b[3] - b[1] + 2 * pad)
+    parts_role("explore", frames_of, {"eyes": eye_box, "feet": feet_box, "rest": box_of(rest), "mag": box_of(mag)})
     save_webp(head_icon(full, cx_frac=0.42), OUT / "explore" / "icon.webp")
 
 

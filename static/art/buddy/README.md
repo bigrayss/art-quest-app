@@ -59,7 +59,7 @@ v2 的 README 明说「颜料点保留原来的颜色和位置，**本包不包�
 
 | 角色 | 用在哪 | 动不动 | 素材来源 |
 | --- | --- | --- | --- |
-| `explore/` | 地图「今天」卡（`.t-sprite`）；下一关旁边那只（`.node-here`）是 `.still` 静态的 | 只眨眼 | `docs/04_explore_complete.zip`（有分层） |
+| `explore/` | 地图右边那张任务卡底下（`.t-sprite`，160px）；节点上不再站精灵 | 眨眼 + 双脚 + 两只手小幅转（`eyes/feet/rest/mag` 四张贴片） | `docs/04_explore_complete.zip`（有分层） |
 | `reading/` | 任务说明页「想画什么？」右边（`#intent-sprite`） | 只眨眼 | `docs/demo_standalone.html`（05 的分层内嵌在 HTML 里） |
 | `thinking/` | 求助请求**真的发出去之后**的窗头像；提交后的等待层 `#overlay` | 静态 | `docs/03_thinking.png` |
 | `happy/` | 提交并保存成功后的下一屏播一次（3 秒），然后停在静态图 | 单次 | `docs/02_happy_painter_transparent.webp`（烤死的动图，取 30 帧） |
@@ -69,6 +69,10 @@ v2 的 README 明说「颜料点保留原来的颜色和位置，**本包不包�
 会眨眼的多一张 `eyes.webp`（9 帧）；happy 多一张 `cheer.webp`（6×5 格，走 `bd-limb` 同一张表）。
 **它们不进外壳**（sw.js / main.py 的清单只有 normal 那四张）：地图一出来拉 explore，写心愿时预取
 thinking / happy / encourage（`buddyPrefetch`），第一次切过去不留空档。
+
+explore 的手脚是把包里的分层（身体 / 放大镜手 / 另一只手 / 脚的 60 帧）按 rig.json 的轴和角度
+**在原生尺寸上合成 30 张整图**，再缩、再裁出四块贴片——所以不靠 CSS rotate，也不挖空。
+层序 rest（身体后面）→ body → feet → eyes → mag（最上面），`BUDDY_ROLES.explore.parts` 的顺序就是它。
 
 ### 眨眼贴片为什么不挖空
 

@@ -194,6 +194,7 @@ class DrawingWithNoNetwork(unittest.TestCase):
             page.click("#btn-enter-world")
             page.wait_for_selector("#quest-grid .quest-card")
             page.click("#quest-grid .quest-card")
+            page.click("#btn-today")
             page.wait_for_timeout(400)
             page.click("#emotion-chips button")
 
@@ -295,6 +296,7 @@ class DrawingWithNoNetwork(unittest.TestCase):
             self.assertGreater(cold.eval_on_selector_all("#quest-grid .quest-card", "e => e.length"), 0,
                                "断网之后地图是空的")
             cold.click("#quest-grid .quest-card")
+            cold.click("#btn-today")
             cold.wait_for_timeout(400)
             cold.click("#emotion-chips button")
             cold.click("#btn-start-draw")
