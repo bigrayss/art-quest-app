@@ -13,7 +13,7 @@
 | `hero-eyes.webp` | v2 `04_blink_sprite.png` | 9×1 格，每格 329×196 |
 | `icon.webp` / `icon-happy.webp` | 从 `00_original.png` 裁贝雷帽和圆身子 | 256×256 |
 
-出素材的脚本：`tmp/mkv2.py`（换素材重跑一次，顺带会打印 CSS 的 steps 关键帧）。
+出素材的脚本：`tools/build_buddy_roles.py`（`normal_rig()` 那段；换素材重跑一次，会打印 CSS 的位置百分比）。
 原始包在 `docs/彩绘精灵_眨眼与手脚微动_v2.zip`，用户 2026-10-04 给的，里面带 `rig.json`、
 参考实现 `mascot.css` 和校验 `validation.json`。`00_original.png` 和
 `docs/橙色贝雷帽的开心小画家.png` **sha256 一致**，是同一张。
@@ -24,8 +24,10 @@
 拿铅笔的那只手和铅笔**不动**。每 3 秒一轮手脚，6 秒里眨两次眼（1.4s 和 4.45s），
 一次闭合+睁开约 0.30 秒。整只不浮动（用户：「整體浮動沒什麼用」）。
 
-**位置百分比（`.bd-hand/.bd-feet/.bd-eyes` 的 left/top/width/height）照抄包里的 mascot.css，
-别自己改**——帧图和原图 1312×1199 的坐标是绑死的。
+**位置百分比（`.bd-hand/.bd-feet/.bd-eyes` 的 left/top/width/height）由 `tools/build_buddy_roles.py`
+的 `normal_rig()` 打印，别自己改**——帧图和原图 1312×1199 的坐标是绑死的。
+2026-10-04 起三张帧图**每格四周留 2px 透明缝**（`GUTTER`），框也跟着外扩 2px：没有缝的话精灵一做缩放动画
+（呼吸、戳一下），格子边缘的采样会把隔壁那一格的身体像素渗进来，屏幕上多一条细线。帧图仍是原生分辨率。
 
 ### ⚠️ 两个踩过的坑
 

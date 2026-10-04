@@ -1237,23 +1237,21 @@
   let welcomeOn = false;
   // 门口的彩点和界面里别处的是同一套立绘（paintBuddy）。
   // 这里额外接一件事：戳一下它会弹一下。动画跑完摘掉类，所以能连着戳。
-  /** 戳一下会弹一下（封面那只的 Q 弹）。动画跑完摘掉类，所以能连着戳。地图上那只也用它。 */
-  function wirePoke(sp) {
-    if (!sp || sp.dataset.poke) return;
-    sp.dataset.poke = "1";
-    sp.addEventListener("pointerdown", () => {
-      sp.classList.remove("poke");
-      void sp.offsetWidth;                 // 强制回流，不然连着戳第二下不会重播
-      sp.classList.add("poke");
-    });
-    sp.addEventListener("animationend", (e) => {
-      if (e.animationName === "hero-poke") sp.classList.remove("poke");
-    });
-  }
+  // 所有精灵都能戳：戳一下压扁再弹回来（封面那只的 Q 弹）。用户 2026-10-04：「所有小精灵出现都让他们可以 Q 弹」。
+  // 事件挂在 document 上，后来渲染出来的也管；动画跑完摘掉类，所以能连着戳。
+  document.addEventListener("pointerdown", (e) => {
+    const sp = e.target.closest && e.target.closest(".sprite");
+    if (!sp) return;
+    sp.classList.remove("poke");
+    void sp.offsetWidth;                 // 强制回流，不然连着戳第二下不会重播
+    sp.classList.add("poke");
+  });
+  document.addEventListener("animationend", (e) => {
+    if (e.animationName === "hero-poke" && e.target.classList) e.target.classList.remove("poke");
+  });
   function paintWelcome() {
     const sp = $("#welcome-sprite"); if (!sp) return;
     if (!sp.firstChild) paintBuddy(sp, "normal", buddyColor(), true);
-    wirePoke(sp);
   }
   async function finishWelcome() {
     welcomeOn = false;
@@ -2929,7 +2927,6 @@
       +   `${all ? "随便一个" : "开始画"}${icon("arrowRight", 17)}</button></div>`
       + buddyHtml("t-sprite", all ? "happy" : "explore", null, "fig");
     box.classList.remove("hidden");
-    wirePoke(box.querySelector(".t-sprite"));
     $("#btn-today").onclick = () => {
       const q = card ? (card.task || randomForm(card.family))
         : randomForm(((state.families || [])[Math.floor(Math.random() * (state.families || []).length)] || {}).id);

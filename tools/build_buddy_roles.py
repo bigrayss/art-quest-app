@@ -44,6 +44,10 @@ ICON = 256
 CHEER_W, CHEER_H = 288, 263
 CHEER_FPS, CHEER_SEC = 10, 3
 CHEER_COLS = 6
+# 每一格四周留 2px 透明缝。没有缝的话，精灵一做缩放动画（呼吸 / 戳一下），格子边缘的采样会把
+# 隔壁那一格的像素渗进来——隔壁格的边缘是身体的不透明像素，于是屏幕上多出一条细线。
+# 贴片的框也跟着外扩 2px（框 = 整格），所以 background-position 还是整齐的 0/20/40…%。
+GUTTER = 2
 
 
 def save_webp(im, path, q=85):
@@ -68,6 +72,21 @@ def head_icon(full, cx_frac=None, top_frac=0.0, side_frac=0.62):
     return full.crop(box).resize((ICON, ICON), Image.LANCZOS)
 
 
+def gutter_sheet(frames, cols):
+    """把等大的帧铺成 cols 列的格子图，每格四周留 GUTTER 透明缝。返回 (sheet, 格宽, 格高)。"""
+    fw, fh = frames[0].size
+    cw, ch = fw + 2 * GUTTER, fh + 2 * GUTTER
+    rows = -(-len(frames) // cols)
+    sheet = Image.new("RGBA", (cw * cols, ch * rows), (0, 0, 0, 0))
+    for k, f in enumerate(frames):
+        sheet.alpha_composite(f, ((k % cols) * cw + GUTTER, (k // cols) * ch + GUTTER))
+    return sheet, cw, ch
+
+
+def css_box(sel, x, y, w, h, W_, H_):
+    return f"  {sel} {{ left:{x / W_ * 100:.6f}%; top:{y / H_ * 100:.6f}%; width:{w / W_ * 100:.6f}%; height:{h / H_ * 100:.6f}%; }}"
+
+
 def parts_role(name, frames_of, boxes, eye_timeline=False):
     """通用：frames_of(k) 给第 k 帧的**整只**原生尺寸图；boxes = {部件名: (x,y,w,h) 原图像素框}。
     每个部件：9 帧（eyes，走 bd-blink）或 30 帧（其余，走 bd-limb 3 秒）。
@@ -82,17 +101,12 @@ def parts_role(name, frames_of, boxes, eye_timeline=False):
             body = frames[0]
         sx, sy = max(0, int(x * S) - m), max(0, int(y * S) - m)
         ex, ey = min(BODY_W, int((x + w) * S + 1) + m), min(BODY_H, int((y + h) * S + 1) + m)
-        cw, ch = ex - sx, ey - sy
-        cols = 9 if part == "eyes" else CHEER_COLS
-        rows = 1 if part == "eyes" else -(-n // CHEER_COLS)
-        sheet = Image.new("RGBA", (cw * cols, ch * rows), (0, 0, 0, 0))
-        for k, f in enumerate(frames):
-            sheet.alpha_composite(f.crop((sx, sy, ex, ey)), ((k % cols) * cw, (k // cols) * ch))
-        chk = body.copy(); chk.alpha_composite(sheet.crop((0, 0, cw, ch)), (sx, sy))
+        crops = [f.crop((sx, sy, ex, ey)) for f in frames]
+        chk = body.copy(); chk.alpha_composite(crops[0], (sx, sy))
         assert ndiff(chk, body) == 0, f"{name}/{part}: 第 0 帧和身体对不上 ({ndiff(chk, body)})"
+        sheet, cw, ch = gutter_sheet(crops, 9 if part == "eyes" else CHEER_COLS)
         save_webp(sheet, OUT / name / f"{part}.webp", q=90)
-        css.append(f"  .bd-fig[data-role={name}] .bd-{part} {{ left:{sx / BODY_W * 100:.6f}%; top:{sy / BODY_H * 100:.6f}%;"
-                   f" width:{cw / BODY_W * 100:.6f}%; height:{ch / BODY_H * 100:.6f}%; }}")
+        css.append(css_box(f".bd-fig[data-role={name}] .bd-{part}", sx - GUTTER, sy - GUTTER, cw, ch, BODY_W, BODY_H))
     save_webp(body, OUT / name / "body.webp")
     print("\n".join(css))
     return body
@@ -221,6 +235,29 @@ def happy():
     print("  }")
 
 
+def normal_rig():
+    """normal 的三张帧图（门口 / 世界那张大图用的）：从 v2 包重出，**原生分辨率、不缩**（缩了补丁边界会露缝，
+    见 static/art/buddy/README.md），只是每格加 2px 透明缝。身体 hero.webp 不动。"""
+    print("normal (01) 帧图")
+    z = zipfile.ZipFile(DOCS / "彩绘精灵_眨眼与手脚微动_v2.zip")
+    rd = lambda n: Image.open(io.BytesIO(z.read("assets/" + n))).convert("RGBA")
+    css = []
+    for part, file, box, cols, rows in [("hand", "02_hand_motion.png", (931, 517, 1173, 795), 8, 8),
+                                        ("feet", "03_feet_motion.png", (463, 807, 976, 1057), 8, 8)]:
+        sheet = rd(file); x, y, x2, y2 = box; fw, fh = x2 - x, y2 - y
+        assert sheet.size == (fw * cols, fh * rows), (part, sheet.size)
+        frames = [sheet.crop(((k % cols) * fw, (k // cols) * fh, (k % cols + 1) * fw, (k // cols + 1) * fh)) for k in range(0, 60, 2)]
+        out, cw, ch = gutter_sheet(frames, CHEER_COLS)
+        save_webp(out, OUT / f"hero-{part}.webp", q=90)
+        css.append(css_box(f".bd-{part}", x - GUTTER, y - GUTTER, cw, ch, W, H))
+    eyes = rd("04_blink_sprite.png"); x, y, x2, y2 = 578, 489, 907, 685; fw = x2 - x
+    frames = [eyes.crop((k * fw, 0, (k + 1) * fw, eyes.size[1])) for k in range(9)]
+    out, cw, ch = gutter_sheet(frames, 9)
+    save_webp(out, OUT / "hero-eyes.webp", q=90)
+    css.append(css_box(".bd-eyes", x - GUTTER, y - GUTTER, cw, ch, W, H))
+    print("\n".join(css))
+
+
 def normal_body():
     """normal 的整只静态图（顶栏头像用）。normal 的头像 icon.webp 是硬裁的头部，底边切平，
     放在圆头像里像缺了一块——顶栏改用整只。原图就是 docs/橙色贝雷帽的开心小画家.png（= v2 包的 00_original）。"""
@@ -232,6 +269,7 @@ def normal_body():
 
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
+    normal_rig()
     normal_body()
     happy()
     static_role("thinking", "03", "03_thinking.png", dict(cx_frac=0.55, side_frac=0.64))
