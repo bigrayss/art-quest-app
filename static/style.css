@@ -657,7 +657,7 @@ figcaption { text-align:center; color:var(--muted-2); font-size:0.75rem; font-we
 
 /* ===== 能力值扇形图 ===== */
 .rose-wrap { background:var(--soft); border-radius:var(--r-lg); padding:10px 8px 14px; }
-.rose { width:100%; max-width:400px; margin:0 auto; display:block; }
+.rose { width:100%; max-width:460px; margin:0 auto; display:block; }   /* viewBox 480×400：两侧留给两行的英文维度名 */
 .rose-grid { fill:none; stroke:#e9e9e9; stroke-width:2; }
 .rose-focus { filter:drop-shadow(0 0 4px rgba(247,148,51,.4)); }
 .rose-before { fill:none; stroke-width:3; stroke-dasharray:3 4; stroke-opacity:.9; stroke-linecap:round; }
@@ -1542,7 +1542,7 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
     justify-self:end; align-self:center; }
   #view-final .actions.sticky button.grow { flex:0 0 auto; }
   #view-final > h1 { align-self:center; }
-  #view-final .rose { max-width:250px; }     /* 左栏窄一些，图跟着收 */
+  #view-final .rose { max-width:300px; }     /* 左栏窄一些，图跟着收 */
   #view-final .rose-wrap { padding:6px 6px 10px; }
   #view-final .rose-legend { margin-top:2px; }
   /* 结算页只是**报喜**，不是徽章墙：新点亮的收成一排小章
@@ -1558,7 +1558,7 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
 }
 @media (min-width: 760px) and (orientation: landscape) {
   /* 横屏只有 820 高，能给的更少：图还是最大的那块，其余全部收紧 */
-  #view-final .rose { max-width: 212px; }
+  #view-final .rose { max-width: 254px; }
   #view-final .rose-legend { font-size:0.6875rem; gap: 4px 10px; }
   #view-final .feedback-card { padding: 10px 12px; }
   #view-final > h2 { font-size:1.0625rem; }
@@ -1766,7 +1766,7 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
   .result-layout > .feedback-card { display:flex; flex-direction:column; }
   .result-layout > .feedback-card .actions.column { margin-top:auto; }
   #view-result .artwork { max-height:30vh; width:auto; max-width:100%; margin:0 auto; display:block; object-fit:contain; }
-  #view-result .rose { max-width:min(260px, 26vh); }
+  #view-result .rose { max-width:min(312px, 31vh); }   /* viewBox 480×400 比原来扁，宽放 1.2 倍，高不变 */
   #view-result .scores { margin-top:12px; }
   .growth-dims { grid-template-columns:repeat(3, 1fr); }   /* 用户定的：一行三个 */
   .actions.sticky { position:static; padding:0; background:none; }
@@ -2023,7 +2023,7 @@ body.simple #view-final .feedback-card { display:none !important; }
   .result-layout > div > #score-summary { grid-area:sum; margin:0; }
   .result-layout > .feedback-card { grid-area:fb; display:block; }
   .result-layout > .feedback-card .actions.column { margin-top:14px; }   /* 话说完，钮就跟在后面 */
-  #view-result .rose { max-width:min(300px, 32vh); }
+  #view-result .rose { max-width:min(360px, 38vh); }
 
   /* 宝藏页（宽屏）：画横排占满一整行，彩点的话（简单版没有）一整行，下面 九维图 | 徽章。
      原来左窄右宽、评价卡撑满右栏两行：文字只剩一两句之后，那就是一大块空白，
@@ -2040,7 +2040,7 @@ body.simple #view-final .feedback-card { display:none !important; }
   #view-final .compare figure img { max-height:38vh; max-height:38dvh; width:100%; }
   #view-final .feedback-card { align-self:start; }
   #view-final #badges-card { align-self:stretch; }
-  #view-final .rose { max-width:min(300px, 32vh); }
+  #view-final .rose { max-width:min(360px, 38vh); }
 }
 /* 选择框里带说明的选项 */
 .choice button span { display:flex; flex-direction:column; align-items:flex-start; gap:2px; text-align:left; min-width:0; }

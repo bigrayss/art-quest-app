@@ -25,10 +25,9 @@
   const T = s => (window.I18N ? window.I18N.t(s) : s);
   const dimName = d => (LANG === "en" && d && d.en) ? d.en : ((d || {}).zh || "");
   // 玫瑰图上九个标签挤在一圈里，英文全名放不下：用一个词
-  const DIM_SHORT_EN = { realism: "Realism", deformation: "Shape", imagination: "Ideas", color_richness: "Color",
-    color_contrast: "Contrast", line_combination: "Lines", line_texture: "Texture",
-    picture_organization: "Layout", transformation: "Change" };
-  const dimShort = d => (LANG === "en" && d && DIM_SHORT_EN[d.key]) ? DIM_SHORT_EN[d.key] : dimName(d);
+  // 扇形图上的标签就用正式名（英文是 KidsArtBench 的九个维度名，用户 2026-10-05：别用 Shape/Ideas 这种小名）。
+  // 两个词的名字在图上拆成两行，由 roseLabel() 排。
+  const dimShort = d => dimName(d);
   const LIST_SEP = LANG === "en" ? ", " : "、";
   // alert / confirm 不经过 DOM，i18n.js 的观察者看不见它们：这里包一层再交给系统
   // （iOS 壳把 window.alert 接到了 UIAlertController，包一层不影响）
@@ -3977,7 +3976,16 @@
   // 南丁格尔玫瑰扇形图：每个维度一个扇区，半径 = 分数；baseline 存在时用虚线弧标出修改前的分数
   function roseChart(scores, baseline) {
     const max = state.cfg.scale_max, N = CHART_ORDER.length, SLOT = 360 / N, PAD = 2;
-    const cx = 200, cy = 200, R = 118, LABEL_R = R + 20;
+    // 画布 480 宽：两侧要放得下 "Picture Organization" 这种两行的英文名，不和邻居叠、不出框
+    const W = 480, cx = 240, cy = 200, R = 118, LABEL_R = R + 20;
+    // 多词的名字拆成两行，整体对 y 居中；箭头跟在最后一行后面
+    const roseLabel = (x, y, anchor, cls, name, arrowHtml) => {
+      const words = name.includes(" ") ? name.split(" ") : [name];
+      const lines = words.length > 2 ? [words.slice(0, -1).join(" "), words[words.length - 1]] : words;
+      const LH = 13, top = y - ((lines.length - 1) * LH) / 2;
+      const spans = lines.map((t, i) => `<tspan x="${fmt(x)}" y="${fmt(top + i * LH)}">${escapeHtml(t)}</tspan>`).join("");
+      return `<text text-anchor="${anchor}" class="rose-label${cls}">${spans}${arrowHtml || ""}</text>`;
+    };
     const dimsByKey = Object.fromEntries(state.cfg.dimensions.map(d => [d.key, d]));
     const focus = new Set(state.quest ? state.quest.focus_dims : []);
     const rOf = (s) => (Math.max(1, Math.min(max, s)) / max) * R;
@@ -3994,7 +4002,7 @@
         const [nx, ny] = polar(cx, cy, LABEL_R, midn);
         const anch = Math.cos(midn * Math.PI / 180) > 0.25 ? "start" : Math.cos(midn * Math.PI / 180) < -0.25 ? "end" : "middle";
         sectors += `<path d="${sectorPath(cx, cy, R, a0n, a1n)}" fill="none" stroke="#e6e0d6" stroke-width="1" stroke-dasharray="3 3"><title>${dimName(d)}：本任务不考察此项</title></path>`;
-        labels += `<text x="${fmt(nx)}" y="${fmt(ny)}" text-anchor="${anch}" class="rose-label na">${dimShort(d)}</text>`;
+        labels += roseLabel(nx, ny, anch, " na", dimShort(d), "");
         return;
       }
       const fam = FAMILIES[DIM_FAMILY[key]];
@@ -4011,13 +4019,13 @@
       const [lx, ly] = polar(cx, cy, LABEL_R, mid);
       const anchor = Math.cos(mid * Math.PI / 180) > 0.25 ? "start" : Math.cos(mid * Math.PI / 180) < -0.25 ? "end" : "middle";
       const arrow = delta !== null && Math.abs(delta) >= 0.05 ? (delta > 0 ? " ▲" : " ▼") : "";
-      labels += `<text x="${fmt(lx)}" y="${fmt(ly)}" text-anchor="${anchor}" class="rose-label${isFocus ? " focus" : ""}">`
-        + `<tspan>${dimShort(d)}</tspan>${arrow ? `<tspan dx="3" class="rose-arw ${delta < 0 ? "dn" : "up"}">${arrow}</tspan>` : ""}</text>`;
+      labels += roseLabel(lx, ly, anchor, isFocus ? " focus" : "", dimShort(d),
+        arrow ? `<tspan dx="3" class="rose-arw ${delta < 0 ? "dn" : "up"}">${arrow}</tspan>` : "");
     });
     const legend = Object.values(FAMILIES).map(f =>
       `<span class="rose-leg"><i style="background:${f.color}"></i>${f.label}</span>`).join("");
     return `<div class="rose-wrap">
-      <svg viewBox="0 0 400 400" class="rose" role="img" aria-label="九维能力值扇形图">
+      <svg viewBox="0 0 ${W} 400" class="rose" role="img" aria-label="九维能力值扇形图">
         ${grid}${sectors}${marks}
         <circle cx="${cx}" cy="${cy}" r="26" class="rose-hub"/>
         <g transform="translate(${cx - 13},${cy - 13})" style="color:var(--muted)">${icon("palette", 26)}</g>
