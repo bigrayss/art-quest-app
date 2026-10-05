@@ -127,6 +127,9 @@ class OneServerManyChildren(unittest.TestCase):
     def test_a_child_only_sees_their_own(self):
         mine = self._session("anon-mine-1", "P-MINE")
         theirs = self._session("anon-theirs-1", "P-THEIRS")
+        # 一笔没画的空局不算作品、列表里不出现（用户 2026-10-05）：这里每局先画一笔
+        for sid in (mine, theirs):
+            self.c.post(f"/api/sessions/{sid}/log", json={"events": [], "strokes": [{"seq": 1, "stroke_id": "s00001", "phase": "before", "t_start_ms": 900, "tool": "pencil", "color": "#222222", "size": 4, "opacity": 1.0, "points": [[100, 100, 0, None, None, None], [160, 140, 90, None, None, None]]}]})
 
         got = [r["session_id"] for r in
                self.c.get("/api/sessions?anon_id=anon-mine-1&participant_id=P-MINE").json()]
@@ -135,6 +138,7 @@ class OneServerManyChildren(unittest.TestCase):
 
         # 没有研究员编号的设备，只靠设备 id 也要认得出自己
         solo = self._session("anon-solo-1")
+        self.c.post(f"/api/sessions/{solo}/log", json={"events": [], "strokes": [{"seq": 1, "stroke_id": "s00001", "phase": "before", "t_start_ms": 900, "tool": "pencil", "color": "#222222", "size": 4, "opacity": 1.0, "points": [[100, 100, 0, None, None, None], [160, 140, 90, None, None, None]]}]})
         got = [r["session_id"] for r in self.c.get("/api/sessions?anon_id=anon-solo-1").json()]
         self.assertEqual(got, [solo])
 

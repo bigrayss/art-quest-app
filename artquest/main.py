@@ -41,7 +41,7 @@ from .schemas import (
                       Stroke, Submit, TokenOnly)
 from .scoring import DIMENSIONS, SCALE_MAX, get_scorer
 from .scoring.levels import rubric_payload
-from .storage import (SCHEMA_VERSION, SessionStore, belongs_to as storage_belongs_to,
+from .storage import (SCHEMA_VERSION, SessionStore, belongs_to as storage_belongs_to, is_blank_shell,
                       decode_data_url, now_iso, sid_of)
 
 log = logging.getLogger("artquest")
@@ -1153,6 +1153,11 @@ def abandon(sid: str, body: Abandon):
     if meta.get("status") == "done":
         raise HTTPException(409, "session already finished")
     _ingest(sid, body.events, body.strokes)
+    meta = store.load(sid)
+    # 一笔没画就退出：这局什么都没有，不保存（用户 2026-10-05）。画过哪怕一笔的才走下面「标记不删」那条路。
+    if is_blank_shell(meta):
+        store.delete(sid)
+        return {"ok": True, "session_id": sid, "status": "deleted"}
     store.add_server_event(sid, ev.SESSION_ABANDONED, body.elapsed_ms,
                            {"reason": body.reason, "strokes": (meta.get("counts") or {}).get("strokes", 0)})
     store.update(sid, status="abandoned", abandoned_reason=body.reason)

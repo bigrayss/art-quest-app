@@ -108,10 +108,11 @@ class Tickets(unittest.TestCase):
         t = self._ticket(participant={"anon_id": "anon-ticket-test"})
         rows = self.c.get("/api/sessions", params={"anon_id": "anon-ticket-test"}).json()
         self.assertEqual([r for r in rows if r["session_id"] == t["session_id"]], [])
-        # 花掉之后就该出现了
+        # 花掉、画了一笔之后就该出现了（一笔没画的空局也不算作品，用户 2026-10-05）
         self.c.post("/api/sessions", json={
             "quest_id": self.quest, "intent": {"emotion": "开心", "text": ""},
             "session_id": t["session_id"], "participant": {"anon_id": "anon-ticket-test"}})
+        self.c.post(f"/api/sessions/{t['session_id']}/log", json={"events": [], "strokes": [{"seq": 1, "stroke_id": "s00001", "phase": "before", "t_start_ms": 900, "tool": "pencil", "color": "#222222", "size": 4, "opacity": 1.0, "points": [[100, 100, 0, None, None, None], [160, 140, 90, None, None, None]]}]})
         rows = self.c.get("/api/sessions", params={"anon_id": "anon-ticket-test"}).json()
         self.assertEqual(len([r for r in rows if r["session_id"] == t["session_id"]]), 1)
 

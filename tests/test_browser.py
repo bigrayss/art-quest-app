@@ -272,6 +272,13 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
                              "intent": {"emotion": "平静", "text": ""},
                              "participant": {"anon_id": anon}}).encode(),
             headers={"Content-Type": "application/json"})).read())["session_id"]
+        # 没画完的那张得真画过一笔：一笔没画的空局不算作品，画廊不挂（用户 2026-10-05）
+        urllib.request.urlopen(urllib.request.Request(
+            self.base + f"/api/sessions/{open_one}/log", method="POST",
+            data=json.dumps({"events": [], "strokes": [{"seq": 1, "stroke_id": "s00001", "phase": "before", "t_start_ms": 900,
+                             "tool": "pencil", "color": "#222222", "size": 4, "opacity": 1.0,
+                             "points": [[100, 100, 0, None, None, None], [160, 140, 90, None, None, None]]}]}).encode(),
+            headers={"Content-Type": "application/json"})).read()
 
         with sync_playwright() as pw:
             browser = pw.chromium.launch(channel="chrome")

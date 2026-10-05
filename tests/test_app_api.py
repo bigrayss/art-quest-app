@@ -258,6 +258,11 @@ class TheShellRunsFromAnotherOrigin(unittest.TestCase):
             page.wait_for_selector("#view-draw:not(.hidden)")
             page.wait_for_function("() => document.querySelector('#recstat') && !document.querySelector('#recstat').classList.contains('hidden')")
             keep_awake = page.evaluate("window.__native.filter(m => m.type === 'keepAwake').map(m => m.on)")
+            # 画一笔并等它落到服务器：一笔没画的空局不算作品，列表里不会出现（用户 2026-10-05）
+            cv = page.query_selector("#view-draw canvas").bounding_box()
+            with page.expect_response(lambda r: "/log" in r.url and r.status == 200, timeout=20000):
+                page.mouse.move(cv["x"] + 40, cv["y"] + 40); page.mouse.down()
+                page.mouse.move(cv["x"] + 220, cv["y"] + 170, steps=12); page.mouse.up()
             browser.close()
 
         # 假壳故意不给 sw.js（见 _ShellFiles），浏览器会为此记一条 404；真壳下 SW 根本不注册

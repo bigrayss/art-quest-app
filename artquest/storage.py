@@ -421,6 +421,10 @@ class SessionStore:
                 if not belongs_to(m, participant_id=participant_id, anon_id=anon_id,
                              account_id=account_id, windows=device_windows or {}):
                     continue
+                # 一笔没画就走了的空局不是作品（用户 2026-10-05：空白的别放进我的画作）。
+                # 孩子的画廊里不挂；研究员的全量视图照旧看得见。画过哪怕一笔的没完成作品仍然挂。
+                if is_blank_shell(m):
+                    continue
             row = {k: m.get(k) for k in keys}
             row["session_id"] = sid_of(m) or d.name
             p = m.get("participant")
@@ -752,6 +756,12 @@ _PART_FILES = {
     "self_report": ("self_report.json", "questionnaire.json"),
     "qc": ("quality.json",),
 }
+
+
+def is_blank_shell(meta: Dict[str, Any]) -> bool:
+    """开了一局、一笔没画、也没交过东西。"""
+    return (not meta.get("before") and meta.get("status") != "done"
+            and int((meta.get("counts") or {}).get("strokes") or 0) == 0)
 
 
 def belongs_to(meta: Dict[str, Any], *, participant_id: str, anon_id: str,
