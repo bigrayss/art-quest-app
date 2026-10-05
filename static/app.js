@@ -2726,14 +2726,20 @@
     for (const ch of String(key)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
     return n ? h % n : 0;
   }
+  // 每次进地图重新抽（state.rolls 在 renderQuests 里清空）：同一次停留里点同一个地方是同一道，
+  // 离开再回来换一道。原来按「账号|家族|做过几道」取种子、做完一道才换，用户 2026-10-05：
+  // 「不是说任务随机吗，我打开一直是一个」。仍然只在本版、没做过的题里抽。
   function randomForm(familyId) {
     const forms = tierForms(familyId);
     if (!forms.length) return null;
+    state.rolls = state.rolls || {};
+    if (state.rolls[familyId]) return state.rolls[familyId];
     const done = new Set((state.allSessions || []).filter(r => r.status === "done").map(r => r.task_id || r.quest_id));
     const left = forms.filter(q => !done.has(q.id));
     const pool = left.length ? left : forms;
-    const who = `${accountId() || ""}|${state.anonId || ""}|${familyId}|${forms.length - left.length}`;
-    return pool[seededIndex(who, pool.length)];
+    const q = pool[Math.floor(Math.random() * pool.length)];
+    state.rolls[familyId] = q;
+    return q;
   }
 
   // 地点名只在**语义断点**换行：名字区够宽时一行，不够时按这里拆（CSS 里 keep-all 禁掉别处的断行）。
@@ -2782,6 +2788,7 @@
   }
   function renderQuests() {
     paintMapBackground();
+    state.rolls = {};                 // 重新进地图，每个主题重新抽一道
     const grid = $("#quest-grid"); if (!grid) return;
     grid.querySelectorAll(".quest-card").forEach(el => el.remove());
     const seq = state.study && state.study.sequence ? state.study.sequence : null;
