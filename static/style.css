@@ -1635,8 +1635,8 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
     padding:4px 2px 14px 14px; min-width:0;  padding-top:calc(4px + env(safe-area-inset-top)); }
   /* 兜底：万一将来字号再调大，宁可省略号也不要顶穿栏边 */
   .rail-brand b { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .rail-brand .mark { display:flex; align-items:center; justify-content:center; width:30px; height:30px;
-    border-radius:8px; background:var(--accent); color:#fff; flex:none; }
+  /* 品牌角标就是 app 图标本身（用户 2026-10-05 给的那张），不再是调色盘线稿 */
+  .rail-brand .mark { display:block; width:30px; height:30px; border-radius:8px; object-fit:cover; flex:none; }
   body.inflow .tabbar { display:none; }
   main { padding:22px 26px 36px; }
   h1 { font-size:1.6875rem; }

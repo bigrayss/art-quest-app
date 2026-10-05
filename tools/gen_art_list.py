@@ -245,7 +245,7 @@ APP_ICONS = [
     ("icon-192.png", "192×192", "Android / PWA 图标"),
     ("icon-512.png", "512×512", "PWA 启动画面与商店图标"),
     ("ios/ArtQuest/Assets.xcassets/AppIcon.appiconset/icon-1024.png", "1024×1024，**不带透明**",
-     "iOS app 图标（App Store / 主屏）。现在是 icon-512 拉大的占位，替换后其余尺寸 Xcode 自己生成"),
+     "iOS app 图标（App Store / 主屏）。源图 art-src/icon/app-icon.png，各尺寸由脚本一起出"),
 ]
 
 

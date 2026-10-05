@@ -44,6 +44,7 @@ const SHELL_URLS = [
   "/static/icons/icon-180.png",
   "/static/icons/icon-192.png",
   "/static/icons/icon-512.png",
+  "/static/icons/icon-512-maskable.png",
 ];
 
 // 读的、没有身份的、离线也该能开起来的那几个。
