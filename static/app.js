@@ -2515,9 +2515,12 @@
     refPix = null;
     $("#ref-modal").classList.add("hidden");
     refView.z = 1; refView.tx = refView.ty = 0; refViewedMs = 0; refOpenedAt = null; attention = "canvas";
+    // 这两个 <img> 是所有任务共用的：直接改 src 的话，新图解码出来之前浏览器一直显示上一张
+    // （用户 2026-10-05：「参考图为啥卡一下是张椅子」——那是上一道 M4 的椅子）。先把旧图清掉再换。
+    const refImgs = [$("#ref-img"), $("#ref-thumb-img")];
     if (allowRef) {
       const src = ref.file || `/static/refs/${ref.id}.png`;
-      $("#ref-img").src = src; $("#ref-thumb-img").src = src;
+      refImgs.forEach(im => { if (im.getAttribute("src") !== src) { im.removeAttribute("src"); im.src = src; } });
       // always：缩略图一直在右栏里；on_demand：只有一颗钮，画面要他自己点开
       $("#refpanel").classList.toggle("peek", ref.mode !== "always");
       applyRefView();
@@ -2525,6 +2528,7 @@
       logEvent(EV.REFERENCE_SHOW, { reference_id: ref.id, mode: ref.mode,
         placeholder: !!(q.stimulus && q.stimulus.placeholder), task_id: q.id });
     }
+    else refImgs.forEach(im => im.removeAttribute("src"));
     state.timeUp = false;
     const allowed = q.allowed_tools;
     document.querySelectorAll("#tools button").forEach(b => {
@@ -3114,6 +3118,8 @@
     // 任务自带参考图、而且是「一直可见」那种的，心愿屏的任务卡里就先给他看：
     // 写心愿之前知道要照着什么画。on_demand 的不放——画面要等他自己点开。
     const ref = q.reference, showRef = ref && state.condition.reference_allowed && ref.mode === "always";
+    // 写心愿的时候就把参考图拉进缓存，进创作屏时不用等
+    if (ref && state.condition.reference_allowed) { const pre = new Image(); pre.src = ref.file || `/static/refs/${ref.id}.png`; }
     const refImg = showRef ? `<img class="intent-ref" src="${ref.file || `/static/refs/${ref.id}.png`}" alt="参考图">` : "";
     $("#intent-quest-card").innerHTML = `<div class="type">${q.type}</div><h3 id="intent-quest-title">${q.title}</h3><p id="intent-quest-prompt">${q.prompt}</p>${refImg}`;
     paintIntentIdentity();
