@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""把 docs/ 里用户给的精灵素材出成界面用的小文件（static/art/buddy/<角色>/）。
+"""把 art-src/mascot/ 里用户给的精灵素材出成界面用的小文件（static/art/buddy/<角色>/）。
 
 五个新形象（normal 那套还是老路子，见 static/art/buddy/README.md）：
 
@@ -19,7 +19,7 @@
     cheer.webp  只有 happy 有：从用户给的 97 帧 webp 里按 10fps 取 3 秒，6×5 格，
                 每格 288×263。CSS steps() 播一遍就停。
 
-素材来源：docs/04_explore_complete.zip（有分层）、docs/demo_standalone.html（05 的分层
+素材来源：04_explore_complete.zip（有分层）、05_reading_demo_standalone.html（05 的分层
 内嵌在 HTML 里）、其余只有静态 PNG + 烤死的 webp。
 
 用法：.venv/bin/python tools/build_buddy_roles.py
@@ -34,7 +34,7 @@ from pathlib import Path
 from PIL import Image, ImageChops
 
 ROOT = Path(__file__).resolve().parent.parent
-DOCS = ROOT / "docs"
+DOCS = ROOT / "art-src" / "mascot"      # 用户给的原始素材（预览动图在 previews/，不进 git）
 OUT = ROOT / "static" / "art" / "buddy"
 W, H = 1312, 1199            # 所有素材的原生画布
 BODY_W = 480
@@ -160,7 +160,7 @@ def explore():
 
 def reading():
     print("reading (05)")
-    h = (DOCS / "demo_standalone.html").read_text(encoding="utf-8")
+    h = (DOCS / "05_reading_demo_standalone.html").read_text(encoding="utf-8")
     css = re.search(r"<style>(.*?)</style>", h, re.S).group(1)
     assert "mascot-05" in css
     def data_img(pat, src):
@@ -191,15 +191,15 @@ def static_role(name, label, png, icon_kw, body=None):
 
 
 def happy():
-    anim = Image.open(DOCS / "02_happy_painter_transparent.webp")
+    anim = Image.open(DOCS / "02_happy_animated.webp")
     anim.seek(0); f0 = anim.convert("RGBA")
     # 静态 PNG 和动图第 0 帧的姿势差了四万多个像素：庆祝播完换回静态图会跳一下。
     # 所以 happy 的 body 用动图第 0 帧（播完正好停在它上面），PNG 只出头像。
-    full = static_role("happy", "02", "02_欢乐彩绘小画家.png", dict(cx_frac=0.5, top_frac=0.1, side_frac=0.56), body=f0)
+    full = static_role("happy", "02", "02_happy.png", dict(cx_frac=0.5, top_frac=0.1, side_frac=0.56), body=f0)
     # PIL 读不到每帧时长（都报 None），用 webpmux 的清单：74 帧 50ms + 23 帧 100ms = 6000ms
     durs = []
     import subprocess
-    info = subprocess.run(["webpmux", "-info", str(DOCS / "02_happy_painter_transparent.webp")],
+    info = subprocess.run(["webpmux", "-info", str(DOCS / "02_happy_animated.webp")],
                           capture_output=True, text=True).stdout
     for line in info.splitlines():
         p = line.split()
@@ -239,7 +239,7 @@ def normal_rig():
     """normal 的三张帧图（门口 / 世界那张大图用的）：从 v2 包重出，**原生分辨率、不缩**（缩了补丁边界会露缝，
     见 static/art/buddy/README.md），只是每格加 2px 透明缝。身体 hero.webp 不动。"""
     print("normal (01) 帧图")
-    z = zipfile.ZipFile(DOCS / "彩绘精灵_眨眼与手脚微动_v2.zip")
+    z = zipfile.ZipFile(DOCS / "01_normal_rig_v2.zip")
     rd = lambda n: Image.open(io.BytesIO(z.read("assets/" + n))).convert("RGBA")
     css = []
     for part, file, box, cols, rows in [("hand", "02_hand_motion.png", (931, 517, 1173, 795), 8, 8),
@@ -260,9 +260,9 @@ def normal_rig():
 
 def normal_body():
     """normal 的整只静态图（顶栏头像用）。normal 的头像 icon.webp 是硬裁的头部，底边切平，
-    放在圆头像里像缺了一块——顶栏改用整只。原图就是 docs/橙色贝雷帽的开心小画家.png（= v2 包的 00_original）。"""
+    放在圆头像里像缺了一块——顶栏改用整只。原图就是 01_normal.png（= v2 包的 00_original）。"""
     print("normal (01) 整只")
-    full = Image.open(DOCS / "橙色贝雷帽的开心小画家.png").convert("RGBA")
+    full = Image.open(DOCS / "01_normal.png").convert("RGBA")
     assert full.size == (W, H)
     save_webp(full.resize((BODY_W, BODY_H), Image.LANCZOS), OUT / "normal" / "body.webp")
 
@@ -275,7 +275,7 @@ def main():
     static_role("thinking", "03", "03_thinking.png", dict(cx_frac=0.55, side_frac=0.64))
     explore()
     reading()
-    static_role("encourage", "06", "06_橙帽眨眼抱心萌球.png", dict(cx_frac=0.5, side_frac=0.62))
+    static_role("encourage", "06", "06_encourage.png", dict(cx_frac=0.5, side_frac=0.62))
 
 
 if __name__ == "__main__":

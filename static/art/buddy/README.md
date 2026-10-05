@@ -14,9 +14,9 @@
 | `icon.webp` / `icon-happy.webp` | 从 `00_original.png` 裁贝雷帽和圆身子 | 256×256 |
 
 出素材的脚本：`tools/build_buddy_roles.py`（`normal_rig()` 那段；换素材重跑一次，会打印 CSS 的位置百分比）。
-原始包在 `docs/彩绘精灵_眨眼与手脚微动_v2.zip`，用户 2026-10-04 给的，里面带 `rig.json`、
+原始包在 `art-src/mascot/01_normal_rig_v2.zip`，用户 2026-10-04 给的，里面带 `rig.json`、
 参考实现 `mascot.css` 和校验 `validation.json`。`00_original.png` 和
-`docs/橙色贝雷帽的开心小画家.png` **sha256 一致**，是同一张。
+`art-src/mascot/01_normal.png` **sha256 一致**，是同一张。
 
 ## 动的是局部，不是整只
 
@@ -56,16 +56,16 @@ v2 的 README 明说「颜料点保留原来的颜色和位置，**本包不包�
 
 ## 六个形象（2026-10-04 起）
 
-上面说的是 `normal`。另外五个在各自的子目录里，由 **`tools/build_buddy_roles.py`** 从 `docs/`
+上面说的是 `normal`。另外五个在各自的子目录里，由 **`tools/build_buddy_roles.py`** 从 `art-src/mascot/`
 里用户给的素材出（换素材重跑一次，它会打印要抄进 style.css 的百分比）：
 
 | 角色 | 用在哪 | 动不动 | 素材来源 |
 | --- | --- | --- | --- |
-| `explore/` | 地图右边那张任务卡底下（`.t-sprite`，160px）；节点上不再站精灵 | 眨眼 + 双脚 + 两只手小幅转（`eyes/feet/rest/mag` 四张贴片） | `docs/04_explore_complete.zip`（有分层） |
-| `reading/` | 任务说明页「想画什么？」右边（`#intent-sprite`） | 只眨眼 | `docs/demo_standalone.html`（05 的分层内嵌在 HTML 里） |
-| `thinking/` | 求助请求**真的发出去之后**的窗头像；提交后的等待层 `#overlay` | 静态 | `docs/03_thinking.png` |
-| `happy/` | 提交并保存成功后的下一屏播一次（3 秒），然后停在静态图 | 单次 | `docs/02_happy_painter_transparent.webp`（烤死的动图，取 30 帧） |
-| `encourage/` | 问卷头、结算页改过之后的那张卡 | 静态 | `docs/06_橙帽眨眼抱心萌球.png` |
+| `explore/` | 地图右边那张任务卡底下（`.t-sprite`，160px）；节点上不再站精灵 | 眨眼 + 双脚 + 两只手小幅转（`eyes/feet/rest/mag` 四张贴片） | `art-src/mascot/04_explore_complete.zip`（有分层） |
+| `reading/` | 任务说明页「想画什么？」右边（`#intent-sprite`） | 只眨眼 | `art-src/mascot/05_reading_demo_standalone.html`（05 的分层内嵌在 HTML 里） |
+| `thinking/` | 求助请求**真的发出去之后**的窗头像；提交后的等待层 `#overlay` | 静态 | `art-src/mascot/03_thinking.png` |
+| `happy/` | 提交并保存成功后的下一屏播一次（3 秒），然后停在静态图 | 单次 | `art-src/mascot/02_happy_animated.webp`（烤死的动图，取 30 帧） |
+| `encourage/` | 问卷头、结算页改过之后的那张卡 | 静态 | `art-src/mascot/06_encourage.png` |
 
 每个目录：`body.webp` 整只 480 宽、`icon.webp` 256 头部特写（给 26–40px 的小头像位）；
 会眨眼的多一张 `eyes.webp`（9 帧）；happy 多一张 `cheer.webp`（6×5 格，走 `bd-limb` 同一张表）。

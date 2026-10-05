@@ -18,3 +18,6 @@ id_rsa*
 
 # 字体源文件 28MB，只在重裁子集时用（tools/build_font.py），不进仓库
 tools/fonts-src/
+
+# 精灵素材的预览动图 / 重复 PNG（几十 MB，脚本用不到）
+art-src/mascot/previews/
