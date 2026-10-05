@@ -1672,6 +1672,22 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
   .brief .assist .assist-log, .brief .assist.open-fb .assist-log { flex:1 1 auto; min-height:0; max-height:none; }
   .brief .assist-head { flex:0 0 auto; }
   .brief .assist:not(.veiled) .assist-veil { flex:0 0 auto; }
+  /* 英文任务描述比中文长一倍，右栏又是定高的（contain:size）：不夹的话任务卡 + 参考图
+     就把彩点的窗压成一条缝（用户 2026-10-05：「有参考图时 dot 的对话框被压缩没」）。
+     描述夹三行——完整描述上一屏刚读过，这儿只是备查；窗保底 11rem；缩略图在矮屏上矮一点。 */
+  /* 注意平板上 1rem ≈ 21.6px：8rem 的缩略图就是 173px，别按 16px 心算。
+     让位顺序：参考图缩略先缩（最矮 4rem），窗保底 7.5rem，任务卡不缩（夹三行已经够短）。 */
+  .brief .quest-card.small { flex:0 0 auto; }
+  .brief .quest-card.small p { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+  .brief .refpanel:not(.peek) { display:flex; flex-direction:column; flex:0 1 auto; min-height:4rem; }
+  .brief .refpanel:not(.peek) .ref-thumb { height:auto; flex:1 1 min(8rem, 16vh); min-height:0; }
+  .brief .refpanel:not(.peek) .ref-thumb img { position:absolute; inset:0; }
+  .brief .assist { min-height:7.5rem; }
+  /* 600 高的极限（1000×600 这种笔记本）：三行加窗还差 27px，描述夹两行、窗再让半格 */
+  @media (max-height: 640px) {
+    .brief .quest-card.small p { -webkit-line-clamp:2; }
+    .brief .assist { min-height:7rem; }
+  }
   .brief-spacer { display:none; }
   .assist.hidden ~ .brief-spacer { display:block; flex:1 1 auto; min-height:6px; }
   .brief > .actions { margin-top:0; }          /* 窗的底边对画布底边，按钮对 dock */
@@ -1853,10 +1869,11 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
   .brief .quest-card.small p { -webkit-line-clamp:3; }
   .brief > .actions { grid-column:1 / -1; }
 }
-/* 英文心情词最长的是 Not sure：一行五个时别让它折成两行把整排撑高。
-   列要写 minmax(0,1fr)：1fr 的下限是 min-content，nowrap 之后五列会撑破卡片、整页溢出。 */
+/* 中文十个词一行五个正好。英文长短差太多（Sad / Looking forward to it），
+   硬塞五列字就出框（用户 2026-10-05）：英文改成自然流——每颗按自己的宽度，放不下就换行。 */
 .intent-form .chips { grid-template-columns:repeat(5, minmax(0, 1fr)); }
-html[data-lang="en"] .intent-form .chips button { white-space:nowrap; padding-inline:4px; font-size:0.9375rem; }
+html[data-lang="en"] .intent-form .chips { display:flex; flex-wrap:wrap; }
+html[data-lang="en"] .intent-form .chips button { flex:1 1 auto; white-space:nowrap; padding-inline:10px; font-size:0.9375rem; }
 
 
 /* ===== 手机上的创作屏：能给画布的宽度一寸都不留 ===== */
