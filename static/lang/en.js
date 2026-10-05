@@ -102,8 +102,8 @@ window.ARTQUEST_LANG_EN = {
   "画廊": "Gallery",
   "彩点": "Dot",
   "我的": "Me",
-  "彩点的世界": "Dot's World",
-  "{a}的世界": "{a}'s World",
+  "彩点的画室": "Dot's Studio",
+  "{a}的画室": "{a}'s Studio",
   "看看彩点": "See Dot",
   "看看{a}": "See {a}",
   "收起导航": "Collapse navigation",
@@ -160,7 +160,7 @@ window.ARTQUEST_LANG_EN = {
 
   // ---------- 封面 ----------
   "今天想画点什么？": "What do you want to draw today?",
-  "进入世界": "Enter the world",
+  "去接任务": "Take a quest",
   "给它起个名字": "Name it",
   "取个你喜欢的名字。": "Choose a name you like.",
   "就叫这个": "Use this name",

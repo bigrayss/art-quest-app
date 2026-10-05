@@ -382,7 +382,7 @@
     const n = buddyName();
     document.querySelectorAll(".buddy-word").forEach(el => { el.textContent = n; });
     const w = $("#world-name"); if (w) w.textContent = n;
-    TITLES.world = `${n}的世界`;
+    TITLES.world = `${n}的画室`;
     TITLES.buddy = n;
     const av = $("#btn-world"); if (av) av.title = `看看${n}`;
   }
@@ -962,7 +962,7 @@
   const curView = () => VIEWS.find(v => !$(`#view-${v}`).classList.contains("hidden")) || "";
   const TAB_VIEW = { map: "quest", dex: "dex", buddy: "buddy", me: "sessions", grade: "teacher", rubric: "rubric" };
   const VIEW_TAB = { world: "map", quest: "map", dex: "dex", buddy: "buddy", sessions: "me", teacher: "grade", grade: "grade", rubric: "rubric" };
-  const TITLES = { world: "彩点的世界", quest: "任务", dex: "画廊", buddy: "彩点", sessions: "我的", teacher: "评分", grade: "评分", rubric: "评分参考" };
+  const TITLES = { world: "彩点的画室", quest: "任务", dex: "画廊", buddy: "彩点", sessions: "我的", teacher: "评分", grade: "评分", rubric: "评分参考" };
   const VIEW_ROLE = { draw: "normal", result: "happy", survey: "encourage" };
   function show(name) {
     // 离开一屏就取消这一屏没结束的回应：精灵始终回应当前页面，不是迟到的上一条
