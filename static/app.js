@@ -2299,7 +2299,9 @@
   /** Push everything queued locally, then report what is still unsent. */
   async function flushLog() {
     flushZoom();   // close any open gesture before anything leaves the client
-    try { await ArtLog.flush(); } catch (e) { /* keep the queue */ }
+    // 传两轮：第一轮开始后才落进队列的那一两条（比如刚记的 TASK_SUBMIT）第二轮带走，
+    // 不然交卷时 pending 总是 1，质检里 uploads_flushed 就会误报（2026-10-05 看数据时 16 幅里有 4 幅）
+    try { await ArtLog.flush(); await ArtLog.flush(); } catch (e) { /* keep the queue */ }
     return await ArtLog.pending();
   }
   async function snapshot() {
