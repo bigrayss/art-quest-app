@@ -1017,6 +1017,16 @@ def _score_and_save(sid: str, phase: str, png: bytes, elapsed_ms: int) -> Dict[s
     return {"file": f"{phase}.png", "elapsed_ms": elapsed_ms, "at": now_iso(), "scores": scores}
 
 
+def _is_blank(png: bytes) -> bool:
+    """整张画布还是白的（没有一个像素比 250 更暗）。画布底是 #fff，所以不用看 alpha。"""
+    import io
+    from PIL import Image
+    try:
+        return Image.open(io.BytesIO(png)).convert("L").getextrema()[0] >= 250
+    except Exception:
+        return False
+
+
 @api.post("/sessions/{sid}/submit")
 def submit(sid: str, body: Submit):
     meta = _session_or_404(sid)
@@ -1024,6 +1034,10 @@ def submit(sid: str, body: Submit):
         png = decode_data_url(body.image)
     except ValueError as e:
         raise HTTPException(400, str(e))
+    # 空画布不保存（用户 2026-10-05）：不打分、不进画廊、不发徽章。客户端的「画好了」已经先拦了一道，
+    # 这里是兜底。session 还在，孩子接着画、再交就行。
+    if _is_blank(png):
+        raise HTTPException(422, "画布上还没有内容，先画点什么吧。")
     _ingest(sid, body.events, body.strokes)
     quest, intent = _quest_for_engines(meta), meta["intent"]
     engine = get_feedback_engine()

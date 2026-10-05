@@ -3254,9 +3254,23 @@
     logEvent(EV.CANVAS_GEOMETRY, canvasGeom());
   }
 
+  /** 整张画布还是白的？每隔 4 个像素抽一个看，1024×704 也就几万次比较。 */
+  function canvasIsBlank() {
+    const d = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    for (let i = 0; i < d.length; i += 16) if (d[i] < 250 || d[i + 1] < 250 || d[i + 2] < 250) return false;
+    return true;
+  }
+  // 空画布不保存（用户 2026-10-05）：不弹「仍要提交吗」，直接说一句，留在画画屏
+  let noteTimer = 0;
+  function submitNote() {
+    const n = $("#submit-note"); if (!n) return;
+    n.classList.remove("hidden"); clearTimeout(noteTimer);
+    noteTimer = setTimeout(() => n.classList.add("hidden"), 2600);
+  }
+  const nothingDrawn = () => !visible.length || canvasIsBlank();
   $("#btn-submit").onclick = async () => {
     if (state.phase === "after") return submitAfter();
-    if (!undoStack.length && !state.dirtySinceSnapshot) { if (!confirm("画布上还没有内容，仍要提交吗？")) return; }
+    if (nothingDrawn()) return submitNote();
     overlay("正在查看你的画…"); stopTimers();
     logEvent(EV.TASK_SUBMIT, { phase: state.phase, strokes: visible.length });
     const image = canvas.toDataURL("image/png");
@@ -3310,6 +3324,7 @@
     endSession(r.session, state.before.image, state.before.image, null); overlay(null);
   };
   async function submitAfter() {
+    if (canvasIsBlank()) return submitNote();      // 进化关把画全擦掉了也不收
     overlay("正在查看修改内容…"); stopTimers();
     const image = canvas.toDataURL("image/png");
     try {

@@ -264,7 +264,7 @@ class Protocol(unittest.TestCase):
                     "participant": {"anon_id": f"anon-{pid}", "participant_id": pid},
                     "canvas": {"width": 1024, "height": 704}}).json()["session_id"]
                 c.post(f"/api/sessions/{sid}/submit", json={
-                    "image": _blank(), "elapsed_ms": 60000, "phase": "before"})
+                    "image": _marked(), "elapsed_ms": 60000, "phase": "before"})
                 c.post(f"/api/sessions/{sid}/finalize", json={"elapsed_ms": 65000})
 
             after = c.get(f"/api/participants/{pid}/protocol").json()
@@ -278,9 +278,38 @@ class Protocol(unittest.TestCase):
 
 
 def _blank():
+    """一张真的白卷——服务器从 2026-10-05 起不收它（见 BlankCanvas）。"""
     buf = io.BytesIO()
     render([], (1024, 704)).save(buf, "PNG")
     return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+
+
+def _marked():
+    """有一笔的画：协议 / 顺序那些测试要的只是「交了」，不是白卷本身。"""
+    from PIL import ImageDraw
+    img = render([], (1024, 704))
+    ImageDraw.Draw(img).line((100, 100, 600, 400), fill=(40, 40, 40), width=8)
+    buf = io.BytesIO(); img.save(buf, "PNG")
+    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+
+
+class BlankCanvas(unittest.TestCase):
+    """空画布不保存：提交接口拒收，session 不算完成，画廊里也不会出现。"""
+
+    def test_a_blank_canvas_is_refused_and_nothing_is_saved(self):
+        c = TestClient(app, headers=ADMIN)
+        sid = c.post("/api/sessions", json={
+            "task_id": "M0_A1", "intent": {"emotion": "开心", "text": ""},
+            "participant": {"anon_id": "anon-blank", "participant_id": ""},
+            "canvas": {"width": 1024, "height": 704}}).json()["session_id"]
+        r = c.post(f"/api/sessions/{sid}/submit", json={"image": _blank(), "elapsed_ms": 30000, "phase": "before"})
+        self.assertEqual(r.status_code, 422)
+        meta = c.get(f"/api/sessions/{sid}").json()
+        self.assertFalse(meta.get("before"), "白卷不该被打分保存")
+        self.assertNotEqual(meta.get("status"), "done")
+        # 画了一笔再交就收
+        r = c.post(f"/api/sessions/{sid}/submit", json={"image": _marked(), "elapsed_ms": 60000, "phase": "before"})
+        self.assertEqual(r.status_code, 200, r.text)
 
 
 class ResearcherOverrides(unittest.TestCase):

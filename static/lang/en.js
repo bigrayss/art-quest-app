@@ -181,6 +181,7 @@ window.ARTQUEST_LANG_EN = {
   // ---------- 地图 ----------
   "再挑一个": "Pick another",
   "当前选择": "Selected theme",
+  "画布上还没有内容，先画点什么吧。": "The canvas is still empty. Draw something first.",
   "选一个主题，开始今天的创作。": "Pick a theme and start today's drawing.",
   "这是今天的任务，点「开始画」就可以开始。": "Here is today's task. Tap \"Start drawing\" to begin.",
   "已体验 {n} 个主题": "Themes tried: {n}",

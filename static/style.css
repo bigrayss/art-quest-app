@@ -1675,6 +1675,13 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
   .brief-spacer { display:none; }
   .assist.hidden ~ .brief-spacer { display:block; flex:1 1 auto; min-height:6px; }
   .brief > .actions { margin-top:0; }          /* 窗的底边对画布底边，按钮对 dock */
+  /* 空画布点「画好了」时冒出来的一句：浮在按钮上方，不占右栏的高度（右栏 contain:size） */
+  .brief > .actions { position:relative; }
+  .submit-note { position:absolute; left:0; right:0; bottom:calc(100% + 8px); z-index:3;
+    background:var(--ink); color:#fff; font-size:0.8125rem; font-weight:700; line-height:1.4;
+    padding:8px 12px; border-radius:10px; text-align:center; box-shadow:0 6px 16px -8px rgba(0,0,0,.4); }
+  .submit-note::after { content:""; position:absolute; left:50%; top:100%; margin-left:-6px;
+    border:6px solid transparent; border-top-color:var(--ink); }
   /* 主按钮和 dock 是同一条线上的两块：同样的圆角、同样的高度。
      原来字是 1rem 加粗撑满，看着像一块绿砖；字收一号、带个箭头，边缘照旧。 */
   /* 和心愿屏的「开始画」同一颗：橙色、同样的圆角和字号，只是高度对齐 dock */
