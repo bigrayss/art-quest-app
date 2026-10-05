@@ -962,7 +962,7 @@
   const curView = () => VIEWS.find(v => !$(`#view-${v}`).classList.contains("hidden")) || "";
   const TAB_VIEW = { map: "quest", dex: "dex", buddy: "buddy", me: "sessions", grade: "teacher", rubric: "rubric" };
   const VIEW_TAB = { world: "map", quest: "map", dex: "dex", buddy: "buddy", sessions: "me", teacher: "grade", grade: "grade", rubric: "rubric" };
-  const TITLES = { world: "彩点的世界", quest: "地图", dex: "画廊", buddy: "彩点", sessions: "我的", teacher: "评分", grade: "评分", rubric: "评分参考" };
+  const TITLES = { world: "彩点的世界", quest: "任务", dex: "画廊", buddy: "彩点", sessions: "我的", teacher: "评分", grade: "评分", rubric: "评分参考" };
   const VIEW_ROLE = { draw: "normal", result: "happy", survey: "encourage" };
   function show(name) {
     // 离开一屏就取消这一屏没结束的回应：精灵始终回应当前页面，不是迟到的上一条
@@ -1122,7 +1122,7 @@
   const TOUR = [
     { sel: "#world-sprite",    text: "我是彩点。你换颜色，我身上的颜料也会跟着变。" },
     { sel: "#btn-rename",      text: "点这支笔，可以给我起个名字。" },
-    { sel: "#btn-enter-world", text: "去地图看看。", after: () => enterWorld() },
+    { sel: "#btn-enter-world", text: "去看看任务。", after: () => enterWorld() },
     { sel: "#quest-grid .quest-card", text: "这里有不同的绘画任务，选一个你想画的。" },
     { sel: ".tab[data-tab='dex']", text: "你画过的作品都在画廊里。",
       after: () => openTab("buddy") },

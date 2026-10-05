@@ -98,7 +98,7 @@ window.ARTQUEST_LANG_EN = {
   // ---------- 名字与导航 ----------
   "彩绘冒险 · ArtQuest": "ArtQuest",
   "彩绘冒险": "ArtQuest",
-  "地图": "Map",
+  "任务": "Quest",
   "画廊": "Gallery",
   "彩点": "Dot",
   "我的": "Me",
@@ -170,7 +170,7 @@ window.ARTQUEST_LANG_EN = {
   // ---------- 导览 ----------
   "我是彩点。你换颜色，我身上的颜料也会跟着变。": "I'm Dot. When you change colors, my paint spots change too.",
   "点这支笔，可以给我起个名字。": "Tap the pencil to give me a name.",
-  "去地图看看。": "Let's look at the map.",
+  "去看看任务。": "Let's look at the quests.",
   "这里有不同的绘画任务，选一个你想画的。": "Here are the drawing tasks. Choose one you'd like to try.",
   "你画过的作品都在画廊里。": "You'll find your drawings in the Gallery.",
   "这里是徽章墙，你已经有第一枚徽章了。": "This is your badge wall. You already have your first badge.",
@@ -367,7 +367,7 @@ window.ARTQUEST_LANG_EN = {
 
   // ---------- 画廊 ----------
   "我的画": "My drawings",
-  "这里还没有作品，去地图选个主题开始画。": "No drawings here yet. Choose a theme on the map to get started.",
+  "这里还没有作品，去任务里选个主题开始画。": "No drawings here yet. Pick a theme in Quest to get started.",
   "大家的画廊": "Everyone's Gallery",
   "还没有人分享作品。": "No drawings have been shared yet.",
   "已分享的作品": "Shared drawing",
@@ -450,7 +450,7 @@ window.ARTQUEST_LANG_EN = {
   "看得仔细": "Careful Eyes",
   "探险家": "Explorer",
   "小有收藏": "Collector",
-  "走遍全图": "Whole Map",
+  "走遍全图": "Every Quest",
   "进化大师": "Level Up Master",
   "单色也精彩": "One Color",
   "彩虹收集者": "Rainbow Collector",
