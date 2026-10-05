@@ -81,12 +81,14 @@ rsync -az aliyun:/opt/artquest/data/ ./backup-$(date +%F)/
 
 ## API key（可选）
 
-不配也能跑（离线启发式评分 + 模板反馈）。要用 Claude 评分就在服务器上建 `.env`：
+不配也能跑（离线启发式评分 + 模板反馈）。要用模型就在服务器上建 `.env`。
+服务器在大陆，Anthropic / Gemini 都不通，用华东师大的 ecnu-plus（OpenAI 兼容，支持看图）：
 
 ```bash
 ssh aliyun 'cat > /opt/artquest/.env' <<'ENV'
-ANTHROPIC_API_KEY=sk-ant-...
-ARTQUEST_MODEL=claude-opus-5
+ARTQUEST_LLM_BASE_URL=https://chat.ecnu.edu.cn/open/api/v1
+ARTQUEST_LLM_API_KEY=<华东师大开放平台发的 key>
+ARTQUEST_MODEL=ecnu-plus
 ARTQUEST_ADMIN_TOKEN=<python3 -c "import secrets;print(secrets.token_urlsafe(24))" 生成一串>
 ENV
 ssh aliyun 'chmod 600 /opt/artquest/.env && chown artquest:artquest /opt/artquest/.env && systemctl restart artquest'

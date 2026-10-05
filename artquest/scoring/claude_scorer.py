@@ -1,6 +1,7 @@
 """Claude-vision implementation of the 9-dimension rubric with structured output."""
 from typing import Any, Dict
 
+from ..config import LLM_BACKEND
 from ..llm import claude_json, image_block
 from .base import DIMENSIONS, DIM_KEYS, SCALE_MAX, empty_result
 
@@ -48,7 +49,7 @@ SCHEMA = _schema(DIM_KEYS)
 
 
 class ClaudeScorer:
-    name = "claude"
+    name = LLM_BACKEND   # claude / ecnu / …，跟 .env 里配的提供方走
 
     def score(self, image_png: bytes, quest: Dict[str, Any], intent: Dict[str, Any]) -> Dict[str, Any]:
         keys = [k for k in DIM_KEYS if k in (quest.get("applicable_dims") or DIM_KEYS)]

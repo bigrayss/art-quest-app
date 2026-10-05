@@ -1,6 +1,7 @@
 """Claude text feedback: observe → ask → suggest a direction (never an answer)."""
 from typing import Any, Dict
 
+from ..config import LLM_BACKEND
 from ..llm import claude_text, image_block
 from ..scoring.base import DIMENSIONS
 
@@ -44,7 +45,7 @@ COMPARE_SYSTEM_SIMPLE_NOTE_EN = "\nSimple version: only name that one change, on
 
 
 class ClaudeFeedback:
-    name = "claude"
+    name = LLM_BACKEND   # claude / ecnu / …，跟 .env 里配的提供方走
 
     def feedback(self, image_png: bytes, quest: Dict[str, Any], intent: Dict[str, Any], scores: Dict[str, Any]) -> Dict[str, Any]:
         dims = scores.get("dims", {})

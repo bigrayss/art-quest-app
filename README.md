@@ -15,7 +15,7 @@
 
 ```bash
 pip install -r requirements.txt
-cp .env.example .env     # 可选：填 ANTHROPIC_API_KEY 才会用 AI 评分和反馈
+cp .env.example .env     # 可选：填模型 key（ecnu-plus 或 Anthropic）才会用 AI 评分和反馈
 ./run.sh                 # http://127.0.0.1:8000
 ./test.sh                # 全部测试，离线，不需要 API key
 ```
@@ -31,10 +31,11 @@ cp .env.example .env     # 可选：填 ANTHROPIC_API_KEY 才会用 AI 评分和
 
 | 环境变量 | 默认 | 说明 |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | 空 | 填了才有 AI 评分、AI 反馈和创作中的陪伴 |
-| `ARTQUEST_SCORER` | `auto` | `auto` / `claude` / `heuristic` |
-| `ARTQUEST_FEEDBACK` | `auto` | `auto` / `claude` / `template` |
-| `ARTQUEST_MODEL` · `ARTQUEST_EFFORT` | `claude-opus-5` · `medium` | 模型与思考深度 |
+| `ARTQUEST_LLM_BASE_URL` · `ARTQUEST_LLM_API_KEY` | 空 | 任何 OpenAI 兼容接口。华东师大 ecnu-plus：`https://chat.ecnu.edu.cn/open/api/v1` |
+| `ANTHROPIC_API_KEY` | 空 | 另一条路：Anthropic。两种 key 都给时走 OpenAI 兼容那条 |
+| `ARTQUEST_SCORER` | `auto` | `auto` / `llm` / `heuristic`（`claude`、`ecnu` 都当 `llm`） |
+| `ARTQUEST_FEEDBACK` | `auto` | `auto` / `llm` / `template`，陪伴跟它走 |
+| `ARTQUEST_MODEL` · `ARTQUEST_EFFORT` | `ecnu-plus` 或 `claude-opus-5` · `medium` | 模型与思考深度（ecnu 默认不开思维链，`ARTQUEST_LLM_THINKING=1` 才开） |
 | `ARTQUEST_DATA_DIR` | `./data` | 数据目录，已 gitignore，儿童作品不进仓库 |
 | `ARTQUEST_SNAPSHOT_INTERVAL` | `45` | 过程截图间隔（秒） |
 | `ARTQUEST_ADMIN_TOKEN` | 空 | 研究员令牌；不设则全量列表、打分、策展等接口一律 401 |

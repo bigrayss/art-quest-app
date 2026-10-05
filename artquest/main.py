@@ -21,8 +21,8 @@ from . import study as study_mod
 from .accounts import AccountError, AccountStore
 from . import i18n
 from . import teacher_pool
-from .config import (CLAUDE_MODEL, SESSIONS_DIR, SNAPSHOT_INTERVAL_SEC, STATIC_DIR,
-                     claude_available)
+from .config import (LLM_BACKEND, LLM_MODEL, LLM_PROVIDER, SESSIONS_DIR, SNAPSHOT_INTERVAL_SEC, STATIC_DIR,
+                     llm_available)
 from .assist import get_assist_engine
 from .feedback import get_feedback_engine
 from .personalize import MODES as HISTORY_MODES, get_personalizer
@@ -310,7 +310,8 @@ def config():
         "snapshot_interval_sec": SNAPSHOT_INTERVAL_SEC,
         "scorer": scorer.name,
         "feedback": fb.name,
-        "claude_available": claude_available(),
+        "claude_available": llm_available(),   # 旧字段名，前端「离线」角标靠它
+        "llm": {"provider": LLM_PROVIDER, "backend": LLM_BACKEND, "model": LLM_MODEL if llm_available() else ""},
         "dimensions": DIMENSIONS,
         "scale_max": SCALE_MAX,
         "emotions": EMOTIONS,
@@ -1069,7 +1070,7 @@ def submit(sid: str, body: Submit):
             "t_ms": body.elapsed_ms, "phase": "before", "source": "ai",
             "feedback_type": "formative", "backend": fb["backend"], "text": fb["text"],
             # provenance, so a later model-generated intervention is comparable
-            "trigger": "submit", "model": CLAUDE_MODEL if fb["backend"] == "claude" else "",
+            "trigger": "submit", "model": LLM_MODEL if fb["backend"] == LLM_BACKEND else "",
             "prompt_version": PROMPT_VERSION})
         fb["feedback_id"] = entry["feedback_id"]
         fb["t_ms"] = body.elapsed_ms

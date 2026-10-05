@@ -8,13 +8,13 @@
 
 > 任务 → 表达意图 → 自由绘画 → 过程截图 → KidsArtBench 9 维评分 → AI 文字反馈 → 自己修改一次 → 保存 Before / After
 
-没有 API key 也能完整跑通（离线启发式评分 + 模板反馈）；设置 `ANTHROPIC_API_KEY` 后自动切换为 Claude 视觉评分与 AI 教练反馈。
+没有 API key 也能完整跑通（离线启发式评分 + 模板反馈）；配好模型 key（`ARTQUEST_LLM_BASE_URL` + `ARTQUEST_LLM_API_KEY` 走 OpenAI 兼容接口，比如 ecnu-plus；或 `ANTHROPIC_API_KEY`）后自动切换为视觉评分与 AI 教练反馈。
 
 ## 快速开始
 
 ```bash
 pip install -r requirements.txt
-cp .env.example .env          # 可选：填入 ANTHROPIC_API_KEY
+cp .env.example .env          # 可选：填入模型 key
 ./run.sh                      # 默认 http://127.0.0.1:8000
 HOST=0.0.0.0 ./run.sh         # 同一个 wifi 下的手机 / iPad 也能打开（会打印地址）
 ```
@@ -284,9 +284,9 @@ final 图是否落盘、时间是否单调、时长是否合理、每笔采样�
 
 | 环境变量 | 取值 | 说明 |
 |---|---|---|
-| `ARTQUEST_SCORER` | `auto` / `claude` / `heuristic` | auto：有 key 用 claude |
-| `ARTQUEST_FEEDBACK` | `auto` / `claude` / `template` | 同上 |
-| `ARTQUEST_MODEL` | 默认 `claude-opus-5` | |
+| `ARTQUEST_SCORER` | `auto` / `llm` / `heuristic` | auto：有 key 用模型；`claude` / `ecnu` 当 `llm` 的别名 |
+| `ARTQUEST_FEEDBACK` | `auto` / `llm` / `template` | 同上 |
+| `ARTQUEST_MODEL` | `ecnu-plus`（OpenAI 兼容通路）/ `claude-opus-5`（Anthropic） | 两条通路提示词、输出形状、记录字段完全一样，见 `artquest/llm.py` |
 | `ARTQUEST_EFFORT` | 默认 `medium` | Opus 5 自适应思考，effort 控制深度 |
 
 接入正式 KidsArtBench 模型：在 `artquest/scoring/` 新增一个实现 `Scorer` 协议的类（输入 PNG bytes + quest + intent，输出 9 维分数与说明），并在 `get_scorer()` 中注册。9 维定义见 `artquest/scoring/base.py`（当前 1–5 分，`SCALE_MAX`，可按官方量表调整）。

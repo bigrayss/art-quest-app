@@ -1,6 +1,7 @@
 """画到一半时的陪伴。看得见画布，但**不许评价**。"""
 from typing import Any, Dict
 
+from ..config import LLM_BACKEND
 from ..llm import claude_text, image_block
 
 # 这段 system 是这个功能的全部要害，改之前先读 assist/__init__.py 的模块注释。
@@ -49,7 +50,7 @@ SYSTEM_SIMPLE_NOTE_EN = "\nSimple version: one sentence, at most 10 words."
 
 
 class ClaudeAssist:
-    backend = "claude"
+    backend = LLM_BACKEND   # claude / ecnu / …，跟 .env 里配的提供方走
 
     def assist(self, image_png: bytes, quest: Dict[str, Any], intent: Dict[str, Any],
                nth: int = 1) -> Dict[str, Any]:

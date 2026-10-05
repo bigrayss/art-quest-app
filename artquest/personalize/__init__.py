@@ -13,7 +13,7 @@ downgraded condition would quietly ruin the comparison.
 import logging
 from typing import Any, Dict, Optional
 
-from ..config import claude_available
+from ..config import llm_available
 from .base import MODES, PREDICTED_KEYS, Personalizer
 
 # Backends are imported inside get_personalizer(), like scoring/ and feedback/:
@@ -32,7 +32,7 @@ def get_personalizer(mode: str = "none") -> Personalizer:
     from .own_history import OwnHistory
     if mode == "history":
         return OwnHistory()
-    if claude_available():
+    if llm_available():
         try:
             from .claude_personalizer import ClaudePersonalizer
             return ClaudePersonalizer()
