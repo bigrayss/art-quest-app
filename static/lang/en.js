@@ -404,6 +404,10 @@ window.ARTQUEST_LANG_EN = {
 
   // 精选：先问本人
   "老师选中了你的一幅作品": "Your teacher selected one of your drawings",
+  "现在没有网，连上网再看你的画。": "No network right now. Your drawings will show once you are back online.",
+  "现在没有网，{a}等连上网再陪你。": "No network right now. {a} will be back when you are online.",
+  "画存好了，连上网会自动交上去。": "Your drawing is saved. It will be sent as soon as you are online.",
+  "这台设备存不下离线的画（无痕模式？），连上网再交。": "This device cannot store the drawing offline (private mode?). Please submit once online.",
   "{a}想把你推荐到展览馆里": "{a} wants to put your drawing in the exhibition hall",
   "你画得好棒！要把《{a}》放到大家的画廊吗？": "Great drawing! Shall we put \"{a}\" in Everyone's Gallery?",
   "你画得好棒！{a}想把你推荐到展览馆里。": "Great drawing! {a} wants to put it in the exhibition hall.",

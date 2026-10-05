@@ -2094,9 +2094,14 @@
     // 而那正是他卡住的强度。
     const cached = Date.now() - assistAt < ASSIST_COOLDOWN_MS && !!assistLast;
     assistNth++;
-    logEvent(EV.ASSIST_OPEN, { nth: assistNth, cached, phase: state.phase });
+    logEvent(EV.ASSIST_OPEN, { nth: assistNth, cached, phase: state.phase, offline: !navigator.onLine });
     box.classList.remove("veiled");
     $(".assist-veil-t").textContent = `${buddyName()}，帮帮我`;
+    if (!navigator.onLine) {
+      // 点击照样记了账（上面那行）；话只能等网回来
+      assistSay(`现在没有网，${buddyName()}等连上网再陪你。`, "wait");
+      return;
+    }
     if (cached) {
       // 冷却里再点，不追加一条一模一样的（那看着像坏了）——让最后那条闪一下，
       // 他就知道「就是刚才那句」。点击本身照样记了账，上面那行。
@@ -2333,8 +2338,15 @@
     // 和下面「大家的画廊」是同一个做法。连不上服务器时同理：宁可挂一面空墙。
     wrap.classList.remove("hidden");
     let rows = [];
+    const off = $("#dex-offline");
+    if (off) off.classList.add("hidden");
     try { rows = await mySessions(); }
-    catch (e) { if (empty) empty.classList.remove("hidden"); return; }
+    catch (e) {
+      // 没网：说「连上网再看」，别用「还没有作品」那句——画明明在，只是现在拿不到
+      if (!navigator.onLine && off) off.classList.remove("hidden");
+      else if (empty) empty.classList.remove("hidden");
+      return;
+    }
     state.allSessions = rows;          // 地图的星、跨作品徽章、成长视图都读它
     // 撤回是真删，界面里也不留痕；没画完的**留着**——半张画也是画过的证据，
     // 把它藏起来等于说「没画完就不算」。
@@ -2994,7 +3006,7 @@
   // ---------- 备用创作名额（票）----------
   // 有网的时候把设备上的票补满，断网时才有得花。一张票 = 服务端发的
   // session_id + 冻好的 condition；设备从不自己编 id，理由见 DESIGN.md「离线创作」。
-  const TICKET_TARGET = 3;
+  const TICKET_TARGET = 10;    // 带回家画一晚上要够用（用户 2026-10-05）
   async function topUpTickets() {
     if (!navigator.onLine) return;
     try {
@@ -3011,7 +3023,15 @@
       await ArtLog.saveTickets(r.tickets || []);
     } catch (e) { /* 领不到票只是不能离线开新的，不该挡住任何事 */ }
   }
-  addEventListener("online", () => { topUpTickets(); ArtLog.flush(); });
+  // ---------- 没网的时候 ----------
+  // 画画本身一点不受影响；要服务器的东西（大家的画廊、别人的画法、精灵的邀请、登录注册）
+  // 没网就不露面（.needs-net），彩点的窗和「画好了」换个说法（见各处 onLine 判断）。
+  function paintNet() {
+    document.body.classList.toggle("offline", !navigator.onLine);
+    paintSync(0, navigator.onLine);
+  }
+  addEventListener("online", () => { paintNet(); topUpTickets(); ArtLog.flush(); });
+  addEventListener("offline", paintNet);
   addEventListener("resize", () => paintMapBackground());
 
   // 上一次启动时服务器说的那一档 ui。只用来决定**先显示哪一屏**，
@@ -3097,6 +3117,8 @@
       await loadCollection();        // 地图要知道哪几关走过了
       renderQuests();
       topUpTickets();                // 不 await：领票慢也不该让界面等着
+      paintNet();
+      ArtLog.ready().then(ok => { if (ok) ArtLog.flush(); });   // 上次离线存下的交卷，网在就补交
     }
     try { state.entered = sessionStorage.getItem("artquest.entered") === "1"; } catch (e) { /* 无所谓 */ }
     // 落在哪一屏，按这个顺序定：
@@ -3272,9 +3294,27 @@
     noteTimer = setTimeout(() => n.classList.add("hidden"), 2600);
   }
   const nothingDrawn = () => !visible.length || canvasIsBlank();
+  /** 没网时的「画好了」：画存在设备上，网一回来发件箱自动交上去（服务器那头记成「无反馈、未修改」）。
+   *  孩子当场听不到反馈——这是离线的代价，不假装有。 */
+  async function submitOffline() {
+    stopTimers();
+    logEvent(EV.TASK_SUBMIT, { phase: "before", strokes: visible.length, offline: true });
+    const image = canvas.toDataURL("image/png");
+    await flushLog();                                       // 笔画先排进队列（现在发不出去，但顺序定了）
+    const ok = await ArtLog.defer("submit", state.sessionId,
+      { image, elapsed_ms: elapsed(), phase: "before", deferred: true });
+    if (!ok) { alert("这台设备存不下离线的画（无痕模式？），连上网再交。"); startTimers(); return; }
+    overlay("画存好了，连上网会自动交上去。");
+    await new Promise(r => setTimeout(r, 2200));
+    overlay(null);
+    ArtLog.stop();
+    state.sessionId = null; state.feedback = null; state.phase = "before";
+    renderQuests(); show("quest");
+  }
   $("#btn-submit").onclick = async () => {
     if (state.phase === "after") return submitAfter();
     if (nothingDrawn()) return submitNote();
+    if (!navigator.onLine) return submitOffline();
     overlay("正在查看你的画…"); stopTimers();
     logEvent(EV.TASK_SUBMIT, { phase: state.phase, strokes: visible.length });
     const image = canvas.toDataURL("image/png");

@@ -185,6 +185,8 @@ class Submit(BaseModel):
     events: List[DrawEvent] = []
     strokes: List[Stroke] = []
     pending: int = 0
+    # 离线时存下、网回来补交的：照常打分，但不生成反馈、不进修改环节，直接结束（孩子早不在画板前了）
+    deferred: bool = False
 
 
 class Finalize(BaseModel):

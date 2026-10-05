@@ -2224,3 +2224,6 @@ body[data-room="grade"], body[data-room="rubric"] { --room:var(--blue); --room-d
 /* 画廊墙上：谁画的 + 自己的画可以撤下 */
 .peer-by { display:block; font-size:0.75rem; color:var(--muted-2); font-weight:700; margin-top:2px; }
 .peer-unpin { margin-top:8px; font-size:0.75rem; padding:6px 10px; min-height:0; }
+
+/* 没网：要服务器的东西不露面（app.js paintNet 给 body 加 .offline） */
+body.offline .needs-net { display:none !important; }

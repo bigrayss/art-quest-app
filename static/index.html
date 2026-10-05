@@ -157,9 +157,10 @@
     </div>
     <div class="dex" id="collection"></div>
     <p class="wall-empty hidden" id="dex-empty">这里还没有作品，去任务里选个主题开始画。</p>
+    <p class="wall-empty hidden" id="dex-offline">现在没有网，连上网再看你的画。</p>
   </div>
 
-  <div id="wall-wrap" class="hidden">
+  <div id="wall-wrap" class="hidden needs-net">
     <div class="sechead" style="--sc:var(--purple); --sc-d:var(--purple-d)">
       <span class="sechead-ico"><i data-icon="pin" data-size="19"></i></span>
       <div class="sechead-t"><b>大家的画廊</b></div>
@@ -257,8 +258,8 @@
 
   <div class="acct" id="acct-out">
     <div class="acct-btns">
-      <button class="primary" id="btn-acct-register">注册</button>
-      <button class="ghost" id="btn-acct-login">登录</button>
+      <button class="primary needs-net" id="btn-acct-register">注册</button>
+      <button class="ghost needs-net" id="btn-acct-login">登录</button>
       <!-- 没登录也要能回门口：老师入口在那儿 -->
       <button class="ghost" id="btn-home">返回首页</button>
     </div>
@@ -478,7 +479,7 @@
   </div>
   <!-- 精灵的邀请：最终作品过线时服务器把 featured 标成 pending（by=buddy/…），这张卡才出现。
        挂不挂孩子自己点；点了「放上去」以后，画廊墙上自己的画随时能撤。 -->
-  <div class="fcard invite hidden" id="invite-card">
+  <div class="fcard invite hidden needs-net" id="invite-card">
     <div class="buddy-head"><span class="sprite lg" id="invite-sprite"></span>
       <div><div class="buddy-name buddy-word">彩点</div></div></div>
     <p class="invite-text" id="invite-text"></p>
@@ -489,7 +490,7 @@
       <button class="ghost" id="btn-invite-no">先不要</button>
     </div>
   </div>
-  <div class="peers hidden" id="peers">
+  <div class="peers hidden needs-net" id="peers">
     <div class="sechead" style="--sc:var(--purple); --sc-d:var(--purple-d)">
       <span class="sechead-ico"><i data-icon="people" data-size="19"></i></span>
       <div class="sechead-t"><b>看看别人的画法</b></div>

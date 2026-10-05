@@ -1052,6 +1052,23 @@ def submit(sid: str, body: Submit):
             raise HTTPException(409, "before already submitted")
         record = _score_and_save(sid, "before", png, body.elapsed_ms)
 
+        if body.deferred:
+            # 离线补交：评分照常（研究数据完整），反馈和修改环节没有（当场没人在），直接结束。
+            # 记成「无反馈、未修改」并打上 offline_submit，分析时能单独拎出来。
+            store.add_server_event(sid, "FEEDBACK_SKIPPED", body.elapsed_ms, {"reason": "offline_submit"})
+            after = dict(record, file="final.png")
+            store.add_server_event(sid, "SESSION_END", body.elapsed_ms, {"revised": False, "offline": True})
+            meta = store.update(sid, before=record, after=after, feedback=None, revised=False,
+                                status="done", offline_submit=True)
+            _buddy_invite(sid)
+            store.mark_ended(sid, body.elapsed_ms)
+            store.set_lifecycle(sid, "pending_upload" if body.pending else "completed_local")
+            if not body.pending:
+                store.set_lifecycle(sid, "uploaded")
+            qc = _run_qc(sid, body.pending)
+            return {"phase": "before", "deferred": True, "scores": record["scores"], "feedback": None,
+                    "session": store.load_full(sid), "qc": qc}
+
         # `feedback_source` is a frozen condition, so it has to actually decide
         # something. It was declared and never enforced, which is the worst of
         # both: the metadata claims "no feedback" while the child gets some.

@@ -146,9 +146,9 @@
   }
 
   /** 按顺序重放发件箱。任何一条没过去就停下——后面的都依赖前面的。 */
-  async function drainOutbox() {
+  async function drainOutbox(pred) {
     if (!db) return;
-    const rows = (await all(OUTBOX)).sort((a, b) => a.k - b.k);
+    const rows = (await all(OUTBOX)).filter(r => !r.bad && (!pred || pred(r))).sort((a, b) => a.k - b.k);
     for (const r of rows) {
       const url = (OUTBOX_URL[r.kind] || (() => null))(r.sid);
       if (!url) { await req1(store(OUTBOX, "readwrite").delete(r.k)); continue; }
@@ -177,9 +177,10 @@
     if (flushing || !navigator.onLine) return notify();
     flushing = true;
     try {
-      await drainOutbox();
+      // 顺序：先把「建 session」送过去 → 再送笔画 → 最后送离线时存下的「交卷」。
+      // 交卷排在笔画后面：服务器收到画的时候，这一局的笔画已经在了。
+      await drainOutbox(r => r.kind !== "submit" && r.kind !== "finalize");
       const held = await pendingCreates();
-      if (!sid && !held.size) { flushing = false; return notify(); }
       for (;;) {
         const rows = await pull(MAX_BATCH);
         if (!rows.length) break;
@@ -206,6 +207,7 @@
         if (!moved) break;                      // 全被挡住了：这一轮没得做，等下一轮
         if (rows.length < MAX_BATCH) break;
       }
+      if (!held.size && !(await count())) await drainOutbox(r => r.kind === "submit" || r.kind === "finalize");
     } catch (e) {
       // keep the queue; the next tick (or reconnect) retries
     } finally {
