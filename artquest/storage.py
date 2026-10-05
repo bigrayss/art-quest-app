@@ -47,7 +47,7 @@ SCHEMA_VERSION = 3
 # whose last batch never uploaded is done for the child and not done for the data.
 # `issued` 是一张**预发的票**：id 和条件已经由服务端定死，但孩子还没开始画。
 # 它排在 recording 前面，所以「只进不退」那条规则原样成立（比的是序号）。
-# 票据存在的理由见 README「离线创作」：设备离线时不能自己编一个 session_id，
+# 票据存在的理由见 DESIGN.md「离线创作」：设备离线时不能自己编一个 session_id，
 # 更不能自己编一条实验臂——那两样都是后面每张表的地基。
 LIFECYCLE = ("issued", "recording", "completed_local", "pending_upload", "uploaded", "server_verified")
 _DATAURL_RE = re.compile(r"^data:image/(png|jpeg);base64,(.+)$", re.DOTALL)

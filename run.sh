@@ -7,7 +7,7 @@
 # 绑 0.0.0.0 就是把画画和已经收上来的作品暴露给整个局域网，所以要自己开，
 # 不做默认。
 #
-# **给 iPad 用的话，别走这条路，走 Tailscale**（见 README「装到 iPad 上」）：
+# **给 iPad 用的话，别走这条路，走 Tailscale**（见 DESIGN.md「装到 iPad 上」）：
 #   tailscale serve --bg --https=443 http://127.0.0.1:8010
 # 然后 iPad 上开 https://<机器名>.<tailnet>.ts.net。那是**真 HTTPS**，
 # 所以 Service Worker 能注册——局域网 http 下它根本不注册，

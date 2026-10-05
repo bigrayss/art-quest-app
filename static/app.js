@@ -2989,7 +2989,7 @@
 
   // ---------- 备用创作名额（票）----------
   // 有网的时候把设备上的票补满，断网时才有得花。一张票 = 服务端发的
-  // session_id + 冻好的 condition；设备从不自己编 id，理由见 README「离线创作」。
+  // session_id + 冻好的 condition；设备从不自己编 id，理由见 DESIGN.md「离线创作」。
   const TICKET_TARGET = 3;
   async function topUpTickets() {
     if (!navigator.onLine) return;
