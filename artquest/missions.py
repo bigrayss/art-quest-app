@@ -324,7 +324,7 @@ def _row(family: str, form_id: str, *, title: str, instruction: str,
 
 
 LEGACY_VERSION = "1.0"     # v1 的 75 道：留在库里，不上地图
-TASK_VERSION = "2.3"       # 现在孩子看到的题面：2.2 的题 + 2026-10-05 润色过的说明/提示（docs/彩绘冒险_文案清单_润色完整版.md）
+TASK_VERSION = "2.4"       # 现在孩子看到的题面：2026-10-05 简化版（docs/彩绘冒险_文案清单_第五部分简化完整版.md）；题目、说明、提示、M8 规则措辞都改了，id 没动
 
 
 def _build_m1() -> List[Dict[str, Any]]:
@@ -498,7 +498,7 @@ _BUILDERS = {"M0": _build_m0, "M1": _build_m1, "M2": _build_m2, "M3": _build_m3,
 # v2.2：按年龄分两版（missions_v2.py 是题面唯一的家，这里只把它变成行）
 # ---------------------------------------------------------------------------
 def _build_v2() -> List[Dict[str, Any]]:
-    from .missions_v2 import V2, M7_STEP1, M7_STEP2, M8_LEAD, M8_CHALLENGE
+    from .missions_v2 import V2, M7_STEP1, M7_STEP2, M8_LEAD, M8_LEAD_CHALLENGE, M8_CHALLENGE
     out = []
     for fam, forms in V2.items():
         for f in forms:
@@ -529,8 +529,8 @@ def _build_v2() -> List[Dict[str, Any]]:
                 cond.update(concept=f["concept"], two_phase=True)
             elif fam == "M8":
                 rules = list(f["rules"])
-                # 带可选挑战的初中题，开头是自己的那句（不接 M8_LEAD）
-                text = ("" if f.get("challenge") else M8_LEAD) + f["instruction"] + "\n" + "\n".join(f"· {r}" for r in rules)
+                # 小学 / 锚定题：自己的一句 + 「画里要有这两点：」；初中题：固定开头，再两条 + 可选
+                text = (M8_LEAD_CHALLENGE if f.get("challenge") else f["instruction"] + M8_LEAD) + "\n" + "\n".join(f"· {r}" for r in rules)
                 if f.get("challenge"):
                     text += "\n" + M8_CHALLENGE.format(text=f["challenge"])
                 cond.update(rules=rules, challenge=f.get("challenge", ""))

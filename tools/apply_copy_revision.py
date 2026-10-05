@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 """把用户审过的文案（docs/彩绘冒险_文案新旧对照.json）回写进源文件。
 
-    .venv/bin/python tools/apply_copy_revision.py            # 真改
-    .venv/bin/python tools/apply_copy_revision.py --dry      # 只报告
+    .venv/bin/python tools/apply_copy_revision.py [对照表.json] [--dry] [--parts UBFAT]
+        默认读 docs/彩绘冒险_文案新旧对照.json；--dry 只报告；--parts 只做某几部分（如 --parts T）
+    对照表的「原文」必须是**现在代码里**的文案（第二轮起用户的稿子基线还是最早那版，
+    要先和上一轮的新版做差，见 memory artquest-copy-revision）。
 
 对照表的编号和 tools/gen_copy_list.py 生成的清单一一对应：
   U  界面文案：en.js 的键（中文原文）和值（英文）；中文原文同时出现在 index.html / app.js / log.js /
@@ -23,11 +25,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DRY = "--dry" in sys.argv
+PARTS = sys.argv[sys.argv.index("--parts") + 1] if "--parts" in sys.argv else "UBFAT"
+JSON_PATH = next((a for a in sys.argv[1:] if a.endswith(".json")), None)
 CJK = re.compile(r"[一-鿿]")
 # 清单里的展示占位 → 代码里的真实变量名（和 gen_copy_list.VARS 反过来）
 DISPLAY_VARS = {"{维度}": "{_ZH.get(low, low)}", "{心情}": "{mood}", "{心愿}": None, "{…}": None}
 
-entries = json.load(open(ROOT / "docs" / "彩绘冒险_文案新旧对照.json", encoding="utf-8"))["条目"]
+entries = json.load(open(JSON_PATH or ROOT / "docs" / "彩绘冒险_文案新旧对照.json", encoding="utf-8"))["条目"]
 report = {"applied": [], "manual": [], "skipped": 0}
 
 
@@ -118,16 +122,27 @@ SOURCES = [("static/index.html", "html"), ("static/app.js", "js"), ("static/log.
            ("artquest/storage.py", "py"), ("artquest/teacher_pool.py", "py"), ("artquest/gallery.py", "py")]
 
 
+DISP = {"{_ZH.get(low, low)}": "{维度}", "{mood}": "{心情}", "{wish}": "{心愿}", "{intent}": "{心愿}", "{a}": "{…}", "{b}": "{…}", "{n}": "{…}"}
+def disp(s):
+    for k, v in DISP.items(): s = s.replace(k, v)
+    return s.replace("|", "\\|").replace("\n", "<br>").strip()
+
+
 def apply_ui():
     lines = read(EN_JS).split("\n")
-    key_lines = [i for i, l in enumerate(lines) if KEY_LINE.match(l)]
-    U = [e for e in entries if e["编号"].startswith("U")]
-    assert len(U) == len(key_lines), (len(U), len(key_lines))
-    for e, li in zip(U, key_lines):
-        m = KEY_LINE.match(lines[li])
-        old_key, old_en = unesc(m.group(2)), unesc(m.group(3))
+    by_disp = {}
+    for i, l in enumerate(lines):
+        m = KEY_LINE.match(l)
+        if m: by_disp.setdefault(disp(unesc(m.group(2))), []).append(i)
+    for e in [e for e in entries if e["编号"].startswith("U")]:
         if not e["改动字段"]:
             report["skipped"] += 1; continue
+        cand = by_disp.get(e["原文"]["中文"].strip(), [])
+        if len(cand) != 1:
+            report["manual"].append((e["编号"], f"en.js 里按原文找到 {len(cand)} 行", e["原文"]["中文"], e["新版"]["中文"])); continue
+        li = cand[0]
+        m = KEY_LINE.match(lines[li])
+        old_key, old_en = unesc(m.group(2)), unesc(m.group(3))
         new_en = e["新版"]["英文"]
         new_key = old_key
         if "中文" in e["改动字段"]:
@@ -197,7 +212,7 @@ def apply_tasks():
         if not e["编号"].startswith("T") or not e["改动字段"]: continue
         o, n = e["原文"], e["新版"]
         fam, code = o["id"].split("_")
-        assert o["题目"] == n["题目"], e["编号"]           # 题目没改，拿它定位
+        # 用原题目 + 原说明定位（题目本身也可能改）
         # 中文：_f("A1", BOTH, "题目", "说明", "提示"...)
         rx = re.compile(r'_f\("' + re.escape(code) + r'",\s*\w+,\s*"' + re.escape(o["题目"]) + r'",\s*"' + re.escape(o["说明"]) + r'"(,\s*"' + re.escape(o["提示"]) + r'")?')
         ms = [m for m in rx.finditer(zh)]
@@ -220,11 +235,11 @@ def apply_tasks():
 
 
 def main():
-    apply_ui()
-    apply_badges()
-    apply_py_strings("F", "artquest/feedback/template_feedback.py", {"{心情}": "{mood}", "{心愿}": "{wish}", "{维度}": "{_ZH.get(low, low)}"})
-    apply_py_strings("A", "artquest/assist/template_assist.py", {"{心愿}": "{intent}"})
-    apply_tasks()
+    if "U" in PARTS: apply_ui()
+    if "B" in PARTS: apply_badges()
+    if "F" in PARTS: apply_py_strings("F", "artquest/feedback/template_feedback.py", {"{心情}": "{mood}", "{心愿}": "{wish}", "{维度}": "{_ZH.get(low, low)}"})
+    if "A" in PARTS: apply_py_strings("A", "artquest/assist/template_assist.py", {"{心愿}": "{intent}"})
+    if "T" in PARTS: apply_tasks()
     print(f"{'DRY RUN  ' if DRY else ''}applied {len(report['applied'])}, untouched {report['skipped']}, manual {len(report['manual'])}")
     for x in report["manual"]:
         print("  MANUAL", x)
