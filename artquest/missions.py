@@ -324,7 +324,7 @@ def _row(family: str, form_id: str, *, title: str, instruction: str,
 
 
 LEGACY_VERSION = "1.0"     # v1 的 75 道：留在库里，不上地图
-TASK_VERSION = "2.5"       # 2026-10-05：简化版（2.4）+ M1 全组重写、M2/M3 几道对齐参考图、所有任务取消限时（用户：所有任务不需要限时）
+TASK_VERSION = "2.6"       # 2026-10-05：2.5 + M1 强调「整幅、每样东西都在原位」（和 M2 的观察记录拉开）
 
 
 def _build_m1() -> List[Dict[str, Any]]:
