@@ -52,7 +52,7 @@ log.setLevel(logging.INFO)
 
 # Bumped whenever the feedback prompts change, so text generated under different
 # instructions is never pooled in analysis.
-PROMPT_VERSION = "feedback/1"
+from .prompts import VERSION as PROMPT_VERSION   # 提示词文件的版本号，跟着 docs 那份走
 
 # 外壳（HTML/CSS/JS）的版本号 = 这几个文件内容的哈希。
 # 谁也不用记得去改它：改了任何一个文件，版本就变了。

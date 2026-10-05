@@ -108,8 +108,8 @@ class JSONWithoutSchemaMode(unittest.TestCase):
         self.env = mock.patch.dict(os.environ, ECNU)
         self.env.start()
         self.cfg, self.llm = _reload_openai()
-        from artquest.scoring.claude_scorer import _schema
-        self.schema = _schema(["color_contrast", "line_combination"])
+        dim = {"type": "object", "properties": {"score": {"type": "number"}, "note": {"type": "string"}}, "required": ["score", "note"], "additionalProperties": False}
+        self.schema = {"type": "object", "properties": {"dims": {"type": "object", "properties": {"color_contrast": dim, "line_combination": dim}, "required": ["color_contrast", "line_combination"], "additionalProperties": False}, "summary": {"type": "string"}}, "required": ["dims", "summary"], "additionalProperties": False}
 
     def tearDown(self):
         self.env.stop()

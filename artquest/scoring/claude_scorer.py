@@ -1,80 +1,54 @@
-"""Claude-vision implementation of the 9-dimension rubric with structured output."""
-from typing import Any, Dict
+"""模型打九维分：v0.3 的做法是**一次一个维度**，每维一段完整量规，只回一个 1–5 的整数。
+
+九个维度并行发，总耗时约等于一次调用。只问任务能考察的维度（`applicable_dims`）：
+考不到的维度不该有数字，一个硬凑的数和真低分分不开（rubric.apply_contract 再兜一道）。
+分数没有说明文字（note 留空）——量规本身就是说明，反馈那段只拿数字。
+"""
+import logging
+import re
+from concurrent.futures import ThreadPoolExecutor
+from typing import Any, Dict, Optional
 
 from ..config import LLM_BACKEND
-from ..llm import claude_json, image_block
-from .base import DIMENSIONS, DIM_KEYS, SCALE_MAX, empty_result
+from ..llm import LLMBadOutput, claude_text, image_block
+from ..prompts import SCORE_PROMPT_LANG, VERSION, score_prompt
+from .base import DIM_KEYS, SCALE_MAX, empty_result
 
-SYSTEM = f"""你是儿童美术教育研究中的作品评估员，使用 KidsArtBench 九维体系为一幅儿童/青少年创作打分。
-评分范围 1–{SCALE_MAX}（整数或 .5）。评分只用于研究与成长分析，不会直接作为“总分”展示给孩子，所以请诚实、有区分度，不要全部给中间值。
-每个维度给一句简短、具体、指向画面内容的说明（中文，≤30 字）。
-九个维度：
-""" + "\n".join(f"- {d['key']}（{d['zh']} / {d['en']}）：{d['desc']}" for d in DIMENSIONS)
-
-# 英文会话：评分规则一样，只是说明用英文。维度定义仍附中文描述（评估员看得懂）。
-SYSTEM_EN = f"""You are an assessor in a children's art-education study, scoring one drawing by a child or teenager on the KidsArtBench nine-dimension rubric.
-Scores run 1–{SCALE_MAX} (whole or .5). Scores are for research and growth analysis only and are never shown to the child as a "total", so be honest and discriminating — do not give everything the midpoint.
-For each dimension write one short, concrete note that points at what is in the picture (simple English, ≤ 20 words).
-The nine dimensions:
-""" + "\n".join(f"- {d['key']} ({d['en']}): {d['desc']}" for d in DIMENSIONS)
-
-_dim_schema = {
-    "type": "object",
-    "properties": {"score": {"type": "number"}, "note": {"type": "string"}},
-    "required": ["score", "note"],
-    "additionalProperties": False,
-}
+log = logging.getLogger("artquest")
+_DIGIT = re.compile(r"[1-5]")
 
 
-def _schema(keys):
-    """Only the applicable dimensions are asked for.
-
-    A task that cannot elicit a dimension must not receive a number for it —
-    a forced answer would be indistinguishable from a real low score.
-    """
-    return {
-        "type": "object",
-        "properties": {
-            "dims": {"type": "object",
-                     "properties": {k: _dim_schema for k in keys},
-                     "required": list(keys), "additionalProperties": False},
-            "summary": {"type": "string"},
-        },
-        "required": ["dims", "summary"],
-        "additionalProperties": False,
-    }
-
-
-SCHEMA = _schema(DIM_KEYS)
+def parse_score(reply: str) -> Optional[int]:
+    """回复里第一个 1–5。模型偶尔会写「分数：4」或「4/5」，都认；没有数字就是没答。"""
+    m = _DIGIT.search(reply or "")
+    return int(m.group()) if m else None
 
 
 class ClaudeScorer:
-    name = LLM_BACKEND   # claude / ecnu / …，跟 .env 里配的提供方走
+    name = LLM_BACKEND   # claude / ecnu / …，跟环境变量里配的提供方走
 
     def score(self, image_png: bytes, quest: Dict[str, Any], intent: Dict[str, Any]) -> Dict[str, Any]:
         keys = [k for k in DIM_KEYS if k in (quest.get("applicable_dims") or DIM_KEYS)]
-        if quest.get("lang") == "en":
-            prompt = (
-                f"Task: {quest['title']}\nTask text: {quest['prompt']}\n"
-                f"Focus dimensions for this task: {', '.join(quest.get('focus_dims', []))}\n"
-                f"Scorable dimensions for this task: {', '.join(keys)} (the task cannot test the others — do not score them)\n"
-                f"Artist's mood before drawing: {intent.get('emotion', '')}\nArtist's intent: {intent.get('text', '') or '(not written)'}\n\n"
-                "Score only the scorable dimensions above, and sum up in one or two sentences (summary, simple English, ≤ 40 words)."
-            )
-            system = SYSTEM_EN
-        else:
-            prompt = (
-                f"任务：{quest['title']}\n任务说明：{quest['prompt']}\n"
-                f"本任务重点维度：{', '.join(quest.get('focus_dims', []))}\n"
-                f"本任务可评维度：{', '.join(keys)}（其余维度本任务无法考察，不要评）\n"
-                f"作者画前情绪：{intent.get('emotion', '')}\n作者创作意图：{intent.get('text', '') or '（未填写）'}\n\n"
-                "请只对上面「可评维度」评分，并用一两句话总结（summary，中文，≤60 字）。"
-            )
-            system = SYSTEM
-        data = claude_json(system, [image_block(image_png), {"type": "text", "text": prompt}], _schema(keys))
-        res = empty_result(self.name)
-        for k in keys:
-            d = data["dims"][k]
-            res["dims"][k] = {"score": round(max(1.0, min(float(SCALE_MAX), float(d["score"]))), 1), "note": d["note"]}
-        res["summary"] = data["summary"]
-        return res
+        img = image_block(image_png)
+
+        def one(key: str) -> Optional[int]:
+            content = [img, {"type": "text", "text": score_prompt(SCORE_PROMPT_LANG, key)}]
+            last = ""
+            for _ in range(2):                       # 没回数字就再要一次
+                last = claude_text("", content, max_tokens=32)
+                n = parse_score(last)
+                if n is not None:
+                    return n
+            log.warning("score %s: no digit in reply %r", key, last[:80])
+            return None
+
+        with ThreadPoolExecutor(max_workers=min(9, len(keys)) or 1) as ex:
+            results = dict(zip(keys, ex.map(one, keys)))
+
+        out = empty_result(self.name)
+        out["dims"] = {k: {"score": n, "note": ""} for k, n in results.items() if n is not None}
+        out["prompt_version"] = VERSION
+        out["scale"] = [1, SCALE_MAX]
+        if not out["dims"]:
+            raise LLMBadOutput("no dimension received a score")
+        return out

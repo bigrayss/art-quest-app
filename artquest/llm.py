@@ -54,8 +54,8 @@ def _anthropic_create(system: str, content: List[Dict[str, Any]], max_tokens: in
     resp = client().beta.messages.create(
         model=LLM_MODEL,
         max_tokens=max_tokens,
-        system=system,
         messages=[{"role": "user", "content": content}],
+        **({"system": system} if system else {}),
         betas=["server-side-fallback-2026-07-01"],
         fallbacks="default",
         **extra,
@@ -98,10 +98,11 @@ def to_openai_content(content: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
 
 def openai_request(system: str, content: List[Dict[str, Any]], max_tokens: int) -> Dict[str, Any]:
+    messages = ([{"role": "system", "content": system}] if system else []) + \
+               [{"role": "user", "content": to_openai_content(content)}]
     body: Dict[str, Any] = {
         "model": LLM_MODEL,
-        "messages": [{"role": "system", "content": system},
-                     {"role": "user", "content": to_openai_content(content)}],
+        "messages": messages,
         "max_tokens": max_tokens,
         "stream": False,
     }
