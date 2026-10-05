@@ -35,13 +35,18 @@ class ClaudeScorer:
             content = [img, {"type": "text", "text": score_prompt(SCORE_PROMPT_LANG, key)}]
             last = ""
             for _ in range(2):                       # 没回数字就再要一次
-                last = claude_text("", content, max_tokens=32)
+                try:
+                    last = claude_text("", content, max_tokens=32)
+                except Exception as e:               # 一维挂了（限流、超时）不拖垮整次：这一维留空
+                    log.warning("score %s: call failed: %s", key, str(e)[:160])
+                    return None
                 n = parse_score(last)
                 if n is not None:
                     return n
             log.warning("score %s: no digit in reply %r", key, last[:80])
             return None
 
+        # 并发由 llm._GATE 统一管（网关每模型 5 路）；这里的线程数只是上限
         with ThreadPoolExecutor(max_workers=min(9, len(keys)) or 1) as ex:
             results = dict(zip(keys, ex.map(one, keys)))
 

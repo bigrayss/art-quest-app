@@ -12,6 +12,7 @@
 import base64
 import json
 import logging
+import os
 import re
 import time
 from typing import Any, Dict, List
@@ -21,6 +22,11 @@ from .config import (LLM_API_KEY, LLM_BASE_URL, LLM_EFFORT, LLM_EXTRA, LLM_MODEL
 
 log = logging.getLogger("artquest")
 _client = None
+# 华东师大的网关每个模型最多 5 个并发（429 model_concurrency_exceeded），整个账号共用。
+# 进程内先用一道闸把并发压到 4（留一个给别人），撞上 429 再退避重试。
+import threading
+_GATE = threading.BoundedSemaphore(int(os.environ.get("ARTQUEST_LLM_CONCURRENCY", "4")))
+_RETRY_SLEEP = (1.0, 2.5, 5.0)
 # 最近一次 openai 通路调用的体检单（耗时、token、有没有思维链），tools/try_llm.py 打印它。
 LAST_CALL: Dict[str, Any] = {}
 
@@ -117,16 +123,23 @@ def openai_request(system: str, content: List[Dict[str, Any]], max_tokens: int) 
 
 def _openai_post(body: Dict[str, Any]) -> Dict[str, Any]:
     import httpx
-    t0 = time.monotonic()
-    r = httpx.post(f"{LLM_BASE_URL}/chat/completions", json=body, timeout=LLM_TIMEOUT_SEC,
-                   headers={"Authorization": f"Bearer {LLM_API_KEY}", "Content-Type": "application/json"})
-    dt = time.monotonic() - t0
-    if r.status_code >= 400:
-        log.warning("llm %s %.1fs HTTP %d", body.get("model"), dt, r.status_code)
-        raise RuntimeError(f"{LLM_PROVIDER} {r.status_code}: {r.text[:300]}")
-    data = r.json()
-    _record_call(body, data, dt)
-    return data
+    for attempt in range(len(_RETRY_SLEEP) + 1):
+        t0 = time.monotonic()
+        with _GATE:
+            r = httpx.post(f"{LLM_BASE_URL}/chat/completions", json=body, timeout=LLM_TIMEOUT_SEC,
+                           headers={"Authorization": f"Bearer {LLM_API_KEY}", "Content-Type": "application/json"})
+        dt = time.monotonic() - t0
+        if r.status_code in (429, 502, 503, 504) and attempt < len(_RETRY_SLEEP):
+            log.warning("llm %s %.1fs HTTP %d, retry in %.1fs", body.get("model"), dt, r.status_code, _RETRY_SLEEP[attempt])
+            time.sleep(_RETRY_SLEEP[attempt])
+            continue
+        if r.status_code >= 400:
+            log.warning("llm %s %.1fs HTTP %d", body.get("model"), dt, r.status_code)
+            raise RuntimeError(f"{LLM_PROVIDER} {r.status_code}: {r.text[:300]}")
+        data = r.json()
+        _record_call(body, data, dt)
+        return data
+    raise RuntimeError("unreachable")
 
 
 def _record_call(body: Dict[str, Any], data: Dict[str, Any], dt: float) -> None:
