@@ -951,7 +951,8 @@
     $("#flow-fill").style.width = `${((idx + 1) / STAGES.length) * 100}%`;
     $("#flow-step").textContent = `${STAGES[idx].name} · ${idx + 1}/${STAGES.length}`;
     const sp = $("#flow-sprite");
-    paintBuddy(sp, currentKey === "final" ? "happy" : "normal", buddyColor());
+    // 整只，不用头部特写：特写那张把拿铅笔的手裁掉了一截，用户 2026-10-05 看成「精灵被截取」
+    paintBuddy(sp, currentKey === "final" ? "happy" : "normal", buddyColor(), "fig");
   }
 
   // ---------- views ----------
