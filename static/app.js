@@ -263,7 +263,8 @@
     reading: { parts: ["eyes"] } };
   const roleOf = (expr) => (BUDDY_ROLES[expr] ? expr : "normal");
   const roleUrl = (role, file) => `${BUDDY_DIR}/${role}/${file}`;
-  const BD_IMG = `alt="" draggable="false" decoding="async" onerror="this.closest('.sprite').dataset.noart=1"`;
+  // onerror 要判空：断网时图加载失败，而那张 img 可能已经被重新渲染替换、不在页面里了（closest 回 null）。
+  const BD_IMG = `alt="" draggable="false" decoding="async" onerror="var s=this.closest('.sprite'); if (s) s.dataset.noart=1"`;
   /** mode：undefined = 头部小头像；"fig" = 整只静态图（会眨眼的带贴片）；true = 门口那张大图（只有 normal 有）。 */
   function buddyInner(expr, color, mode) {
     const role = roleOf(expr);

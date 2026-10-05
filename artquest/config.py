@@ -37,7 +37,9 @@ SNAPSHOT_INTERVAL_SEC = int(os.environ.get("ARTQUEST_SNAPSHOT_INTERVAL", "0"))
 #              比如华东师大的 ecnu-plus：https://chat.ecnu.edu.cn/open/api/v1
 # 不写 ARTQUEST_LLM_PROVIDER 就按给了哪种 key 自动选；两种都给，openai 优先（大陆服务器只有它通）。
 LLM_BASE_URL = os.environ.get("ARTQUEST_LLM_BASE_URL", "").strip().rstrip("/")
-LLM_API_KEY = os.environ.get("ARTQUEST_LLM_API_KEY", "").strip()
+# 可以给多个 key，逗号分隔：网关的并发闸按 key 开的话，几个 key 就是几倍通道（llm._KeyPool 轮着用，各排各的队）。
+LLM_API_KEYS = [k.strip() for k in os.environ.get("ARTQUEST_LLM_API_KEY", "").split(",") if k.strip()]
+LLM_API_KEY = LLM_API_KEYS[0] if LLM_API_KEYS else ""
 _provider = os.environ.get("ARTQUEST_LLM_PROVIDER", "").strip().lower()
 if not _provider:
     _provider = "openai" if (LLM_BASE_URL and LLM_API_KEY) else "anthropic"

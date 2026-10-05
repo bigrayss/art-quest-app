@@ -38,7 +38,7 @@ def sample_png() -> bytes:
 
 def main():
     print(f"provider={config.LLM_PROVIDER} backend={config.LLM_BACKEND} model={config.LLM_MODEL} "
-          f"base_url={config.LLM_BASE_URL or '-'} key={'yes' if config.llm_available() else 'NO'}")
+          f"base_url={config.LLM_BASE_URL or '-'} keys={len(config.LLM_API_KEYS)}")
     if not config.llm_available():
         sys.exit("没有 key：先 `set -a; . ./.env; set +a`")
     png = Path(sys.argv[1]).read_bytes() if len(sys.argv) > 1 else sample_png()

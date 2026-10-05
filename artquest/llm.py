@@ -15,18 +15,59 @@ import logging
 import os
 import re
 import time
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
-from .config import (LLM_API_KEY, LLM_BASE_URL, LLM_EFFORT, LLM_EXTRA, LLM_MODEL, LLM_PROVIDER,
+from .config import (LLM_API_KEY, LLM_API_KEYS, LLM_BASE_URL, LLM_EFFORT, LLM_EXTRA, LLM_MODEL, LLM_PROVIDER,
                      LLM_THINKING, LLM_TIMEOUT_SEC)
 
 log = logging.getLogger("artquest")
 _client = None
-# 华东师大的网关每个模型最多 5 个并发（429 model_concurrency_exceeded），整个账号共用。
-# 进程内先用一道闸把并发压到 4（留一个给别人），撞上 429 再退避重试。
+# 华东师大的网关每个 key 最多 5 个并发（429 model_concurrency_exceeded）。
+# 进程内每个 key 一条队、每队最多 4 路在飞（留一路给别人）；多个 key 时每次挑最空的那条。
+# 撞上 429 退避后重试，重试时重新挑 key。key 本身绝不进日志，只记编号。
 import threading
-_GATE = threading.BoundedSemaphore(int(os.environ.get("ARTQUEST_LLM_CONCURRENCY", "4")))
+_PER_KEY = int(os.environ.get("ARTQUEST_LLM_CONCURRENCY", "4"))
 _RETRY_SLEEP = (1.0, 2.5, 5.0)
+
+
+class _KeyPool:
+    """几把 key 几条队。`acquire()` 挑在飞最少的那把，都满了就等；`release()` 还回去并叫醒等的人。"""
+
+    def __init__(self, keys, per_key):
+        self.keys = list(keys) or [""]
+        self.per_key = max(1, per_key)
+        self.inflight = [0] * len(self.keys)
+        self.cooling = [0.0] * len(self.keys)      # 刚撞过 429 的 key 歇到什么时候（monotonic）
+        self.cv = threading.Condition()
+
+    def acquire(self, avoid: Optional[int] = None) -> int:
+        """挑一把：先排除正在冷却的和刚撞墙的（avoid），剩下的里挑在飞最少的；都满了就等。
+        只有一把 key 时没得挑，只能等它空出来。"""
+        with self.cv:
+            while True:
+                now = time.monotonic()
+                cands = [j for j in range(len(self.keys)) if self.cooling[j] <= now and j != avoid]
+                if not cands:
+                    cands = list(range(len(self.keys)))
+                i = min(cands, key=lambda j: self.inflight[j])
+                if self.inflight[i] < self.per_key:
+                    self.inflight[i] += 1
+                    return i
+                self.cv.wait(timeout=0.5)
+
+    def release(self, i: int, cool: float = 0.0) -> None:
+        with self.cv:
+            self.inflight[i] -= 1
+            if cool > 0:
+                self.cooling[i] = time.monotonic() + cool
+            self.cv.notify()
+
+    def snapshot(self):
+        with self.cv:
+            return list(self.inflight)
+
+
+_POOL = _KeyPool(LLM_API_KEYS, _PER_KEY)
 # 最近一次 openai 通路调用的体检单（耗时、token、有没有思维链），tools/try_llm.py 打印它。
 LAST_CALL: Dict[str, Any] = {}
 
@@ -123,15 +164,23 @@ def openai_request(system: str, content: List[Dict[str, Any]], max_tokens: int) 
 
 def _openai_post(body: Dict[str, Any]) -> Dict[str, Any]:
     import httpx
+    last_key = None
     for attempt in range(len(_RETRY_SLEEP) + 1):
         t0 = time.monotonic()
-        with _GATE:
+        ki = _POOL.acquire(avoid=last_key)
+        r = None
+        try:
             r = httpx.post(f"{LLM_BASE_URL}/chat/completions", json=body, timeout=LLM_TIMEOUT_SEC,
-                           headers={"Authorization": f"Bearer {LLM_API_KEY}", "Content-Type": "application/json"})
+                           headers={"Authorization": f"Bearer {_POOL.keys[ki]}", "Content-Type": "application/json"})
+        finally:
+            # 撞了 429 的 key 歇一会儿（多把 key 时别人顶上；只有一把时等于退避）
+            _POOL.release(ki, cool=_RETRY_SLEEP[min(attempt, len(_RETRY_SLEEP) - 1)] if (r is not None and r.status_code == 429) else 0.0)
         dt = time.monotonic() - t0
         if r.status_code in (429, 502, 503, 504) and attempt < len(_RETRY_SLEEP):
-            log.warning("llm %s %.1fs HTTP %d, retry in %.1fs", body.get("model"), dt, r.status_code, _RETRY_SLEEP[attempt])
-            time.sleep(_RETRY_SLEEP[attempt])
+            log.warning("llm %s key#%d %.1fs HTTP %d, retry in %.1fs", body.get("model"), ki, dt, r.status_code, _RETRY_SLEEP[attempt])
+            last_key = ki
+            if len(_POOL.keys) == 1:
+                time.sleep(_RETRY_SLEEP[attempt])   # 没有别的 key 可换，只能等
             continue
         if r.status_code >= 400:
             log.warning("llm %s %.1fs HTTP %d", body.get("model"), dt, r.status_code)
@@ -152,7 +201,7 @@ def _record_call(body: Dict[str, Any], data: Dict[str, Any], dt: float) -> None:
     has_image = any(isinstance(m.get("content"), list) and any(p.get("type") == "image_url" for p in m["content"])
                     for m in body.get("messages", []))
     LAST_CALL.clear()
-    LAST_CALL.update(seconds=round(dt, 1), model=body.get("model"), image=has_image,
+    LAST_CALL.update(seconds=round(dt, 1), model=body.get("model"), image=has_image, keys=len(_POOL.keys),
                      thinking_requested=body.get("thinking"), prompt_tokens=usage.get("prompt_tokens"),
                      completion_tokens=usage.get("completion_tokens"), finish_reason=choice.get("finish_reason"),
                      content_chars=len(content) if isinstance(content, str) else -1,
