@@ -188,7 +188,7 @@ window.ARTQUEST_LANG_EN = {
   "稍后开放": "Available later",
   "{n} 种玩法": "{n} ways to play",
   "画什么由你定。": "You decide what to draw.",
-  "画面有些地方损坏了，照着原图把它补完整。": "Parts of the picture are damaged. Use the original to restore it.",
+  "照着原图，把画面重新画出来。": "Use the original picture to draw the scene again.",
   "仔细看，把物体的样子和位置画下来。": "Look closely and draw the objects as they are, including where they sit.",
   "从留下的碎片开始，接着画成一幅完整的作品。": "Start with the remaining pieces and build them into a complete picture.",
   "改一改熟悉的东西，让它有个新用途。": "Change a familiar object to give it a new use.",

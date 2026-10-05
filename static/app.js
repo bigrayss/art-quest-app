@@ -2956,7 +2956,7 @@
   /** One child-facing line per family — never the research goal. */
   const FAMILY_BLURB = {
     M0: "画什么由你定。",
-    M1: "画面有些地方损坏了，照着原图把它补完整。",
+    M1: "照着原图，把画面重新画出来。",
     M2: "仔细看，把物体的样子和位置画下来。",
     M3: "从留下的碎片开始，接着画成一幅完整的作品。",
     M4: "改一改熟悉的东西，让它有个新用途。",
