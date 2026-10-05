@@ -404,6 +404,18 @@ window.ARTQUEST_LANG_EN = {
 
   // 精选：先问本人
   "老师选中了你的一幅作品": "Your teacher selected one of your drawings",
+  "{a}想把你推荐到展览馆里": "{a} wants to put your drawing in the exhibition hall",
+  "你画得好棒！要把《{a}》放到大家的画廊吗？": "Great drawing! Shall we put \"{a}\" in Everyone's Gallery?",
+  "你画得好棒！{a}想把你推荐到展览馆里。": "Great drawing! {a} wants to put it in the exhibition hall.",
+  "放上去以后，其他人也能在大家的画廊看到这幅画。不想展示了，随时可以在画廊里撤下来。": "Once it is up, others can see this drawing in Everyone's Gallery. You can take it down in the gallery at any time.",
+  "好呀，放上去": "Yes, put it up",
+  "先不要": "Not now",
+  "已经放到大家的画廊了。不想展示了，随时可以在画廊里撤下来。": "It is in Everyone's Gallery now. You can take it down in the gallery at any time.",
+  "好，先不放。": "Okay, not for now.",
+  "刚才没送出去，下次打开再问你。": "That did not go through. We will ask again next time.",
+  "精灵推荐": "Buddy's pick",
+  "不展示了": "Take it down",
+  "小画家": "Young artist",
   "今天展出你的作品": "Your drawing is on display today",
   "分享后，其他人也能在大家的画廊看到这幅画。是否分享由你决定，之后也可以取消。": "If you share this drawing, others can see it in Everyone's Gallery. You decide whether to share it and can stop sharing at any time.",
   "分享这幅画": "Share this drawing",

@@ -1104,6 +1104,7 @@ def submit(sid: str, body: Submit):
                                  "prompt_version": PROMPT_VERSION})
     store.add_server_event(sid, "SESSION_END", body.elapsed_ms, {"revised": True})
     store.update(sid, after=record, comparison=cmp, revised=True, status="done")
+    _buddy_invite(sid)
     store.mark_ended(sid, body.elapsed_ms)
     store.set_lifecycle(sid, "pending_upload" if body.pending else "completed_local")
     if not body.pending:
@@ -1132,6 +1133,7 @@ def finalize(sid: str, body: Finalize):
     record = dict(meta["before"], file="final.png", elapsed_ms=body.elapsed_ms, at=now_iso())
     store.add_server_event(sid, "SESSION_END", body.elapsed_ms, {"revised": False})
     store.update(sid, after=record, revised=False, status="done")
+    _buddy_invite(sid)
     store.mark_ended(sid, body.elapsed_ms)
     store.set_lifecycle(sid, "pending_upload" if body.pending else "completed_local")
     if not body.pending:
@@ -1234,10 +1236,45 @@ def featured_pending(pid: str, request: Request, anon_id: str = "", account_id: 
 
 
 @api.post("/sessions/{sid}/featured")
-def answer_featured(sid: str, body: FeaturedAnswer):
-    """孩子自己的答复。答应了才会挂到大家那面墙上；随时可以反悔。"""
-    _session_or_404(sid)
+def answer_featured(sid: str, body: FeaturedAnswer, request: Request, participant_id: str = "",
+                    anon_id: str = "", account_id: str = ""):
+    """孩子自己的答复。答应了才会挂到大家那面墙上；随时可以反悔（墙上「撤下」走的也是这条，accept=false）。
+    只认本人（用户 2026-10-05：谁的画谁才能撤，别人不能动）：不是自己的和不存在的回同一个 404。"""
+    _check_owner(request, account_id)
+    try:
+        meta = store.load(sid)
+    except KeyError:
+        raise HTTPException(404, "找不到这幅画")
+    mine = storage_belongs_to(meta, participant_id=participant_id, anon_id=anon_id,
+                              account_id=account_id, windows=_owner_windows(account_id))
+    if not (mine or _is_admin(request)):
+        raise HTTPException(404, "找不到这幅画")
     return {"ok": True, "featured": store.answer_featured(sid, body.accept)}
+
+
+# ---- 精灵的邀请：最终作品平均分过线，邀请上大家的画廊（用户 2026-10-05）----
+# 只是邀请：挂不挂孩子自己点（答复走上面那条）。分数本身不给孩子看，邀请词里也不提分。
+INVITE_MIN_AVG = 3.0          # 严格大于 3
+BUDDY_CURATOR = "buddy/v1"
+
+
+def _avg_score(scores: Dict[str, Any]) -> Optional[float]:
+    vals = [e["score"] for e in (scores.get("dims") or {}).values()
+            if isinstance(e, dict) and isinstance(e.get("score"), (int, float)) and not isinstance(e.get("score"), bool)]
+    return sum(vals) / len(vals) if vals else None
+
+
+def _buddy_invite(sid: str) -> Optional[Dict[str, Any]]:
+    meta = store.load(sid)
+    cond = meta.get("condition") or {}
+    if not gallery_mod.is_shareable(meta) or cond.get("gallery_display", "none") != "always":
+        return None                       # 画之前没同意被人看见 / 这一臂根本没有那面墙
+    if (meta.get("featured") or {}).get("state"):
+        return None                       # 老师已经挑过或问过，不重复问
+    avg = _avg_score((meta.get("after") or {}).get("scores") or {})
+    if avg is None or avg <= INVITE_MIN_AVG:
+        return None
+    return store.propose_featured(sid, by=BUDDY_CURATOR, note=f"avg={avg:.2f}")
 
 
 @api.get("/sessions/{sid}/revision")
@@ -1301,10 +1338,28 @@ def gallery_for_task(task_id: str, exclude: str = "", k: int = 3):
                                         k=max(1, min(6, k)), viewer_meta=viewer)
 
 
+def _display_name(meta: Dict[str, Any]) -> str:
+    """墙上写谁画的（用户 2026-10-05：显示 ID 和题目）：账号名 > 研究代号 > 「小画家」。设备 id 不露。"""
+    p = meta.get("participant") or {}
+    if not isinstance(p, dict):
+        return str(p or "") or "小画家"
+    acc = accounts.load(p.get("account_id") or "") if p.get("account_id") else None
+    return (acc or {}).get("name") or p.get("participant_id") or "小画家"
+
+
 @api.get("/gallery/featured")
-def gallery_featured(task_id: str = "", k: int = 8):
+def gallery_featured(task_id: str = "", k: int = 8, request: Request = None):
     """Work that was picked **and** that the child then agreed to show."""
-    return gallery_mod.featured_examples(task_id, k=max(1, min(24, k)))
+    out = gallery_mod.featured_examples(task_id, k=max(1, min(24, k)))
+    lang = i18n.pick_lang(request) if request is not None else "zh"
+    for c in out.get("examples", []):
+        try:
+            meta = store.load(c["session_id"])
+        except KeyError:
+            continue
+        c["name"] = _display_name(meta)
+        c["title"] = i18n.quest_for(QUESTS_BY_ID.get(meta.get("quest_id")) or {}, lang).get("title") or meta.get("quest_id")
+    return out
 
 
 @api.post("/gallery/curate")

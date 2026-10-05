@@ -1051,8 +1051,11 @@
     // 挑中的可能是老师，也可能是每天自动轮到的那一批（by = curator/...）。
     // 自动那批不说「老师说」——它没在评价这张画，只是把它排到了今天。
     const auto = (item.by || "").startsWith("curator/");
-    $("#featured-title").textContent = auto ? "今天展出你的作品" : "老师选中了你的一幅作品";
-    $("#featured-note").textContent = auto
+    const buddy = (item.by || "").startsWith("buddy/");
+    $("#featured-title").textContent = buddy ? `${buddyName()}想把你推荐到展览馆里` : auto ? "今天展出你的作品" : "老师选中了你的一幅作品";
+    $("#featured-note").textContent = buddy
+      ? `你画得好棒！要把《${item.title}》放到大家的画廊吗？`
+      : auto
       ? `你的《${item.title}》今天在大家的画廊展出。` + (item.note ? `老师的评语是：「${item.note}」` : "")
       : item.note ? `老师的评语：「${item.note}」` : `老师选中了你的《${item.title}》。`;
     $("#featured-img").src = fileUrl(item.image);
@@ -1063,7 +1066,7 @@
     $("#featured-modal").classList.add("hidden");
     if (!item) return;
     try {
-      await api(`${API}/sessions/${item.session_id}/featured`,
+      await api(`${API}/sessions/${item.session_id}/featured?${whoQuery()}`,
         { method: "POST", body: JSON.stringify({ accept: !!accept }) });
     } catch (e) { /* 下次再问 */ }
     showNextFeatured();
@@ -2371,7 +2374,7 @@
     grid.querySelectorAll(".dex-featured").forEach(b => {
       b.onclick = async (e) => {
         e.stopPropagation();
-        await api(`${API}/sessions/${b.dataset.sid}/featured`,
+        await api(`${API}/sessions/${b.dataset.sid}/featured?${whoQuery()}`,
           { method: "POST", body: JSON.stringify({ accept: b.dataset.accept === "1" }) });
         await loadCollection(); await renderWall();
       };
@@ -3432,6 +3435,7 @@
       sv.onclick = () => { sv.disabled = true; sv.textContent = "正在保存…"; native("save", { image: afterImg }); };
     }
     renderPeers(session);
+    renderInvite(session);
     // What the child is shown of their own growth is its own condition, separate
     // from whether this artwork got feedback: a no-intervention arm can still
     // let a child see their cumulative practice without being told about *this*
@@ -3447,6 +3451,36 @@
     if (state.study) fm.textContent = `Session ${session.session_id} · 过程截图 ${session.snapshots.length} 张`
       + ` · 事件 ${session.events.length} 条 · 数据目录 data/sessions/${session.session_id}/`;
     show("final");
+  }
+
+  // ===== 精灵的邀请：上大家的画廊 =====
+  // 服务器在结束时按最终作品的平均分决定要不要邀请（featured.state=pending, by=buddy/…）。
+  // 这里只负责把话说出来、把孩子的答复送回去。分数不出现在任何一句话里。
+  const myDisplayName = () => (state.account || {}).name || savedPid() || (LANG === "en" ? "Me" : "我");
+  function renderInvite(session) {
+    const box = $("#invite-card"); if (!box) return;
+    const fe = session.featured || {};
+    const show = fe.state === "pending" && (fe.by || "").startsWith("buddy/");
+    box.classList.toggle("hidden", !show);
+    if (!show) return;
+    const title = (state.quests.find(q => q.id === session.quest_id) || {}).title || session.quest_id;
+    paintBuddy($("#invite-sprite"), "encourage", buddyColor(), "fig");
+    $("#invite-text").textContent = `你画得好棒！${buddyName()}想把你推荐到展览馆里。`;
+    $("#invite-work").textContent = `${myDisplayName()} · 《${title}》`;
+    $("#invite-hint").classList.remove("hidden");
+    const acts = $("#invite-actions"); acts.classList.remove("hidden");
+    const answer = async (accept) => {
+      acts.classList.add("hidden"); $("#invite-hint").classList.add("hidden");
+      try {
+        await api(`${API}/sessions/${session.session_id}/featured?${whoQuery()}`,
+          { method: "POST", body: JSON.stringify({ accept }) });
+        $("#invite-work").textContent = accept ? "已经放到大家的画廊了。不想展示了，随时可以在画廊里撤下来。" : "好，先不放。";
+      } catch (e) {
+        $("#invite-work").textContent = "刚才没送出去，下次打开再问你。";
+      }
+    };
+    $("#btn-invite-yes").onclick = () => answer(true);
+    $("#btn-invite-no").onclick = () => answer(false);
   }
 
   // ===== 过程徽章（只奖励过程，不奖励分数）=====
@@ -3718,19 +3752,37 @@
     el.classList.remove("hidden");
     $("#wall-empty").classList.toggle("hidden", !!cards.length);
     $("#wall-count").textContent = cards.length ? `${cards.length} 张` : "";
+    const mine = new Set((state.allSessions || []).map(r => r.session_id));
     $("#wall-grid").innerHTML = cards.map(c => {
       const a = c.approach || {};
-      const title = (state.quests.find(q => q.id === c.task_id) || {}).title || c.task_id;
+      const title = c.title || (state.quests.find(q => q.id === c.task_id) || {}).title || c.task_id;
+      const by = c.featured_by || "";
+      const pin = by.startsWith("buddy/") ? "精灵推荐" : c.curated ? "今日展出" : "老师精选";
+      // 谁的画谁才能撤：按钮只出现在自己的作品上，服务器那头也只认本人
+      const unpin = mine.has(c.session_id)
+        ? `<button class="ghost peer-unpin" data-unpin="${c.session_id}">${icon("pin", 12)}不展示了</button>` : "";
       return `<figure class="peer">
         <div class="peer-shot"><img src="${fileUrl(c.image)}" alt="已分享的作品" loading="lazy"></div>
         <figcaption>
           <b>${escapeHtml(title)}</b>
+          <span class="peer-by">${escapeHtml(c.name || "小画家")}</span>
           <div class="peer-chips"><span>${a.strokes} 笔</span><span>${a.colors || 1} 种颜色</span>
             <span>${a.minutes} 分钟</span>${a.zoomed ? "<span>查看时放大过</span>" : ""}</div>
-          ${c.why ? `<p class="peer-why">${escapeHtml(c.why)}</p>` : ""}
-          <div class="p-pin">${icon("pin", 13)}${c.curated ? "今日展出" : "老师精选"}</div>
+          ${c.why && !by.startsWith("buddy/") ? `<p class="peer-why">${escapeHtml(c.why)}</p>` : ""}
+          <div class="p-pin">${icon("pin", 13)}${pin}</div>${unpin}
         </figcaption></figure>`;
     }).join("");
+    $("#wall-grid").querySelectorAll("[data-unpin]").forEach(b => {
+      b.onclick = async () => {
+        b.disabled = true;
+        try {
+          await api(`${API}/sessions/${b.dataset.unpin}/featured?${whoQuery()}`,
+            { method: "POST", body: JSON.stringify({ accept: false }) });
+        } catch (e) { b.disabled = false; return; }
+        await loadCollection();          // 自己画廊里那颗「已在大家的画廊展出」的钮也要跟着变
+        renderWall();
+      };
+    });
   }
 
   /** Other people's *approaches* to the same task — chosen for how much they

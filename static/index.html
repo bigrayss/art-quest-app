@@ -476,6 +476,19 @@
       <div><div class="buddy-name buddy-word">彩点</div></div></div>
     <div class="feedback-text" id="comparison-text"></div>
   </div>
+  <!-- 精灵的邀请：最终作品过线时服务器把 featured 标成 pending（by=buddy/…），这张卡才出现。
+       挂不挂孩子自己点；点了「放上去」以后，画廊墙上自己的画随时能撤。 -->
+  <div class="fcard invite hidden" id="invite-card">
+    <div class="buddy-head"><span class="sprite lg" id="invite-sprite"></span>
+      <div><div class="buddy-name buddy-word">彩点</div></div></div>
+    <p class="invite-text" id="invite-text"></p>
+    <p class="invite-work" id="invite-work"></p>
+    <p class="muted small" id="invite-hint">放上去以后，其他人也能在大家的画廊看到这幅画。不想展示了，随时可以在画廊里撤下来。</p>
+    <div class="actions" id="invite-actions">
+      <button class="primary grow" id="btn-invite-yes">好呀，放上去</button>
+      <button class="ghost" id="btn-invite-no">先不要</button>
+    </div>
+  </div>
   <div class="peers hidden" id="peers">
     <div class="sechead" style="--sc:var(--purple); --sc-d:var(--purple-d)">
       <span class="sechead-ico"><i data-icon="people" data-size="19"></i></span>

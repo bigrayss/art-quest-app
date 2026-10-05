@@ -2213,3 +2213,14 @@ body[data-room="grade"], body[data-room="rubric"] { --room:var(--blue); --room-d
 #ref-drop-swatch { width:18px; height:18px; border-radius:50%; margin-left:6px; border:2px solid #fff; box-shadow:0 0 0 1px rgba(0,0,0,.15); display:inline-block; }
 #ref-drop-swatch.hidden { display:none; }
 .ref-viewport.dropping { cursor:crosshair; }
+
+/* 终局页：精灵的邀请卡（上大家的画廊） */
+.invite { background:linear-gradient(180deg, var(--yellow-l), #fff 80%); }
+.invite .buddy-head { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+.invite-text { margin:0 0 6px; font-size:1.0625rem; font-weight:800; line-height:1.5; }
+.invite-work { margin:0 0 8px; font-weight:700; color:var(--muted-2); }
+.invite .actions { margin-top:12px; }
+.invite-done { margin:0; font-weight:700; }
+/* 画廊墙上：谁画的 + 自己的画可以撤下 */
+.peer-by { display:block; font-size:0.75rem; color:var(--muted-2); font-weight:700; margin-top:2px; }
+.peer-unpin { margin-top:8px; font-size:0.75rem; padding:6px 10px; min-height:0; }
