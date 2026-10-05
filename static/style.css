@@ -617,6 +617,9 @@ canvas { width:auto; height:auto; max-width:100%; max-height:100%; display:block
 .ref-thumb-t { position:absolute; left:50%; bottom:10px; transform:translateX(-50%); white-space:nowrap;
   display:inline-flex; align-items:center; gap:5px; padding:6px 12px; border-radius:999px;
   background:rgba(255,255,255,.92); border:2px solid var(--line); font-size:0.8125rem; font-weight:800; }
+/* 缩略图上那颗「查看参考图」的浮钮挡画面（用户 2026-10-05：「有点碍事」）：平板和宽屏不显示，
+   整张缩略图本身就是按钮，点一下放大。手机上那条 4.25rem 的矮带露不出什么画面，字还留着。 */
+@media (min-width: 701px) { .refpanel:not(.peek) .ref-thumb-t { display:none; } }
 /* on_demand：不露画面，只有一颗钮——孩子没主动要看之前，参考图不该在眼前 */
 .refpanel.peek .ref-thumb { height:auto; padding:11px; background:var(--card); }
 .refpanel.peek .ref-thumb img { display:none; }
@@ -1677,17 +1680,14 @@ button, .tab, .quest-card, .dex-card { -webkit-tap-highlight-color: transparent;
      描述夹三行——完整描述上一屏刚读过，这儿只是备查；窗保底 11rem；缩略图在矮屏上矮一点。 */
   /* 注意平板上 1rem ≈ 21.6px：8rem 的缩略图就是 173px，别按 16px 心算。
      让位顺序：参考图缩略先缩（最矮 4rem），窗保底 7.5rem，任务卡不缩（夹三行已经够短）。 */
-  .brief .quest-card.small { flex:0 0 auto; }
-  .brief .quest-card.small p { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+  /* 任务卡：整段题面都留着，放不下就在卡里滚（用户 2026-10-05：「题目那栏有点长的都被隐掉了，加个滑轮」）。
+     卡最矮 7rem（标签 + 标题 + 两三行），再矮就得滚；参考图缩略最矮 4rem；窗保底 7.5rem。 */
+  .brief .quest-card.small { flex:0 1 auto; min-height:7rem; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; }
   .brief .refpanel:not(.peek) { display:flex; flex-direction:column; flex:0 1 auto; min-height:4rem; }
   .brief .refpanel:not(.peek) .ref-thumb { height:auto; flex:1 1 min(8rem, 16vh); min-height:0; }
   .brief .refpanel:not(.peek) .ref-thumb img { position:absolute; inset:0; }
   .brief .assist { min-height:7.5rem; }
-  /* 600 高的极限（1000×600 这种笔记本）：三行加窗还差 27px，描述夹两行、窗再让半格 */
-  @media (max-height: 640px) {
-    .brief .quest-card.small p { -webkit-line-clamp:2; }
-    .brief .assist { min-height:7rem; }
-  }
+  @media (max-height: 640px) { .brief .assist { min-height:6.5rem; } }   /* 1000×600 这种笔记本再让半格 */
   .brief-spacer { display:none; }
   .assist.hidden ~ .brief-spacer { display:block; flex:1 1 auto; min-height:6px; }
   .brief > .actions { margin-top:0; }          /* 窗的底边对画布底边，按钮对 dock */
