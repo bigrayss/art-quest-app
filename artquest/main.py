@@ -850,6 +850,24 @@ def _personalize(sid: str, quest: Dict[str, Any], meta: Dict[str, Any]) -> Dict[
     return store.save_personalization(sid, decision)
 
 
+_last_reap = 0.0
+
+
+def _reap_old_tickets() -> None:
+    """发票时顺手把 30 天没花掉的票删了，一小时最多扫一次（2026-10-05 服务器上堆了 205 张空票）。"""
+    global _last_reap
+    import time as _t
+    if _t.monotonic() - _last_reap < 3600:
+        return
+    _last_reap = _t.monotonic()
+    try:
+        n = store.reap_tickets(days=30)
+        if n:
+            log.info("reaped %d unspent tickets older than 30 days", n)
+    except Exception:
+        log.exception("ticket reap failed")
+
+
 @api.post("/tickets", status_code=201)
 def issue_tickets(body: IssueTickets, request: Request):
     """预发几张票，留着离线用。
@@ -863,6 +881,7 @@ def issue_tickets(body: IssueTickets, request: Request):
     **提前**而不是拿掉。
     """
     _check_owner(request, body.participant.account_id)
+    _reap_old_tickets()
     n = max(1, min(20, body.n))
     st = body.study.model_dump()
     quest_ids = body.quest_ids[:n]

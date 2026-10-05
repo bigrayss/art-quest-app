@@ -173,6 +173,8 @@ def export(out: Path, with_points: bool = False) -> Dict[str, int]:
         m = session_meta(d)
         if not m:
             continue
+        if m.get("lifecycle") == "issued":
+            continue                      # 没花掉的票不是作品：没有画、没有时间、没有任务
         sid = sid_of(m) or d.name
         sessions.append(_flat_session(m))
         pz = session_part(d, "personalization")

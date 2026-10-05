@@ -658,6 +658,21 @@ class SessionStore:
     # 两道闸都要过。老师的 pin 只产生一个 pending，不会自己变成展出。
     FEATURED_STATES = ("pending", "accepted", "declined")
 
+    def reap_tickets(self, *, days: int = 30) -> int:
+        """删掉发出去很久、一直没花掉的票：每个新浏览器一来就领十张，不收的话目录只增不减。
+        花掉的（lifecycle 不是 issued）一张都不碰。返回删了几张。"""
+        from datetime import datetime, timedelta, timezone
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        n = 0
+        for d in self.root.iterdir():
+            if not d.is_dir():
+                continue
+            m = read_json(d / "session.json") or {}
+            if m.get("lifecycle") == "issued" and (m.get("issued_at") or "") < cutoff:
+                self.delete(sid_of(m) or d.name)
+                n += 1
+        return n
+
     def propose_featured(self, sid: str, *, by: str = "", note: str = "") -> Dict[str, Any]:
         """A teacher picked this one. Nothing is shown yet — the child is asked."""
         meta = self.load(sid)
