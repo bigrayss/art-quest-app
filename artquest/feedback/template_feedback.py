@@ -56,18 +56,18 @@ class TemplateFeedback:
             return {"backend": self.name, "text": text}
 
         if wish and mood:
-            see = f"我看到：你心情{mood}，画的是「{wish}」。"
+            see = f"我看到：你选的心情是「{mood}」，想画的是「{wish}」。"
         elif wish:
-            see = f"我看到：你画的是「{wish}」。"
+            see = f"我看到：你想画的是「{wish}」。"
         elif mood:
-            see = f"我看到：你心情{mood}，画完了这一幅。"
+            see = f"我看到：你选的心情是「{mood}」，这幅画已经完成了。"
         else:
-            see = "我看到：你画完了这一幅。"
+            see = "我看到：这幅画已经完成了。"
         if simple:      # 简单版：一句话
-            return {"backend": self.name, "text": "试试改一小处，比如一个颜色。"}
-        ask = "一个问题：别人只看画，能看出你想画的吗？" if wish else "一个问题：你最想让人看画里的哪儿？"
+            return {"backend": self.name, "text": "可以先改一个小地方，比如换一种颜色。"}
+        ask = "一个问题：只看这幅画，别人能明白你想画的是什么吗？" if wish else "一个问题：你最想让别人注意画里的哪个地方？"
         text = (f"{see}\n{ask}\n"
-                f"可以试试：在「{_ZH.get(low, low)}」上改一小处，比如大小、颜色或位置。不用重画。")
+                f"可以试试：挑一处和「{_ZH.get(low, low)}」有关的地方，改改大小、颜色或位置，不用整幅重画。")
         return {"backend": self.name, "text": text}
 
     def compare(self, before_png: bytes, after_png: bytes, before_scores: Dict[str, Any], after_scores: Dict[str, Any],
@@ -83,7 +83,7 @@ class TemplateFeedback:
                 text += " Is it closer to what you wanted?"
             return {"backend": self.name, "text": text}
         up = [_ZH[k] for k, v in deltas.items() if v >= 1]
-        text = ("改完以后，" + "、".join(up) + "变了。") if up else "改完以后，变化不大。"
+        text = ("修改后，" + "、".join(up) + "有了变化。") if up else "修改后，变化不大。"
         if not simple:
-            text += "你觉得更像你想画的了吗？"
+            text += "现在更接近你想画的样子了吗？"
         return {"backend": self.name, "text": text}

@@ -246,7 +246,7 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
             page.wait_for_selector("#badge-wall .badge", timeout=30000)
 
             wall = page.inner_text("#badge-wall")
-            self.assertIn("更多等你发现", wall, "墙尾该留一枚「?」")
+            self.assertIn("还有更多徽章", wall, "墙尾该留一枚「?」")
             self.assertNotIn("还有 ", wall)
             self.assertNotIn("全部 ", wall)
             # 一枚灰的都不该有：没点亮的根本不展示
@@ -294,7 +294,7 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
                     page.wait_for_timeout(300)
             page.wait_for_selector(f'.dex-open[data-sid="{done}"]')
             page.wait_for_selector(f'.dex-open[data-sid="{open_one}"]')      # 半张画也是画过的证据
-            self.assertIn("还没画完", page.inner_text("#collection"))
+            self.assertIn("尚未完成", page.inner_text("#collection"))
 
             for _ in range(4):
                 page.click(".tab[data-tab='me']")
@@ -307,7 +307,7 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
             me = page.inner_text("#view-sessions")
             self.assertNotIn("画过的画", me, "作品列表该整块搬去画廊了")
             self.assertEqual(page.locator("#view-sessions .dex-card").count(), 0)
-            self.assertIn("画完的画", me)        # 小传说的是数字，不是一张张画
+            self.assertIn("完成的作品", me)        # 小传说的是数字，不是一张张画
             browser.close()
 
     def test_the_researcher_code_is_not_a_thing_children_see(self):

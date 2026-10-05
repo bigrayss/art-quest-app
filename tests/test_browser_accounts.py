@@ -158,7 +158,7 @@ class AccountsInARealBrowser(unittest.TestCase):
                 phone.fill("#acct-pin-input", "0000")
                 phone.click("#btn-acct-go")
                 phone.wait_for_selector("#acct-err:not(.hidden)")
-                self.assertIn("不对", phone.inner_text("#acct-err"))
+                self.assertIn("不正确", phone.inner_text("#acct-err"))
                 self.assertTrue(phone.is_visible("#acct-modal"))
             finally:
                 browser.close()
@@ -179,7 +179,7 @@ class AccountsInARealBrowser(unittest.TestCase):
                 pad.fill("#acct-pin-input", "5656")
                 pad.click("#btn-acct-go")
                 pad.wait_for_selector("#acct-claim:not(.hidden)")
-                self.assertIn("1 张", pad.inner_text("#acct-claim-text"))
+                self.assertIn("1 幅", pad.inner_text("#acct-claim-text"))
                 account_id = pad.evaluate("() => JSON.parse(localStorage.getItem('artquest.account')).account_id")
 
                 # 认领之前：换台设备看不到它

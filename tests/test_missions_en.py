@@ -45,7 +45,7 @@ class EveryTaskHasAnEnglishTwin(unittest.TestCase):
         for t in v2["M8"]:
             en = translate_task(t)
             self.assertEqual(en["instruction"].count("\n· "), len(t["condition"]["rules"]))
-            self.assertEqual("Challenge:" in en["instruction"], bool(t["condition"].get("challenge")))
+            self.assertEqual("Optional challenge:" in en["instruction"], bool(t["condition"].get("challenge")))
         for t in v2["M7"]:
             en = translate_task(t)
             self.assertIn(f"({t['phases'][0]['seconds']} seconds)", en["instruction"])

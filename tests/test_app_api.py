@@ -383,10 +383,10 @@ class TheShellRunsFromAnotherOrigin(unittest.TestCase):
             page.click("#btn-save")
             saves = [m for m in page.evaluate("window.__native") if m.get("type") == "save"]
             self.assertTrue(saves and saves[-1]["image"].startswith("data:image/png;base64,"))
-            self.assertEqual(page.inner_text("#btn-save"), "正在存…")
+            self.assertEqual(page.inner_text("#btn-save"), "正在保存…")
             # 壳存完回一句，钮就变字；孩子不用面对系统分享面板那一排图标
             page.evaluate("window.dispatchEvent(new CustomEvent('artquest:saved', {detail: {ok: true}}))")
-            self.assertEqual(page.inner_text("#btn-save"), "存好了，在相册里")
+            self.assertEqual(page.inner_text("#btn-save"), "已保存到相册")
             self.assertTrue(page.is_disabled("#btn-save"))
             page.click("#btn-again")
             page.wait_for_selector("#view-quest:not(.hidden)")

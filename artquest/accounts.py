@@ -73,18 +73,18 @@ def name_key(name: str) -> str:
 def check_name(name: str) -> str:
     name = unicodedata.normalize("NFKC", name or "").strip()
     if _CTRL_RE.search(name):
-        raise AccountError("bad_name", "名字里有打不出来的字符，换一个吧")
+        raise AccountError("bad_name", "名字中有不支持的字符，请换一个名字")
     if not name_key(name):
         raise AccountError("bad_name", "请输入名字")
     if len(name) > NAME_MAX:
-        raise AccountError("bad_name", f"名字最多 {NAME_MAX} 个字")
+        raise AccountError("bad_name", f"名字最多可用 {NAME_MAX} 个字")
     return name
 
 
 def check_pin(pin: str) -> str:
     pin = (pin or "").strip()
     if not (len(pin) == PIN_LEN and pin.isdigit() and pin.isascii()):
-        raise AccountError("bad_pin", f"密码是 {PIN_LEN} 位数字")
+        raise AccountError("bad_pin", f"请输入 {PIN_LEN} 位数字密码")
     return pin
 
 
@@ -151,7 +151,7 @@ class AccountStore:
         idx = self._index()
         key = name_key(name)
         if key in idx["names"]:
-            raise AccountError("name_taken", "这个名字已经有人用啦，换一个？")
+            raise AccountError("name_taken", "这个名字已被使用，请换一个")
         salt = secrets.token_hex(16)
         acc = {
             "account_id": "acc-" + secrets.token_hex(8),
@@ -190,17 +190,17 @@ class AccountStore:
         acc = self.load(account_id) if account_id else None
         if not acc:
             # 名字不存在和暗号不对给同一句话：否则这个接口就成了「谁注册过」的查询器
-            raise AccountError("bad_credentials", "名字或密码不对")
+            raise AccountError("bad_credentials", "名字或密码不正确")
         locked = acc.get("locked_until")
         if locked and _iso() < locked:
-            raise AccountError("locked", "试得太多啦，等一分钟再来")
+            raise AccountError("locked", "尝试次数过多，请一分钟后再试")
         if not secrets.compare_digest(_hash_pin(pin, acc["pin"]["salt"]), acc["pin"]["hash"]):
             acc["failed"] = int(acc.get("failed") or 0) + 1
             if acc["failed"] >= _MAX_TRIES:
                 acc["failed"] = 0
                 acc["locked_until"] = _iso(_now() + timedelta(seconds=_LOCK_SEC))
             self._save(acc)
-            raise AccountError("bad_credentials", "名字或密码不对")
+            raise AccountError("bad_credentials", "名字或密码不正确")
         acc["failed"] = 0
         acc["locked_until"] = None
         acc["last_seen_at"] = _iso()
@@ -224,9 +224,9 @@ class AccountStore:
         account_id = self._index()["names"].get(key, "")
         acc = self.load(account_id) if account_id else None
         if not acc:
-            raise AccountError("bad_credentials", "没有这个名字")
+            raise AccountError("bad_credentials", "找不到这个名字对应的账号")
         if not by_admin and not any(d.get("anon_id") == anon_id for d in acc.get("devices", []) if anon_id):
-            raise AccountError("not_your_device", "只能在你登录过的设备上重设。换台设备，或者找老师帮你。")
+            raise AccountError("not_your_device", "请在曾登录过这个账号的设备上重设密码，也可以请老师帮忙。")
         salt = secrets.token_hex(16)
         acc["pin"] = {"algo": "pbkdf2_sha256", "iter": _PBKDF2_ITER, "salt": salt, "hash": _hash_pin(new_pin, salt)}
         acc["failed"] = 0
@@ -254,7 +254,7 @@ class AccountStore:
     def require(self, token: str) -> Dict[str, Any]:
         acc = self.by_token(token)
         if not acc:
-            raise AccountError("no_session", "登录已经过期，再登一次吧")
+            raise AccountError("no_session", "登录已过期，请重新登录")
         return acc
 
     def logout(self, token: str) -> None:
@@ -266,7 +266,7 @@ class AccountStore:
     def set_buddy_name(self, account_id: str, buddy_name: str) -> Dict[str, Any]:
         acc = self.load(account_id)
         if not acc:
-            raise AccountError("no_session", "登录已经过期，再登一次吧")
+            raise AccountError("no_session", "登录已过期，请重新登录")
         acc["buddy_name"] = (buddy_name or "").strip()[:16]
         return self.public(self._save(acc))
 
@@ -274,7 +274,7 @@ class AccountStore:
     def _remember_device(self, account_id: str, anon_id: str, *, claim: bool) -> Dict[str, Any]:
         acc = self.load(account_id)
         if not acc:
-            raise AccountError("no_session", "登录已经过期，再登一次吧")
+            raise AccountError("no_session", "登录已过期，请重新登录")
         row = next((d for d in acc["devices"] if d.get("anon_id") == anon_id), None)
         if row is None:
             row = {"anon_id": anon_id, "added_at": _iso(), "until": None}
@@ -291,11 +291,11 @@ class AccountStore:
 
     def claim_device(self, account_id: str, anon_id: str) -> Dict[str, Any]:
         if not anon_id:
-            raise AccountError("bad_device", "没认出这台设备")
+            raise AccountError("bad_device", "无法识别这台设备")
         owner = self._index()["devices"].get(anon_id)
         if owner and owner != account_id:
             # 同一台设备上第二个孩子：他的旧画已经归了别人，不能再认领一次
-            raise AccountError("device_taken", "这台设备上以前的画已经有主人啦")
+            raise AccountError("device_taken", "这台设备上的已有作品属于另一个账号")
         return self.public(self._remember_device(account_id, anon_id, claim=True))
 
     def device_windows(self, acc: Dict[str, Any]) -> Dict[str, str]:

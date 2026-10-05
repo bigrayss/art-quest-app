@@ -25,6 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from artquest.quests import QUESTS          # noqa: E402
+from artquest.missions import TASK_VERSION  # noqa: E402
 from artquest import i18n                   # noqa: E402
 
 OUT_MD = ROOT / "docs" / "文案清单.md"
@@ -124,7 +125,7 @@ def build_md() -> str:
     parts = [
         "# 彩绘冒险 · 文案清单",
         "",
-        f"界面文案 {n_ui} 条、徽章 {len(badges)} 枚、模板反馈 {len(fb)} 句、彩点的窗 {len(assist)} 句、任务 {n_task} 道（孩子现在看到的 v2.2）。"
+        f"界面文案 {n_ui} 条、徽章 {len(badges)} 枚、模板反馈 {len(fb)} 句、彩点的窗 {len(assist)} 句、任务 {n_task} 道（孩子现在看到的 v{TASK_VERSION}）。"
         "由 `tools/gen_copy_list.py` 从代码里抽出来，别手改这个文件；改了源文件再跑一次。",
         "",
         "「标记」是机器按粗规则挑的嫌疑（叹号 / 破折号 / 语气词 / 套话 / 长 / 多问），只是提醒多看一眼。",

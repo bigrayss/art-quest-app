@@ -27,14 +27,14 @@
   <div class="rail-brand">
     <span class="mark"><i data-icon="palette" data-size="20"></i></span>
     <b>彩绘冒险</b>
-    <button class="rail-toggle" id="btn-rail" title="收起这一栏" aria-label="收起这一栏"><i data-icon="arrowLeft" data-size="13"></i></button>
+    <button class="rail-toggle" id="btn-rail" title="收起导航" aria-label="收起导航"><i data-icon="arrowLeft" data-size="13"></i></button>
   </div>
   <button class="tab active student-only" data-tab="map"><i data-icon="map" data-size="24"></i><span>地图</span></button>
   <button class="tab student-only" data-tab="dex"><i data-icon="image" data-size="24"></i><span>画廊</span></button>
   <button class="tab student-only" data-tab="buddy"><i data-icon="sprout" data-size="24"></i><span class="buddy-word">彩点</span></button>
   <!-- 老师登录后：评分参考、打分、我的。进来落在打分 -->
   <button class="tab teacher-only" data-tab="rubric"><i data-icon="bulb" data-size="24"></i><span>评分参考</span></button>
-  <button class="tab teacher-only" data-tab="grade"><i data-icon="medal" data-size="24"></i><span>打分</span></button>
+  <button class="tab teacher-only" data-tab="grade"><i data-icon="medal" data-size="24"></i><span>评分</span></button>
   <button class="tab" data-tab="me"><i data-icon="books" data-size="24"></i><span>我的</span></button>
 </nav>
 
@@ -52,7 +52,7 @@
     </div>
   </div>
   <div class="appbar-right">
-    <div class="recstat hidden" id="recstat" title="过程数据先存本地，再同步到服务器"><i></i><span id="recstat-text">我看着呢</span></div>
+    <div class="recstat hidden" id="recstat" title="过程数据先保存在本机，再同步到服务器"><i></i><span id="recstat-text">我在这里</span></div>
     <button class="avatar hidden" id="btn-world" title="看看彩点"><span class="sprite" id="avatar-sprite"></span></button>
   </div>
 </header>
@@ -156,7 +156,7 @@
       <span class="sechead-chip" id="dex-progress"></span>
     </div>
     <div class="dex" id="collection"></div>
-    <p class="wall-empty hidden" id="dex-empty">还没有画。去地图挑一个画吧。</p>
+    <p class="wall-empty hidden" id="dex-empty">这里还没有作品，去地图选个主题开始画。</p>
   </div>
 
   <div id="wall-wrap" class="hidden">
@@ -166,7 +166,7 @@
       <span class="sechead-chip" id="wall-count"></span>
     </div>
     <div class="peer-grid" id="wall-grid"></div>
-    <p class="wall-empty hidden" id="wall-empty">还没有人挂画。</p>
+    <p class="wall-empty hidden" id="wall-empty">还没有人分享作品。</p>
   </div>
 </section>
 
@@ -221,17 +221,17 @@
         <p id="g-task-text"></p>
         <p class="muted small" id="g-intent"></p>
       </details>
-      <button class="gfinal" id="g-final" title="放大看，可以在图上标"><img id="g-final-img" alt="最终图"><span class="gmark hidden" id="g-final-marks" data-mark-count=""></span></button>
+      <button class="gfinal" id="g-final" title="放大查看，可以在图上标"><img id="g-final-img" alt="最终作品"><span class="gmark hidden" id="g-final-marks" data-mark-count=""></span></button>
       <div class="gprocess">
-        <div class="gsub">过程图 <span class="muted small">至少写一条，写在哪张都行</span></div>
+        <div class="gsub">过程图 <span class="muted small">请至少选一张过程图写简短评语</span></div>
         <div class="gstrip" id="g-strip"></div>
       </div>
     </div>
     <div class="gright">
-      <div class="gsub">九维打分</div>
+      <div class="gsub">九维评分</div>
       <div class="gdims" id="g-dims"></div>
       <div class="gsub">评语</div>
-      <textarea id="g-comment" rows="4" placeholder="写给这张最终图的评语"></textarea>
+      <textarea id="g-comment" rows="4" placeholder="请填写最终作品评语"></textarea>
       <p class="acct-err hidden" id="g-err"></p>
       <div class="actions sticky gsave">
         <button class="primary big grow" id="btn-grade-save">保存</button>
@@ -260,7 +260,7 @@
       <button class="primary" id="btn-acct-register">注册</button>
       <button class="ghost" id="btn-acct-login">登录</button>
       <!-- 没登录也要能回门口：老师入口在那儿 -->
-      <button class="ghost" id="btn-home">回到首页</button>
+      <button class="ghost" id="btn-home">返回首页</button>
     </div>
   </div>
   <p class="muted small acct-privacy"><a href="/privacy" data-privacy>隐私政策</a></p>
@@ -269,24 +269,24 @@
     <div class="acct-row">
       <span class="acct-badge" id="acct-initial"></span>
       <div class="acct-text"><b id="acct-name"></b><span id="acct-sub"></span></div>
-      <button class="linkbtn" id="btn-acct-logout">退出</button>
+      <button class="linkbtn" id="btn-acct-logout">退出登录</button>
     </div>
     <div class="acct-claim hidden" id="acct-claim">
       <span id="acct-claim-text"></span>
-      <button class="secondary" id="btn-acct-claim">收进账号</button>
+      <button class="secondary" id="btn-acct-claim">保存到账号</button>
     </div>
   </div>
 
   <!-- 小传：这一屏说的是「你」，不是「你的画」——画在画廊里 -->
   <div class="sechead student-only" style="--sc:var(--green); --sc-d:var(--green-d)">
     <span class="sechead-ico"><i data-icon="sprout" data-size="19"></i></span>
-    <div class="sechead-t"><b>我的小传</b></div>
+    <div class="sechead-t"><b>我的创作记录</b></div>
   </div>
   <div class="story student-only" id="story"></div>
 
   <!-- 导览和「这台设备」并成一行：这一屏要装在一页里 -->
   <div class="me-foot">
-  <button class="secondary student-only" id="btn-guide-again"><i data-icon="bulb" data-size="17"></i>再看一遍导览</button>
+  <button class="secondary student-only" id="btn-guide-again"><i data-icon="bulb" data-size="17"></i>再看一次导览</button>
   <!-- 课后问卷：对这个 app 的看法，几道开放题。老师最后几分钟让学生点开填 -->
   <button class="secondary student-only" id="btn-opinion"><i data-icon="feather" data-size="17"></i>问卷</button>
   <!-- 语言就摆在这一行，不藏进「这台设备」的折叠里——进来之后也要一眼找得到 -->
@@ -296,7 +296,7 @@
   <details class="techbox" id="techbox">
     <summary><i data-icon="sliders" data-size="16"></i>这台设备<span class="me-sync hidden" id="me-sync"></span></summary>
     <div class="infolist">
-      <div class="info"><span>这一版</span><b id="shell-badge"></b></div>
+      <div class="info"><span>当前版本</span><b id="shell-badge"></b></div>
       <div class="info"><span>评分 / 反馈</span><b id="backend-badge"></b></div>
       <div class="info"><span>本机代号</span><b id="anon-badge"></b></div>
       <div class="info"><span>全部记录</span><b><a id="export-link" href="/api/v1/sessions" target="_blank">导出 JSON</a></b></div>
@@ -321,7 +321,7 @@
            孩子自己的身份是账号（「我的」那一屏），画跟着它走。 -->
       <div class="pidbox hidden" id="pidbox">
         <label for="participant">被试代号</label>
-        <input id="participant" type="text" placeholder="研究员给的，没有就空着">
+        <input id="participant" type="text" placeholder="填写研究员提供的代号，没有可留空">
       </div>
       <div class="actions">
         <button class="primary big grow" id="btn-start-draw">开始画<i data-icon="arrowRight" data-size="17"></i></button>
@@ -348,7 +348,7 @@
     <div class="stage">
       <div class="canvas-viewport" id="viewport"><canvas id="canvas" width="1024" height="704"></canvas>
         <!-- 吸色模式下才出现：告诉他现在点画布不是画，是取色 -->
-        <div class="eyedrop-tip hidden" id="eyedrop-tip"><i data-icon="dropper" data-size="15"></i>点一下画里的颜色<button class="linkbtn" id="btn-eyedrop-cancel">不吸了</button></div>
+        <div class="eyedrop-tip hidden" id="eyedrop-tip"><i data-icon="dropper" data-size="15"></i>点一下画面，选取那里的颜色<button class="linkbtn" id="btn-eyedrop-cancel">取消取色</button></div>
       </div>
     </div>
 
@@ -376,7 +376,7 @@
       </div>
       <span class="dock-sep"></span>
       <button class="dockbtn" id="btn-clear" data-name="清空" title="清空画布" aria-label="清空画布"><i data-icon="trash" data-size="18"></i></button>
-      <button class="dockbtn" id="btn-download" data-name="保存" title="存一张到设备" aria-label="存一张到设备"><i data-icon="download" data-size="18"></i></button>
+      <button class="dockbtn" id="btn-download" data-name="保存" title="保存到设备" aria-label="保存到设备"><i data-icon="download" data-size="18"></i></button>
     </div>
 
     <!-- 右栏只剩两件事：这次要画什么，和彩点说的话。 -->
@@ -387,9 +387,9 @@
            点开是整屏的大图，在那儿缩放、拖动。原来在右栏里放一个小框缩放：
            框太小看不清，还把彩点的窗挤成一条缝。 -->
       <div class="refpanel hidden" id="refpanel">
-        <button class="ref-thumb" id="btn-ref-toggle" aria-label="看看参考图">
+        <button class="ref-thumb" id="btn-ref-toggle" aria-label="查看参考图">
           <img id="ref-thumb-img" alt="">
-          <span class="ref-thumb-t"><i data-icon="search" data-size="16"></i>看看参考图</span>
+          <span class="ref-thumb-t"><i data-icon="search" data-size="16"></i>查看参考图</span>
         </button>
       </div>
       <!-- 彩点的窗。第一次创作时它蒙着一层模糊：孩子知道这儿有东西，
@@ -404,7 +404,7 @@
         </div>
         <div class="assist-log" id="assist-log" aria-live="polite"></div>
         <button class="assist-veil" id="btn-assist">
-          <span class="assist-veil-t">听听彩点怎么说</span>
+          <span class="assist-veil-t">看看彩点怎么说</span>
         </button>
       </div>
       <div class="brief-spacer"></div>
@@ -418,8 +418,8 @@
   <div class="pop hidden" id="pop-color">
     <div class="palette" id="palette"></div>
     <button class="secondary" id="btn-more-color"><i data-icon="brush" data-size="16"></i>更多颜色</button>
-    <button class="secondary" id="btn-eyedrop"><i data-icon="dropper" data-size="16"></i>从画里吸一个颜色</button>
-    <button class="secondary hidden" id="btn-eyedrop-ref"><i data-icon="dropper" data-size="16"></i>从参考图里吸一个颜色</button>
+    <button class="secondary" id="btn-eyedrop"><i data-icon="dropper" data-size="16"></i>从画面中取色</button>
+    <button class="secondary hidden" id="btn-eyedrop-ref"><i data-icon="dropper" data-size="16"></i>从参考图中取色</button>
   </div>
 </section>
 
@@ -436,8 +436,8 @@
         <div><div class="buddy-name"><span class="buddy-word">彩点</span></div></div></div>
       <div class="feedback-text" id="feedback-text"></div>
       <div class="actions column">
-        <button class="primary big" id="btn-revise"><i data-icon="sparkle" data-size="19"></i>去进化关，改一改<i data-icon="arrowRight" data-size="17"></i></button>
-        <button class="secondary" id="btn-skip-revise">不改了</button>
+        <button class="primary big" id="btn-revise"><i data-icon="sparkle" data-size="19"></i>去进化关，再改一改<i data-icon="arrowRight" data-size="17"></i></button>
+        <button class="secondary" id="btn-skip-revise">保留原样</button>
       </div>
     </div>
   </div>
@@ -448,7 +448,7 @@
   <!-- 画完之后问三句。一张卡、三行、每行一个短问题和五颗钮，两端各一个词。
        都可以不答——「跳过」就在旁边，不用再在每一行写「可不写」。 -->
   <div class="survey-card">
-    <div class="survey-head"><span class="sprite" id="survey-sprite"></span><b>画完啦！</b></div>
+    <div class="survey-head"><span class="sprite" id="survey-sprite"></span><b>这幅画完成了</b></div>
     <div class="survey" id="survey"></div>
     <!-- 九个格子，三三排：八个选项 + 「其他」那一格就是输入框本身，写字等于选了它 -->
     <div class="sq sq-hard">
@@ -464,7 +464,7 @@
 
 <!-- ===== 流程 4：结算 ===== -->
 <section class="view hidden" id="view-final">
-  <h1>宝藏到手 <i data-icon="trophy" data-size="26"></i></h1>
+  <h1>获得宝藏 <i data-icon="trophy" data-size="26"></i></h1>
   <div class="compare">
     <figure><img id="final-before" class="artwork"><figcaption>修改前</figcaption></figure>
     <figure><img id="final-after" class="artwork"><figcaption>修改后</figcaption></figure>
@@ -477,7 +477,7 @@
   <div class="peers hidden" id="peers">
     <div class="sechead" style="--sc:var(--purple); --sc-d:var(--purple-d)">
       <span class="sechead-ico"><i data-icon="people" data-size="19"></i></span>
-      <div class="sechead-t"><b>别人怎么画的</b></div>
+      <div class="sechead-t"><b>看看别人的画法</b></div>
       <span class="sechead-chip" id="peers-note"></span>
     </div>
     <div class="peer-grid" id="peer-grid"></div>
@@ -488,7 +488,7 @@
   </div>
   <div class="scores" id="final-scores"></div>
   <p class="muted small" id="final-meta"></p>
-  <div class="actions sticky"><button class="secondary hidden" id="btn-save"><i data-icon="download" data-size="17"></i>存进相册</button><button class="primary big grow" id="btn-again">再画一个</button></div>
+  <div class="actions sticky"><button class="secondary hidden" id="btn-save"><i data-icon="download" data-size="17"></i>存进相册</button><button class="primary big grow" id="btn-again">再画一幅</button></div>
 </section>
 </main>
 </div><!-- /.screen -->
@@ -499,12 +499,12 @@
 <div class="modal hidden" id="opinion-modal">
   <div class="modal-card opinion-card">
     <h3>问卷</h3>
-    <p class="muted small">想到什么写什么，不用每题都写。</p>
-    <label>你最喜欢哪一关？为什么？<textarea rows="2" data-q="liked"></textarea></label>
-    <label>哪里不好用，或者看不懂？<textarea rows="2" data-q="stuck"></textarea></label>
-    <label>画完后彩点说的话，对你有用吗？<textarea rows="2" data-q="feedback"></textarea></label>
-    <label>你希望加点什么，或者改掉什么？<textarea rows="2" data-q="change"></textarea></label>
-    <label>还有什么想说的？<textarea rows="2" data-q="more"></textarea></label>
+    <p class="muted small">想到什么就写什么，不必每题都回答。</p>
+    <label>你最喜欢哪个任务？为什么？<textarea rows="2" data-q="liked"></textarea></label>
+    <label>有没有不好用或看不懂的地方？<textarea rows="2" data-q="stuck"></textarea></label>
+    <label>画完后，彩点的话对你有帮助吗？<textarea rows="2" data-q="feedback"></textarea></label>
+    <label>你觉得哪里可以改一改，或者加点什么？<textarea rows="2" data-q="change"></textarea></label>
+    <label>还有想说的吗？<textarea rows="2" data-q="more"></textarea></label>
     <p class="acct-err hidden" id="opinion-err"></p>
     <div class="actions">
       <button class="ghost" id="btn-opinion-cancel">取消</button>
@@ -515,13 +515,13 @@
 
 <div class="modal hidden" id="featured-modal">
   <div class="modal-card">
-    <h3 id="featured-title">老师选中了你的一张画</h3>
+    <h3 id="featured-title">老师选中了你的一幅作品</h3>
     <p class="muted" id="featured-note"></p>
     <img id="featured-img" class="featured-shot" alt="被选中的作品">
-    <p class="muted small">挂上墙后别的小朋友也会看到。你说了算，随时能收回来。</p>
+    <p class="muted small">分享后，其他人也能在大家的画廊看到这幅画。是否分享由你决定，之后也可以取消。</p>
     <div class="actions column">
-      <button class="primary" id="btn-featured-yes">可以，挂出去吧</button>
-      <button class="ghost" id="btn-featured-no">先不要</button>
+      <button class="primary" id="btn-featured-yes">分享这幅画</button>
+      <button class="ghost" id="btn-featured-no">暂不分享</button>
     </div>
   </div>
 </div>
@@ -545,17 +545,17 @@
      任何尺寸都是清晰的，也不用管 devicePixelRatio。 -->
 <div class="modal hidden" id="color-modal">
   <div class="modal-card picker">
-    <h3>选个颜色</h3>
+    <h3>选择颜色</h3>
     <div class="pk-sv" id="pk-sv"><i class="pk-cur" id="pk-cur"></i></div>
     <input type="range" class="hue" id="pk-hue" min="0" max="359" value="0" aria-label="色相">
     <div class="pk-recent-wrap hidden" id="pk-recent-wrap">
-      <span class="label">刚用过</span>
+      <span class="label">最近使用</span>
       <div class="pk-recent" id="pk-recent"></div>
     </div>
     <div class="pk-foot">
       <span class="pk-now"><i id="pk-now-dot"></i><b id="pk-now-hex">#222222</b></span>
-      <button class="ghost" id="pk-cancel">算了</button>
-      <button class="primary grow" id="pk-ok">就用这个</button>
+      <button class="ghost" id="pk-cancel">取消</button>
+      <button class="primary grow" id="pk-ok">使用这个颜色</button>
     </div>
   </div>
 </div>
@@ -569,15 +569,15 @@
     <p class="acct-err hidden" id="work-err"></p>
     <div class="actions column" id="work-actions">
       <button class="primary" id="btn-work-again">再画一次</button>
-      <button class="ghost" id="btn-work-close">关掉</button>
-      <button class="linkbtn work-del" id="btn-work-delete">删掉这张</button>
+      <button class="ghost" id="btn-work-close">关闭</button>
+      <button class="linkbtn work-del" id="btn-work-delete">删除这幅画</button>
     </div>
     <!-- 删除是孩子能做的唯一不可逆操作：第二步问在卡片里，不弹系统框 -->
     <div class="work-confirm hidden" id="work-confirm">
-      <p>真的删掉这张画？服务器上的也一起删，找不回来。</p>
+      <p>确定删除这幅画？服务器上的副本也会删除，删除后无法恢复。</p>
       <div class="actions column">
-        <button class="ghost danger" id="btn-work-delete-yes">删掉</button>
-        <button class="primary" id="btn-work-delete-no">不删了</button>
+        <button class="ghost danger" id="btn-work-delete-yes">删除</button>
+        <button class="primary" id="btn-work-delete-no">保留</button>
       </div>
     </div>
   </div>
@@ -587,11 +587,11 @@
 <div class="modal hidden" id="name-modal">
   <div class="modal-card">
     <h3>给它起个名字</h3>
-    <p class="muted">叫什么都行。</p>
+    <p class="muted">取个你喜欢的名字。</p>
     <input id="buddy-name-input" type="text" maxlength="8" placeholder="比如：小墨、阿布、泡泡">
     <div class="actions column">
-      <button class="primary" id="btn-name-save">就叫它这个</button>
-      <button class="ghost" id="btn-name-cancel">以后再说</button>
+      <button class="primary" id="btn-name-save">就叫这个</button>
+      <button class="ghost" id="btn-name-cancel">暂时跳过</button>
     </div>
   </div>
 </div>
@@ -600,7 +600,7 @@
 <div class="modal hidden" id="acct-modal">
   <div class="modal-card">
     <h3 id="acct-modal-title">注册</h3>
-    <p class="muted" id="acct-modal-sub">起一个名字，设一个四位数字密码。</p>
+    <p class="muted" id="acct-modal-sub">取一个名字，再设置四位数字密码。</p>
     <input id="acct-name-input" type="text" maxlength="12" autocomplete="off" autocapitalize="off"
            spellcheck="false" placeholder="名字">
     <input id="acct-pin-input" class="pin" type="text" inputmode="numeric" maxlength="4"
@@ -611,13 +611,13 @@
       <button type="button" data-role="teacher">我是老师</button>
     </div>
     <input id="acct-age-input" class="pin" type="text" inputmode="numeric" maxlength="2"
-           autocomplete="off" placeholder="几岁（可不填）">
+           autocomplete="off" placeholder="年龄（选填）">
     <input id="acct-code-input" class="hidden" type="text" autocomplete="off" autocapitalize="off"
            spellcheck="false" placeholder="老师邀请码">
     <p class="acct-err hidden" id="acct-err"></p>
     <div class="actions column">
       <button class="primary" id="btn-acct-go">注册</button>
-      <button class="ghost" id="btn-acct-switch">已有账号，去登录</button>
+      <button class="ghost" id="btn-acct-switch">已有账号？去登录</button>
       <button class="ghost hidden" id="btn-acct-forgot">忘记密码？</button>
       <button class="ghost" id="btn-acct-cancel">取消</button>
     </div>
@@ -631,8 +631,8 @@
   <div class="modal-card">
     <h3>选一个版本</h3>
     <div class="choice" id="mode-choices">
-      <button data-mode="simple"><span><b>简单版</b><small>字最少。直接画，彩点只说一句。</small></span><i data-icon="check" data-size="18"></i></button>
-      <button data-mode="full"><span><b>完整版</b><small>画前说说心情，画完看成长图。</small></span><i data-icon="check" data-size="18"></i></button>
+      <button data-mode="simple"><span><b>简单版</b><small>说明更少，直接开始画；彩点只说一句。</small></span><i data-icon="check" data-size="18"></i></button>
+      <button data-mode="full"><span><b>完整版</b><small>画前记录心情，画后查看成长图。</small></span><i data-icon="check" data-size="18"></i></button>
     </div>
     <div class="actions column">
       <button class="ghost" id="btn-mode-cancel">取消</button>
@@ -693,7 +693,7 @@
       <button id="btn-ref-reset" title="回到 100%"><span id="ref-zoom">100%</span></button>
       <button id="btn-ref-in" title="放大" aria-label="放大"><i data-icon="zoomIn" data-size="18"></i></button>
       <span class="refbar-gap"></span>
-      <button id="btn-ref-drop" title="从参考图里吸一个颜色" aria-label="从参考图里吸一个颜色"><i data-icon="dropper" data-size="18"></i><span id="ref-drop-swatch" class="hidden"></span></button>
+      <button id="btn-ref-drop" title="从参考图中取色" aria-label="从参考图中取色"><i data-icon="dropper" data-size="18"></i><span id="ref-drop-swatch" class="hidden"></span></button>
       <button id="btn-ref-close">关闭</button>
     </div>
   </div>
@@ -712,12 +712,12 @@
 
 <div class="modal hidden" id="leave-modal">
   <div class="modal-card">
-    <h3 id="leave-title">换任务吗？</h3>
+    <h3 id="leave-title">切换任务？</h3>
     <p class="muted" id="leave-body"></p>
     <div class="actions column">
       <button class="primary" id="btn-leave-keep">继续画</button>
-      <button class="secondary" id="btn-leave-save">先保存，再换</button>
-      <button class="ghost danger" id="btn-leave-drop">不保存，直接换</button>
+      <button class="secondary" id="btn-leave-save">保存后切换</button>
+      <button class="ghost danger" id="btn-leave-drop">不保存，直接切换</button>
     </div>
   </div>
 </div>

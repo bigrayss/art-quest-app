@@ -48,8 +48,8 @@ class EnglishEngines(unittest.TestCase):
     def test_chinese_feedback_is_untouched(self):
         intent = {"text": "一只在树上睡觉的猫", "emotion": "开心"}
         text = TemplateFeedback().feedback(b"", ZH_QUEST, intent, SCORES)["text"]
-        self.assertTrue(text.startswith("我看到：你心情开心，画的是「一只在树上睡觉的猫」。"), text)
-        self.assertIn("在「想象」上改一小处", text)
+        self.assertTrue(text.startswith("我看到：你选的心情是「开心」，想画的是「一只在树上睡觉的猫」。"), text)
+        self.assertIn("和「想象」有关的地方", text)
 
     def test_empty_intent_leaves_no_empty_quotes_and_simple_mode_is_short(self):
         """心情、心愿没填就不提；简单版只要「我看到」+「可以试试」，中英都不超过一口气。"""

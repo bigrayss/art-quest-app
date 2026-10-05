@@ -412,8 +412,8 @@
     const m = /\{[\s\S]*\}/.exec((e && e.message) || "");
     try {
       const d = JSON.parse(m[0]).detail;       // 422 的 detail 是一串校验对象，不是话
-      return typeof d === "string" && d ? d : "再试一次吧";
-    } catch (x) { return "连不上服务器，等会儿再试"; }
+      return typeof d === "string" && d ? d : "再试一次";
+    } catch (x) { return "暂时无法连接服务器，请稍后再试"; }
   }
   const sinceText = (iso) => {
     const t = new Date(iso);
@@ -459,7 +459,7 @@
     const claim = $("#acct-claim");
     claim.classList.toggle("hidden", !state.unclaimed);
     $("#acct-claim-text").textContent = state.unclaimed
-      ? `这台设备上还有 ${state.unclaimed} 张画不在账号里` : "";
+      ? `这台设备上还有 ${state.unclaimed} 幅画尚未保存到账号` : "";
   }
 
   const acctModal = $("#acct-modal");
@@ -467,9 +467,9 @@
   // 三种模式：注册 / 登录 / 重设密码。重设没有邮箱可发，凭证是「这台设备登录过这个账号」，
   // 不是的话服务器 403，界面上告诉他换台设备或找老师。
   const ACCT_COPY = {
-    register: { title: "注册", sub: "起一个名字，设一个四位数字密码。", go: "注册", sw: "已有账号，去登录", pin: "四位数字密码" },
-    login:    { title: "登录", sub: "输入名字和四位数字密码。", go: "登录", sw: "没有账号，去注册", pin: "四位数字密码" },
-    reset:    { title: "重设密码", sub: "输入名字和新的四位数字密码。要在你登录过的设备上改。", go: "重设", sw: "回到登录", pin: "新的四位数字密码" },
+    register: { title: "注册", sub: "取一个名字，再设置四位数字密码。", go: "注册", sw: "已有账号？去登录", pin: "四位数字密码" },
+    login:    { title: "登录", sub: "输入名字和四位数字密码。", go: "登录", sw: "还没有账号？去注册", pin: "四位数字密码" },
+    reset:    { title: "重设密码", sub: "输入名字和新的四位数字密码。请使用曾登录过这个账号的设备。", go: "重设", sw: "回到登录", pin: "新的四位数字密码" },
   };
   function openAcct(mode) {
     acctMode = mode;
@@ -501,7 +501,7 @@
     const name = $("#acct-name-input").value.trim();
     const pin = $("#acct-pin-input").value.trim();
     if (!name) { acctError("请输入名字"); return; }
-    if (!/^\d{4}$/.test(pin)) { acctError("密码是四位数字"); return; }
+    if (!/^\d{4}$/.test(pin)) { acctError("请输入四位数字密码"); return; }
     const btn = $("#btn-acct-go"); btn.disabled = true;
     try {
       const body = { name, pin, anon_id: state.anonId };
@@ -624,11 +624,11 @@
       <div class="tbody">
         <div class="tname">${escapeHtml(x.student || "")}</div>
         <div class="ttask">${escapeHtml(x.task_title || "")}</div>
-        <div class="tmeta"><span>${whenText(x.created_at)}</span><span>${x.revised ? "改过一次" : "没改"}</span>
-          ${x.n_ratings ? `<span>${x.n_ratings} 位老师评过</span>` : ""}${x.graded_by_me ? `<span class="tdone">我评过了</span>` : ""}</div>
+        <div class="tmeta"><span>${whenText(x.created_at)}</span><span>${x.revised ? "修改过一次" : "未修改"}</span>
+          已有 ${x.n_ratings ? `<span>${x.n_ratings} 位老师评分</span>` : ""}${x.graded_by_me ? `<span class="tdone">我已评过</span>` : ""}</div>
       </div></button>`).join("");
     const empty = $("#tempty");
-    empty.textContent = tFilter === "done" ? "还没有评过的。" : (tTotal ? "都评满了。" : "还没有画完的作品。");
+    empty.textContent = tFilter === "done" ? "还没有已评作品。" : (tTotal ? "所有作品都已达到所需评分人数。" : "还没有已完成的作品。");
     empty.classList.toggle("hidden", rows.length > 0);
     list.querySelectorAll(".tcard").forEach(b => b.onclick = () => openGrade(b.dataset.sid));
   }
@@ -648,7 +648,7 @@
     $("#g-student").textContent = d.student || "";
     const dur = d.duration_ms ? (d.duration_ms >= 60000 ? `${Math.round(d.duration_ms / 60000)} 分钟` : `${Math.round(d.duration_ms / 1000)} 秒`) : "";
     $("#g-meta").textContent = [d.task.title, whenText(d.created_at), dur].filter(Boolean).join(" · ");
-    $("#g-graders").textContent = d.n_graders ? `${d.n_graders} 位老师评过` : "";
+    $("#g-graders").textContent = d.n_graders ? `已有 ${d.n_graders} 位老师评分` : "";
     $("#g-task-title").textContent = d.task.title || "";
     $("#g-task-family").textContent = d.task.family_name || "";
     $("#g-task-text").textContent = d.task.instruction || "";
@@ -663,11 +663,11 @@
     // 过程图：快照 + 改之前那张；最终图不在这条带上
     const proc = imgs.filter(i => i.kind !== "final");
     const strip = $("#g-strip");
-    strip.dataset.empty = "这张没有过程图。";
+    strip.dataset.empty = "这幅作品没有过程图。";
     strip.innerHTML = proc.map((im, i) => `<div class="gshot">
       <button type="button" data-url="${fileUrl(im.url)}" data-key="${escapeHtml(im.key)}"><img src="${fileUrl(im.url)}" alt="" loading="lazy"></button>
-      <div class="gtag"><span>${im.kind === "before" ? "改之前" : `第 ${i + 1} 张`}${im.elapsed_ms != null ? ` · 画了 ${sinceStart(im.elapsed_ms)}` : ""}</span><span class="gmark hidden" data-mark-count="${escapeHtml(im.key)}"></span></div>
-      <input type="text" data-key="${escapeHtml(im.key)}" placeholder="一句短评" value="${escapeHtml(grade.notes[im.key] || "")}">
+      <div class="gtag"><span>${im.kind === "before" ? "修改前" : `第 ${i + 1} 张`}${im.elapsed_ms != null ? ` · 画了 ${sinceStart(im.elapsed_ms)}` : ""}</span><span class="gmark hidden" data-mark-count="${escapeHtml(im.key)}"></span></div>
+      <input type="text" data-key="${escapeHtml(im.key)}" placeholder="写一条简短评语" value="${escapeHtml(grade.notes[im.key] || "")}">
     </div>`).join("");
     strip.querySelectorAll("button").forEach(b => b.onclick = () => openPic(b.dataset.url, b.dataset.key));
     paintMarkCounts();
@@ -680,7 +680,7 @@
       const na = grade.na.has(dim.key);
       const lv = ((rb.dimensions || {})[dim.key] || {}).levels || [];
       const tip = v => { const l = lv.find(x => x.score === v); return l ? escapeHtml(rbText(l)) : ""; };
-      const scale = na ? `<span class="gdscale">这个任务不考察</span>`
+      const scale = na ? `<span class="gdscale">本任务不考察此项</span>`
         : `<div class="gdscale">${[1, 2, 3, 4, 5].slice(0, grade.scaleMax).map(v =>
             `<button type="button" data-dim="${dim.key}" data-v="${v}" title="${tip(v)}" class="${grade.dims[dim.key] === v ? "on" : ""}">${v}</button>`).join("")}</div>`;
       const levels = lv.length ? `<div class="gdlevels hidden">${lv.map(l =>
@@ -713,12 +713,12 @@
     const err = $("#g-err");
     const nMarks = Object.keys(grade.marks || {}).length;
     if (!Object.keys(dims).length && !comment && !Object.keys(notes).length && !nMarks) {
-      err.textContent = "还什么都没写。"; err.classList.remove("hidden"); return;
+      err.textContent = "还没有填写评语。"; err.classList.remove("hidden"); return;
     }
     // 有过程图就至少写一条（写在哪张都行）
     const procKeys = [...$("#g-strip").querySelectorAll("input")].map(i => i.dataset.key);
     if (procKeys.length && !procKeys.some(k => notes[k])) {
-      err.textContent = "过程图至少写一条短评。"; err.classList.remove("hidden"); return;
+      err.textContent = "请至少为一张过程图写一条简短评语。"; err.classList.remove("hidden"); return;
     }
     const btn = $("#btn-grade-save"); btn.disabled = true; err.classList.add("hidden");
     try {
@@ -913,8 +913,8 @@
     // 九维直接列，不分组、不带分布（用户 2026-09-30：小栏没必要；分布会让老师先入为主）
     $("#rb-body").innerHTML = `
       <section class="rb-cat">${rb.categories.flatMap(c => c.dims).map(dimCard).join("")}</section>
-      <section class="rb-cat"><h2>最终图评语</h2>${finalCard}</section>
-      <section class="rb-cat"><h2>过程图短评</h2>${procCard}</section>`;
+      <section class="rb-cat"><h2>最终作品评语</h2>${finalCard}</section>
+      <section class="rb-cat"><h2>过程图评语</h2>${procCard}</section>`;
     $("#rb-body").querySelectorAll(".rb-ex-img").forEach(b => b.onclick = () => openPic(fileUrl(b.dataset.url)));
   }
   // 维度名的 zh/en：打分屏拿到的 dimensions 里有；没进过打分屏就用这份（和 scoring/base.py 一致）
@@ -962,7 +962,7 @@
   const curView = () => VIEWS.find(v => !$(`#view-${v}`).classList.contains("hidden")) || "";
   const TAB_VIEW = { map: "quest", dex: "dex", buddy: "buddy", me: "sessions", grade: "teacher", rubric: "rubric" };
   const VIEW_TAB = { world: "map", quest: "map", dex: "dex", buddy: "buddy", sessions: "me", teacher: "grade", grade: "grade", rubric: "rubric" };
-  const TITLES = { world: "彩点的世界", quest: "地图", dex: "画廊", buddy: "彩点", sessions: "我的", teacher: "打分", grade: "打分", rubric: "评分参考" };
+  const TITLES = { world: "彩点的世界", quest: "地图", dex: "画廊", buddy: "彩点", sessions: "我的", teacher: "评分", grade: "评分", rubric: "评分参考" };
   const VIEW_ROLE = { draw: "normal", result: "happy", survey: "encourage" };
   function show(name) {
     // 离开一屏就取消这一屏没结束的回应：精灵始终回应当前页面，不是迟到的上一条
@@ -1051,10 +1051,10 @@
     // 挑中的可能是老师，也可能是每天自动轮到的那一批（by = curator/...）。
     // 自动那批不说「老师说」——它没在评价这张画，只是把它排到了今天。
     const auto = (item.by || "").startsWith("curator/");
-    $("#featured-title").textContent = auto ? "今天轮到你的画了" : "老师选中了你的一张画";
+    $("#featured-title").textContent = auto ? "今天展出你的作品" : "老师选中了你的一幅作品";
     $("#featured-note").textContent = auto
-      ? `你画的《${item.title}》今天挂到大家的墙上。` + (item.note ? `老师写了：「${item.note}」` : "")
-      : item.note ? `老师说：「${item.note}」` : `老师挑了你画的《${item.title}》。`;
+      ? `你的《${item.title}》今天在大家的画廊展出。` + (item.note ? `老师的评语是：「${item.note}」` : "")
+      : item.note ? `老师的评语：「${item.note}」` : `老师选中了你的《${item.title}》。`;
     $("#featured-img").src = fileUrl(item.image);
     m.classList.remove("hidden");
   }
@@ -1120,15 +1120,15 @@
   // 彩点在别处一直是第一人称（「我还没有名字呢…」「选个颜色，我就变成它！」），
   // 导览原来却用第三人称介绍它——一上来就把角色说没了。统一成它自己开口。
   const TOUR = [
-    { sel: "#world-sprite",    text: "我是彩点。你用什么颜色，我就变什么颜色。" },
-    { sel: "#btn-rename",      text: "点这支笔，给我起个名字。" },
-    { sel: "#btn-enter-world", text: "走，进地图看看。", after: () => enterWorld() },
-    { sel: "#quest-grid .quest-card", text: "这些是任务。挑一个你想画的。" },
-    { sel: ".tab[data-tab='dex']", text: "你画的画都在画廊里。",
+    { sel: "#world-sprite",    text: "我是彩点。你换颜色，我身上的颜料也会跟着变。" },
+    { sel: "#btn-rename",      text: "点这支笔，可以给我起个名字。" },
+    { sel: "#btn-enter-world", text: "去地图看看。", after: () => enterWorld() },
+    { sel: "#quest-grid .quest-card", text: "这里有不同的绘画任务，选一个你想画的。" },
+    { sel: ".tab[data-tab='dex']", text: "你画过的作品都在画廊里。",
       after: () => openTab("buddy") },
     // 指着**真的那一枚**，不是画一个例子给他看。这一枚一打开就有，
     // 所以第一次进来的孩子在这一步一定看得到东西。
-    { sel: "#badge-wall .badge", text: "徽章在这儿。你已经有一枚了。",
+    { sel: "#badge-wall .badge", text: "这里是徽章墙，你已经有第一枚徽章了。",
       after: () => openTab("map") },
   ];
   let tourAt = 0, tourOn = false;
@@ -1150,7 +1150,7 @@
 
     $("#tour-text").textContent = step.text;
     $("#tour-dots").innerHTML = TOUR.map((_, i) => `<i class="${i === tourAt ? "on" : ""}"></i>`).join("");
-    $("#btn-tour-next").textContent = tourAt === TOUR.length - 1 ? "开始画吧" : "下一步";
+    $("#btn-tour-next").textContent = tourAt === TOUR.length - 1 ? "开始画" : "下一步";
     const tip = $("#tour-tip");
     tip.style.visibility = "hidden"; tip.style.left = "0px"; tip.style.top = "0px";
     requestAnimationFrame(() => {
@@ -1197,14 +1197,14 @@
     const answers = {};
     opinionModal.querySelectorAll("textarea[data-q]").forEach(t => { if (t.value.trim()) answers[t.dataset.q] = t.value.trim(); });
     const err = $("#opinion-err");
-    if (!Object.keys(answers).length) { err.textContent = "还什么都没写。"; err.classList.remove("hidden"); return; }
+    if (!Object.keys(answers).length) { err.textContent = "还没有填写评语。"; err.classList.remove("hidden"); return; }
     const btn = $("#btn-opinion-send"); btn.disabled = true;
     try {
       await api(`${API}/opinions`, { method: "POST", body: JSON.stringify({
         answers, account_id: accountId(), anon_id: state.anonId, participant_id: savedPid(), lang: LANG }) });
       opinionModal.querySelectorAll("textarea[data-q]").forEach(t => { t.value = ""; });
       opinionModal.classList.add("hidden");
-      alert("收到了，谢谢。");
+      alert("收到了，谢谢你。");
     } catch (e) { err.textContent = errText(e); err.classList.remove("hidden"); }
     finally { btn.disabled = false; }
   };
@@ -1862,8 +1862,8 @@
   $("#btn-clear").onclick = () => {
     const n = visible.length;
     $("#clear-body").textContent = n
-      ? `这 ${n} 笔都会被擦掉。撤销键能找回来。`
-      : "画布还是空的。";
+      ? `将清除这 ${n} 笔，之后可以用「撤销」恢复。`
+      : "画布上还没有内容。";
     clearModal.classList.remove("hidden");
   };
   $("#btn-clear-keep").onclick = () => clearModal.classList.add("hidden");
@@ -1895,7 +1895,7 @@
   function syncName() {
     const el = $("#dock-name"); if (!el) return;
     clearTimeout(nameTimer); el.classList.remove("flash");
-    el.textContent = handMode ? "移动" : (eyedrop ? "吸色" : TOOL_NAMES[tool]);
+    el.textContent = handMode ? "移动" : (eyedrop ? "取色" : TOOL_NAMES[tool]);
   }
   function flashName(text) {
     const el = $("#dock-name"); if (!el) return;
@@ -1926,7 +1926,7 @@
   window.addEventListener("artquest:saved", (e) => {
     const sv = $("#btn-save"); if (!sv) return;
     const ok = !!(e.detail && e.detail.ok);
-    sv.textContent = ok ? "存好了，在相册里" : "没存上，再试一次";
+    sv.textContent = ok ? "已保存到相册" : "保存失败，请再试一次";
     sv.disabled = ok;
     if (ok) native("haptic", { style: "success" });
   });
@@ -2060,13 +2060,13 @@
     $("#assist-log").innerHTML = "";
     box.classList.add("veiled"); box.classList.remove("open-fb");
     $("#btn-assist").classList.remove("hidden");
-    $(".assist-veil-t").textContent = `听听${buddyName()}怎么说`;
+    $(".assist-veil-t").textContent = `看看${buddyName()}怎么说`;
     assistNth = 0; assistAt = 0; assistLast = "";
     // 心情那张卡去掉了，但他自己写的意图还给他：画到一半最容易忘的
     // 就是本来要画什么。蒙着的时候看不见，揭开第一眼就是这句。
     const want = ((intent && intent.text) || "").trim();
     // 孩子写的几乎都从「我想画」起头，直接拼是「你说你想画我想画……」。剥掉起头和句号再嵌。
-    if (want) assistSay(`你想画「${bareIntent(want)}」。`);
+    if (want) assistSay(`你想画的是「${bareIntent(want)}」。`);
   }
 
   /** 第二阶段：那份正式反馈直接摊开，**不再蒙**——他正要照着改，得能反复看。
@@ -2115,13 +2115,13 @@
       assistSay(r.text);
     } catch (e) {
       // 陪伴挂了绝不能挡住画画
-      wait.remove(); assistSay("我在这儿呢，接着画。");
+      wait.remove(); assistSay("我在这里，按你的节奏画。");
     }
     paintBuddy($("#draw-sprite"), "normal", color);
     mascotLog("normal", "companion_quiet", "assist_reply");
   };
 
-  const BUDDY_LINES = ["选个颜色，我就变成它！", "我变成这个颜色了。", "画错也没关系。", "换个颜色试试？", "我在看你画。"];
+  const BUDDY_LINES = ["选择颜色，我就变成它！", "我身上的颜料也换成这个颜色了。", "画错也没关系。", "换个颜色试试？", "我在这里陪你画。"];
   function updateBuddy() {
     state.color = color;
     paintBuddy($("#draw-sprite"), "normal", color);
@@ -2343,14 +2343,14 @@
       const feat = (r.featured || {}).state;
       const flag = feat === "accepted"
         ? `<button class="dex-featured on" data-sid="${r.session_id}" data-accept="0"
-             title="收回来，不再给大家看">${icon("pin", 12)}挂在大家的墙上</button>`
+             title="取消分享">${icon("pin", 12)}已在大家的画廊展出</button>`
         : feat === "declined"
           ? `<button class="dex-featured" data-sid="${r.session_id}" data-accept="1"
-               title="老师选过它，你当时说先不要">${icon("pin", 12)}老师选过它</button>`
+               title="曾被老师选中，你当时说先不要">${icon("pin", 12)}曾被老师选中</button>`
           : "";
       const flagName = WORK_STATUS[r.status];
       const tags = (flagName ? `<span class="work-chip ${flagName.cls}">${flagName.zh}</span>` : "")
-        + (r.revised ? `<span class="work-chip evolve">改过一次</span>` : "");
+        + (r.revised ? `<span class="work-chip evolve">修改过一次</span>` : "");
       // 贴在墙上的照片没有一张是绝对正的。角度按 id 定死，不随机——
       // 每次打开都换一个角度就成了晃动，不是手贴的感觉。
       const tilt = ((r.session_id || "").charCodeAt(0) + i) % 5 - 2;
@@ -2383,7 +2383,7 @@
     const dp = $("#dex-progress");
     const every = allFams > 0 && fams.size >= allFams;
     dp.classList.toggle("done", every);
-    dp.textContent = !mine.length ? "" : every ? "每个地方都画过了" : `${mine.length} 张`;
+    dp.textContent = !mine.length ? "" : every ? "所有主题都画过了" : `${mine.length} 张`;
   }
 
   /** 彩点's nine attributes, grown from what the child actually practised.
@@ -2419,7 +2419,7 @@
       // 每一项底下不报数（「再画 3 幅长一格」把成长变回进度条），也不说评估层的事
       // （「等模型来评」是后台的话；没有就空着）。给的是一个**去处**：哪块地练这一项。
       const rec = recommendFor(key);
-      const go = rec ? `<button class="ggo" data-fam="${rec.id}">去${rec.name}练练</button>` : "";
+      const go = rec ? `<button class="ggo" data-fam="${rec.id}">去${rec.name}练习</button>` : "";
       return `<div class="gdim" style="--gc:${fam.color}">
         <div class="gtop"><span class="gname">${dimName(d)}</span>${go}</div>
         <div class="gpips">${pips}</div></div>`;
@@ -2460,7 +2460,7 @@
   function renderStudyBar() {
     if (!state.study) return;
     const bar = $("#studybar"); bar.classList.remove("hidden");
-    const pid = savedPid() || "（未分配代号）";
+    const pid = savedPid() || "（尚未分配代号）";
     $("#study-info").textContent = `${state.study.study_id || "study"} · 被试 ${pid} · 条件 ${state.condition.ui}`;
     $("#study-seq").textContent = (state.study.sequence || [])
       .map((t, i) => `${i < state.seqIdx ? "✓" : i === state.seqIdx ? "▶" : "·"}${i + 1}`).join(" ");
@@ -2475,7 +2475,7 @@
     const card = $("#history-card"), lines = (p && p.shown) || [];
     card.classList.toggle("hidden", !lines.length);
     if (!lines.length) return;
-    card.innerHTML = `<h4>${icon("compass", 15)}你画过的路</h4>`
+    card.innerHTML = `<h4>${icon("compass", 15)}你的创作历程</h4>`
       + lines.map(l => `<p>${escapeHtml(l.text || "")}</p>`).join("");
   }
   const escapeHtml = (t) => String(t).replace(/[&<>"']/g, c =>
@@ -2499,8 +2499,8 @@
     document.body.classList.toggle("simple", c.ui === "simple");
     // 简单版的钮上字也少
     const rv = $("#btn-revise"), sk = $("#btn-skip-revise");
-    if (rv) rv.innerHTML = c.ui === "simple" ? `${icon("sparkle", 19)}改一改${icon("arrowRight", 17)}` : `${icon("sparkle", 19)}去进化关，改一改${icon("arrowRight", 17)}`;
-    if (sk) sk.textContent = c.ui === "simple" ? "不改了" : "不改了，就这样";
+    if (rv) rv.innerHTML = c.ui === "simple" ? `${icon("sparkle", 19)}再改一改${icon("arrowRight", 17)}` : `${icon("sparkle", 19)}去进化关，再改一改${icon("arrowRight", 17)}`;
+    if (sk) sk.textContent = c.ui === "simple" ? "保留原样" : "保留现在的样子";
     document.body.classList.toggle("quiet", c.ui === "quiet");
     ["#btn-undo", "#btn-redo"].forEach(sel => { const b = $(sel); if (b) { b.disabled = !c.undo_allowed; b.classList.toggle("hidden", !c.undo_allowed); } });
     $("#zoombar").classList.toggle("hidden", !zoomAllowed());
@@ -2798,7 +2798,7 @@
     const doneRows2 = (state.allSessions || []).filter(r => r.status === "done");
     const doneFam = new Set(doneRows2.map(r => familyOf(r.task_id)).filter(Boolean));
     // 上面那一行：研究模式里任务是定好的，不能一边限制一边写「随便选」
-    $("#map-lead-text").textContent = seq ? "今天的任务在这儿，点「开始画」。" : "选一个主题，开始今天的创作。";
+    $("#map-lead-text").textContent = seq ? "这是今天的任务，点「开始画」就可以开始。" : "选一个主题，开始今天的创作。";
     // 「已体验 n 个主题」= 存过作品的不同主题数：点过不算，同一主题画三次算一个。没有就不显示。
     const cnt = $("#map-count");
     cnt.textContent = doneFam.size ? `已体验 ${doneFam.size} 个主题` : "";
@@ -2848,7 +2848,7 @@
         // 挂着自己画的画的时候不用再盖一颗星：那张画本身就是「来过」
         + (done && !shot ? `<span class="node-star">${icon("star", 14)}</span>` : "")
         + `</div><h3>${nameHtml(c.title)}</h3>`
-        + `<div class="node-sub">${c.locked ? "稍后解锁" : c.kind}</div>`;
+        + `<div class="node-sub">${c.locked ? "稍后开放" : c.kind}</div>`;
       // 点一个地方 = 选中它：右边的任务卡跟着换，进去的那一步由卡上的「开始画」做
       if (!c.locked) el.onclick = () => {
         state.mapPick = c.key;
@@ -2932,7 +2932,7 @@
       +   (blurb ? `<p class="t-blurb">${blurb}</p>` : "")
       + `</div>`
       + `<div class="t-go"><button class="primary big grow" id="btn-today">`
-      +   `${all ? "随便一个" : "开始画"}${icon("arrowRight", 17)}</button></div>`
+      +   `${all ? "随机选一个" : "开始画"}${icon("arrowRight", 17)}</button></div>`
       + buddyHtml("t-sprite", all ? "happy" : "explore", null, "fig");
     box.classList.remove("hidden");
     $("#btn-today").onclick = () => {
@@ -2945,15 +2945,15 @@
   /** One child-facing line per family — never the research goal. */
   const FAMILY_BLURB = {
     M0: "画什么由你定。",
-    M1: "一幅画坏了，把它重新画回来。",
-    M2: "把看到的画下来，让别人看懂。",
-    M3: "只剩几个碎片，把它们变成一幅画。",
-    M4: "把一个东西改成别的用途。",
-    M5: "把两个东西合成一个新东西。",
-    M6: "用颜色让整个地方换一种感觉。",
-    M7: "先画线条，再让线条变成画。",
-    M8: "这个世界规则不一样，画画这里的生活。",
-    M9: "故事开了头，后面你来画。",
+    M1: "画面有些地方损坏了，照着原图把它补完整。",
+    M2: "仔细看，把物体的样子和位置画下来。",
+    M3: "从留下的碎片开始，接着画成一幅完整的作品。",
+    M4: "改一改熟悉的东西，让它有个新用途。",
+    M5: "把两样东西组合起来，画出你的新发明。",
+    M6: "换一换颜色，让同一个场景有不同的感觉。",
+    M7: "先画一些线条，再从这些线条接着画。",
+    M8: "这里的世界有不同的规则，画出大家怎样生活。",
+    M9: "故事已经开头，接下来发生什么由你来画。",
   };
   const familyBlurb = (f) => FAMILY_BLURB[f.id] || "";
   // ---------- 左侧导航栏：收起 / 展开 ----------
@@ -2965,7 +2965,7 @@
   function paintRail() {
     const off = document.body.classList.contains("rail-off");
     const b = $("#btn-rail");
-    if (b) { b.title = off ? "展开这一栏" : "收起这一栏"; b.setAttribute("aria-label", b.title); }
+    if (b) { b.title = off ? "展开导航" : "收起导航"; b.setAttribute("aria-label", b.title); }
   }
   try { document.body.classList.toggle("rail-off", localStorage.getItem(RAIL_KEY) === "1"); } catch (e) { /* 无所谓 */ }
   if ($("#btn-rail")) $("#btn-rail").onclick = () => {
@@ -3146,14 +3146,14 @@
     if (state.phase === "after") return;            // mid-revision: finish it
     const n = visible.length;
     $("#leave-body").textContent = n
-      ? `已经画了 ${n} 笔。要先保存吗？`
-      : "画布还是空的，直接换就行。";
+      ? `当前已画 ${n} 笔，要先保存吗？`
+      : "画布上还没有内容，可以直接切换。";
     $("#btn-leave-save").classList.toggle("hidden", !n);
     leaveModal.classList.remove("hidden");
   }
   async function leaveTask(save) {
     leaveModal.classList.add("hidden");
-    overlay(save ? "正在保存……" : "正在收尾……");
+    overlay(save ? "正在保存…" : "正在完成提交…");
     stopTimers();
     try {
       const pending = await flushLog();
@@ -3210,7 +3210,7 @@
     } catch (e) {
       ticket = await ArtLog.takeTicket(state.quest.id).catch(() => null);
       if (!ticket) {
-        alert("连不上网。\n有网了再试，画过的都还在。");
+        alert("当前无法联网。\n画作还在，联网后可以再次提交。");
         return;
       }
       body.session_id = ticket.session_id;
@@ -3243,8 +3243,8 @@
 
   $("#btn-submit").onclick = async () => {
     if (state.phase === "after") return submitAfter();
-    if (!undoStack.length && !state.dirtySinceSnapshot) { if (!confirm("画布还是空的。要交吗？")) return; }
-    overlay("我在看你的画……"); stopTimers();
+    if (!undoStack.length && !state.dirtySinceSnapshot) { if (!confirm("画布上还没有内容，仍要提交吗？")) return; }
+    overlay("正在查看你的画…"); stopTimers();
     logEvent(EV.TASK_SUBMIT, { phase: state.phase, strokes: visible.length });
     const image = canvas.toDataURL("image/png");
     try {
@@ -3291,13 +3291,13 @@
   };
   $("#btn-skip-revise").onclick = async () => {
     dismissFeedback("skip");
-    overlay("正在保存……");
+    overlay("正在保存…");
     const pending = await flushLog();
     const r = await api(`${API}/sessions/${state.sessionId}/finalize`, { method: "POST", body: JSON.stringify({ elapsed_ms: elapsed(), pending }) });
     endSession(r.session, state.before.image, state.before.image, null); overlay(null);
   };
   async function submitAfter() {
-    overlay("在看改了什么……"); stopTimers();
+    overlay("正在查看修改内容…"); stopTimers();
     const image = canvas.toDataURL("image/png");
     try {
       const pending = await flushLog();
@@ -3309,9 +3309,9 @@
   }
   // ---------- self-report ----------
   const SURVEY = [
-    { key: "difficulty", q: "难不难？", lo: "很简单", hi: "很难" },
-    { key: "confidence", q: "满意吗？", lo: "还差点", hi: "挺满意" },
-    { key: "enjoyment", q: "开心吗？", lo: "一般", hi: "很开心" },
+    { key: "difficulty", q: "这次画起来难吗？", lo: "很简单", hi: "很难" },
+    { key: "confidence", q: "对这幅画满意吗？", lo: "还不太满意", hi: "挺满意" },
+    { key: "enjoyment", q: "这次画画开心吗？", lo: "一般", hi: "很开心" },
   ];
   const answers = {};
   function renderSurvey() {
@@ -3386,8 +3386,8 @@
     // stops being an intervention this session.
     const quiet = state.condition.feedback_source !== "ai";
     $("#comparison-text").textContent = quiet
-      ? "画完啦！画已经存好了。"
-      : (comparison ? comparison.text : "下次改一小处，就能点亮进化大师。");
+      ? "画好了，作品已保存。"
+      : (comparison ? comparison.text : "下次在进化关改一处，就能获得「进化大师」。");
     // 「这一关练的是」那张卡不再放在结算页：能力图上练的那几项本来就是橙色高亮的，
     // 再摆一张卡说一遍是重复。（伙伴那页的成长面板照旧用它。）
     renderBadges(session);
@@ -3401,7 +3401,7 @@
       sv.classList.toggle("hidden", !NATIVE);
       sv.disabled = false;
       sv.innerHTML = `${icon("download", 17)}存进相册`;
-      sv.onclick = () => { sv.disabled = true; sv.textContent = "正在存…"; native("save", { image: afterImg }); };
+      sv.onclick = () => { sv.disabled = true; sv.textContent = "正在保存…"; native("save", { image: afterImg }); };
     }
     renderPeers(session);
     // What the child is shown of their own growth is its own condition, separate
@@ -3417,7 +3417,7 @@
     const fm = $("#final-meta");
     fm.classList.toggle("hidden", !state.study);
     if (state.study) fm.textContent = `Session ${session.session_id} · 过程截图 ${session.snapshots.length} 张`
-      + ` · 事件 ${session.events.length} 条 · 数据在 data/sessions/${session.session_id}/`;
+      + ` · 事件 ${session.events.length} 条 · 数据目录 data/sessions/${session.session_id}/`;
     show("final");
   }
 
@@ -3509,124 +3509,124 @@
     { g: "开始", icon: "sprout", name: "加入家庭", desc: "你和彩点认识了",
       welcome: true, earned: () => true },
     // -- 颜色与工具 --
-    { g: "色彩与工具", icon: "palette", name: "缤纷调色", desc: "用了 5 种以上颜色",
+    { g: "色彩与工具", icon: "palette", name: "缤纷调色", desc: "使用了 5 种以上颜色",
       earned: s => colorsUsed(s).size >= 5 },
-    { g: "色彩与工具", icon: "contrast", name: "冷暖并用", desc: "暖色和冷色都用上了",
+    { g: "色彩与工具", icon: "contrast", name: "冷暖并用", desc: "同时使用了暖色和冷色",
       earned: s => hasWarmAndCool(s) },
-    { g: "色彩与工具", icon: "brush", name: "工具全能", desc: "用了 3 种以上工具",
+    { g: "色彩与工具", icon: "brush", name: "工具全能", desc: "使用了 3 种以上工具",
       earned: s => toolsUsed(s).size >= 3 },
-    { g: "色彩与工具", icon: "pencil", name: "一支到底", desc: "只用一种工具画完 30 笔以上",
+    { g: "色彩与工具", icon: "pencil", name: "一支到底", desc: "只用一种工具完成作品，画了 30 笔以上",
       earned: s => toolsUsed(s).size === 1 && nStrokes(s) >= 30 },
     // -- 过程与节奏 --
     { g: "过程与节奏", icon: "clock", name: "专注之心", desc: "画了 5 分钟以上",
       earned: s => drawMs(s) >= 300000 },
-    { g: "过程与节奏", icon: "think", name: "深思熟虑", desc: "停下来想了 30 秒以上，然后继续",
+    { g: "过程与节奏", icon: "think", name: "深思熟虑", desc: "停顿 30 秒以上后继续画",
       earned: s => longestPause(s) >= 30000 && nStrokes(s) >= 5 },
-    { g: "过程与节奏", icon: "bolt", name: "一气呵成", desc: "20 笔以上，中间几乎没停",
+    { g: "过程与节奏", icon: "bolt", name: "一气呵成", desc: "连续画了 20 笔以上，中间几乎没有停顿",
       earned: s => nStrokes(s) >= 20 && longestPause(s) < 10000 },
-    { g: "过程与节奏", icon: "loop", name: "反复打磨", desc: "撤销 5 次以上，还在继续画",
+    { g: "过程与节奏", icon: "loop", name: "反复打磨", desc: "撤销 5 次以上后继续画",
       earned: s => evOf(s, ["UNDO"]).length >= 5 && nStrokes(s) >= 10 },
-    { g: "过程与节奏", icon: "trash", name: "推倒重来", desc: "清空过画布，然后重新画完",
+    { g: "过程与节奏", icon: "trash", name: "推倒重来", desc: "清空画布后，重新完成了作品",
       earned: s => evOf(s, ["CLEAR"]).length >= 1 && nStrokes(s) >= 10 },
     // -- 观察与细节 --
-    { g: "观察与细节", icon: "search", name: "细节猎人", desc: "放大到 3 倍以上作画",
+    { g: "观察与细节", icon: "search", name: "细节猎人", desc: "放大到 3 倍以上后作画",
       earned: s => zoomMax(s) >= 3 },
-    { g: "观察与细节", icon: "map", name: "大局观", desc: "放大缩小来回 5 次以上",
+    { g: "观察与细节", icon: "map", name: "大局观", desc: "来回放大、缩小 5 次以上",
       earned: s => evOf(s, ["ZOOM", "PAN"]).length >= 5 },
-    { g: "观察与细节", icon: "eye", name: "对照高手", desc: "参考图看了 3 次以上",
+    { g: "观察与细节", icon: "eye", name: "对照高手", desc: "查看参考图 3 次以上",
       earned: s => evOf(s, ["REFERENCE_OPEN"]).length >= 3, needs: "reference" },
-    { g: "观察与细节", icon: "hourglass", name: "看得仔细", desc: "参考图累计看了 30 秒以上",
+    { g: "观察与细节", icon: "hourglass", name: "看得仔细", desc: "查看参考图累计 30 秒以上",
       earned: s => refMs(s) >= 30000, needs: "reference" },
     // -- 探索与坚持（跨作品）--
-    { g: "探索与坚持", icon: "compass", name: "探险家", desc: "玩过 3 个不同的任务家族",
+    { g: "探索与坚持", icon: "compass", name: "探险家", desc: "体验了 3 个不同的主题",
       earned: () => new Set(doneRows().map(r => familyOf(r.task_id)).filter(Boolean)).size >= 3 },
-    { g: "探索与坚持", icon: "books", name: "小有收藏", desc: "完成 5 幅作品",
+    { g: "探索与坚持", icon: "books", name: "小有收藏", desc: "完成了 5 幅作品",
       earned: () => doneRows().length >= 5 },
-    { g: "探索与坚持", icon: "medal", name: "走遍全图", desc: "每个任务家族都完成过一次",
+    { g: "探索与坚持", icon: "medal", name: "走遍全图", desc: "每个主题都完成过一次",
       earned: () => {
         const fams = new Set((state.families || []).map(f => f.id));
         const done = new Set(doneRows().map(r => familyOf(r.task_id)).filter(Boolean));
         return fams.size > 0 && [...fams].every(f => done.has(f));
       } },
-    { g: "探索与坚持", icon: "sparkle", name: "进化大师", desc: "走完进化关，改了自己的作品",
+    { g: "探索与坚持", icon: "sparkle", name: "进化大师", desc: "完成进化关，修改了自己的作品",
       earned: s => s.revised === true, evo: true },
     // -- 后加的一批：没点亮的不展示，所以多一些才有得发现 --
-    { g: "色彩与工具", icon: "marker", name: "单色也精彩", desc: "只用一种颜色画完 20 笔以上",
+    { g: "色彩与工具", icon: "marker", name: "单色也精彩", desc: "只用一种颜色完成作品，画了 20 笔以上",
       earned: s => colorsUsed(s).size === 1 && nStrokes(s) >= 20 },
-    { g: "色彩与工具", icon: "drops", name: "彩虹收集者", desc: "一幅画里用了 8 种以上颜色",
+    { g: "色彩与工具", icon: "drops", name: "彩虹收集者", desc: "一幅画中使用了 8 种以上颜色",
       earned: s => colorsUsed(s).size >= 8 },
-    { g: "色彩与工具", icon: "sliders", name: "粗细都试", desc: "最粗和最细的笔差了 20 以上",
+    { g: "色彩与工具", icon: "sliders", name: "粗细都试", desc: "用过的最粗和最细的笔，粗细相差 20 以上",
       earned: s => { const z = sizesUsed(s); return z.length > 1 && Math.max(...z) - Math.min(...z) >= 20; } },
-    { g: "过程与节奏", icon: "pause", name: "想好再落笔", desc: "看了 15 秒以上才画第一笔",
+    { g: "过程与节奏", icon: "pause", name: "想好再落笔", desc: "开始后等了 15 秒以上才画第一笔",
       earned: s => firstStrokeMs(s) >= 15000 && nStrokes(s) >= 3 },
-    { g: "过程与节奏", icon: "hourglass", name: "慢慢来", desc: "在一幅画上待了 10 分钟以上",
+    { g: "过程与节奏", icon: "hourglass", name: "慢慢来", desc: "在同一幅画上花了 10 分钟以上",
       earned: s => drawMs(s) >= 600000 },
-    { g: "过程与节奏", icon: "wave", name: "长长的一笔", desc: "一笔画了很长都没抬手",
+    { g: "过程与节奏", icon: "wave", name: "长长的一笔", desc: "一笔画了很长，中间没有抬手",
       earned: s => maxStrokePoints(s) >= 300 },
-    { g: "过程与节奏", icon: "dense", name: "画得很满", desc: "一幅画里画了 60 笔以上",
+    { g: "过程与节奏", icon: "dense", name: "画得很满", desc: "一幅画中画了 60 笔以上",
       earned: s => nStrokes(s) >= 60 },
-    { g: "观察与细节", icon: "swap", name: "来回对照", desc: "在参考图和画布之间来回看了 6 次以上",
+    { g: "观察与细节", icon: "swap", name: "来回对照", desc: "在参考图和画布之间来回查看 6 次以上",
       earned: s => evOf(s, ["REFERENCE_FOCUS", "CANVAS_FOCUS"]).length >= 6, needs: "reference" },
     { g: "观察与细节", icon: "route", name: "走遍画布", desc: "移动画布 8 次以上",
       earned: s => evOf(s, ["PAN"]).length >= 8 },
     { g: "探索与坚持", icon: "calendar", name: "常来的人", desc: "在 3 个不同的日子画过画",
       earned: () => activeDays() >= 3 },
-    { g: "探索与坚持", icon: "books", name: "十幅收藏", desc: "完成 10 幅作品",
+    { g: "探索与坚持", icon: "books", name: "十幅收藏", desc: "完成了 10 幅作品",
       earned: () => doneRows().length >= 10 },
-    { g: "探索与坚持", icon: "layers", name: "专攻一门", desc: "同一个任务家族完成 3 次以上",
+    { g: "探索与坚持", icon: "layers", name: "专攻一门", desc: "在同一个主题下完成了 3 次以上",
       earned: () => deepestFamily() >= 3 },
 
     // ================= 奇遇 =================
     // 这一组的条件都不是「做够多少」，而是「做了件特别的事」。
     // 它们不写在任何地方，只能自己撞上——所以墙上那张「?」卡说的是实话。
     // 白卷的彩蛋：一笔没画也交了，那就只给这一枚，别的都不给（见 earnedNow）。
-    { g: "奇遇", icon: "image", name: "一片空白", desc: "交了一张什么都没画的画",
+    { g: "奇遇", icon: "image", name: "一片空白", desc: "提交了一张空白画布",
       earned: s => nStrokes(s) === 0, blank: true },
-    { g: "奇遇", icon: "moon", name: "夜猫子", desc: "夜里九点以后还在画",
+    { g: "奇遇", icon: "moon", name: "夜猫子", desc: "晚上九点后画过画",
       earned: s => { const h = hourOf(s); return h >= 21 || (h >= 0 && h < 4); } },
-    { g: "奇遇", icon: "sun", name: "早起的鸟", desc: "太阳刚出来就开画了",
+    { g: "奇遇", icon: "sun", name: "早起的鸟", desc: "太阳刚升起时就开始画画",
       earned: s => { const h = hourOf(s); return h >= 4 && h < 7; } },
-    { g: "奇遇", icon: "contrast", name: "黑白世界", desc: "整幅画只用了黑白灰",
+    { g: "奇遇", icon: "contrast", name: "黑白世界", desc: "整幅画只用了黑、白、灰",
       earned: s => { const c = [...colorsUsed(s)]; return c.length > 0 && nStrokes(s) >= 12 && c.every(isGrey); } },
-    { g: "奇遇", icon: "rainbow", name: "把调色板搬空", desc: "调色板上的颜色用了 10 种以上",
+    { g: "奇遇", icon: "rainbow", name: "把调色板搬空", desc: "使用了调色板中的 10 种以上颜色",
       earned: s => paletteHits(s) >= 10 },
-    { g: "奇遇", icon: "eraser", name: "橡皮朋友", desc: "擦的次数比留下的笔还多",
+    { g: "奇遇", icon: "eraser", name: "橡皮朋友", desc: "擦除次数比保留下来的笔画还多",
       earned: s => { const e = evOf(s, ["ERASE"]).length; return e >= 8 && e > nStrokes(s); } },
-    { g: "奇遇", icon: "ghost", name: "幽灵画家", desc: "清空两次，还是画完了",
+    { g: "奇遇", icon: "ghost", name: "幽灵画家", desc: "清空两次画布后，仍然完成了作品",
       earned: s => evOf(s, ["CLEAR"]).length >= 2 && nStrokes(s) >= 8 },
     { g: "奇遇", icon: "wave", name: "一笔到底", desc: "整幅画只有几笔，每一笔都很长",
       earned: s => { const n = nStrokes(s); const pts = strokePoints(s);
         return n > 0 && n <= 3 && Math.min(...pts) >= 150; } },
-    { g: "奇遇", icon: "dense", name: "点点点", desc: "30 笔以上，每一笔都只是一小点",
+    { g: "奇遇", icon: "dense", name: "点点点", desc: "画了 30 笔以上，每一笔都是小点",
       earned: s => { const pts = strokePoints(s);
         return pts.length >= 30 && Math.max(...pts) <= 12; } },
-    { g: "奇遇", icon: "feather", name: "越画越轻", desc: "笔越来越细",
+    { g: "奇遇", icon: "feather", name: "越画越轻", desc: "用的笔越来越细",
       earned: s => { const z = strokeSizes(s);
         if (z.length < 10) return false;
         const head = z.slice(0, 5), tail = z.slice(-5);
         return Math.max(...tail) < Math.min(...head); } },
-    { g: "奇遇", icon: "fire", name: "最后冲刺", desc: "结尾十笔一口气画完",
+    { g: "奇遇", icon: "fire", name: "最后冲刺", desc: "最后十笔连续画完",
       earned: s => { const t = strokeTimes(s);
         return t.length >= 15 && (t[t.length - 1] - t[t.length - 10]) <= 30000; } },
-    { g: "奇遇", icon: "target", name: "贴着画布看", desc: "放大到 6 倍还在画",
+    { g: "奇遇", icon: "target", name: "贴着画布看", desc: "在 6 倍放大下作画",
       earned: s => zoomMax(s) >= 6 },
-    { g: "奇遇", icon: "compass", name: "退后一步", desc: "缩小到看得见整张画，再接着画",
+    { g: "奇遇", icon: "compass", name: "退后一步", desc: "缩小到能看到整幅画后，继续作画",
       earned: s => zoomMin(s) <= 0.8 && nStrokes(s) >= 10 },
     { g: "奇遇", icon: "loop", name: "故地重游", desc: "同一个任务又画了一次",
       earned: s => timesAtTask(s.quest_id) >= 2 },
-    { g: "奇遇", icon: "gift", name: "一天两张", desc: "同一天里画完了两幅",
+    { g: "奇遇", icon: "gift", name: "一天两张", desc: "同一天完成了两幅作品",
       earned: () => twoInOneDay() },
-    { g: "奇遇", icon: "fire", name: "连着两天", desc: "昨天画了，今天又来了",
+    { g: "奇遇", icon: "fire", name: "连着两天", desc: "连续两天都画了画",
       earned: () => backToBackDays() },
-    { g: "奇遇", icon: "heart", name: "起了名字", desc: "给伙伴起了自己的名字",
+    { g: "奇遇", icon: "heart", name: "起了名字", desc: "给彩点起了一个名字",
       earned: () => !!state.buddyName },
     { g: "奇遇", icon: "key", name: "有名字的人", desc: "注册了账号",
       earned: () => !!(state.account && state.account.account_id) },
     { g: "奇遇", icon: "people", name: "两处都画过", desc: "在两台设备上画过画",
       earned: () => !!(state.account && (state.account.devices || 0) >= 2) },
-    { g: "奇遇", icon: "pin", name: "挂上了墙", desc: "有一幅画挂在大家的墙上",
+    { g: "奇遇", icon: "pin", name: "挂上了墙", desc: "有一幅作品在大家的画廊展出",
       earned: () => onTheWall() },
-    { g: "奇遇", icon: "crown", name: "满墙的画", desc: "画廊里攒够了 20 幅",
+    { g: "奇遇", icon: "crown", name: "满墙的画", desc: "画廊里已有 20 幅作品",
       earned: () => doneRows().length >= 20 },
   ];
   // 每组一个颜色，徽章不再是一片一样的黄
@@ -3694,13 +3694,13 @@
       const a = c.approach || {};
       const title = (state.quests.find(q => q.id === c.task_id) || {}).title || c.task_id;
       return `<figure class="peer">
-        <div class="peer-shot"><img src="${fileUrl(c.image)}" alt="挂出来的画" loading="lazy"></div>
+        <div class="peer-shot"><img src="${fileUrl(c.image)}" alt="已分享的作品" loading="lazy"></div>
         <figcaption>
           <b>${escapeHtml(title)}</b>
           <div class="peer-chips"><span>${a.strokes} 笔</span><span>${a.colors || 1} 种颜色</span>
-            <span>${a.minutes} 分钟</span>${a.zoomed ? "<span>放大看过</span>" : ""}</div>
+            <span>${a.minutes} 分钟</span>${a.zoomed ? "<span>查看时放大过</span>" : ""}</div>
           ${c.why ? `<p class="peer-why">${escapeHtml(c.why)}</p>` : ""}
-          <div class="p-pin">${icon("pin", 13)}${c.curated ? "今天挂出来的" : "老师选的"}</div>
+          <div class="p-pin">${icon("pin", 13)}${c.curated ? "今日展出" : "老师精选"}</div>
         </figcaption></figure>`;
     }).join("");
   }
@@ -3735,7 +3735,7 @@
         <img src="${fileUrl(c.image)}" alt="别人的作品" loading="lazy">
         <div class="p-why">${escapeHtml(c.why || "另一种做法")}</div>
         <div class="p-how">${how}</div>
-        ${c.featured_by ? `<div class="p-pin">${icon("pin", 13)}老师选的</div>` : ""}</div>`;
+        ${c.featured_by ? `<div class="p-pin">${icon("pin", 13)}老师精选</div>` : ""}</div>`;
     }).join("");
   }
 
@@ -3757,9 +3757,9 @@
       return `<span class="tchip" style="--tc:${fam.color};--tc-bg:${mixHex(fam.color, 13, "#fff")}`
         + `;--tc-fg:${mixHex(fam.color, 72, "#000")}"><i></i>${dimName(byKey[k]) || k}</span>`;
     };
-    el.innerHTML = `<h4>${icon("sprout", 16)}这一关练的是</h4><div class="tchips">${primary.map(chip).join("")}</div>`
-      + `<div class="tnote">${buddyName()}跟着长了一截。`
-      + (na.length ? `这一关用不上「${na.map(k => dimName(byKey[k]) || k).join(LIST_SEP)}」。` : "")
+    el.innerHTML = `<h4>${icon("sprout", 16)}这个任务练习的是</h4><div class="tchips">${primary.map(chip).join("")}</div>`
+      + `<div class="tnote">${buddyName()}也成长了一点。`
+      + (na.length ? `本任务不考察「${na.map(k => dimName(byKey[k]) || k).join(LIST_SEP)}」。` : "")
       + `</div>`;
   }
 
@@ -3802,7 +3802,7 @@
       // 只有**真的少见**的那几枚才写一句。常见的也挂上百分比的话，
       // 每枚章底下都拖着一行数字，一面墙就读成了统计表。
       const line = !rare ? ""
-        : `<div class="rarity">${pct <= 0 ? "还没有人点亮过" : `只有 ${pct}% 的人点亮过`}</div>`;
+        : `<div class="rarity">${pct <= 0 ? "还没有人获得" : `已有 ${pct}% 的人获得`}</div>`;
       const isNew = typeof newTag === "function" ? newTag(b) : !!newTag;
       // 角标写第几次：结算页是「以前的次数 + 这一次」，墙上是总次数（count）
       const n = count ? timesLit(b.name)
@@ -3816,7 +3816,7 @@
     // 墙尾那一枚：说还有，不说有多少。一句话，不再多解释一行。
     const q = mystery ? `<div class="badge mystery">
       <div class="b-ico">${icon("question", 30)}</div>
-      <div class="b-name">更多等你发现</div></div>` : "";
+      <div class="b-name">还有更多徽章</div></div>` : "";
     return `<div class="badge-row">${html}${q}</div>`;
   }
 
@@ -3830,7 +3830,7 @@
       pop.dataset.for = name;
       const n = +bd.dataset.n || 0;
       pop.innerHTML = `<b>${name}</b><p>${bd.title}</p>`
-        + (n > 1 ? `<span class="muted small">亮了 ${n} 次</span>` : "")
+        + (n > 1 ? `<span class="muted small">获得过 ${n} 次</span>` : "")
         + (bd.querySelector(".rarity") ? `<span class="muted small">${bd.querySelector(".rarity").textContent}</span>` : "");
       openPop(pop, bd);
     });
@@ -3854,10 +3854,10 @@
     el.classList.toggle("folded", got.length > FOLD_AT);
     el.innerHTML = got.length
       ? badgeGroupsHtml(pool, b => gotSet.has(b), { newTag: b => !before.has(b.name) })
-        + (got.length > FOLD_AT ? `<button class="ghost badge-more" id="btn-badge-more">还有 ${got.length - FOLD_AT} 枚，展开</button>` : "")
-      : `<p class="badge-left">这次没有新徽章。换个画法试试。</p>`;
+        + (got.length > FOLD_AT ? `<button class="ghost badge-more" id="btn-badge-more">展开其余 ${got.length - FOLD_AT} 枚</button>` : "")
+      : `<p class="badge-left">这次没有获得新徽章，也可以试试别的画法。</p>`;
     wireBadgePops(el);
-    $("#badges-count").textContent = got.length ? `点亮了 ${got.length} 枚` : "";
+    $("#badges-count").textContent = got.length ? `获得了 ${got.length} 枚` : "";
     const more = $("#btn-badge-more");
     if (more) more.onclick = () => { el.classList.remove("folded"); more.remove(); };
     if (got.length) {
@@ -3898,7 +3898,7 @@
     const n = pool.filter(b => lit.has(b.name)).length;
     curSessionId = null;                      // 墙上数的是全部次数
     el.innerHTML = n ? badgeGroupsHtml(pool, b => lit.has(b.name), { mystery: true, count: true })
-      : `<p class="badge-left">画一幅试试，徽章就来了。</p>`;
+      : `<p class="badge-left">先画一幅，看看会获得什么徽章。</p>`;
     wireBadgePops(el);
     $("#badge-wall-count").textContent = n ? `${n} 枚` : "";
   }
@@ -3964,7 +3964,7 @@
         const a0n = -90 + i * SLOT + PAD, a1n = -90 + (i + 1) * SLOT - PAD, midn = (a0n + a1n) / 2;
         const [nx, ny] = polar(cx, cy, LABEL_R, midn);
         const anch = Math.cos(midn * Math.PI / 180) > 0.25 ? "start" : Math.cos(midn * Math.PI / 180) < -0.25 ? "end" : "middle";
-        sectors += `<path d="${sectorPath(cx, cy, R, a0n, a1n)}" fill="none" stroke="#e6e0d6" stroke-width="1" stroke-dasharray="3 3"><title>${dimName(d)}：这一关不看这个</title></path>`;
+        sectors += `<path d="${sectorPath(cx, cy, R, a0n, a1n)}" fill="none" stroke="#e6e0d6" stroke-width="1" stroke-dasharray="3 3"><title>${dimName(d)}：本任务不考察此项</title></path>`;
         labels += `<text x="${fmt(nx)}" y="${fmt(ny)}" text-anchor="${anch}" class="rose-label na">${dimShort(d)}</text>`;
         return;
       }
@@ -3974,7 +3974,7 @@
       const b = baseline && baseline.dims[key], delta = b ? sc.score - b.score : null;
       sectors += `<path d="${sectorPath(cx, cy, r, a0, a1)}" fill="${fam.color}" fill-opacity="${ph ? 0.26 : isFocus ? 0.95 : 0.72}"`
         + ` stroke="#fff" stroke-width="2"${isFocus && !ph ? ' class="rose-focus"' : ''}>`
-        + `<title>${dimName(d)}${ph ? "（等模型来评）" : ""}</title></path>`;
+        + `<title>${dimName(d)}${ph ? "（等待模型评分）" : ""}</title></path>`;
       if (b && !ph) {  // 修改前的水平：一条虚线弧
         const rb = rOf(b.score);
         marks += `<path d="${arcPath(cx, cy, rb, a0, a1)}" class="rose-before" stroke="${fam.color}"/>`;
@@ -4010,22 +4010,22 @@
       if (isNA(s)) {
         const fam0 = FAMILIES[DIM_FAMILY[d.key]];
         return `<div class="dim na"><div class="name"><span><i class="dot" style="background:#d8d2c8"></i>${dimName(d)}</span>`
-          + `<span class="sval"><span class="wait">这一关不看这个</span></span></div></div>`;
+          + `<span class="sval"><span class="wait">本任务不考察此项</span></span></div></div>`;
       }
       const ph = isPlaceholder(s);
       const b = baseline && baseline.dims[d.key], delta = b ? s.score - b.score : null;
       const arrow = (!ph && delta !== null && Math.abs(delta) >= 0.05)
-        ? ` <span class="delta ${delta < 0 ? "neg" : ""}">${delta > 0 ? "▲ 进步了" : "▼"}</span>` : "";
+        ? ` <span class="delta ${delta < 0 ? "neg" : ""}">${delta > 0 ? "▲ 有进步" : "▼"}</span>` : "";
       const fam = FAMILIES[DIM_FAMILY[d.key]];
       return `<div class="dim${focus.has(d.key) ? " focus" : ""}${ph ? " ph" : ""}">
         <div class="name"><span><i class="dot" style="background:${fam.color}"></i>${dimName(d)}</span>
-          <span class="sval">${ph ? '<span class="wait">等模型来评</span>' : `<span class="st">${stars(s.score)}</span>${arrow}`}</span></div></div>`;
+          <span class="sval">${ph ? '<span class="wait">等待模型评分</span>' : `<span class="st">${stars(s.score)}</span>${arrow}`}</span></div></div>`;
     }).join("");
-    el.innerHTML = `<div class="ability-head">${icon("palette", 17)}这一幅，你长在这儿</div>`
+    el.innerHTML = `<div class="ability-head">${icon("palette", 17)}这次作品的表现</div>`
       + roseChart(scores, baseline)
       // 九项的逐条细节默认收起来：宝藏这一屏要在一块 pad 上放得下，
       // 而且第一眼该是「你的画」和「这次练了什么」，不是一张九行的表。
-      + `<details class="dim-fold"><summary>${icon("sliders", 15)}看看九项的细节</summary>`
+      + `<details class="dim-fold"><summary>${icon("sliders", 15)}查看九项详情</summary>`
       + `<div class="dim-notes">${notes}</div></details>`;
   }
 
@@ -4037,8 +4037,8 @@
   // The identifiers are still one fold away, for whoever runs the study on
   // this device.
   const WORK_STATUS = {
-    done: null, drawing: { cls: "open", zh: "还没画完" },
-    abandoned: { cls: "open", zh: "中途换了任务" },
+    done: null, drawing: { cls: "open", zh: "尚未完成" },
+    abandoned: { cls: "open", zh: "绘画中切换了任务" },
   };
   /** Timestamps a person can read: today and yesterday by the clock, then the date. */
   function whenText(iso) {
@@ -4076,10 +4076,10 @@
     // 三块数字是**门**，不只是数字：点「画完的画」去画廊，点「点亮的徽章」
     // 去徽章墙。数字后面站着东西，就该让人走过去看。
     const tiles = [
-      { icon: "image",    v: done.length, unit: "张", label: "画完的画",   c: "blue",   go: "dex" },
-      { icon: "compass",  v: fams,        unit: "个", label: "去过的地方", c: "orange", go: "map" },
-      { icon: "calendar", v: days,        unit: "天", label: "画画的日子", c: "green" },
-      { icon: "medal",    v: lit.size,    unit: "枚", label: "点亮的徽章", c: "purple", go: "buddy" },
+      { icon: "image",    v: done.length, unit: "张", label: "完成的作品",   c: "blue",   go: "dex" },
+      { icon: "compass",  v: fams,        unit: "个", label: "体验过的主题", c: "orange", go: "map" },
+      { icon: "calendar", v: days,        unit: "天", label: "画画的天数", c: "green" },
+      { icon: "medal",    v: lit.size,    unit: "枚", label: "获得的徽章", c: "purple", go: "buddy" },
     ];
     el.innerHTML = `<div class="story-tiles">` + tiles.map(t =>
       `<${t.go ? "button" : "div"} class="stile${t.go ? " jump" : ""}"${t.go ? ` data-go="${t.go}"` : ""}
@@ -4097,7 +4097,7 @@
     const busy = !online || pending > 0;
     me.classList.toggle("hidden", !busy);
     me.classList.toggle("warn", busy);
-    me.innerHTML = busy ? `<b></b>${!online ? "没网，先记在这台设备里" : "正在收好…"}` : "";
+    me.innerHTML = busy ? `<b></b>${!online ? "当前离线，数据暂存在这台设备上" : "正在保存…"}` : "";
   }
 
   // 点开一张：先看画，再说它是哪个任务。原始文件只在实验模式下露出来。
@@ -4107,7 +4107,7 @@
     const q = state.quests.find(x => x.id === qid);
     $("#work-title").textContent = (q && q.title) || qid;
     $("#work-sub").textContent = whenText(row.created_at)
-      + (row.revised ? " · 画完又改过一次" : "") + (row.status === "done" ? "" : " · 没画完");
+      + (row.revised ? " · 完成后修改过一次" : "") + (row.status === "done" ? "" : " · 未完成");
     const img = $("#work-img");
     img.classList.remove("hidden");
     img.onerror = () => img.classList.add("hidden");
@@ -4154,8 +4154,8 @@
       // 它自己会回来。
       el.classList.toggle("hidden", !state.sessionId && !pending && online);
       el.classList.toggle("warn", !online || pending > 0);
-      $("#recstat-text").textContent = !online ? `没网 · 先记在这儿 ${pending}`
-        : pending ? `收着 ${pending}` : "我看着呢";
+      $("#recstat-text").textContent = !online ? `当前离线 · 暂存本机 ${pending}`
+        : pending ? `正在保存 ${pending}` : "我在这里";
     }
     paintSync(pending, online);
   });
@@ -4190,5 +4190,5 @@
     });
   }
 
-  init().catch(e => { document.body.classList.remove("booting"); alert("打不开：" + e.message); });
+  init().catch(e => { document.body.classList.remove("booting"); alert("无法打开：" + e.message); });
 })();

@@ -199,14 +199,14 @@ class Finalize(BaseModel):
 # comparable across tasks and children; free text stays available beside it,
 # because a closed list that fits nobody is worse than no answer.
 HARDEST_PARTS = [
-    ("idea", "想不出要画什么"),
-    ("shape", "形状画不准"),
+    ("idea", "不知道画什么"),
+    ("shape", "形状不容易画准"),
     ("proportion", "大小和比例"),
     ("color", "颜色"),
-    ("layout", "画面怎么安排"),
+    ("layout", "不知道怎样安排画面"),
     ("line", "线条"),
     ("time", "时间不够"),
-    ("none", "没有特别难的"),
+    ("none", "没有特别难的地方"),
     ("other", "其他"),
 ]
 HARDEST_PART_KEYS = [k for k, _ in HARDEST_PARTS]
@@ -214,12 +214,12 @@ HARDEST_PART_KEYS = [k for k, _ in HARDEST_PARTS]
 # 也是最不该让孩子在一堆「难」里找的答案。「线条」「时间不够」不再摆出来
 # （倒计时已经不显示了），但旧数据里的 key 照旧合法，见上面那张全表。
 HARDEST_PARTS_SHOWN = [
-    ("none", "没有特别难的"),
-    ("idea", "想不出要画什么"),
-    ("shape", "形状画不准"),
+    ("none", "没有特别难的地方"),
+    ("idea", "不知道画什么"),
+    ("shape", "形状不容易画准"),
     ("proportion", "大小和比例"),
     ("color", "颜色"),
-    ("layout", "画面怎么安排"),
+    ("layout", "不知道怎样安排画面"),
     ("other", "其他"),
 ]
 

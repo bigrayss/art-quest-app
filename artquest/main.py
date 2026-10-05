@@ -226,7 +226,7 @@ OPINIONS_DIR = SESSIONS_DIR.parent / "opinions"
 def post_opinion(body: Opinion):
     answers = {k: (body.answers.get(k) or "").strip()[:2000] for k in OPINION_KEYS if (body.answers.get(k) or "").strip()}
     if not answers:
-        raise HTTPException(422, "什么都没写")
+        raise HTTPException(422, "尚未填写")
     OPINIONS_DIR.mkdir(parents=True, exist_ok=True)
     rec = {"opinion_id": "op-" + secrets.token_hex(6), "ts": now_iso(), "answers": answers,
            "account_id": body.account_id, "anon_id": body.anon_id, "participant_id": body.participant_id, "lang": body.lang}
@@ -421,8 +421,8 @@ def _require_admin(request: Request) -> None:
     if _is_admin(request):
         return
     if not cfg.ADMIN_TOKEN:
-        raise HTTPException(401, "研究员接口关着：服务器没设 ARTQUEST_ADMIN_TOKEN")
-    raise HTTPException(401, "这个接口只给研究员：Authorization: Bearer <ARTQUEST_ADMIN_TOKEN>")
+        raise HTTPException(401, "研究员接口未启用：服务器未设置 ARTQUEST_ADMIN_TOKEN")
+    raise HTTPException(401, "此接口仅供研究员使用：Authorization: Bearer <ARTQUEST_ADMIN_TOKEN>")
 
 
 def _token(request: Request, legacy: str = "") -> str:
@@ -447,9 +447,9 @@ def _check_owner(request: Request, account_id: str) -> None:
         return
     acc = accounts.by_token(_bearer(request))
     if not acc:
-        raise HTTPException(401, "登录已经过期，再登一次吧")
+        raise HTTPException(401, "登录已过期，请重新登录")
     if acc["account_id"] != account_id:
-        raise HTTPException(403, "这不是你的账号")
+        raise HTTPException(403, "不能访问其他人的账号")
 
 
 @api.post("/accounts/register", status_code=201)
@@ -457,9 +457,9 @@ def account_register(body: Register):
     if body.role == "teacher":
         code = cfg.teacher_code()
         if not code:
-            raise HTTPException(403, "这台服务器没开放老师注册")
+            raise HTTPException(403, "当前服务器未开放老师注册")
         if not secrets.compare_digest(body.teacher_code or "", code):
-            raise HTTPException(403, "邀请码不对")
+            raise HTTPException(403, "邀请码不正确")
     try:
         return accounts.register(body.name, body.pin, anon_id=body.anon_id, buddy_name=body.buddy_name,
                                  age=body.age, role=body.role)
@@ -538,9 +538,9 @@ def _require_teacher(request: Request) -> Dict[str, str]:
         return {"rater_id": "admin", "name": "研究员"}
     acc = accounts.by_token(_bearer(request))
     if not acc:
-        raise HTTPException(401, "登录已经过期，再登一次吧")
+        raise HTTPException(401, "登录已过期，请重新登录")
     if acc.get("role") != "teacher":
-        raise HTTPException(403, "这个界面只给老师")
+        raise HTTPException(403, "此页面仅限老师使用")
     return {"rater_id": acc["account_id"], "name": acc.get("name", "")}
 
 
@@ -561,7 +561,7 @@ def _teacher_ratings(sid: str) -> List[Dict[str, Any]]:
 
 
 def _session_images(meta: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """老师要看的图，按时间顺序：过程快照、（改过的话）改之前那张、最终图。
+    """老师要看的图，按时间顺序：过程快照、（改过的话）改之前那张、最终作品。
     过程图只要一句短评；最终图要九维 + 评语。"""
     sid = sid_of(meta)
     out = []
@@ -699,17 +699,17 @@ def teacher_grade(sid: str, body: TeacherGrade, request: Request):
     me = _require_teacher(request)
     meta = _session_or_404(sid)
     if meta.get("status") != "done":
-        raise HTTPException(409, "这张还没画完")
+        raise HTTPException(409, "这幅作品尚未完成")
     rubric = (meta.get("task") or {}).get("rubric")
     bad = check_rating(body.dims, rubric)
     if bad:
         raise HTTPException(422, f"这个任务无法考察这些维度，不能打分：{bad}")
     if not body.dims and not body.comment and not body.image_notes and not body.image_marks:
-        raise HTTPException(422, "什么都没写")
+        raise HTTPException(422, "尚未填写")
     # 过程图至少写一条（有过程图才要求）：写在哪一张老师自己挑。写了才算真看过过程，研究也留一个人工的过程判断。
     process_keys = {im["key"] for im in _session_images(meta) if im["kind"] != "final"}
     if process_keys and not (set(body.image_notes) & process_keys):
-        raise HTTPException(422, "过程图至少写一条短评")
+        raise HTTPException(422, "请至少为一张过程图写一条简短评语")
     rec = store.add_rating(sid, {
         "source": "teacher", "rater_id": me["rater_id"], "rater_name": me["name"],
         "phase": "after" if meta.get("revised") else "before",
@@ -762,11 +762,11 @@ def delete_session(sid: str, request: Request, participant_id: str = "",
     try:
         meta = store.load(sid)
     except KeyError:
-        raise HTTPException(404, "没有这张画")
+        raise HTTPException(404, "找不到这幅画")
     mine = storage_belongs_to(meta, participant_id=participant_id, anon_id=anon_id,
                               account_id=account_id, windows=_owner_windows(account_id))
     if not (mine or _is_admin(request)):
-        raise HTTPException(404, "没有这张画")
+        raise HTTPException(404, "找不到这幅画")
     rec = {
         "session_id": sid, "deleted_at": now_iso(), "by": "admin" if not mine else "owner",
         "account_id": (meta.get("participant") or {}).get("account_id", "") if isinstance(meta.get("participant"), dict) else "",
@@ -986,7 +986,7 @@ def assist(sid: str, body: AssistIn):
         out = get_assist_engine().assist(png, quest, meta.get("intent") or {}, nth=max(1, body.nth))
     except Exception as e:                      # 陪伴挂了绝不能挡住画画
         log.exception("assist failed")
-        return {"text": i18n.say(meta.get("lang", "zh"), "我在这儿呢，接着画。", "I'm here. Keep going."),
+        return {"text": i18n.say(meta.get("lang", "zh"), "我在这里，按你的节奏画。", "I'm here. Keep going."),
                 "backend": "error", "error": str(e)}
     return {"text": out["text"], "backend": out.get("backend", "")}
 
