@@ -13,13 +13,16 @@ import base64
 import json
 import logging
 import re
+import time
 from typing import Any, Dict, List
 
-from .config import (LLM_API_KEY, LLM_BASE_URL, LLM_EFFORT, LLM_MODEL, LLM_PROVIDER,
+from .config import (LLM_API_KEY, LLM_BASE_URL, LLM_EFFORT, LLM_EXTRA, LLM_MODEL, LLM_PROVIDER,
                      LLM_THINKING, LLM_TIMEOUT_SEC)
 
 log = logging.getLogger("artquest")
 _client = None
+# 最近一次 openai 通路调用的体检单（耗时、token、有没有思维链），tools/try_llm.py 打印它。
+LAST_CALL: Dict[str, Any] = {}
 
 
 class ClaudeRefused(RuntimeError):
@@ -107,16 +110,42 @@ def openai_request(system: str, content: List[Dict[str, Any]], max_tokens: int) 
     body["thinking"] = {"type": "enabled" if LLM_THINKING else "disabled"}
     if LLM_THINKING:
         body["reasoning_effort"] = LLM_EFFORT
+    body.update(LLM_EXTRA)      # 试参数用的后门（ARTQUEST_LLM_EXTRA 是一段 JSON），不改代码就能加字段
     return body
 
 
 def _openai_post(body: Dict[str, Any]) -> Dict[str, Any]:
     import httpx
+    t0 = time.monotonic()
     r = httpx.post(f"{LLM_BASE_URL}/chat/completions", json=body, timeout=LLM_TIMEOUT_SEC,
                    headers={"Authorization": f"Bearer {LLM_API_KEY}", "Content-Type": "application/json"})
+    dt = time.monotonic() - t0
     if r.status_code >= 400:
+        log.warning("llm %s %.1fs HTTP %d", body.get("model"), dt, r.status_code)
         raise RuntimeError(f"{LLM_PROVIDER} {r.status_code}: {r.text[:300]}")
-    return r.json()
+    data = r.json()
+    _record_call(body, data, dt)
+    return data
+
+
+def _record_call(body: Dict[str, Any], data: Dict[str, Any], dt: float) -> None:
+    """只记长度和计数，不记内容：日志里不能有孩子的画和话。"""
+    usage = data.get("usage") or {}
+    choice = (data.get("choices") or [{}])[0]
+    msg = choice.get("message") or {}
+    content = msg.get("content") or ""
+    reasoning = msg.get("reasoning_content") or ""
+    has_image = any(isinstance(m.get("content"), list) and any(p.get("type") == "image_url" for p in m["content"])
+                    for m in body.get("messages", []))
+    LAST_CALL.clear()
+    LAST_CALL.update(seconds=round(dt, 1), model=body.get("model"), image=has_image,
+                     thinking_requested=body.get("thinking"), prompt_tokens=usage.get("prompt_tokens"),
+                     completion_tokens=usage.get("completion_tokens"), finish_reason=choice.get("finish_reason"),
+                     content_chars=len(content) if isinstance(content, str) else -1,
+                     reasoning_chars=len(reasoning) if isinstance(reasoning, str) else -1)
+    log.info("llm call %s", json.dumps(LAST_CALL, ensure_ascii=False))
+    if reasoning and not LLM_THINKING:
+        log.warning("llm: thinking was requested off but the reply carries %d chars of reasoning_content", len(reasoning))
 
 
 def openai_reply_text(data: Dict[str, Any]) -> str:

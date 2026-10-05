@@ -45,6 +45,10 @@ from .storage import (SCHEMA_VERSION, SessionStore, belongs_to as storage_belong
                       decode_data_url, now_iso, sid_of)
 
 log = logging.getLogger("artquest")
+# uvicorn 只配自己的 logger；应用这边不配的话 INFO 全丢，模型每次调用的耗时就看不见。
+if not logging.getLogger().handlers:
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(name)s: %(message)s")
+log.setLevel(logging.INFO)
 
 # Bumped whenever the feedback prompts change, so text generated under different
 # instructions is never pooled in analysis.

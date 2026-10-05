@@ -18,6 +18,13 @@ from PIL import Image, ImageDraw  # noqa: E402
 from artquest import config, llm  # noqa: E402
 
 
+def stat():
+    c = llm.LAST_CALL
+    if c:
+        print(f"      ↳ {c['seconds']}s  tokens in/out {c['prompt_tokens']}/{c['completion_tokens']}  "
+              f"思维链 {c['reasoning_chars']} 字  finish={c['finish_reason']}")
+
+
 def sample_png() -> bytes:
     img = Image.new("RGB", (480, 360), "white")
     d = ImageDraw.Draw(img)
@@ -38,12 +45,12 @@ def main():
 
     t = time.time()
     print("\n[1] 纯文字 →", repr(llm.claude_text("你只回一个词。", [{"type": "text", "text": "回「通」。"}], 20)),
-          f"({time.time() - t:.1f}s)")
+          f"({time.time() - t:.1f}s)"); stat()
 
     t = time.time()
     print("\n[2] 看图 →", llm.claude_text("用一句中文说出图里有什么，不评价。",
                                          [llm.image_block(png), {"type": "text", "text": "图里有什么？"}], 100),
-          f"({time.time() - t:.1f}s)")
+          f"({time.time() - t:.1f}s)"); stat()
 
     quest = {"id": "try", "title": "试一下", "prompt": "随便画一个圆和一条线。", "focus_dims": ["color_contrast", "line_combination"],
              "applicable_dims": ["color_richness", "color_contrast", "line_combination", "line_texture", "picture_organization"],
@@ -59,13 +66,13 @@ def main():
     print(f"\n[3] 评分 ({time.time() - t:.1f}s):")
     for k, v in scores["dims"].items():
         print(f"    {k:22s} {v['score']}  {v['note']}")
-    print("    summary:", scores["summary"])
+    print("    summary:", scores["summary"]); stat()
 
     t = time.time()
-    print(f"\n[4] 陪伴 →", ClaudeAssist().assist(png, quest, intent, 1)["text"], f"({time.time() - t:.1f}s)")
+    print(f"\n[4] 陪伴 →", ClaudeAssist().assist(png, quest, intent, 1)["text"], f"({time.time() - t:.1f}s)"); stat()
 
     t = time.time()
-    print(f"\n[5] 反馈 ({time.time() - t:.1f}s):\n" + ClaudeFeedback().feedback(png, quest, intent, scores)["text"])
+    print(f"\n[5] 反馈 ({time.time() - t:.1f}s):\n" + ClaudeFeedback().feedback(png, quest, intent, scores)["text"]); stat()
 
 
 if __name__ == "__main__":

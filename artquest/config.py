@@ -1,4 +1,5 @@
 """Runtime configuration (environment-driven, no secrets in code)."""
+import json
 import os
 from pathlib import Path
 
@@ -50,6 +51,14 @@ LLM_EFFORT = os.environ.get("ARTQUEST_EFFORT", "medium")
 # openai 通路要不要开思维链。默认关：给孩子的一两句话要快，评分的 JSON 也不靠它。
 LLM_THINKING = os.environ.get("ARTQUEST_LLM_THINKING", "0").strip().lower() in ("1", "true", "yes", "on")
 LLM_TIMEOUT_SEC = float(os.environ.get("ARTQUEST_LLM_TIMEOUT", "90"))
+# 试参数的后门：一段 JSON，原样并进 openai 通路的请求体。比如想试 Qwen 原生的关思考写法：
+#   ARTQUEST_LLM_EXTRA={"chat_template_kwargs":{"enable_thinking":false}}
+try:
+    LLM_EXTRA = json.loads(os.environ.get("ARTQUEST_LLM_EXTRA") or "{}")
+    if not isinstance(LLM_EXTRA, dict):
+        raise ValueError("not an object")
+except ValueError as _e:
+    LLM_EXTRA = {}
 
 # 记录里 `backend` 字段写的名字。评分 / 反馈 / 陪伴三处都用它，分析时一眼看出是哪家模型答的。
 # anthropic → claude；ecnu 的地址 → ecnu；别的 OpenAI 兼容服务 → openai。可用 ARTQUEST_LLM_NAME 覆盖。
