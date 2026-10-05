@@ -1883,6 +1883,12 @@ html[data-lang="en"] .intent-form .chips button { flex:1 1 auto; white-space:now
    横过来更糟（852×393 的视口只剩 241 高给整个创作区，画布反而更小），
    所以这里不劝孩子转屏——手机上竖着画就是最好的那个方向。 */
 @media (max-width: 700px) {
+  /* 手机上任务页：「当前选择 / 开始画」那张卡放在地图**上面**（用户 2026-10-05：在最下面不好找）；
+     点了地图上的主题，app.js 把页面滚回这张卡。 */
+  #view-quest { display:flex; flex-direction:column; }
+  #view-quest .map-lead { order:0; }
+  #view-quest .today { order:1; margin:10px 0 14px; scroll-margin-top:calc(84px + env(safe-area-inset-top)); }   /* 滚回来时别钻到顶栏底下 */
+  #view-quest .map { order:2; }
   #view-draw { margin-inline:-16px; }                  /* 抵掉 main 的左右 padding */
   #view-draw .studio { padding-inline:10px; }
   /* 画布顶到屏幕两边：手机上每一像素宽度都算数。左右没有边可画了，
@@ -1907,10 +1913,12 @@ html[data-lang="en"] .intent-form .chips button { flex:1 1 auto; white-space:now
    画布的上限交给 viewport（fitCanvas 只问它），保证右栏至少有标题一行 + 主按钮的位置。
    矮的时候画布让一点，任务描述夹成一行。 */
 @media (max-width: 700px) and (orientation: portrait) {
-  .railbar { gap:7px 8px; }
-  .vsl[data-name="粗细"] { flex:1 1 0; order:1; }
-  .vsl[data-name="浓淡"] { flex:1 1 100%; order:3; }
-  #btn-undo { order:0; } #btn-redo { order:2; }
+  /* 三列网格：撤销 | 滑块 | 重做。两根滑块都在中间那列，一样长、左右对齐
+     （原来浓淡独占一整行比粗细长一截，用户 2026-10-05：不好看）。 */
+  .railbar { display:grid; grid-template-columns:38px minmax(0, 1fr) 38px; gap:7px 8px; align-items:center; }
+  #btn-undo { grid-area:1 / 1; } #btn-redo { grid-area:1 / 3; }
+  .vsl[data-name="粗细"] { grid-area:1 / 2; min-width:0; }
+  .vsl[data-name="浓淡"] { grid-area:2 / 2; min-width:0; }
   .stage > .canvas-viewport { max-height:max(10rem, min(46vh, calc(100vh - 420px))); max-height:max(10rem, min(46dvh, calc(100dvh - 420px))); }
 }
 @media (max-width: 700px) and (orientation: portrait) and (max-height: 720px) {

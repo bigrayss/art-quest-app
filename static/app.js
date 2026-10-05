@@ -2881,6 +2881,8 @@
       // 点一个地方 = 选中它：右边的任务卡跟着换，进去的那一步由卡上的「开始画」做
       if (!c.locked) el.onclick = () => {
         state.mapPick = c.key;
+        // 手机上那张卡在地图上面：点了下面的主题，滚回去让「开始画」露出来
+        if (innerWidth <= 700) requestAnimationFrame(() => { const t = $("#today"); if (t) t.scrollIntoView({ behavior: "smooth", block: "start" }); });
         grid.querySelectorAll(".quest-card").forEach(x => x.classList.toggle("next", x === el));
         paintToday(c, nDone, cards.length);
       };
