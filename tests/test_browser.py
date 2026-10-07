@@ -303,6 +303,20 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
             page.wait_for_selector(f'.dex-open[data-sid="{open_one}"]')      # 半张画也是画过的证据
             self.assertIn("尚未完成", page.inner_text("#collection"))
 
+            # 点开画完的那张：画下面有一张小扇形图（九项评估）；没画完的那张没有
+            page.click(f'.dex-open[data-sid="{done}"]')
+            page.wait_for_selector("#work-modal:not(.hidden)")
+            page.wait_for_selector("#work-rose:not(.hidden) svg.rose")
+            self.assertGreaterEqual(page.locator("#work-rose .rose path[fill]:not([fill='none'])").count(), 1)
+            page.click("#btn-work-close")
+            page.wait_for_selector("#work-modal", state="hidden")
+            page.click(f'.dex-open[data-sid="{open_one}"]')
+            page.wait_for_selector("#work-modal:not(.hidden)")
+            page.wait_for_timeout(400)
+            self.assertEqual(page.locator("#work-rose:not(.hidden)").count(), 0)
+            page.click("#btn-work-close")
+            page.wait_for_selector("#work-modal", state="hidden")
+
             for _ in range(4):
                 page.click(".tab[data-tab='me']")
                 try:

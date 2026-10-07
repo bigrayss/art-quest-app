@@ -4071,7 +4071,7 @@
   }
 
   // 南丁格尔玫瑰扇形图：每个维度一个扇区，半径 = 分数；baseline 存在时用虚线弧标出修改前的分数
-  function roseChart(scores, baseline) {
+  function roseChart(scores, baseline, focusDims) {
     const max = state.cfg.scale_max, N = CHART_ORDER.length, SLOT = 360 / N, PAD = 2;
     // 画布 480 宽：两侧要放得下 "Picture Organization" 这种两行的英文名，不和邻居叠、不出框
     const W = 480, cx = 240, cy = 200, R = 118, LABEL_R = R + 20;
@@ -4084,7 +4084,7 @@
       return `<text text-anchor="${anchor}" class="rose-label${cls}">${spans}${arrowHtml || ""}</text>`;
     };
     const dimsByKey = Object.fromEntries(state.cfg.dimensions.map(d => [d.key, d]));
-    const focus = new Set(state.quest ? state.quest.focus_dims : []);
+    const focus = new Set(focusDims || (state.quest ? state.quest.focus_dims : []));
     const rOf = (s) => (Math.max(1, Math.min(max, s)) / max) * R;
 
     let grid = "";
@@ -4237,6 +4237,7 @@
   // 点开一张：先看画，再说它是哪个任务。原始文件只在实验模式下露出来。
   const workModal = $("#work-modal");
   function openWork(sid, qid) {
+    workModal.dataset.sid = sid;   // 分数是异步到的，到的时候得还是这张画
     const row = (state.allSessions || []).find(r => r.session_id === sid) || {};
     const q = state.quests.find(x => x.id === qid);
     $("#work-title").textContent = (q && q.title) || qid;
@@ -4246,6 +4247,19 @@
     img.classList.remove("hidden");
     img.onerror = () => img.classList.add("hidden");
     img.src = `${FILES}/${sid}/after.png`;
+    // 画下面一张小扇形图：画完时的九项评估，修改过的用虚线弧标出修改前。
+    // 分数单独取（列表只带状态不带分数），取不到、没画完就不摆——不占一块空白。
+    const rose = $("#work-rose");
+    rose.classList.add("hidden"); rose.innerHTML = "";
+    if (row.status === "done") {
+      api(`${API}/sessions/${encodeURIComponent(sid)}`).then(full => {
+        if (workModal.classList.contains("hidden") || workModal.dataset.sid !== sid) return;
+        const after = (full.after || {}).scores, before = full.revised ? (full.before || {}).scores : null;
+        if (!after || !after.dims) return;
+        rose.innerHTML = roseChart(after, before && before.dims ? before : null, q ? q.focus_dims : []);
+        rose.classList.remove("hidden");
+      }).catch(() => {});
+    }
     const raw = $("#work-raw");
     raw.classList.toggle("hidden", !state.study);
     if (state.study) raw.innerHTML = `${qid} · ${sid} · <a href="${API}/sessions/${sid}" target="_blank">json</a>`;

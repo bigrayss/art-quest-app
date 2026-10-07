@@ -1322,6 +1322,13 @@ body.teacher-entrance #btn-welcome-login { width:100% !important; min-height:56p
 .work-del { background:none; border:none; box-shadow:none; color:var(--muted); font-weight:700;
   font-size:0.875rem; min-height:0; padding:6px; }
 .work-del:hover { color:var(--red-d); background:none; transform:none; }
+/* 画廊点开一张画：画 + 一张小扇形图，整卡可能比屏高，卡内滚动 */
+.work-card { max-height:92dvh; overflow-y:auto; }
+.work-rose { margin-top:10px; }
+.work-rose .rose-wrap { padding:4px 4px 8px; }
+.work-rose .rose { max-width:340px; }
+.work-rose .rose-label { font-size:0.75rem; }   /* 图缩到 340 宽，字号跟着放大才看得清 */
+.work-rose .rose-legend { font-size:0.6875rem; gap:4px 10px; margin-top:2px; }
 .work-confirm p { margin:0 0 12px; font-weight:700; line-height:1.5; }
 .work-confirm .danger { color:var(--red-d); }
 .acct-privacy a { color:var(--muted); }
