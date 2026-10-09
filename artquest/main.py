@@ -62,7 +62,9 @@ from .prompts import VERSION as PROMPT_VERSION   # 提示词文件的版本号�
 # 于是「到底更新了没有」只能靠猜。
 _SHELL_FILES = ("index.html", "app.js", "log.js", "style.css", "sw.js", "i18n.js", "lang/en.js",
                 "art/buddy/hero.webp", "art/buddy/hero-hand.webp",
-                "art/buddy/hero-feet.webp", "art/buddy/hero-eyes.webp")
+                "art/buddy/hero-feet.webp", "art/buddy/hero-eyes.webp",
+                # 字体子集重裁了也得换外壳，不然装在主屏上的那份还拿旧字体，新文案的字照旧掉成黑体
+                "fonts/rhr-sc-400.woff2", "fonts/rhr-sc-700.woff2", "fonts/nunito-latin.woff2")
 
 
 def shell_version() -> str:

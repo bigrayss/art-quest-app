@@ -1202,20 +1202,27 @@ body[data-room="flow"]  { --room:var(--yellow); --room-d:var(--yellow-d); --room
   max-width:460px; width:100%; box-shadow:0 -8px 40px rgba(0,0,0,.14); }
 .modal-card h3 { margin:0 0 8px; font-size:1.125rem; font-weight:800; }
 /* 课后问卷：一题一行，题目在上、框在下 */
-.opinion-card { max-height:92vh; max-height:92dvh; overflow-y:auto; }   /* 本机 Chrome 106 不认 dvh，先写 vh 兜底 */
+.opinion-card { max-height:92vh; max-height:92dvh; overflow-y:auto; max-width:720px; }   /* 本机 Chrome 106 不认 dvh，先写 vh 兜底 */
+.opinion-card .muted.small { font-size:0.9375rem; }
 .opinion-card textarea { max-width:none; width:100%; min-height:4rem; padding:8px 10px; font-size:0.9375rem; resize:vertical; }
 .opinion-card .actions { margin-top:14px; }
 /* 十道题：三个部分各一个小标题；同意度五颗等宽的词钮一排，「没用过 / 说不清」单独一颗小的在下面；
    选一选是一列整行的钮；写一写是一个框。选中的样子和别处的 chip 一样。 */
-.pu-part { margin:18px 0 4px; font-size:0.8125rem; font-weight:800; color:var(--accent-d); letter-spacing:.02em; }
-.pu-item { padding:10px 0 12px; border-bottom:1px solid var(--line); }
+.pu-part { margin:22px 0 6px; font-size:0.9375rem; font-weight:800; color:var(--accent-d); letter-spacing:.02em; }
+.pu-item { padding:12px 0 14px; border-bottom:1px solid var(--line); }
 .pu-item:last-child { border-bottom:none; }
-.pu-q { font-weight:800; font-size:0.9375rem; line-height:1.45; margin-bottom:8px; }
-.pu-scale { display:grid; grid-template-columns:repeat(5, 1fr); gap:6px; }
-.pu-scale button { padding:9px 2px; font-size:0.75rem; line-height:1.2; white-space:normal; border-radius:10px; }
-.pu-na { margin-top:6px; padding:5px 10px; font-size:0.75rem; font-weight:700; color:var(--muted); border-radius:999px; }
-.pu-opts { display:flex; flex-direction:column; gap:6px; }
-.pu-opts button { text-align:left; padding:9px 12px; font-size:0.9375rem; line-height:1.4; white-space:normal; border-radius:10px; }
+.pu-q { font-weight:800; font-size:1.0625rem; line-height:1.5; margin-bottom:10px; }
+.pu-scale { display:grid; grid-template-columns:repeat(5, 1fr); gap:8px; }
+.pu-scale button { padding:10px 4px; font-size:0.9375rem; line-height:1.25; white-space:normal; border-radius:10px; }
+.pu-na { margin-top:8px; padding:6px 12px; font-size:0.875rem; font-weight:700; color:var(--muted); border-radius:999px; }
+.pu-opts { display:flex; flex-direction:column; gap:8px; }
+.pu-opts button { text-align:left; padding:10px 14px; font-size:1rem; line-height:1.45; white-space:normal; border-radius:10px; }
+.opinion-card textarea { font-size:1rem; }
+@media (max-width:700px) {
+  .pu-q { font-size:1rem; }
+  .pu-scale button { font-size:0.8125rem; padding:9px 2px; }
+  .pu-opts button { font-size:0.9375rem; }
+}
 .pu-scale button.active, .pu-na.active, .pu-opts button.active { background:var(--blue-l); border-color:var(--blue); color:var(--blue-d);
   box-shadow:0 var(--edge) 0 var(--blue); }
 .modal-card .actions.column { margin-top:16px; }

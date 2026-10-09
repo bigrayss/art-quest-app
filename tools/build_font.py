@@ -26,9 +26,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 # 面向孩子的文案散在这些地方
-SOURCES = ["static/index.html", "static/app.js", "static/style.css",
-           "artquest/missions.py", "artquest/quests.py", "artquest/schemas.py",
-           "artquest/feedback", "artquest/scoring", "artquest/rubric.py", "artquest/assist"]
+# 整个 artquest/ 都算：题库 v2、课后问卷、账号/画廊的报错句都在 .py 里，
+# 挑着列总会漏（2026-10-09 漏了 missions_v2 / post_use / main 共一百多个字）。
+# 注释里的字也会进来，粗体那份因此大一点，但「某个字突然变成黑体」更贵。
+SOURCES = ["static/index.html", "static/app.js", "static/style.css", "artquest"]
 
 
 def gb2312_level1() -> set:
