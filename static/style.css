@@ -1085,6 +1085,10 @@ body[data-room="flow"]  { --room:var(--yellow); --room-d:var(--yellow-d); --room
 .acct-text { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .acct-text b { font-size:1rem; font-weight:800; overflow-wrap:anywhere; }
 .acct-text span { font-size:0.7812rem; color:var(--muted-2); font-weight:600; }
+.acct-text .acct-age-link { display:inline; padding:0 0 0 4px; font-size:inherit; font-weight:700; color:var(--blue-d); min-height:0; }
+.acct-age-edit { display:flex; gap:8px; align-items:center; margin-top:10px; }
+.acct-age-edit input { max-width:6rem; margin:0; }
+.pu-age input { max-width:8rem; margin:0; }
 .acct-row .linkbtn { margin-left:auto; flex:0 0 auto; background:none; border:none; box-shadow:none;
   color:var(--muted-2); text-decoration:underline; font-size:0.8125rem; font-weight:800; padding:6px 4px; }
 .acct-row .linkbtn:hover { background:none; color:var(--ink); }

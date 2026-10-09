@@ -123,6 +123,7 @@ class AccountsInARealBrowser(unittest.TestCase):
                 pad.click("#btn-acct-register")
                 pad.fill("#acct-name-input", self.NAME)
                 pad.fill("#acct-pin-input", "2468")
+                pad.fill("#acct-age-input", "13")
                 pad.click("#btn-acct-go")
                 pad.wait_for_selector("#acct-in:not(.hidden)")
                 self.assertEqual(pad.inner_text("#acct-name"), self.NAME)
@@ -177,6 +178,7 @@ class AccountsInARealBrowser(unittest.TestCase):
                 pad.click("#btn-acct-register")
                 pad.fill("#acct-name-input", "领" + self.NAME)
                 pad.fill("#acct-pin-input", "5656")
+                pad.fill("#acct-age-input", "13")
                 pad.click("#btn-acct-go")
                 pad.wait_for_selector("#acct-claim:not(.hidden)")
                 self.assertIn("1 幅", pad.inner_text("#acct-claim-text"))
@@ -205,7 +207,7 @@ class AccountsInARealBrowser(unittest.TestCase):
     def test_deleting_my_own_drawing_takes_two_taps_and_really_removes_it(self):
         """画廊里删掉自己的一张：第二步问在卡片里（不弹系统框），点了才真删。"""
         from artquest.main import store
-        r = self._post("/api/accounts/register", {"name": "删画", "pin": "1357", "anon_id": "dev-del"})
+        r = self._post("/api/accounts/register", {"name": "删画", "pin": "1357", "age": 10, "anon_id": "dev-del"})
         acc = r["account"]["account_id"]
         keep = self._finished_drawing(anon_id="dev-del", account_id=acc)
         gone = self._finished_drawing(anon_id="dev-del", account_id=acc)

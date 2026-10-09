@@ -25,14 +25,19 @@ class SimpleMode(unittest.TestCase):
         self.assertEqual(r.status_code, 201, r.text)
         return r.json()["session"]
 
-    def test_age_is_optional_and_bounded(self):
+    def test_age_is_required_for_students_and_bounded(self):
+        """年龄是学生账号最要紧的属性（2026-10-09 用户定）：不填不给注册；之后能改。"""
         r = self.c.post("/api/accounts/register", json={"name": "七岁", "pin": "1111", "age": 7})
         self.assertEqual(r.status_code, 201, r.text)
         self.assertEqual(r.json()["account"]["age"], 7)
         r = self.c.post("/api/accounts/register", json={"name": "没填", "pin": "1111"})
-        self.assertEqual(r.status_code, 201, r.text)
-        self.assertIsNone(r.json()["account"]["age"])
+        self.assertEqual(r.status_code, 422, r.text)
         self.assertEqual(self.c.post("/api/accounts/register", json={"name": "三十", "pin": "1111", "age": 30}).status_code, 422)
+        tok = self.c.post("/api/accounts/register", json={"name": "填错了", "pin": "1111", "age": 7}).json()["token"]
+        r = self.c.post("/api/accounts/profile", json={"token": tok, "age": 9})
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual(r.json()["account"]["age"], 9)
+        self.assertEqual(self.c.post("/api/accounts/profile", json={"token": tok, "age": 40}).status_code, 422)
 
     def test_the_switch_is_frozen_into_the_session_and_age_rides_along(self):
         s = self._session(condition={"ui": "simple"},

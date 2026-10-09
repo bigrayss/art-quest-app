@@ -163,7 +163,7 @@ class AccountStore:
             "pin": {"algo": "pbkdf2_sha256", "iter": _PBKDF2_ITER, "salt": salt, "hash": _hash_pin(pin, salt)},
             # 伙伴的名字跟着账号走，换台设备它还叫原来那个名字
             "buddy_name": (buddy_name or "").strip()[:16],
-            # 年龄只用来推荐模式和做协变量；不填就是 None
+            # 年龄：学生必填（接口层查），分析时的主协变量，也决定推荐哪个版本；老师是 None
             "age": int(age) if age is not None else None,
             # student | teacher。老师的令牌能进教师端（全部作品、打分）；学生的不能
             "role": "teacher" if role == "teacher" else "student",
@@ -262,6 +262,16 @@ class AccountStore:
         idx = self._index()
         if idx["tokens"].pop(_token_key(token), None) is not None:
             self._write_index(idx)
+
+    def set_age(self, account_id: str, age: int) -> Dict[str, Any]:
+        """年龄是账号最要紧的一项属性（分析时的主协变量、推荐版本的依据）：注册填错了要能改。"""
+        acc = self.load(account_id)
+        if not acc:
+            raise AccountError("no_session", "登录已过期，请重新登录")
+        if not 3 <= int(age) <= 18:
+            raise AccountError("bad_age", "年龄要在 3 到 18 之间")
+        acc["age"] = int(age)
+        return self.public(self._save(acc))
 
     def set_buddy_name(self, account_id: str, buddy_name: str) -> Dict[str, Any]:
         acc = self.load(account_id)

@@ -453,6 +453,19 @@
     if (!acc) return;
     $("#acct-initial").textContent = Array.from(acc.name || "?")[0] || "?";
     $("#acct-name").textContent = acc.name;
+    // 年龄单独一行，点它就能改（老师没有年龄）
+    const ageEl = $("#acct-age");
+    ageEl.classList.toggle("hidden", acc.role === "teacher");
+    ageEl.innerHTML = acc.role === "teacher" ? "" : (acc.age != null
+      ? `${acc.age} 岁 <button class="linkbtn acct-age-link" id="btn-acct-age">改年龄</button>`
+      : `<button class="linkbtn acct-age-link" id="btn-acct-age">还没填年龄，点这里填</button>`);
+    const link = $("#btn-acct-age");
+    if (link) link.onclick = () => {
+      $("#acct-age-edit-input").value = acc.age != null ? String(acc.age) : "";
+      $("#acct-age-edit").classList.remove("hidden");
+      setTimeout(() => $("#acct-age-edit-input").focus(), 50);
+    };
+    $("#acct-age-edit").classList.add("hidden");
     const n = acc.devices || 1;
     $("#acct-sub").textContent = `${sinceText(acc.created_at)}起`
       + (n > 1 ? ` · 在 ${n} 台设备上用过` : " · 只在这台设备上用过");
@@ -461,6 +474,19 @@
     $("#acct-claim-text").textContent = state.unclaimed
       ? `这台设备上还有 ${state.unclaimed} 幅画尚未保存到账号` : "";
   }
+
+  $("#acct-age-edit-input").oninput = (e) => { e.target.value = e.target.value.replace(/\D/g, "").slice(0, 2); };
+  $("#btn-acct-age-cancel").onclick = () => $("#acct-age-edit").classList.add("hidden");
+  $("#btn-acct-age-save").onclick = async () => {
+    const age = parseInt($("#acct-age-edit-input").value, 10);
+    if (!(age >= 3 && age <= 18)) { alert("请填写年龄（3 到 18）"); return; }
+    const b = $("#btn-acct-age-save"); b.disabled = true;
+    try {
+      const r = await api(`${API}/accounts/profile`, { method: "POST", body: JSON.stringify({ token: savedToken(), age }) });
+      state.account = r.account; cacheAccount(r.account); paintAccount();
+    } catch (e) { alert(errText(e)); }
+    finally { b.disabled = false; }
+  };
 
   const acctModal = $("#acct-modal");
   let acctMode = "register";
@@ -512,8 +538,10 @@
           body.teacher_code = $("#acct-code-input").value.trim();
           if (!body.teacher_code) { acctError("请输入老师邀请码"); btn.disabled = false; return; }
         } else {
+          // 年龄是账号最要紧的一项：按年龄分组是研究的主线，也决定推荐哪个版本。学生必填。
           const age = parseInt($("#acct-age-input").value, 10);
-          if (age >= 3 && age <= 18) body.age = age;
+          if (!(age >= 3 && age <= 18)) { acctError("请填写年龄（3 到 18）"); btn.disabled = false; return; }
+          body.age = age;
         }
       }
       const r = await api(`${API}/accounts/${acctMode}`, { method: "POST", body: JSON.stringify(body) });   // register / login / reset
@@ -1204,7 +1232,11 @@
     const body = $("#opinion-body");
     const parts = Object.fromEntries(def.parts.map(pt => [pt.key, pt.zh]));
     let lastPart = "";
-    body.innerHTML = def.items.map(it => {
+    // 年龄：登录着以账号为准（服务器按令牌取）；没登录或账号没填，问卷开头问一句
+    const knownAge = state.account && state.account.age != null;
+    const ageItem = knownAge ? "" : `<div class="pu-item pu-age" data-id="age"><div class="pu-q">你几岁？</div>
+      <input id="opinion-age" class="pin" type="text" inputmode="numeric" maxlength="2" autocomplete="off" placeholder="年龄"></div>`;
+    body.innerHTML = ageItem + def.items.map(it => {
       const head = it.part !== lastPart ? `<h4 class="pu-part">${escapeHtml(parts[it.part] || "")}</h4>` : "";
       lastPart = it.part;
       let ctl = "";
@@ -1219,7 +1251,9 @@
       return `${head}<div class="pu-item" data-id="${it.id}" data-type="${it.type}" data-ex="${(it.exclusive || []).join(",")}">
         <div class="pu-q">${escapeHtml(it.zh)}</div>${ctl}</div>`;
     }).join("");
-    body.querySelectorAll(".pu-item").forEach(row => {
+    const ageIn = $("#opinion-age");
+    if (ageIn) ageIn.oninput = () => { ageIn.value = ageIn.value.replace(/\D/g, "").slice(0, 2); };
+    body.querySelectorAll(".pu-item[data-type]").forEach(row => {
       const id = row.dataset.id, type = row.dataset.type, ex = row.dataset.ex ? row.dataset.ex.split(",") : [];
       const paint = () => {
         const v = opinion.answers[id];
@@ -1261,8 +1295,10 @@
     const err = $("#opinion-err"), def = state.cfg.post_use;
     const btn = $("#btn-opinion-send"), btn2 = $("#btn-opinion-send-anyway"); btn.disabled = btn2.disabled = true;
     try {
+      const ageIn = $("#opinion-age"), askedAge = ageIn ? parseInt(ageIn.value, 10) : NaN;
       await api(`${API}/opinions`, { method: "POST", body: JSON.stringify({
         answers: opinion.answers, instrument: def.instrument, fill_ms: Date.now() - opinion.openedAt,
+        age: askedAge >= 3 && askedAge <= 18 ? askedAge : null,
         account_id: accountId(), anon_id: state.anonId, participant_id: savedPid(), lang: LANG }) });
       opinionModal.classList.add("hidden");
       alert("收到了，谢谢你。");
@@ -1276,7 +1312,7 @@
     err.classList.add("hidden");
     const left = def.items.length - n;
     if (!left) return sendOpinion();
-    $("#opinion-confirm-text").textContent = `还有 ${left} 题没答。`;
+    $("#opinion-confirm-text").textContent = `还有 ${left} 题没答`;
     opinionConfirm(true);
     $("#opinion-confirm").scrollIntoView({ block: "nearest" });
   };

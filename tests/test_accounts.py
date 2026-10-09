@@ -50,12 +50,12 @@ class Registration(unittest.TestCase):
 
     def test_register_then_login_from_another_device(self):
         r = self.c.post("/api/accounts/register",
-                        json={"name": "小满", "pin": "2468", "anon_id": "anon-ipad", "buddy_name": "阿布"})
+                        json={"name": "小满", "pin": "2468", "age": 10, "anon_id": "anon-ipad", "buddy_name": "阿布"})
         self.assertEqual(r.status_code, 201)
         acc = r.json()["account"]
         self.assertEqual(acc["name"], "小满")
         self.assertNotIn("pin", acc)                      # 暗号摘要不出门
-        r2 = self.c.post("/api/accounts/login", json={"name": "小满", "pin": "2468", "anon_id": "anon-phone"})
+        r2 = self.c.post("/api/accounts/login", json={"name": "小满", "pin": "2468", "age": 10, "anon_id": "anon-phone"})
         self.assertEqual(r2.status_code, 200)
         self.assertEqual(r2.json()["account"]["account_id"], acc["account_id"])
         # 伙伴的名字跟着账号走，新设备上不用重起一次
@@ -63,40 +63,40 @@ class Registration(unittest.TestCase):
         self.assertNotEqual(r2.json()["token"], r.json()["token"])   # 一台设备一个令牌
 
     def test_name_is_taken_only_once(self):
-        self.c.post("/api/accounts/register", json={"name": "重名", "pin": "1111"})
-        again = self.c.post("/api/accounts/register", json={"name": " 重名 ", "pin": "2222"})
+        self.c.post("/api/accounts/register", json={"name": "重名", "pin": "1111", "age": 10})
+        again = self.c.post("/api/accounts/register", json={"name": " 重名 ", "pin": "2222", "age": 10})
         self.assertEqual(again.status_code, 409)
         self.assertIn("换一个", again.json()["detail"])
 
     def test_bad_pin_says_nothing_about_the_name(self):
-        self.c.post("/api/accounts/register", json={"name": "猜猜看", "pin": "1357"})
-        wrong = self.c.post("/api/accounts/login", json={"name": "猜猜看", "pin": "0000"})
-        missing = self.c.post("/api/accounts/login", json={"name": "根本没这个人", "pin": "0000"})
+        self.c.post("/api/accounts/register", json={"name": "猜猜看", "pin": "1357", "age": 10})
+        wrong = self.c.post("/api/accounts/login", json={"name": "猜猜看", "pin": "0000", "age": 10})
+        missing = self.c.post("/api/accounts/login", json={"name": "根本没这个人", "pin": "0000", "age": 10})
         self.assertEqual(wrong.status_code, 401)
         # 两句话必须一模一样，否则这个接口就成了「谁注册过」的查询器
         self.assertEqual(wrong.json()["detail"], missing.json()["detail"])
         # 连格式不对的暗号也要一视同仁：光看状态码也不该问出谁注册过
-        here = self.c.post("/api/accounts/login", json={"name": "猜猜看", "pin": "12"})
-        nowhere = self.c.post("/api/accounts/login", json={"name": "根本没这个人", "pin": "12"})
+        here = self.c.post("/api/accounts/login", json={"name": "猜猜看", "pin": "12", "age": 10})
+        nowhere = self.c.post("/api/accounts/login", json={"name": "根本没这个人", "pin": "12", "age": 10})
         self.assertEqual(here.status_code, nowhere.status_code)
 
     def test_pin_must_be_four_digits(self):
-        r = self.c.post("/api/accounts/register", json={"name": "短暗号", "pin": "12"})
+        r = self.c.post("/api/accounts/register", json={"name": "短暗号", "pin": "12", "age": 10})
         self.assertEqual(r.status_code, 400)
         self.assertIn("位数字", r.json()["detail"])
 
     def test_too_many_wrong_pins_cools_down(self):
-        self.c.post("/api/accounts/register", json={"name": "试很多次", "pin": "9090"})
-        codes = [self.c.post("/api/accounts/login", json={"name": "试很多次", "pin": "0001"}).status_code
+        self.c.post("/api/accounts/register", json={"name": "试很多次", "pin": "9090", "age": 10})
+        codes = [self.c.post("/api/accounts/login", json={"name": "试很多次", "pin": "0001", "age": 10}).status_code
                  for _ in range(6)]
         self.assertEqual(codes[-1], 429)          # 四位数字一共一万种，没有冷却等于没有暗号
         # 冷却期间连正确的暗号也先挡住
         self.assertEqual(self.c.post("/api/accounts/login",
-                                     json={"name": "试很多次", "pin": "9090"}).status_code, 429)
+                                     json={"name": "试很多次", "pin": "9090", "age": 10}).status_code, 429)
 
     def test_logout_only_drops_this_device(self):
-        reg = self.c.post("/api/accounts/register", json={"name": "两台", "pin": "1212"}).json()
-        other = self.c.post("/api/accounts/login", json={"name": "两台", "pin": "1212"}).json()
+        reg = self.c.post("/api/accounts/register", json={"name": "两台", "pin": "1212", "age": 10}).json()
+        other = self.c.post("/api/accounts/login", json={"name": "两台", "pin": "1212", "age": 10}).json()
         self.c.post("/api/accounts/logout", json={"token": reg["token"]})
         self.assertEqual(self.c.get("/api/accounts/me", params={"token": reg["token"]}).status_code, 401)
         self.assertEqual(self.c.get("/api/accounts/me", params={"token": other["token"]}).status_code, 200)
@@ -104,23 +104,23 @@ class Registration(unittest.TestCase):
 
     def test_a_forgotten_pin_is_reset_only_on_a_device_that_logged_in_or_by_a_teacher(self):
         """忘了暗号：没有邮箱、没有真名，凭证只有「这台设备登录过」或老师的令牌。"""
-        self.c.post("/api/accounts/register", json={"name": "忘了", "pin": "1111", "anon_id": "dev-mine"})
+        self.c.post("/api/accounts/register", json={"name": "忘了", "pin": "1111", "age": 10, "anon_id": "dev-mine"})
         # 别人的设备拿着名字改不了
-        r = self.c.post("/api/accounts/reset", json={"name": "忘了", "pin": "2222", "anon_id": "dev-stranger"})
+        r = self.c.post("/api/accounts/reset", json={"name": "忘了", "pin": "2222", "age": 10, "anon_id": "dev-stranger"})
         self.assertEqual(r.status_code, 403, r.text)
-        self.assertEqual(self.c.post("/api/accounts/login", json={"name": "忘了", "pin": "1111"}).status_code, 200)
+        self.assertEqual(self.c.post("/api/accounts/login", json={"name": "忘了", "pin": "1111", "age": 10}).status_code, 200)
         # 自己画过画的设备上可以，改完直接是登录态
-        r = self.c.post("/api/accounts/reset", json={"name": "忘了", "pin": "2222", "anon_id": "dev-mine"})
+        r = self.c.post("/api/accounts/reset", json={"name": "忘了", "pin": "2222", "age": 10, "anon_id": "dev-mine"})
         self.assertEqual(r.status_code, 200, r.text)
         self.assertEqual(self.c.get("/api/accounts/me", params={"token": r.json()["token"]}).status_code, 200)
-        self.assertEqual(self.c.post("/api/accounts/login", json={"name": "忘了", "pin": "1111"}).status_code, 401)
-        self.assertEqual(self.c.post("/api/accounts/login", json={"name": "忘了", "pin": "2222"}).status_code, 200)
+        self.assertEqual(self.c.post("/api/accounts/login", json={"name": "忘了", "pin": "1111", "age": 10}).status_code, 401)
+        self.assertEqual(self.c.post("/api/accounts/login", json={"name": "忘了", "pin": "2222", "age": 10}).status_code, 200)
         # 老师带研究员令牌，在任何设备上都能替孩子重设
-        r = self.c.post("/api/accounts/reset", json={"name": "忘了", "pin": "3333", "anon_id": "dev-teacher"}, headers=ADMIN)
+        r = self.c.post("/api/accounts/reset", json={"name": "忘了", "pin": "3333", "age": 10, "anon_id": "dev-teacher"}, headers=ADMIN)
         self.assertEqual(r.status_code, 200, r.text)
-        self.assertEqual(self.c.post("/api/accounts/login", json={"name": "忘了", "pin": "3333"}).status_code, 200)
+        self.assertEqual(self.c.post("/api/accounts/login", json={"name": "忘了", "pin": "3333", "age": 10}).status_code, 200)
         # 不存在的名字：401，和登录一个口径
-        self.assertEqual(self.c.post("/api/accounts/reset", json={"name": "没这人", "pin": "3333"}, headers=ADMIN).status_code, 401)
+        self.assertEqual(self.c.post("/api/accounts/reset", json={"name": "没这人", "pin": "3333", "age": 10}, headers=ADMIN).status_code, 401)
 
 
 class WhoseDrawingIsIt(unittest.TestCase):
@@ -130,19 +130,19 @@ class WhoseDrawingIsIt(unittest.TestCase):
         self.c = TestClient(app)
 
     def test_work_follows_the_child_to_another_device(self):
-        reg = self.c.post("/api/accounts/register", json={"name": "跨设备", "pin": "3434"}).json()
+        reg = self.c.post("/api/accounts/register", json={"name": "跨设备", "pin": "3434", "age": 10}).json()
         acc = reg["account"]
         sid = _draw(self.c, anon_id="anon-ipad-1", account_id=acc["account_id"], token=reg["token"])
         # 手机上：设备代号是另一个，令牌也是另一台设备登录拿到的，但账号是同一个
-        phone = self.c.post("/api/accounts/login", json={"name": "跨设备", "pin": "3434"}).json()["token"]
+        phone = self.c.post("/api/accounts/login", json={"name": "跨设备", "pin": "3434", "age": 10}).json()["token"]
         rows = self.c.get("/api/sessions", params={"anon_id": "anon-phone-1",
                                                    "account_id": acc["account_id"]}, headers=_bearer(phone)).json()
         self.assertIn(sid, [r["session_id"] for r in rows])
 
     def test_saying_you_are_someone_takes_their_token(self):
         """`account_id` 以前是谁传谁生效。现在说自己是谁，就得拿那个账号的令牌。"""
-        a = self.c.post("/api/accounts/register", json={"name": "真身", "pin": "1122"}).json()
-        b = self.c.post("/api/accounts/register", json={"name": "冒名", "pin": "3344"}).json()
+        a = self.c.post("/api/accounts/register", json={"name": "真身", "pin": "1122", "age": 10}).json()
+        b = self.c.post("/api/accounts/register", json={"name": "冒名", "pin": "3344", "age": 10}).json()
         sid = _draw(self.c, anon_id="anon-a", account_id=a["account"]["account_id"], token=a["token"])
         aid = a["account"]["account_id"]
         # 不带令牌：401；带别人的令牌：403；两种都一张画也拿不到
@@ -164,7 +164,7 @@ class WhoseDrawingIsIt(unittest.TestCase):
     def test_a_ticket_spent_offline_needs_no_token_at_replay(self):
         """票是联网时拿着令牌领的，账号那会儿就核过了。离线画完重放的时候
         孩子可能已经退出登录——那幅画不能因此丢在半路。"""
-        reg = self.c.post("/api/accounts/register", json={"name": "离线票", "pin": "5566"}).json()
+        reg = self.c.post("/api/accounts/register", json={"name": "离线票", "pin": "5566", "age": 10}).json()
         aid = reg["account"]["account_id"]
         # 没令牌领不到写着账号的票
         self.assertEqual(self.c.post("/api/tickets", json={"n": 1, "participant": {"account_id": aid}}).status_code, 401)
@@ -177,15 +177,15 @@ class WhoseDrawingIsIt(unittest.TestCase):
         self.assertEqual(r.status_code, 201, r.text)
         self.assertEqual(store.load(t["session_id"])["participant"]["account_id"], aid)
         # 但拿一张别人的票号也换不来别人的身份
-        other = self.c.post("/api/accounts/register", json={"name": "别人", "pin": "7788"}).json()
+        other = self.c.post("/api/accounts/register", json={"name": "别人", "pin": "7788", "age": 10}).json()
         r = self.c.post("/api/sessions", json={"quest_id": "emotion_alone", "session_id": t["session_id"],
                                                "intent": {"emotion": "开心", "text": ""},
                                                "participant": {"anon_id": "anon-t", "account_id": other["account"]["account_id"]}})
         self.assertEqual(r.status_code, 401)
 
     def test_an_accounts_work_never_leaks_to_the_next_child(self):
-        a = self.c.post("/api/accounts/register", json={"name": "甲", "pin": "1010"}).json()
-        b = self.c.post("/api/accounts/register", json={"name": "乙", "pin": "2020"}).json()
+        a = self.c.post("/api/accounts/register", json={"name": "甲", "pin": "1010", "age": 10}).json()
+        b = self.c.post("/api/accounts/register", json={"name": "乙", "pin": "2020", "age": 10}).json()
         shared = "anon-shared-ipad"
         mine = _draw(self.c, anon_id=shared, account_id=a["account"]["account_id"], token=a["token"])
         # 同一台 iPad，换个孩子登录
@@ -200,7 +200,7 @@ class WhoseDrawingIsIt(unittest.TestCase):
         anon = "anon-claim"
         old = _draw(self.c, anon_id=anon)                       # 注册之前画的，没有主人
         reg = self.c.post("/api/accounts/register",
-                          json={"name": "认领", "pin": "5656", "anon_id": anon}).json()
+                          json={"name": "认领", "pin": "5656", "age": 10, "anon_id": anon}).json()
         me = self.c.get("/api/accounts/me", params={"token": reg["token"], "anon_id": anon}).json()
         self.assertEqual(me["unclaimed_here"], 1)
         self.assertFalse(me["claimed_here"])
@@ -222,15 +222,15 @@ class WhoseDrawingIsIt(unittest.TestCase):
         anon = "anon-contested"
         _draw(self.c, anon_id=anon)
         first = self.c.post("/api/accounts/register",
-                            json={"name": "先来", "pin": "7070", "anon_id": anon}).json()
+                            json={"name": "先来", "pin": "7070", "age": 10, "anon_id": anon}).json()
         second = self.c.post("/api/accounts/register",
-                             json={"name": "后到", "pin": "8080", "anon_id": anon}).json()
+                             json={"name": "后到", "pin": "8080", "age": 10, "anon_id": anon}).json()
         self.c.post("/api/accounts/claim", json={"token": first["token"], "anon_id": anon})
         r = self.c.post("/api/accounts/claim", json={"token": second["token"], "anon_id": anon})
         self.assertEqual(r.status_code, 409)
 
     def test_growth_follows_the_account(self):
-        reg = self.c.post("/api/accounts/register", json={"name": "成长", "pin": "4321"}).json()
+        reg = self.c.post("/api/accounts/register", json={"name": "成长", "pin": "4321", "age": 10}).json()
         acc = reg["account"]
         _draw(self.c, anon_id="anon-g1", account_id=acc["account_id"], token=reg["token"])
         g = self.c.get("/api/participants/%20/growth",
@@ -250,7 +250,7 @@ class WhoseDrawingIsIt(unittest.TestCase):
         self.assertEqual(self.c.get("/api/sessions", params={"account_id": "../../etc"}, headers=ADMIN).json(), [])
 
     def test_researcher_view_still_sees_everything(self):
-        reg = self.c.post("/api/accounts/register", json={"name": "全量", "pin": "6543"}).json()
+        reg = self.c.post("/api/accounts/register", json={"name": "全量", "pin": "6543", "age": 10}).json()
         acc = reg["account"]
         sid = _draw(self.c, anon_id="anon-r", account_id=acc["account_id"], token=reg["token"])
         self.assertIn(sid, [r["session_id"] for r in self.c.get("/api/sessions", headers=ADMIN).json()])
@@ -269,7 +269,7 @@ class Withdrawal(unittest.TestCase):
 
         c = TestClient(app)
         reg = c.post("/api/accounts/register",
-                     json={"name": "要撤回的", "pin": "1919", "anon_id": "anon-wd"}).json()
+                     json={"name": "要撤回的", "pin": "1919", "age": 10, "anon_id": "anon-wd"}).json()
         acc_id = reg["account"]["account_id"]
         sid = _draw(c, anon_id="anon-wd", account_id=acc_id, token=reg["token"])
 
@@ -284,9 +284,9 @@ class Withdrawal(unittest.TestCase):
         self.assertIsNone(AccountStore().load(acc_id))
         # 名字也跟着释放：撤回之后别人能再用这个名字注册
         self.assertEqual(c.post("/api/accounts/register",
-                                json={"name": "要撤回的", "pin": "2929"}).status_code, 201)
+                                json={"name": "要撤回的", "pin": "2929", "age": 10}).status_code, 201)
         self.assertEqual(c.post("/api/accounts/login",
-                                json={"name": "要撤回的", "pin": "1919"}).status_code, 401)
+                                json={"name": "要撤回的", "pin": "1919", "age": 10}).status_code, 401)
 
 
 class StoreRules(unittest.TestCase):
@@ -313,7 +313,7 @@ class DeletingMyOwnDrawing(unittest.TestCase):
         self.c = TestClient(app)
 
     def test_the_owner_can_really_delete_and_a_stranger_cannot_even_tell_it_exists(self):
-        r = self.c.post("/api/accounts/register", json={"name": "删删", "pin": "1357", "anon_id": "dev-del"}).json()
+        r = self.c.post("/api/accounts/register", json={"name": "删删", "pin": "1357", "age": 10, "anon_id": "dev-del"}).json()
         tok, acc = r["token"], r["account"]["account_id"]
         sid = _draw(self.c, anon_id="dev-del", account_id=acc, token=tok)
         d = store.root / sid
@@ -323,7 +323,7 @@ class DeletingMyOwnDrawing(unittest.TestCase):
         self.assertEqual(self.c.delete(f"/api/sessions/{sid}?anon_id=dev-other").status_code, 404)
         self.assertTrue(d.is_dir(), "陌生人删不掉")
         # 冒认别人的账号：带错令牌是 403（和 /sessions 的 _check_owner 一致）
-        other = self.c.post("/api/accounts/register", json={"name": "路人", "pin": "2468", "anon_id": "dev-x"}).json()
+        other = self.c.post("/api/accounts/register", json={"name": "路人", "pin": "2468", "age": 10, "anon_id": "dev-x"}).json()
         self.assertEqual(self.c.delete(f"/api/sessions/{sid}?account_id={acc}",
                                        headers=_bearer(other["token"])).status_code, 403)
         self.assertTrue(d.is_dir())
@@ -341,7 +341,7 @@ class DeletingMyOwnDrawing(unittest.TestCase):
                                        headers=_bearer(tok)).status_code, 404)
 
     def test_the_receipt_says_what_went_and_carries_no_content(self):
-        r = self.c.post("/api/accounts/register", json={"name": "回执", "pin": "1111", "anon_id": "dev-rec"}).json()
+        r = self.c.post("/api/accounts/register", json={"name": "回执", "pin": "1111", "age": 10, "anon_id": "dev-rec"}).json()
         tok, acc = r["token"], r["account"]["account_id"]
         sid = _draw(self.c, anon_id="dev-rec", account_id=acc, token=tok)
         self.c.delete(f"/api/sessions/{sid}?anon_id=dev-rec&account_id={acc}", headers=_bearer(tok))

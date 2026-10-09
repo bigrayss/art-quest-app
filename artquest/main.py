@@ -230,7 +230,7 @@ OPINIONS_DIR = SESSIONS_DIR.parent / "opinions"
 
 
 @api.post("/opinions", status_code=201)
-def post_opinion(body: Opinion):
+def post_opinion(body: Opinion, request: Request):
     if body.instrument and body.instrument != post_use.INSTRUMENT:
         raise HTTPException(422, f"问卷版本不对：{body.instrument}，现在是 {post_use.INSTRUMENT}")
     try:
@@ -240,8 +240,15 @@ def post_opinion(body: Opinion):
     if not answers:
         raise HTTPException(422, "尚未填写")
     OPINIONS_DIR.mkdir(parents=True, exist_ok=True)
+    # 年龄：登录着就以账号为准（令牌说了算，不信 body 里的 account_id）；没登录或账号没填，用问卷里问到的
+    acc = accounts.by_token(_token(request, "")) if _token(request, "") else None
+    age, age_source = None, ""
+    if acc and acc.get("age") is not None:
+        age, age_source = acc["age"], "account"
+    elif body.age is not None:
+        age, age_source = body.age, "asked"
     rec = {"opinion_id": "op-" + secrets.token_hex(6), "ts": now_iso(), "instrument": post_use.INSTRUMENT,
-           "answers": answers, "fill_ms": body.fill_ms,
+           "answers": answers, "fill_ms": body.fill_ms, "age": age, "age_source": age_source,
            "account_id": body.account_id, "anon_id": body.anon_id, "participant_id": body.participant_id, "lang": body.lang}
     (OPINIONS_DIR / f"{rec['ts'][:19].replace(':', '-')}-{rec['opinion_id']}.json").write_text(
         json.dumps(rec, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -475,6 +482,9 @@ def account_register(body: Register):
             raise HTTPException(403, "当前服务器未开放老师注册")
         if not secrets.compare_digest(body.teacher_code or "", code):
             raise HTTPException(403, "邀请码不正确")
+    elif body.age is None:
+        # 年龄是学生账号最要紧的属性：按年龄分组是研究的主线，也决定推荐哪个版本。
+        raise HTTPException(422, "请填写年龄")
     try:
         return accounts.register(body.name, body.pin, anon_id=body.anon_id, buddy_name=body.buddy_name,
                                  age=body.age, role=body.role)
@@ -531,7 +541,12 @@ def account_profile(body: ProfileUpdate, request: Request):
     """伙伴的名字跟着账号走，换台设备它还叫原来那个名字。"""
     acc = _require_account(request, body.token)
     try:
-        return {"ok": True, "account": accounts.set_buddy_name(acc["account_id"], body.buddy_name)}
+        pub = None
+        if body.age is not None:
+            pub = accounts.set_age(acc["account_id"], body.age)
+        if body.buddy_name or body.age is None:        # 只改年龄的请求不动伙伴的名字
+            pub = accounts.set_buddy_name(acc["account_id"], body.buddy_name)
+        return {"ok": True, "account": pub}
     except AccountError as e:
         raise _account_error(e)
 

@@ -269,8 +269,14 @@
   <div class="acct hidden" id="acct-in">
     <div class="acct-row">
       <span class="acct-badge" id="acct-initial"></span>
-      <div class="acct-text"><b id="acct-name"></b><span id="acct-sub"></span></div>
+      <div class="acct-text"><b id="acct-name"></b><span id="acct-age"></span><span id="acct-sub"></span></div>
       <button class="linkbtn" id="btn-acct-logout">退出登录</button>
+    </div>
+    <!-- 年龄：注册时必填，填错了在这儿改。一行：输入框 + 保存 -->
+    <div class="acct-age-edit hidden" id="acct-age-edit">
+      <input id="acct-age-edit-input" class="pin" type="text" inputmode="numeric" maxlength="2" autocomplete="off" placeholder="年龄">
+      <button class="secondary" id="btn-acct-age-save">保存</button>
+      <button class="ghost" id="btn-acct-age-cancel">取消</button>
     </div>
     <div class="acct-claim hidden" id="acct-claim">
       <span id="acct-claim-text"></span>
@@ -634,7 +640,7 @@
       <button type="button" data-role="teacher">我是老师</button>
     </div>
     <input id="acct-age-input" class="pin" type="text" inputmode="numeric" maxlength="2"
-           autocomplete="off" placeholder="年龄（选填）">
+           autocomplete="off" placeholder="年龄">
     <input id="acct-code-input" class="hidden" type="text" autocomplete="off" autocapitalize="off"
            spellcheck="false" placeholder="老师邀请码">
     <p class="acct-err hidden" id="acct-err"></p>

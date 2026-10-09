@@ -30,7 +30,7 @@ class TeacherSide(unittest.TestCase):
         self.c = TestClient(app)
 
     def _finished_session(self, name="小画家", pin="1111", revise=True):
-        r = self.c.post("/api/accounts/register", json={"name": name, "pin": pin, "anon_id": "dev-" + name})
+        r = self.c.post("/api/accounts/register", json={"name": name, "pin": pin, "age": 10, "anon_id": "dev-" + name})
         if r.status_code == 409:
             r = self.c.post("/api/accounts/login", json={"name": name, "pin": pin, "anon_id": "dev-" + name})
         tok, acc = r.json()["token"], r.json()["account"]
@@ -50,7 +50,7 @@ class TeacherSide(unittest.TestCase):
     def _teacher(self, name="王老师", code="code-777"):
         r = self.c.post("/api/accounts/register", json={"name": name, "pin": "2222", "role": "teacher", "teacher_code": code})
         if r.status_code == 409:      # 数据目录跨进程复用时（ARTQUEST_DATA_DIR 指定了）名字会撞：登录就行
-            r = self.c.post("/api/accounts/login", json={"name": name, "pin": "2222"})
+            r = self.c.post("/api/accounts/login", json={"name": name, "pin": "2222", "age": 10})
         return r
 
     def test_a_teacher_needs_the_invite_code_and_a_student_cannot_enter(self):
@@ -59,7 +59,7 @@ class TeacherSide(unittest.TestCase):
         self.assertEqual(r.status_code, 201, r.text)
         self.assertEqual(r.json()["account"]["role"], "teacher")
         teacher = {"Authorization": f"Bearer {r.json()['token']}"}
-        student = self.c.post("/api/accounts/register", json={"name": "学生甲", "pin": "3333"}).json()
+        student = self.c.post("/api/accounts/register", json={"name": "学生甲", "pin": "3333", "age": 10}).json()
         self.assertEqual(student["account"]["role"], "student")
         self.assertEqual(self.c.get("/api/teacher/sessions", headers={"Authorization": f"Bearer {student['token']}"}).status_code, 403)
         self.assertEqual(self.c.get("/api/teacher/sessions").status_code, 401)
@@ -170,7 +170,7 @@ class TeacherSide(unittest.TestCase):
 
 
     def test_the_rubric_reference_is_for_teachers_and_carries_all_nine_dimensions_in_both_languages(self):
-        student = self.c.post("/api/accounts/register", json={"name": "学生乙", "pin": "3333"}).json()
+        student = self.c.post("/api/accounts/register", json={"name": "学生乙", "pin": "3333", "age": 10}).json()
         self.assertEqual(self.c.get("/api/teacher/rubric", headers={"Authorization": f"Bearer {student['token']}"}).status_code, 403)
         self.assertEqual(self.c.get("/api/teacher/rubric").status_code, 401)
         teacher = {"Authorization": f"Bearer {self._teacher('孙老师').json()['token']}"}

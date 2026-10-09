@@ -43,6 +43,16 @@ class StageOneLoop(unittest.TestCase):
         self.assertEqual(mine["answers"], {"q1": 4, "q2": "na", "q3": 5, "q7": "B", "q8": "A", "q9": ["A", "C"], "q10": "想要更多颜色"},
                          "没写的和不认识的题不存；多选去重、按选项顺序")
         self.assertEqual((mine["instrument"], mine["fill_ms"], mine["anon_id"]), ("post-use/1.0", 180000, "dev-op"))
+        self.assertEqual((mine["age"], mine["age_source"]), (None, ""))
+        # 没登录：问卷里问到的年龄记下来；登录着：以账号为准，body 里的不算
+        r = self.c.post("/api/opinions", json={"answers": {"q1": 3}, "age": 9})
+        self.assertEqual(r.json()["opinion_id"] and self._opinion(r.json()["opinion_id"])["age_source"], "asked")
+        tok = self.c.post("/api/accounts/register", json={"name": "问卷十岁", "pin": "1111", "age": 10}).json()["token"]
+        r = self.c.post("/api/opinions", json={"answers": {"q1": 3}, "age": 9}, headers={"Authorization": f"Bearer {tok}"})
+        self.assertEqual((self._opinion(r.json()["opinion_id"])["age"], self._opinion(r.json()["opinion_id"])["age_source"]), (10, "account"))
+
+    def _opinion(self, oid):
+        return next(o for o in self.c.get("/api/opinions", headers=ADMIN).json()["opinions"] if o["opinion_id"] == oid)
         self.assertEqual([it["id"] for it in res["instrument"]["items"]], [f"q{i}" for i in range(1, 11)])
         self.assertIn('id="opinion-modal"', self.c.get("/").text)
         # 界面拿到的题目和研究员拿到的是同一份

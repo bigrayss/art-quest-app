@@ -153,7 +153,7 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
 
             # 起个名字 → 封面 + 导览；「我的」里是登录态
             page.click("#btn-welcome-register")
-            page.fill("#acct-name-input", "门口人"); page.fill("#acct-pin-input", "1357")
+            page.fill("#acct-name-input", "门口人"); page.fill("#acct-pin-input", "1357"); page.fill("#acct-age-input", "13")
             page.click("#btn-acct-go")
             page.wait_for_selector("#view-world:not(.hidden)")
             page.wait_for_selector("#tour:not(.hidden)")
