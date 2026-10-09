@@ -1202,29 +1202,47 @@ body[data-room="flow"]  { --room:var(--yellow); --room-d:var(--yellow-d); --room
   max-width:460px; width:100%; box-shadow:0 -8px 40px rgba(0,0,0,.14); }
 .modal-card h3 { margin:0 0 8px; font-size:1.125rem; font-weight:800; }
 /* 课后问卷：一题一行，题目在上、框在下 */
-.opinion-card { max-height:92vh; max-height:92dvh; overflow-y:auto; max-width:720px; }   /* 本机 Chrome 106 不认 dvh，先写 vh 兜底 */
-.opinion-card .muted.small { font-size:0.9375rem; }
-.opinion-card textarea { max-width:none; width:100%; min-height:4rem; padding:8px 10px; font-size:0.9375rem; resize:vertical; }
-.opinion-card .actions { margin-top:14px; }
-/* 十道题：三个部分各一个小标题；同意度五颗等宽的词钮一排，「没用过 / 说不清」单独一颗小的在下面；
-   选一选是一列整行的钮；写一写是一个框。选中的样子和别处的 chip 一样。 */
-.pu-part { margin:22px 0 6px; font-size:0.9375rem; font-weight:800; color:var(--accent-d); letter-spacing:.02em; }
-.pu-item { padding:12px 0 14px; border-bottom:1px solid var(--line); }
+/* ===== 课后问卷 =====
+   三档宽度：手机一列、平板两列选项、电脑上「同意不同意」题目在左五颗钮在右。
+   字重用正文的 600，不用按钮默认的 800——十道题一屏全是粗体就糊成一片。
+   本机 Chrome 106 不认 dvh，先写 vh 兜底。 */
+.opinion-card { max-height:92vh; max-height:92dvh; overflow-y:auto; padding:22px 18px calc(24px + env(safe-area-inset-bottom)); }
+.opinion-card h3 { font-size:1.25rem; }
+.opinion-card .muted.small { font-size:0.9375rem; line-height:1.5; margin:0 0 4px; }
+.opinion-card textarea { max-width:none; width:100%; min-height:4.5rem; padding:10px 12px; font-size:1rem; font-weight:600; line-height:1.5; resize:vertical; }
+.opinion-card .actions { margin-top:18px; }
+.pu-part { margin:26px 0 6px; font-size:0.8125rem; font-weight:800; color:var(--accent-d); letter-spacing:.06em; }
+.pu-part:first-child { margin-top:14px; }
+.pu-item { padding:16px 0 18px; border-bottom:1px solid var(--line); }
 .pu-item:last-child { border-bottom:none; }
-.pu-q { font-weight:800; font-size:1.0625rem; line-height:1.5; margin-bottom:10px; }
-.pu-scale { display:grid; grid-template-columns:repeat(5, 1fr); gap:8px; }
-.pu-scale button { padding:10px 4px; font-size:0.9375rem; line-height:1.25; white-space:normal; border-radius:10px; }
-.pu-na { margin-top:8px; padding:6px 12px; font-size:0.875rem; font-weight:700; color:var(--muted); border-radius:999px; }
-.pu-opts { display:flex; flex-direction:column; gap:8px; }
-.pu-opts button { text-align:left; padding:10px 14px; font-size:1rem; line-height:1.45; white-space:normal; border-radius:10px; }
-.opinion-card textarea { font-size:1rem; }
-@media (max-width:700px) {
-  .pu-q { font-size:1rem; }
-  .pu-scale button { font-size:0.8125rem; padding:9px 2px; }
-  .pu-opts button { font-size:0.9375rem; }
-}
-.pu-scale button.active, .pu-na.active, .pu-opts button.active { background:var(--blue-l); border-color:var(--blue); color:var(--blue-d);
+.pu-q { font-weight:600; font-size:1rem; line-height:1.55; margin-bottom:12px; }
+.pu-scale { display:grid; grid-template-columns:repeat(5, 1fr); gap:6px; }
+.pu-scale button { font-weight:600; padding:11px 2px; font-size:0.8125rem; line-height:1.25; white-space:normal; border-radius:10px; }
+.pu-na { margin-top:8px; padding:6px 12px; font-size:0.8125rem; font-weight:600; color:var(--muted); border-radius:999px; box-shadow:none; }
+.pu-opts { display:grid; grid-template-columns:1fr; gap:8px; }
+.pu-opts button { font-weight:600; justify-content:flex-start; text-align:left; padding:11px 14px; font-size:0.9375rem; line-height:1.45; white-space:normal; border-radius:10px; }
+.pu-scale button.active, .pu-na.active, .pu-opts button.active { background:var(--blue-l); border-color:var(--blue); color:var(--blue-d); font-weight:800;
   box-shadow:0 var(--edge) 0 var(--blue); }
+/* 平板：卡加宽，字放大一档，选项两列 */
+@media (min-width:700px) {
+  .opinion-card { max-width:760px; padding:28px 32px calc(28px + env(safe-area-inset-bottom)); }
+  .pu-q { font-size:1.0625rem; }
+  .pu-scale { gap:8px; }
+  .pu-scale button { font-size:0.9375rem; padding:11px 4px; }
+  .pu-na { font-size:0.875rem; }
+  .pu-opts { grid-template-columns:1fr 1fr; gap:10px; }
+  .pu-opts button { font-size:1rem; }
+  .pu-item { padding:18px 0 20px; }
+}
+/* 电脑：卡居中、四角圆；同意度题目在左、五颗钮在右 */
+@media (min-width:1100px) {
+  #opinion-modal { align-items:center; }
+  .opinion-card { max-width:960px; max-height:88vh; border-radius:var(--r-lg); padding:32px 44px; }
+  .pu-item[data-type="likert"] { display:grid; grid-template-columns:1fr 520px; column-gap:32px; align-items:center; }
+  .pu-item[data-type="likert"] .pu-q { margin:0; }
+  .pu-item[data-type="likert"] .pu-na { grid-column:2; justify-self:start; margin-top:6px; }
+  .pu-part { font-size:0.875rem; }
+}
 .modal-card .actions.column { margin-top:16px; }
 
 /* ===== 第一次进来的导览 =====
