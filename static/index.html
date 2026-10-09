@@ -511,20 +511,25 @@
 </div><!-- /.app -->
 
 <!-- 被老师选为优秀作品：先问本人 -->
-<!-- 课后问卷：几道开放题，都可不填，不打分。答案存服务器 data/opinions/ -->
+<!-- 课后问卷：post_use.py 的十道题（六道同意度、三道选一选、一道写一写），题目从 /api/config 来，
+     打开时由 JS 摆出来。都可以跳过，不打分。答案存服务器 data/opinions/。 -->
 <div class="modal hidden" id="opinion-modal">
   <div class="modal-card opinion-card">
     <h3>问卷</h3>
-    <p class="muted small">想到什么就写什么，不必每题都回答。</p>
-    <label>你最喜欢哪个任务？为什么？<textarea rows="2" data-q="liked"></textarea></label>
-    <label>有没有不好用或看不懂的地方？<textarea rows="2" data-q="stuck"></textarea></label>
-    <label>画完后，彩点的话对你有帮助吗？<textarea rows="2" data-q="feedback"></textarea></label>
-    <label>你觉得哪里可以改一改，或者加点什么？<textarea rows="2" data-q="change"></textarea></label>
-    <label>还有想说的吗？<textarea rows="2" data-q="more"></textarea></label>
+    <p class="muted small">没有对错，按自己真实的想法选。老师和同学看不到你的回答。</p>
+    <div id="opinion-body"></div>
     <p class="acct-err hidden" id="opinion-err"></p>
-    <div class="actions">
+    <div class="actions" id="opinion-actions">
       <button class="ghost" id="btn-opinion-cancel">取消</button>
-      <button class="primary grow" id="btn-opinion-send">交给老师</button>
+      <button class="primary grow" id="btn-opinion-send">交上去</button>
+    </div>
+    <!-- 还有没答的：在卡里问一句，不弹系统框 -->
+    <div class="work-confirm hidden" id="opinion-confirm">
+      <p id="opinion-confirm-text"></p>
+      <div class="actions column">
+        <button class="primary" id="btn-opinion-back">回去看看</button>
+        <button class="ghost" id="btn-opinion-send-anyway">就这样交</button>
+      </div>
     </div>
   </div>
 </div>

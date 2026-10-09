@@ -1192,26 +1192,96 @@
   $("#btn-tour-skip").onclick = endTour;
   $("#btn-guide-again").onclick = () => { show("world"); renderWorld().then(startTour); };
 
-  // ---------- 课后问卷：对 app 的看法 ----------
-  // 几道开放题，不打分，都可不填。交上去存服务器，和账号 / 设备对上，研究员从 /opinions 看。
+  // ---------- 课后问卷：Post-use Structured Questionnaire ----------
+  // 题目在服务器 post_use.py，/api/config 的 post_use 发过来：六道「同意不同意」（五个词 + 「没用过 / 说不清」）、
+  // 两道单选、一道多选（F/G 和别的互斥）、一道写一写。都可以跳过；有没答的在卡里问一句再交。
+  // 交上去存服务器，和账号 / 设备对上，研究员从 /opinions 看。
   const opinionModal = $("#opinion-modal");
-  $("#btn-opinion").onclick = () => { $("#opinion-err").classList.add("hidden"); opinionModal.classList.remove("hidden"); };
+  const opinion = { answers: {}, openedAt: 0 };
+  function renderOpinion() {
+    const def = state.cfg.post_use; if (!def) return;
+    opinion.answers = {};
+    const body = $("#opinion-body");
+    const parts = Object.fromEntries(def.parts.map(pt => [pt.key, pt.zh]));
+    let lastPart = "";
+    body.innerHTML = def.items.map(it => {
+      const head = it.part !== lastPart ? `<h4 class="pu-part">${escapeHtml(parts[it.part] || "")}</h4>` : "";
+      lastPart = it.part;
+      let ctl = "";
+      if (it.type === "likert") {
+        ctl = `<div class="pu-scale">${def.likert.map(l => `<button type="button" data-v="${l.value}">${escapeHtml(l.zh)}</button>`).join("")}</div>
+          <button type="button" class="pu-na" data-v="${def.na.key}">${escapeHtml(def.na.zh)}</button>`;
+      } else if (it.type === "single" || it.type === "multi") {
+        ctl = `<div class="pu-opts">${it.options.map(o => `<button type="button" data-v="${o.key}">${escapeHtml(o.zh)}</button>`).join("")}</div>`;
+      } else {
+        ctl = `<textarea rows="3" data-open="1"></textarea>`;
+      }
+      return `${head}<div class="pu-item" data-id="${it.id}" data-type="${it.type}" data-ex="${(it.exclusive || []).join(",")}">
+        <div class="pu-q">${escapeHtml(it.zh)}</div>${ctl}</div>`;
+    }).join("");
+    body.querySelectorAll(".pu-item").forEach(row => {
+      const id = row.dataset.id, type = row.dataset.type, ex = row.dataset.ex ? row.dataset.ex.split(",") : [];
+      const paint = () => {
+        const v = opinion.answers[id];
+        row.querySelectorAll("button").forEach(b => b.classList.toggle("active",
+          type === "multi" ? (v || []).includes(b.dataset.v) : String(v) === b.dataset.v));
+      };
+      row.querySelectorAll("button").forEach(b => b.onclick = () => {
+        const k = b.dataset.v;
+        if (type === "multi") {
+          let cur = opinion.answers[id] || [];
+          if (cur.includes(k)) cur = cur.filter(x => x !== k);
+          else if (ex.includes(k)) cur = [k];                  // 「不希望」「不确定」单独成答案
+          else cur = cur.filter(x => !ex.includes(x)).concat(k);
+          if (cur.length) opinion.answers[id] = cur; else delete opinion.answers[id];
+        } else {
+          const val = type === "likert" && k !== "na" ? +k : k;
+          if (opinion.answers[id] === val) delete opinion.answers[id]; else opinion.answers[id] = val;   // 再点一下取消
+        }
+        paint();
+      });
+      const ta = row.querySelector("textarea");
+      if (ta) ta.oninput = () => { if (ta.value.trim()) opinion.answers[id] = ta.value.trim(); else delete opinion.answers[id]; };
+    });
+  }
+  const opinionConfirm = (on) => {
+    $("#opinion-actions").classList.toggle("hidden", on);
+    $("#opinion-confirm").classList.toggle("hidden", !on);
+  };
+  $("#btn-opinion").onclick = () => {
+    $("#opinion-err").classList.add("hidden");
+    opinionConfirm(false);
+    renderOpinion();
+    opinion.openedAt = Date.now();
+    opinionModal.classList.remove("hidden");
+    opinionModal.querySelector(".modal-card").scrollTop = 0;
+  };
   $("#btn-opinion-cancel").onclick = () => opinionModal.classList.add("hidden");
-  $("#btn-opinion-send").onclick = async () => {
-    const answers = {};
-    opinionModal.querySelectorAll("textarea[data-q]").forEach(t => { if (t.value.trim()) answers[t.dataset.q] = t.value.trim(); });
-    const err = $("#opinion-err");
-    if (!Object.keys(answers).length) { err.textContent = "还没有填写评语。"; err.classList.remove("hidden"); return; }
-    const btn = $("#btn-opinion-send"); btn.disabled = true;
+  async function sendOpinion() {
+    const err = $("#opinion-err"), def = state.cfg.post_use;
+    const btn = $("#btn-opinion-send"), btn2 = $("#btn-opinion-send-anyway"); btn.disabled = btn2.disabled = true;
     try {
       await api(`${API}/opinions`, { method: "POST", body: JSON.stringify({
-        answers, account_id: accountId(), anon_id: state.anonId, participant_id: savedPid(), lang: LANG }) });
-      opinionModal.querySelectorAll("textarea[data-q]").forEach(t => { t.value = ""; });
+        answers: opinion.answers, instrument: def.instrument, fill_ms: Date.now() - opinion.openedAt,
+        account_id: accountId(), anon_id: state.anonId, participant_id: savedPid(), lang: LANG }) });
       opinionModal.classList.add("hidden");
       alert("收到了，谢谢你。");
-    } catch (e) { err.textContent = errText(e); err.classList.remove("hidden"); }
-    finally { btn.disabled = false; }
+    } catch (e) { opinionConfirm(false); err.textContent = errText(e); err.classList.remove("hidden"); }
+    finally { btn.disabled = btn2.disabled = false; }
+  }
+  $("#btn-opinion-send").onclick = () => {
+    const err = $("#opinion-err"), def = state.cfg.post_use;
+    const n = Object.keys(opinion.answers).length;
+    if (!n) { err.textContent = "还没有回答任何一题。"; err.classList.remove("hidden"); return; }
+    err.classList.add("hidden");
+    const left = def.items.length - n;
+    if (!left) return sendOpinion();
+    $("#opinion-confirm-text").textContent = `还有 ${left} 题没答。`;
+    opinionConfirm(true);
+    $("#opinion-confirm").scrollIntoView({ block: "nearest" });
   };
+  $("#btn-opinion-back").onclick = () => opinionConfirm(false);
+  $("#btn-opinion-send-anyway").onclick = sendOpinion;
   window.addEventListener("resize", () => { if (tourOn) placeTour(); });
   // 转屏、分屏、收起侧栏——地方都挪了，小路得跟着重画
   let mapPathTimer = 0;

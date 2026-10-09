@@ -32,15 +32,29 @@ class StageOneLoop(unittest.TestCase):
         self.c = TestClient(app)
 
     def test_the_opinion_survey_is_stored_and_only_the_researcher_can_read_it(self):
-        self.assertEqual(self.c.post("/api/opinions", json={"answers": {"liked": "  "}}).status_code, 422)
-        r = self.c.post("/api/opinions", json={"answers": {"liked": "线条冒险", "change": "想要更多颜色", "bogus": "x"}, "anon_id": "dev-op"})
+        """课后问卷 Post-use v1.0：十道题的答案按题型校验后存一条；只有研究员能列，列出来连题目定义一起。"""
+        self.assertEqual(self.c.post("/api/opinions", json={"answers": {"q10": "  "}}).status_code, 422)
+        full = {"q1": 4, "q2": "na", "q3": 5, "q7": "B", "q8": "A", "q9": ["C", "A", "C"], "q10": " 想要更多颜色 ", "bogus": "x"}
+        r = self.c.post("/api/opinions", json={"answers": full, "instrument": "post-use/1.0", "fill_ms": 180000, "anon_id": "dev-op"})
         self.assertEqual(r.status_code, 201, r.text)
         self.assertEqual(self.c.get("/api/opinions").status_code, 401)
-        rows = self.c.get("/api/opinions", headers=ADMIN).json()["opinions"]
-        mine = next(o for o in rows if o["opinion_id"] == r.json()["opinion_id"])
-        self.assertEqual(mine["answers"], {"liked": "线条冒险", "change": "想要更多颜色"}, "没写的和不认识的题不存")
-        self.assertEqual(mine["anon_id"], "dev-op")
+        res = self.c.get("/api/opinions", headers=ADMIN).json()
+        mine = next(o for o in res["opinions"] if o["opinion_id"] == r.json()["opinion_id"])
+        self.assertEqual(mine["answers"], {"q1": 4, "q2": "na", "q3": 5, "q7": "B", "q8": "A", "q9": ["A", "C"], "q10": "想要更多颜色"},
+                         "没写的和不认识的题不存；多选去重、按选项顺序")
+        self.assertEqual((mine["instrument"], mine["fill_ms"], mine["anon_id"]), ("post-use/1.0", 180000, "dev-op"))
+        self.assertEqual([it["id"] for it in res["instrument"]["items"]], [f"q{i}" for i in range(1, 11)])
         self.assertIn('id="opinion-modal"', self.c.get("/").text)
+        # 界面拿到的题目和研究员拿到的是同一份
+        self.assertEqual(self.c.get("/api/config").json()["post_use"], res["instrument"])
+
+    def test_the_opinion_survey_rejects_values_that_are_not_on_the_form(self):
+        """不合法的值要 422，不能悄悄丢——丢了等于存了一份假的「没答」。"""
+        for bad in ({"q1": 9}, {"q1": "yes"}, {"q7": "Z"}, {"q9": ["F", "A"]}, {"q9": "A"}):
+            self.assertEqual(self.c.post("/api/opinions", json={"answers": bad}).status_code, 422, bad)
+        self.assertEqual(self.c.post("/api/opinions", json={"answers": {"q1": 3}, "instrument": "post-use/0.9"}).status_code, 422)
+        # 「不确定」单独选是合法的
+        self.assertEqual(self.c.post("/api/opinions", json={"answers": {"q9": ["G"]}}).status_code, 201)
 
     def test_the_privacy_policy_is_served_and_linked(self):
         r = self.c.get("/privacy")

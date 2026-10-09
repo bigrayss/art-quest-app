@@ -247,8 +247,14 @@ class Abandon(BaseModel):
 
 
 class Opinion(BaseModel):
-    """课后问卷：对这个 app 的看法，几道开放题，不打分。存成一条记录，和账号 / 设备对上。"""
-    answers: Dict[str, str] = Field({}, description="{题目 key: 孩子写的话}")
+    """课后问卷（post_use.py 的 Post-use Structured Questionnaire）。存成一条记录，和账号 / 设备对上。
+
+    answers 的值按题型不同：同意度 1–5 或 "na"、单选是选项字母、多选是字母列表、开放题是字符串。
+    合法性在 post_use.clean 里查，不在这里。
+    """
+    answers: Dict[str, Any] = Field({}, description="{题目 id: 答案}")
+    instrument: str = Field("", description="界面当时用的题目版本；空 = 旧版五道开放题")
+    fill_ms: int = Field(0, ge=0, description="从打开问卷到交上去的毫秒数")
     account_id: str = ""
     anon_id: str = ""
     participant_id: str = ""

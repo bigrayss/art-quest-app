@@ -20,7 +20,7 @@ from . import history as history_mod
 from . import study as study_mod
 from .accounts import AccountError, AccountStore
 from . import i18n
-from . import teacher_pool
+from . import post_use, teacher_pool
 from .config import (LLM_BACKEND, LLM_MODEL, LLM_PROVIDER, SESSIONS_DIR, SNAPSHOT_INTERVAL_SEC, STATIC_DIR,
                      llm_available)
 from .assist import get_assist_engine
@@ -220,19 +220,26 @@ def index():
     return FileResponse(STATIC_DIR / "index.html")
 
 
-# -- 课后问卷：对 app 的看法 --------------------------------------------------
-# 几道开放题，不打分。一条一个文件，放 data/opinions/。研究员令牌能列全部。
-OPINION_KEYS = ("liked", "stuck", "feedback", "change", "more")
+# -- 课后问卷：Post-use Structured Questionnaire ------------------------------
+# 题目在 post_use.py（一份，界面和研究员都读它）。一条一个文件，放 data/opinions/。研究员令牌能列全部。
+# 2026-10-09 之前存的是五道开放题（answers 的 key 是 liked/stuck/feedback/change/more，没有 instrument 字段），
+# 列的时候照旧端出来，分析时按 instrument 分开。
 OPINIONS_DIR = SESSIONS_DIR.parent / "opinions"
 
 
 @api.post("/opinions", status_code=201)
 def post_opinion(body: Opinion):
-    answers = {k: (body.answers.get(k) or "").strip()[:2000] for k in OPINION_KEYS if (body.answers.get(k) or "").strip()}
+    if body.instrument and body.instrument != post_use.INSTRUMENT:
+        raise HTTPException(422, f"问卷版本不对：{body.instrument}，现在是 {post_use.INSTRUMENT}")
+    try:
+        answers = post_use.clean(body.answers)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
     if not answers:
         raise HTTPException(422, "尚未填写")
     OPINIONS_DIR.mkdir(parents=True, exist_ok=True)
-    rec = {"opinion_id": "op-" + secrets.token_hex(6), "ts": now_iso(), "answers": answers,
+    rec = {"opinion_id": "op-" + secrets.token_hex(6), "ts": now_iso(), "instrument": post_use.INSTRUMENT,
+           "answers": answers, "fill_ms": body.fill_ms,
            "account_id": body.account_id, "anon_id": body.anon_id, "participant_id": body.participant_id, "lang": body.lang}
     (OPINIONS_DIR / f"{rec['ts'][:19].replace(':', '-')}-{rec['opinion_id']}.json").write_text(
         json.dumps(rec, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -252,7 +259,7 @@ def list_opinions(request: Request):
             acc = accounts.load(rec.get("account_id") or "") if rec.get("account_id") else None
             rec["account_name"] = acc.get("name", "") if acc else ""
             out.append(rec)
-    return {"opinions": out, "questions": list(OPINION_KEYS)}
+    return {"opinions": out, "questions": list(post_use.ITEM_IDS), "instrument": post_use.definition()}
 
 
 # 隐私政策：一页静态 HTML，门口和「我的」里链到它；TestFlight / App Store 也要这个地址。
@@ -325,6 +332,7 @@ def config():
         "default_condition": study_mod.resolve_condition(),
         "history_modes": list(HISTORY_MODES),
         "hardest_parts": [{"key": k, "label": v} for k, v in HARDEST_PARTS_SHOWN],
+        "post_use": post_use.definition(),
         "process_labels": list(PROCESS_LABELS),
         "study": {"active": st["active"], "study_id": st["study_id"], "order": st["order"]},
     }
