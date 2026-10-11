@@ -21,7 +21,7 @@ class Participant(BaseModel):
     # 孩子给创作伙伴起的名字。存下来是因为「有没有给它起名」本身就是投入程度的信号
     buddy_name: str = Field("", max_length=16, description="孩子给创作伙伴起的名字")
     # 注册时填的年龄（可不填）。它决定推荐简单版还是完整版，分析时是协变量
-    age: Optional[int] = Field(None, ge=3, le=18, description="注册时填的年龄，可为空")
+    age: Optional[int] = Field(None, ge=3, le=99, description="注册时填的年龄，可为空")
 
 
 class Device(BaseModel):
@@ -254,7 +254,7 @@ class Opinion(BaseModel):
     """
     answers: Dict[str, Any] = Field({}, description="{题目 id: 答案}")
     instrument: str = Field("", description="界面当时用的题目版本；空 = 旧版五道开放题")
-    age: Optional[int] = Field(None, ge=3, le=18, description="没登录（或账号没填）时问卷里问的年龄；登录着以账号为准")
+    age: Optional[int] = Field(None, ge=3, le=99, description="没登录（或账号没填）时问卷里问的年龄；登录着以账号为准")
     fill_ms: int = Field(0, ge=0, description="从打开问卷到交上去的毫秒数")
     account_id: str = ""
     anon_id: str = ""
@@ -505,7 +505,7 @@ class Register(BaseModel):
     pin: str = Field(..., max_length=8, description="四位数字暗号")
     anon_id: str = Field("", description="当前这台设备的代号")
     buddy_name: str = Field("", max_length=16, description="伙伴的名字，跟着账号走")
-    age: Optional[int] = Field(None, ge=3, le=18, description="几岁。学生必填（老师不填）；≤12 推荐简单版；分析时的主协变量")
+    age: Optional[int] = Field(None, ge=3, le=99, description="几岁。学生必填（老师不填），成年初学者也用这个 app，所以上限只是防手滑的 99；≤12 推荐简单版；分析时的主协变量")
     # 老师和学生用同一张注册表，多一个开关。老师要邀请码（服务器 ARTQUEST_TEACHER_CODE），
     # 不然谁都能注册成老师、看到全部孩子的画。
     role: Literal["student", "teacher"] = "student"
@@ -536,4 +536,4 @@ class ClaimDevice(TokenOnly):
 
 class ProfileUpdate(TokenOnly):
     buddy_name: str = Field("", max_length=16)
-    age: Optional[int] = Field(None, ge=3, le=18, description="改年龄；不传就不动")
+    age: Optional[int] = Field(None, ge=3, le=99, description="改年龄；不传就不动")

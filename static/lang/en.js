@@ -71,7 +71,7 @@ window.ARTQUEST_LANG_EN = {
   "这幅作品尚未完成": "This drawing is not finished yet",
   "尚未填写": "Not filled in",
   "年龄": "Age",
-  "请填写年龄（3 到 18）": "Please enter your age (3 to 18)",
+  "请填写年龄": "Please enter your age",
   "{a} 岁": "{a} years old",
   "改年龄": "Change age",
   "还没填年龄，点这里填": "No age yet, tap to add it",

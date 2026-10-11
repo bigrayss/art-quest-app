@@ -479,7 +479,7 @@
   $("#btn-acct-age-cancel").onclick = () => $("#acct-age-edit").classList.add("hidden");
   $("#btn-acct-age-save").onclick = async () => {
     const age = parseInt($("#acct-age-edit-input").value, 10);
-    if (!(age >= 3 && age <= 18)) { alert("请填写年龄（3 到 18）"); return; }
+    if (!(age >= 3 && age <= 99)) { alert("请填写年龄"); return; }
     const b = $("#btn-acct-age-save"); b.disabled = true;
     try {
       const r = await api(`${API}/accounts/profile`, { method: "POST", body: JSON.stringify({ token: savedToken(), age }) });
@@ -540,7 +540,7 @@
         } else {
           // 年龄是账号最要紧的一项：按年龄分组是研究的主线，也决定推荐哪个版本。学生必填。
           const age = parseInt($("#acct-age-input").value, 10);
-          if (!(age >= 3 && age <= 18)) { acctError("请填写年龄（3 到 18）"); btn.disabled = false; return; }
+          if (!(age >= 3 && age <= 99)) { acctError("请填写年龄"); btn.disabled = false; return; }
           body.age = age;
         }
       }
@@ -1298,7 +1298,7 @@
       const ageIn = $("#opinion-age"), askedAge = ageIn ? parseInt(ageIn.value, 10) : NaN;
       await api(`${API}/opinions`, { method: "POST", body: JSON.stringify({
         answers: opinion.answers, instrument: def.instrument, fill_ms: Date.now() - opinion.openedAt,
-        age: askedAge >= 3 && askedAge <= 18 ? askedAge : null,
+        age: askedAge >= 3 && askedAge <= 99 ? askedAge : null,
         account_id: accountId(), anon_id: state.anonId, participant_id: savedPid(), lang: LANG }) });
       opinionModal.classList.add("hidden");
       alert("收到了，谢谢你。");

@@ -268,8 +268,8 @@ class AccountStore:
         acc = self.load(account_id)
         if not acc:
             raise AccountError("no_session", "登录已过期，请重新登录")
-        if not 3 <= int(age) <= 18:
-            raise AccountError("bad_age", "年龄要在 3 到 18 之间")
+        if not 3 <= int(age) <= 99:
+            raise AccountError("bad_age", "年龄要在 3 到 99 之间")
         acc["age"] = int(age)
         return self.public(self._save(acc))
 
