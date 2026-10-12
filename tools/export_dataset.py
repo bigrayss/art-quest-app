@@ -67,6 +67,8 @@ SESSION_COLS = [
     "cond_undo_allowed", "cond_questionnaire", "cond_feedback_source",
     "cond_zoom_allowed", "cond_history_mode",
     "emotion", "intent_text", "status", "revised",
+    # 首访任务库（2026-10-12）：按年龄路由的记录 + 任务实例的几项条件（年龄是协变量，不是能力分数）
+    "bank", "band", "routing_age", "routing_age_source", "first_visit", "revision_enabled", "reference_fit", "post_config",
     "n_strokes", "n_points", "n_events", "n_snapshots",
     "qc_ok", "qc_failed", "app_version", "schema_version", "canvas_w", "canvas_h", "device_platform",
 ]
@@ -142,6 +144,12 @@ def _flat_session(m: Dict[str, Any]) -> Dict[str, Any]:
         "cond_zoom_allowed": c.get("zoom_allowed"), "cond_history_mode": c.get("history_mode"),
         "emotion": intent.get("emotion", ""), "intent_text": intent.get("text", ""),
         "status": m.get("status"), "revised": m.get("revised"),
+        "bank": t.get("bank", ""), "band": t.get("band", "") or (m.get("routing") or {}).get("band", ""),
+        "routing_age": (m.get("routing") or {}).get("age"), "routing_age_source": (m.get("routing") or {}).get("age_source", ""),
+        "first_visit": (m.get("routing") or {}).get("first_visit"),
+        "revision_enabled": (t.get("task_condition") or {}).get("revision_enabled"),
+        "reference_fit": (t.get("task_condition") or {}).get("reference_fit", ""),
+        "post_config": t.get("post_config", ""),
         "n_strokes": counts.get("strokes", 0), "n_points": counts.get("points", 0),
         "n_events": counts.get("events", 0), "n_snapshots": counts.get("snapshots", 0),
         "qc_ok": qc.get("ok"), "qc_failed": "|".join(qc.get("failed") or []),
@@ -240,6 +248,9 @@ def export(out: Path, with_points: bool = False) -> Dict[str, int]:
                             **{f"dim_{k}": v for k, v in (r.get("dims") or {}).items()}})
         q = session_part(d, "self_report")
         if q:
+            q = dict(q)
+            if isinstance(q.get("skipped"), list):      # 首访问卷：跳过了哪几题，CSV 里用 | 连
+                q["skipped"] = "|".join(q["skipped"])
             quest.append({"session_id": sid, **q})
 
     if pf:
@@ -266,7 +277,7 @@ def export(out: Path, with_points: bool = False) -> Dict[str, int]:
                                                 "overall"] + [f"dim_{k}" for k in DIM_KEYS] + ["note", "ts"], ratings),
         "questionnaire": _write(out / "questionnaire.csv", ["session_id", "difficulty", "confidence", "enjoyment",
                                                             "hardest_part_choice", "hardest_part",
-                                                            "free_text", "at"], quest),
+                                                            "free_text", "reflection", "instrument", "skipped", "at"], quest),
         "annotations": _write(out / "annotations.csv", ["session_id", "annotation_id", "rater_id", "label",
                                                         "t_start_ms", "t_end_ms", "duration_ms",
                                                         "confidence", "note", "ts"], annotations),
