@@ -2975,7 +2975,7 @@
       : state.bank
       ? pendingCards
           // 后面还有没开的：摆一张锁卡，说「有」，不说还有多少
-          .concat(nextFam ? [{ key: "locked:next", icon: "", color: "#cfcbc4", kind: "画完一张再开", title: "？", locked: true, family: "" }] : [])
+          .concat(nextFam ? [{ key: "locked:next", icon: "", color: "#cfcbc4", kind: "等待解锁", title: "更多任务", locked: true, family: "" }] : [])
           .concat(finishedCards)
       // 家族卡：标题已经是家族名了，副标题换成「这个家族有几种玩法」
       : (state.families || []).filter(f => tierForms(f.id).length).map(f => ({
@@ -3138,7 +3138,6 @@
       + `<div class="t-go"><button class="primary big grow" id="btn-today">`
       +   `${all ? "随机选一个" : "开始画"}${icon("arrowRight", 17)}</button></div>`
       + `<div class="t-body">`
-      +   `<div class="t-kicker">当前选择</div>`
       +   `<div class="t-title">${all ? "再挑一个" : card.title}</div>`
       +   (blurb ? `<p class="t-blurb">${blurb}</p>` : "")
       + `</div>`;

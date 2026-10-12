@@ -27,9 +27,9 @@ Where do you think the two leaves differ most?
 
 ## B1_ST_01｜一起玩 / Playing Together
 
-画一件你和别人一起玩的事，也可以画你想象中的游戏。让人看出谁在玩、在做什么。只画一幅，不用写故事。
+画一件你和别人一起玩的事，也可以画你想象中的游戏。让人看出谁在玩、在做什么。
 
-Draw something you play with someone else, or invent a game. Show who is playing and what they are doing. Make one picture; you do not need to write a story.
+Draw something you play with someone else, or invent a game. Show who is playing and what they are doing.
 
 **可选提示 / Optional hints**
 
@@ -88,9 +88,9 @@ Whom would it help, and how?
 
 ## B1_DS_01｜玩具箱标志 / A Toy-Box Sign
 
-给放玩具的箱子画一个标志，让别人看到图就知道这里放玩具。画面由你决定，不用写字。
+给放玩具的箱子画一个标志，让别人看到图就知道这里放玩具。画面由你决定。
 
-Draw a sign for a toy box so that people can tell from the picture that it holds toys. Choose your own image; writing is not needed.
+Draw a sign for a toy box so that people can tell from the picture that it holds toys. Choose your own image.
 
 **可选提示 / Optional hints**
 
@@ -128,9 +128,9 @@ What part of your drawing shows the apple in front?
 
 ## B2_ST_01｜放学以后 / After School
 
-用一幅画表现放学后的一件事，可以是真实经历，也可以是想象。让人看出主要人物在什么地方、正在做什么。不用画很多件事，也不用写故事。
+画出放学后的一件事，可以是真实经历，也可以是想象。让人看出主要人物在什么地方、正在做什么。
 
-Show one after-school event in one picture. It may be real or imagined. Show where the main character is and what they are doing. You do not need several events or a written story.
+Draw one after-school event. It may be real or imagined. Show where the main character is and what they are doing.
 
 **可选提示 / Optional hints**
 
@@ -189,9 +189,9 @@ What extra help does it offer compared with an ordinary umbrella?
 
 ## B2_DS_01｜图书角标志 / A Reading-Corner Sign
 
-为班级图书角设计一个标志，让同学看到图形就想到这里可以阅读。图形和颜色由你决定，不必画一本书，也不用写字。
+为班级图书角设计一个标志，让同学看到图形就想到这里可以阅读。图形和颜色由你决定，不必画一本书。
 
-Design a sign for a classroom reading corner so that the image suggests a place for reading. Choose the shapes and colours yourself. You do not have to draw a book or use words.
+Design a sign for a classroom reading corner so that the image suggests a place for reading. Choose the shapes and colours yourself. You do not have to draw a book.
 
 **可选提示 / Optional hints**
 
@@ -229,9 +229,9 @@ Which front-to-back relation was hardest to show?
 
 ## B3_ST_01｜一件意外的事 / An Unexpected Moment
 
-用一幅画表现一件突然发生的事。可以是真实的，也可以是想象的。让人物的动作、表情或环境变化，帮助别人看出发生了什么。
+画出一件突然发生的事。可以是真实的，也可以是想象的。让人物的动作、表情或环境变化，帮助别人看出发生了什么。
 
-Use one picture to show something that happens unexpectedly, real or imagined. Use a character’s action, expression or a change in the setting to help others understand what happened.
+Draw something that happens unexpectedly, real or imagined. Use a character’s action, expression or a change in the setting to help others understand what happened.
 
 **可选提示 / Optional hints**
 
@@ -290,9 +290,9 @@ What did you keep from the teapot, and how does it help with the rescue?
 
 ## B3_DS_01｜运动会吉祥物 / A Sports-Day Mascot
 
-为学校运动会设计一个吉祥物，让它的形象、动作或一个细节表达运动会的气氛。可以是动物、人物或自创角色。名字可写可不写。
+为学校运动会设计一个吉祥物，让它的形象、动作或一个细节表达运动会的气氛。可以是动物、人物或自创角色。
 
-Design a mascot for a school sports day. Let its appearance, action or a detail communicate the event’s spirit. It may be an animal, a person or an invented character. A written name is optional.
+Design a mascot for a school sports day. Let its appearance, action or a detail communicate the event’s spirit. It may be an animal, a person or an invented character.
 
 **可选提示 / Optional hints**
 
@@ -330,9 +330,9 @@ What did you leave out, and what did you keep?
 
 ## B4_ST_01｜同一个地方的两种感觉 / Two Moods in One Place
 
-在同一幅画里画一个地方，让其中一部分显得安静，另一部分显得忙碌。可以用人物、形状、线条、颜色或物品安排表现差别。不要分成两张画。
+在同一幅画里画一个地方，让其中一部分显得安静，另一部分显得忙碌。可以用人物、形状、线条、颜色或物品安排表现差别。
 
-Draw one place in a single picture, making one part feel quiet and another feel busy. Use figures, shapes, lines, colours or the arrangement of objects to create the difference. Do not split the work into two separate pictures.
+Draw one place in a single picture, making one part feel quiet and another feel busy. Use figures, shapes, lines, colours or the arrangement of objects to create the difference.
 
 **可选提示 / Optional hints**
 
@@ -391,9 +391,9 @@ Which school-life need did you choose to address?
 
 ## B4_DS_01｜校园活动海报 / A School Activity Poster
 
-选一项你愿意参加的校园活动，为它设计一张海报。让主要图像表达活动内容，并让人愿意了解这项活动。可以加简短标题，但不用写日期、地点或真实校名。
+选一项你愿意参加的校园活动，为它设计一张海报。让主要图像表达活动内容，并让人愿意了解这项活动。
 
-Choose a school activity you would like to join and design a poster for it. Let the main image communicate the activity and invite interest. A short title is optional; dates, locations and a real school name are not required.
+Choose a school activity you would like to join and design a poster for it. Let the main image communicate the activity and invite interest.
 
 **可选提示 / Optional hints**
 
@@ -431,9 +431,9 @@ Which cues best convey the corner in your drawing?
 
 ## B5_ST_01｜距离 / Distance
 
-用一幅画表达你对“距离”的理解，可以是人与人、物体、地方或想法之间的距离。让形象、布局、线条或颜色承担表达；可以有文字，但不只用文字解释。
+画出你对“距离”的理解，可以是人与人、物体、地方或想法之间的距离。让形象、布局、线条或颜色承担表达。
 
-Express your interpretation of “distance” in one image. It may concern people, objects, places or ideas. Use imagery, arrangement, lines or colour to carry the meaning. Words are allowed, but should not be the only explanation.
+Draw your interpretation of “distance”. It may concern people, objects, places or ideas. Use imagery, arrangement, lines or colour to carry the meaning.
 
 **可选提示 / Optional hints**
 
@@ -492,9 +492,9 @@ What desk-space problem does your design address?
 
 ## B5_DS_01｜校园少浪费 / Less Waste at School
 
-为校园里的“少浪费”行动设计一张海报，选择一种具体的浪费问题，用主要图像表达可以采取的一个行动。可以加文字，但不依赖长篇说明；不需要真实校名和日期。
+为校园里的“少浪费”行动设计一张海报，选择一种具体的浪费问题，用主要图像表达可以采取的一个行动。
 
-Design a poster for a school waste-reduction action. Choose one specific waste issue and use the main image to communicate one action people can take. Text is optional, but avoid relying on a long explanation; real school names and dates are unnecessary.
+Design a poster for a school waste-reduction action. Choose one specific waste issue and use the main image to communicate one action people can take.
 
 **可选提示 / Optional hints**
 
@@ -531,9 +531,9 @@ Which piece did you draw first, and why?
 ---
 ## B6_ST_01｜地图上的地方 / A Place on the Map
 
-地图上标着一个现实中不存在的地方。想象你找到了它，用一幅画画出那里的样子，并留一两个线索，让看的人猜得到这里发生过什么。只画一幅，不用写文字。
+地图上标着一个现实中不存在的地方。想象你找到了它，画出那里的样子，并留一两个线索，让看的人猜得到这里发生过什么。
 
-The map shows a place that does not exist in real life. Imagine you find it and draw what it looks like in one picture. Leave one or two clues so viewers can guess what happened here. One picture; no writing needed.
+The map shows a place that does not exist in real life. Imagine you find it and draw what it looks like. Leave one or two clues so viewers can guess what happened here.
 
 **可选提示 / Optional hints**
 
@@ -589,9 +589,9 @@ Which part of the shoe did you keep, and what did it become?
 ---
 ## B6_DS_01｜我的画廊标志 / A Sign for My Gallery
 
-这个 app 里有一面挂着你作品的画廊。为它设计一个标志，让看到的人知道这是你的地方。图形和颜色由你决定，可以加一个简短的名字，也可以不写字。
+这个 app 里有一面挂着你作品的画廊。为它设计一个标志，让看到的人知道这是你的地方。图形和颜色由你决定。
 
-This app has a gallery wall that shows your drawings. Design a sign for it so that people know this is your place. Choose the shapes and colours yourself; a short name is optional, and you do not have to write anything.
+This app has a gallery wall that shows your drawings. Design a sign for it so that people know this is your place. Choose the shapes and colours yourself.
 
 **可选提示 / Optional hints**
 

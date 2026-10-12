@@ -17510,7 +17510,7 @@
     "title": "两片叶子",
     "instruction": "看看图里的两片叶子，把它们都画下来。让人能看出哪片宽、哪片长，再画上你看到的叶柄和叶脉。只画线条也可以。",
     "hint": "",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "sha": "f45a32dfb2ed"
    },
    "operation": "observe_represent",
@@ -17685,7 +17685,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.1.0",
+    "bank_version": "1.1.1",
     "band": "B1",
     "age_min": 6,
     "age_max": 7,
@@ -17753,10 +17753,10 @@
    "anchor": false,
    "copy": {
     "title": "一起玩",
-    "instruction": "画一件你和别人一起玩的事，也可以画你想象中的游戏。让人看出谁在玩、在做什么。只画一幅，不用写故事。",
+    "instruction": "画一件你和别人一起玩的事，也可以画你想象中的游戏。让人看出谁在玩、在做什么。",
     "hint": "",
-    "version": "1.1.0",
-    "sha": "2ba54345de30"
+    "version": "1.1.1",
+    "sha": "8a96cc240c70"
    },
    "operation": "personal_expression",
    "content": [
@@ -17900,7 +17900,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.1.0",
+    "bank_version": "1.1.1",
     "band": "B1",
     "age_min": 6,
     "age_max": 7,
@@ -17969,7 +17969,7 @@
     "title": "一条线变什么",
     "instruction": "看参考图里的那段弯线，把它画进你的画里，再添上自己的内容，让它变成你想到的东西。线可以转方向或变大变小，但要让人找得到原来的弯线。",
     "hint": "",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "sha": "07b2b4cf7eb2"
    },
    "operation": "personal_expression",
@@ -18136,7 +18136,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.1.0",
+    "bank_version": "1.1.1",
     "band": "B1",
     "age_min": 6,
     "age_max": 7,
@@ -18195,7 +18195,7 @@
     "title": "会帮忙的杯子",
     "instruction": "看看图里的杯子，把它变成一个会帮忙的新东西。画出它怎样帮忙，并保留一些杯子的特征，让人看得出它是杯子变的。",
     "hint": "",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "sha": "56e3841a0bb0"
    },
    "operation": "purposeful_design",
@@ -18369,7 +18369,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.1.0",
+    "bank_version": "1.1.1",
     "band": "B1",
     "age_min": 6,
     "age_max": 7,
@@ -18437,10 +18437,10 @@
    "anchor": false,
    "copy": {
     "title": "玩具箱标志",
-    "instruction": "给放玩具的箱子画一个标志，让别人看到图就知道这里放玩具。画面由你决定，不用写字。",
+    "instruction": "给放玩具的箱子画一个标志，让别人看到图就知道这里放玩具。画面由你决定。",
     "hint": "",
-    "version": "1.1.0",
-    "sha": "aab14c0d9b4b"
+    "version": "1.1.1",
+    "sha": "1f4da60b9978"
    },
    "operation": "purposeful_design",
    "content": [
@@ -18582,7 +18582,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.1.0",
+    "bank_version": "1.1.1",
     "band": "B1",
     "age_min": 6,
     "age_max": 7,
@@ -18662,7 +18662,7 @@
     "title": "苹果和两本书",
     "instruction": "看参考图，画出苹果和两本书，保留它们的大致位置。注意苹果挡住书的地方，让人能看出谁在前面。可以只用线条。",
     "hint": "",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "sha": "cb76ee3365be"
    },
    "operation": "observe_represent",
@@ -18837,7 +18837,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.1.0",
+    "bank_version": "1.1.1",
     "band": "B2",
     "age_min": 8,
     "age_max": 10,
@@ -18913,10 +18913,10 @@
    "anchor": false,
    "copy": {
     "title": "放学以后",
-    "instruction": "用一幅画表现放学后的一件事，可以是真实经历，也可以是想象。让人看出主要人物在什么地方、正在做什么。不用画很多件事，也不用写故事。",
+    "instruction": "画出放学后的一件事，可以是真实经历，也可以是想象。让人看出主要人物在什么地方、正在做什么。",
     "hint": "",
-    "version": "1.1.0",
-    "sha": "c25d612d58d5"
+    "version": "1.1.1",
+    "sha": "fd1ec02838a0"
    },
    "operation": "personal_expression",
    "content": [
@@ -19060,7 +19060,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.1.0",
+    "bank_version": "1.1.1",
     "band": "B2",
     "age_min": 8,
     "age_max": 10,
@@ -19137,7 +19137,7 @@
     "title": "两段线条的故事",
     "instruction": "把参考图里的两段线条都画进一幅画里，再加上自己的内容，让它们成为同一个场景的一部分。可以移动、转向或变大小，但原来的两段线条要还能找到。",
     "hint": "",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "sha": "b6c6495a5f66"
    },
    "operation": "personal_expression",
@@ -19311,7 +19311,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.1.0",
+    "bank_version": "1.1.1",
     "band": "B2",
     "age_min": 8,
     "age_max": 10,
@@ -19378,7 +19378,7 @@
     "title": "雨伞的新本领",
     "instruction": "把参考图里的雨伞改造成能在雨天多帮一个忙的新雨伞。画出新增本领怎样使用，并保留一些雨伞的特征，让人还能认出它。",
     "hint": "",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "sha": "a9e5fb3836ff"
    },
    "operation": "purposeful_design",
@@ -19552,7 +19552,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.1.0",
+    "bank_version": "1.1.1",
     "band": "B2",
     "age_min": 8,
     "age_max": 10,
@@ -19628,10 +19628,10 @@
    "anchor": false,
    "copy": {
     "title": "图书角标志",
-    "instruction": "为班级图书角设计一个标志，让同学看到图形就想到这里可以阅读。图形和颜色由你决定，不必画一本书，也不用写字。",
+    "instruction": "为班级图书角设计一个标志，让同学看到图形就想到这里可以阅读。图形和颜色由你决定，不必画一本书。",
     "hint": "",
-    "version": "1.1.0",
-    "sha": "8b1247c950fb"
+    "version": "1.1.1",
+    "sha": "8b4306c4db9a"
    },
    "operation": "purposeful_design",
    "content": [
@@ -19773,7 +19773,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.1.0",
+    "bank_version": "1.1.1",
     "band": "B2",
     "age_min": 8,
     "age_max": 10,
@@ -19861,7 +19861,7 @@
     "title": "桌上的四件物品",
     "instruction": "根据参考图画出盆栽、笔筒、橡皮和笔记本，保留它们的大致大小与位置关系。让人看出橡皮在盆栽前面、笔记本在笔筒前面。线稿或上色都可以。",
     "hint": "",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "sha": "6dd4cd58ec51"
    },
    "operation": "observe_represent",
@@ -20036,7 +20036,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.1.0",
+    "bank_version": "1.1.1",
     "band": "B3",
     "age_min": 11,
     "age_max": 12,
@@ -20112,10 +20112,10 @@
    "anchor": false,
    "copy": {
     "title": "一件意外的事",
-    "instruction": "用一幅画表现一件突然发生的事。可以是真实的，也可以是想象的。让人物的动作、表情或环境变化，帮助别人看出发生了什么。",
+    "instruction": "画出一件突然发生的事。可以是真实的，也可以是想象的。让人物的动作、表情或环境变化，帮助别人看出发生了什么。",
     "hint": "",
-    "version": "1.1.0",
-    "sha": "4d30db7522ed"
+    "version": "1.1.1",
+    "sha": "bd5587a48c7f"
    },
    "operation": "personal_expression",
    "content": [
@@ -20259,7 +20259,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.1.0",
+    "bank_version": "1.1.1",
     "band": "B3",
     "age_min": 11,
     "age_max": 12,
@@ -20336,7 +20336,7 @@
     "title": "线条里的地方",
     "instruction": "把图里的三段线条都画进一幅画，发展成一个真实或想象的地方。三段线都要能找到，但位置、方向和大小可以改变。其他内容由你决定。",
     "hint": "",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "sha": "29b3c122dc12"
    },
    "operation": "personal_expression",
@@ -20510,7 +20510,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.1.0",
+    "bank_version": "1.1.1",
     "band": "B3",
     "age_min": 11,
     "age_max": 12,
@@ -20577,7 +20577,7 @@
     "title": "茶壶救援机",
     "instruction": "把图里的茶壶改造成一台救援机器，选择一种需要它帮忙的情况，并画出它怎样救援。保留一些茶壶的特征，让人还能看出它是茶壶变的，保留哪些部分由你决定。",
     "hint": "",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "sha": "b1914840b2de"
    },
    "operation": "purposeful_design",
@@ -20751,7 +20751,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.1.0",
+    "bank_version": "1.1.1",
     "band": "B3",
     "age_min": 11,
     "age_max": 12,
@@ -20827,10 +20827,10 @@
    "anchor": false,
    "copy": {
     "title": "运动会吉祥物",
-    "instruction": "为学校运动会设计一个吉祥物，让它的形象、动作或一个细节表达运动会的气氛。可以是动物、人物或自创角色。名字可写可不写。",
+    "instruction": "为学校运动会设计一个吉祥物，让它的形象、动作或一个细节表达运动会的气氛。可以是动物、人物或自创角色。",
     "hint": "",
-    "version": "1.1.0",
-    "sha": "34e1c98ecbc4"
+    "version": "1.1.1",
+    "sha": "95a07d0b3be3"
    },
    "operation": "purposeful_design",
    "content": [
@@ -20979,7 +20979,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.1.0",
+    "bank_version": "1.1.1",
     "band": "B3",
     "age_min": 11,
     "age_max": 12,
@@ -21067,7 +21067,7 @@
     "title": "窗边静物",
     "instruction": "根据参考图画出窗边的花瓶、花和书，保留它们的主要位置关系。选择你认为重要的形状和空间线索，可以省略窗外细节。线稿或上色均可。",
     "hint": "",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "sha": "de04722653fd"
    },
    "operation": "observe_represent",
@@ -21242,7 +21242,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.1.0",
+    "bank_version": "1.1.1",
     "band": "B4",
     "age_min": 13,
     "age_max": 14,
@@ -21318,10 +21318,10 @@
    "anchor": false,
    "copy": {
     "title": "同一个地方的两种感觉",
-    "instruction": "在同一幅画里画一个地方，让其中一部分显得安静，另一部分显得忙碌。可以用人物、形状、线条、颜色或物品安排表现差别。不要分成两张画。",
+    "instruction": "在同一幅画里画一个地方，让其中一部分显得安静，另一部分显得忙碌。可以用人物、形状、线条、颜色或物品安排表现差别。",
     "hint": "",
-    "version": "1.1.0",
-    "sha": "2aa8eb179ad6"
+    "version": "1.1.1",
+    "sha": "8dfd99c2e8ad"
    },
    "operation": "personal_expression",
    "content": [
@@ -21465,7 +21465,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.1.0",
+    "bank_version": "1.1.1",
     "band": "B4",
     "age_min": 13,
     "age_max": 14,
@@ -21542,7 +21542,7 @@
     "title": "线条变角色",
     "instruction": "把参考图里的四段线条都融入一幅角色画，让它们成为角色或角色所处场景的一部分。你可以移动、旋转和改变大小，但四段线都应能找到。角色由你设计。",
     "hint": "",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "sha": "6afc09eef9f9"
    },
    "operation": "personal_expression",
@@ -21716,7 +21716,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.1.0",
+    "bank_version": "1.1.1",
     "band": "B4",
     "age_min": 13,
     "age_max": 14,
@@ -21783,7 +21783,7 @@
     "title": "自行车的新用途",
     "instruction": "从参考图里的自行车出发，设计一个能帮助校园生活的新用途。画出改造后的样子和使用方式，并保留一些能辨认出自行车的特征。保留哪些部分由你决定。",
     "hint": "",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "sha": "bee85d84431b"
    },
    "operation": "purposeful_design",
@@ -21957,7 +21957,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.1.0",
+    "bank_version": "1.1.1",
     "band": "B4",
     "age_min": 13,
     "age_max": 14,
@@ -22033,10 +22033,10 @@
    "anchor": false,
    "copy": {
     "title": "校园活动海报",
-    "instruction": "选一项你愿意参加的校园活动，为它设计一张海报。让主要图像表达活动内容，并让人愿意了解这项活动。可以加简短标题，但不用写日期、地点或真实校名。",
+    "instruction": "选一项你愿意参加的校园活动，为它设计一张海报。让主要图像表达活动内容，并让人愿意了解这项活动。",
     "hint": "",
-    "version": "1.1.0",
-    "sha": "fca0886f191d"
+    "version": "1.1.1",
+    "sha": "e3c70c7f2f13"
    },
    "operation": "purposeful_design",
    "content": [
@@ -22185,7 +22185,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.1.0",
+    "bank_version": "1.1.1",
     "band": "B4",
     "age_min": 13,
     "age_max": 14,
@@ -22273,7 +22273,7 @@
     "title": "街角",
     "instruction": "根据参考图画出街角建筑和人行道，保留建筑两个面的关系以及道路延伸的方向。你可以简化窗户、植物和装饰，选择线稿或色彩表现。",
     "hint": "",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "sha": "a037616e8741"
    },
    "operation": "observe_represent",
@@ -22448,7 +22448,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.1.0",
+    "bank_version": "1.1.1",
     "band": "B5",
     "age_min": 15,
     "age_max": 16,
@@ -22524,10 +22524,10 @@
    "anchor": false,
    "copy": {
     "title": "距离",
-    "instruction": "用一幅画表达你对“距离”的理解，可以是人与人、物体、地方或想法之间的距离。让形象、布局、线条或颜色承担表达；可以有文字，但不只用文字解释。",
+    "instruction": "画出你对“距离”的理解，可以是人与人、物体、地方或想法之间的距离。让形象、布局、线条或颜色承担表达。",
     "hint": "",
-    "version": "1.1.0",
-    "sha": "c50bbf9e3e02"
+    "version": "1.1.1",
+    "sha": "ecc38282a564"
    },
    "operation": "personal_expression",
    "content": [
@@ -22671,7 +22671,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.1.0",
+    "bank_version": "1.1.1",
     "band": "B5",
     "age_min": 15,
     "age_max": 16,
@@ -22748,7 +22748,7 @@
     "title": "看见连接",
     "instruction": "把参考图中的四段线条融入一幅以“连接”为主题的画。可以移动、旋转和改变片段大小，但四段线都要能辨认。连接可以发生在人、自然、物品或想法之间，具体表现由你决定。",
     "hint": "",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "sha": "c7ee7181de12"
    },
    "operation": "personal_expression",
@@ -22929,7 +22929,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.1.0",
+    "bank_version": "1.1.1",
     "band": "B5",
     "age_min": 15,
     "age_max": 16,
@@ -22996,7 +22996,7 @@
     "title": "小空间台灯",
     "instruction": "参考图里的台灯，为一张空间很小的学习桌重新设计它。画出它怎样放置或使用，让桌面更方便，同时保留能辨认出台灯的特征。保留哪些部分由你决定。",
     "hint": "",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "sha": "c6755d326ca5"
    },
    "operation": "purposeful_design",
@@ -23170,7 +23170,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.1.0",
+    "bank_version": "1.1.1",
     "band": "B5",
     "age_min": 15,
     "age_max": 16,
@@ -23246,10 +23246,10 @@
    "anchor": false,
    "copy": {
     "title": "校园少浪费",
-    "instruction": "为校园里的“少浪费”行动设计一张海报，选择一种具体的浪费问题，用主要图像表达可以采取的一个行动。可以加文字，但不依赖长篇说明；不需要真实校名和日期。",
+    "instruction": "为校园里的“少浪费”行动设计一张海报，选择一种具体的浪费问题，用主要图像表达可以采取的一个行动。",
     "hint": "",
-    "version": "1.1.0",
-    "sha": "4b32f6143be5"
+    "version": "1.1.1",
+    "sha": "1c67d11ab7c4"
    },
    "operation": "purposeful_design",
    "content": [
@@ -23398,7 +23398,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.1.0",
+    "bank_version": "1.1.1",
     "band": "B5",
     "age_min": 15,
     "age_max": 16,
@@ -23486,7 +23486,7 @@
     "title": "客厅",
     "instruction": "照着参考图把整个客厅画出来，沙发、茶几、书架这些大件要在原来的位置，大小和前后关系也尽量和图里一样。小物件可以取舍，线稿或上色都可以。",
     "hint": "",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "sha": "8486bc12e9ea"
    },
    "operation": "observe_represent",
@@ -23661,7 +23661,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.1.0",
+    "bank_version": "1.1.1",
     "band": "B6",
     "age_min": 17,
     "age_max": 99,
@@ -23737,10 +23737,10 @@
    "anchor": false,
    "copy": {
     "title": "地图上的地方",
-    "instruction": "地图上标着一个现实中不存在的地方。想象你找到了它，用一幅画画出那里的样子，并留一两个线索，让看的人猜得到这里发生过什么。只画一幅，不用写文字。",
+    "instruction": "地图上标着一个现实中不存在的地方。想象你找到了它，画出那里的样子，并留一两个线索，让看的人猜得到这里发生过什么。",
     "hint": "",
-    "version": "1.1.0",
-    "sha": "d6e2b2a42814"
+    "version": "1.1.1",
+    "sha": "6de214bceaf9"
    },
    "operation": "personal_expression",
    "content": [
@@ -23884,7 +23884,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.1.0",
+    "bank_version": "1.1.1",
     "band": "B6",
     "age_min": 17,
     "age_max": 99,
@@ -23961,7 +23961,7 @@
     "title": "壁画的碎片",
     "instruction": "参考图里的这些线条碎片来自一幅壁画。把它们都画进一幅画，接着画出这幅壁画可能讲的故事。碎片可以移动、转向或变大小，但每一块都要还能找到。",
     "hint": "",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "sha": "ee5b582805e5"
    },
    "operation": "personal_expression",
@@ -24135,7 +24135,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.1.0",
+    "bank_version": "1.1.1",
     "band": "B6",
     "age_min": 17,
     "age_max": 99,
@@ -24202,7 +24202,7 @@
     "title": "鞋子变生物",
     "instruction": "把参考图里的这只鞋变成住在大森林里的生物。画出它怎样在森林里生活，并保留一些鞋子的特征，让人还看得出它是鞋子变的。保留哪些部分由你决定。",
     "hint": "",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "sha": "5de3c673fb5b"
    },
    "operation": "purposeful_design",
@@ -24376,7 +24376,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.1.0",
+    "bank_version": "1.1.1",
     "band": "B6",
     "age_min": 17,
     "age_max": 99,
@@ -24452,10 +24452,10 @@
    "anchor": false,
    "copy": {
     "title": "我的画廊标志",
-    "instruction": "这个 app 里有一面挂着你作品的画廊。为它设计一个标志，让看到的人知道这是你的地方。图形和颜色由你决定，可以加一个简短的名字，也可以不写字。",
+    "instruction": "这个 app 里有一面挂着你作品的画廊。为它设计一个标志，让看到的人知道这是你的地方。图形和颜色由你决定。",
     "hint": "",
-    "version": "1.1.0",
-    "sha": "31c599b417e8"
+    "version": "1.1.1",
+    "sha": "e61c0dc2a900"
    },
    "operation": "purposeful_design",
    "content": [
@@ -24597,7 +24597,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.1.0",
+    "bank_version": "1.1.1",
     "band": "B6",
     "age_min": 17,
     "age_max": 99,

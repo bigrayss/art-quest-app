@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 BANK = "first_visit_v1"
-BANK_VERSION = "1.1.0"          # 1.0.0 冻结 2026-10-12；1.0.1 B2/B3/B4 按图改对象名；1.1.0 加第六段（17 岁及以上，题面取自 M 族）。改题面 → 改 docs → 重跑 import_bank → 升这里
+BANK_VERSION = "1.1.1"          # 1.1.1 题面去掉「只画一幅 / 不用写字」； 1.0.0 冻结 2026-10-12；1.0.1 B2/B3/B4 按图改对象名；1.1.0 加第六段（17 岁及以上，题面取自 M 族）。改题面 → 改 docs → 重跑 import_bank → 升这里
 POST_CONFIG = "first_visit_common_v1"
 DATA = Path(__file__).resolve().parent / "bank" / "first_visit_v1.json"
 

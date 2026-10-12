@@ -1,6 +1,6 @@
 # Phase 0 Fixed First-Visit Task Bank | Complete English Guide
 
-Version 1.1.0. Content frozen on 12 October 2026 (1.1.0: adds a sixth band, ages 17 and over, with prompts reused from the M-family library; 1.0.1: per the user's decision to follow the images, the object names in B2/B3/B4 observation tasks now match the v3 references; nothing else changed). Thirty tasks cover ages 6 and over in six bands (the sixth, ages 17 and over, reuses prompts from the project's existing M-family library). Each band offers five fixed choices; the learner completes one task per session.
+Version 1.1.1. Content frozen on 12 October 2026 (1.1.1: prompts no longer carry “one picture / no writing” instructions; 1.1.0: adds a sixth band, ages 17 and over, with prompts reused from the M-family library; 1.0.1: per the user's decision to follow the images, the object names in B2/B3/B4 observation tasks now match the v3 references; nothing else changed). Thirty tasks cover ages 6 and over in six bands (the sixth, ages 17 and over, reuses prompts from the project's existing M-family library). Each band offers five fixed choices; the learner completes one task per session.
 
 This is a complete textual task specification, not an infographic. Each task includes learner-facing wording, hints, requirements, freedom, materials, attributes, dimension associations, interpretation notes and a post-task prompt. The Chinese guide and JSON files are generated from the same bilingual source.
 
@@ -85,7 +85,7 @@ These are 25 replacement first-visit tasks, not a reconstruction of every legacy
 
 **Card summary**: Draw a moment of playing together.
 
-**Learner prompt (always visible)**: Draw something you play with someone else, or invent a game. Show who is playing and what they are doing. Make one picture; you do not need to write a story.
+**Learner prompt (always visible)**: Draw something you play with someone else, or invent a game. Show who is playing and what they are doing.
 
 **Requirements (matching the prompt)**: Show a shared play activity in one picture. Include the participants and the main action.
 
@@ -207,7 +207,7 @@ These are 25 replacement first-visit tasks, not a reconstruction of every legacy
 
 **Card summary**: Use a picture to show where toys belong.
 
-**Learner prompt (always visible)**: Draw a sign for a toy box so that people can tell from the picture that it holds toys. Choose your own image; writing is not needed.
+**Learner prompt (always visible)**: Draw a sign for a toy box so that people can tell from the picture that it holds toys. Choose your own image.
 
 **Requirements (matching the prompt)**: Make one sign for a toy box. Use the image to communicate toy storage.
 
@@ -288,7 +288,7 @@ These are 25 replacement first-visit tasks, not a reconstruction of every legacy
 
 **Card summary**: Choose an after-school moment and draw it.
 
-**Learner prompt (always visible)**: Show one after-school event in one picture. It may be real or imagined. Show where the main character is and what they are doing. You do not need several events or a written story.
+**Learner prompt (always visible)**: Draw one after-school event. It may be real or imagined. Show where the main character is and what they are doing.
 
 **Requirements (matching the prompt)**: Show one after-school event. Use a character, action and setting to convey the event.
 
@@ -411,7 +411,7 @@ These are 25 replacement first-visit tasks, not a reconstruction of every legacy
 
 **Card summary**: Let an image communicate reading without words.
 
-**Learner prompt (always visible)**: Design a sign for a classroom reading corner so that the image suggests a place for reading. Choose the shapes and colours yourself. You do not have to draw a book or use words.
+**Learner prompt (always visible)**: Design a sign for a classroom reading corner so that the image suggests a place for reading. Choose the shapes and colours yourself. You do not have to draw a book.
 
 **Requirements (matching the prompt)**: Design one sign for a reading corner. Use the image to communicate its connection to reading.
 
@@ -492,7 +492,7 @@ These are 25 replacement first-visit tasks, not a reconstruction of every legacy
 
 **Card summary**: Capture the moment something unexpected happens.
 
-**Learner prompt (always visible)**: Use one picture to show something that happens unexpectedly, real or imagined. Use a character’s action, expression or a change in the setting to help others understand what happened.
+**Learner prompt (always visible)**: Draw something that happens unexpectedly, real or imagined. Use a character’s action, expression or a change in the setting to help others understand what happened.
 
 **Requirements (matching the prompt)**: Show one unexpected event in one picture. Provide visible cues through action, expression or changes in the setting.
 
@@ -615,7 +615,7 @@ These are 25 replacement first-visit tasks, not a reconstruction of every legacy
 
 **Card summary**: Create a character for a sports day.
 
-**Learner prompt (always visible)**: Design a mascot for a school sports day. Let its appearance, action or a detail communicate the event’s spirit. It may be an animal, a person or an invented character. A written name is optional.
+**Learner prompt (always visible)**: Design a mascot for a school sports day. Let its appearance, action or a detail communicate the event’s spirit. It may be an animal, a person or an invented character.
 
 **Requirements (matching the prompt)**: Design one mascot character. Relate it to the sports day through appearance, action or detail.
 
@@ -697,7 +697,7 @@ These are 25 replacement first-visit tasks, not a reconstruction of every legacy
 
 **Card summary**: Show quiet and busy areas within one place.
 
-**Learner prompt (always visible)**: Draw one place in a single picture, making one part feel quiet and another feel busy. Use figures, shapes, lines, colours or the arrangement of objects to create the difference. Do not split the work into two separate pictures.
+**Learner prompt (always visible)**: Draw one place in a single picture, making one part feel quiet and another feel busy. Use figures, shapes, lines, colours or the arrangement of objects to create the difference.
 
 **Requirements (matching the prompt)**: Make one continuous scene. Show a contrast between quiet and busy areas within it.
 
@@ -820,7 +820,7 @@ These are 25 replacement first-visit tasks, not a reconstruction of every legacy
 
 **Card summary**: Introduce a school activity through a poster.
 
-**Learner prompt (always visible)**: Choose a school activity you would like to join and design a poster for it. Let the main image communicate the activity and invite interest. A short title is optional; dates, locations and a real school name are not required.
+**Learner prompt (always visible)**: Choose a school activity you would like to join and design a poster for it. Let the main image communicate the activity and invite interest.
 
 **Requirements (matching the prompt)**: Create one poster for one school activity. Make the main image clearly relate to the activity.
 
@@ -902,7 +902,7 @@ These are 25 replacement first-visit tasks, not a reconstruction of every legacy
 
 **Card summary**: Turn your interpretation of distance into an image.
 
-**Learner prompt (always visible)**: Express your interpretation of “distance” in one image. It may concern people, objects, places or ideas. Use imagery, arrangement, lines or colour to carry the meaning. Words are allowed, but should not be the only explanation.
+**Learner prompt (always visible)**: Draw your interpretation of “distance”. It may concern people, objects, places or ideas. Use imagery, arrangement, lines or colour to carry the meaning.
 
 **Requirements (matching the prompt)**: Create one image about distance. Communicate visually rather than submitting words alone.
 
@@ -1026,7 +1026,7 @@ These are 25 replacement first-visit tasks, not a reconstruction of every legacy
 
 **Card summary**: Turn a waste-reduction action into a poster.
 
-**Learner prompt (always visible)**: Design a poster for a school waste-reduction action. Choose one specific waste issue and use the main image to communicate one action people can take. Text is optional, but avoid relying on a long explanation; real school names and dates are unnecessary.
+**Learner prompt (always visible)**: Design a poster for a school waste-reduction action. Choose one specific waste issue and use the main image to communicate one action people can take.
 
 **Requirements (matching the prompt)**: Choose one school waste issue. Use one poster’s main image to communicate one concrete action.
 
@@ -1107,7 +1107,7 @@ These are 25 replacement first-visit tasks, not a reconstruction of every legacy
 
 **Card summary**: Draw a place that exists only on a map.
 
-**Learner prompt (always visible)**: The map shows a place that does not exist in real life. Imagine you find it and draw what it looks like in one picture. Leave one or two clues so viewers can guess what happened here. One picture; no writing needed.
+**Learner prompt (always visible)**: The map shows a place that does not exist in real life. Imagine you find it and draw what it looks like. Leave one or two clues so viewers can guess what happened here.
 
 **Requirements (matching the prompt)**: Draw an imagined place. Include one or two recognisable clues in the picture.
 
@@ -1227,7 +1227,7 @@ These are 25 replacement first-visit tasks, not a reconstruction of every legacy
 
 **Card summary**: Make a sign for your own gallery.
 
-**Learner prompt (always visible)**: This app has a gallery wall that shows your drawings. Design a sign for it so that people know this is your place. Choose the shapes and colours yourself; a short name is optional, and you do not have to write anything.
+**Learner prompt (always visible)**: This app has a gallery wall that shows your drawings. Design a sign for it so that people know this is your place. Choose the shapes and colours yourself.
 
 **Requirements (matching the prompt)**: Design one sign. Let the image stand for “your gallery”.
 

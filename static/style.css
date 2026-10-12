@@ -2338,6 +2338,7 @@ body.offline .needs-net { display:none !important; }
 .map.list details.map-col .quest-card { margin-top:10px; }
 /* 新任务第一次出现：右边一个小小的 NEW。卡要 relative 才能挂角标；left/top 得归零，否则散点地图的 --mx/--my 还在起作用 */
 .map.list .quest-card { position:relative; left:auto; top:auto; transform:none; }
-.qc-new { position:absolute; right:12px; top:50%; transform:translateY(-50%); padding:3px 8px; border-radius:999px;
-  background:var(--accent); color:#fff; font-size:0.6875rem; font-weight:900; letter-spacing:.04em; }
-.map.list .quest-card .qc-text { padding-right:44px; }
+/* 小小一个，描边的小框，贴在卡的右上角（用户 2026-10-12：之前那个太大太丑） */
+.qc-new { position:absolute; right:8px; top:6px; padding:0 5px; line-height:1.5; border-radius:5px;
+  background:#fff; color:var(--accent); border:1.5px solid var(--accent); font-size:0.5625rem; font-weight:800; letter-spacing:.06em; }
+.map.list .quest-card .qc-text { padding-right:28px; }
