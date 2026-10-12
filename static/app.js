@@ -2951,14 +2951,18 @@
     const doneIds = new Set((state.allSessions || []).filter(r => r.status === "done").map(r => r.task_id || r.quest_id));
     const famCard = (f) => ({ key: f.id, icon: f.icon, color: f.color, kind: `${tierForms(f.id).length} 种玩法`,
                               title: f.name, locked: false, family: f.id });
-    const sequence = state.bank
-      ? bankForms(band).map(q => ({ key: q.id, icon: q.icon, color: q.color, kind: q.type, title: q.title,
-          locked: false, task: q, blurb: q.card, finished: doneIds.has(q.id) }))
-        .concat(UNLOCK_ORDER.filter(f => tierForms(f).length).map(fid => {
-          const f = (state.families || []).find(x => x.id === fid); if (!f) return null;
-          return { ...famCard(f), finished: tierForms(fid).every(q => doneIds.has(q.id)) };
-        }).filter(Boolean))
-      : [];
+    // 位置上放的是**一道道具体的题**，不是「地方」（2026-10-12 线上：用户画完故事挑战的一道，它既没进已完成也没出新的——
+    // 因为地方要五道全画完才算完成）。本段五道之后，按 UNLOCK_ORDER 轮着从每个家族取一道没画过的（第一轮每家一道，再第二轮……），
+    // 画完一道进已完成、下一道补上来。画过的 M 族题也列进已完成。
+    const taskCard = (q, finished) => ({ key: q.id, icon: q.icon, color: q.color, kind: q.type, title: q.title,
+                                         locked: false, task: q, blurb: q.card || FAMILY_BLURB[q.family] || "", finished });
+    let sequence = [];
+    if (state.bank) {
+      sequence = bankForms(band).map(q => taskCard(q, doneIds.has(q.id)));
+      // 每家族的题按库里的顺序排成几轮（含画过的，画过的直接进已完成）：这样画完 M9 的第一道，下一道补进来的是 M6 的，不是 M9 的第二道
+      const perFam = Object.fromEntries(UNLOCK_ORDER.map(f => [f, tierForms(f)]));
+      for (let round = 0; round < 5; round++) UNLOCK_ORDER.forEach(f => { const q = perFam[f][round]; if (q) sequence.push(taskCard(q, doneIds.has(q.id))); });
+    }
     const pendingCards = [], finishedCards = [];
     const seen = seenTasks();
     let rest = 0;
