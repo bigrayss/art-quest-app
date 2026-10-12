@@ -2449,8 +2449,8 @@
                title="曾被老师选中，你当时说先不要">${icon("pin", 12)}曾被老师选中</button>`
           : "";
       const flagName = WORK_STATUS[r.status];
-      const tags = (flagName ? `<span class="work-chip ${flagName.cls}">${flagName.zh}</span>` : "")
-        + (r.revised ? `<span class="work-chip evolve">修改过一次</span>` : "");
+      // 「修改过一次」不再贴在卡片上（2026-10-12 用户）：点开后的详细内容里写
+      const tags = (flagName ? `<span class="work-chip ${flagName.cls}">${flagName.zh}</span>` : "");
       // 贴在墙上的照片没有一张是绝对正的。角度按 id 定死，不随机——
       // 每次打开都换一个角度就成了晃动，不是手贴的感觉。
       const tilt = ((r.session_id || "").charCodeAt(0) + i) % 5 - 2;
@@ -2950,7 +2950,9 @@
           key: q.id, icon: q.icon, color: q.color, kind: q.type, title: q.title,
           locked: i !== state.seqIdx, task: q }))
       : state.bank
-      ? bankForms(band).map(q => ({ key: q.id, icon: q.icon, color: q.color, kind: q.type, title: q.title,
+      // 画过的题不再摆在地图上（画廊里保存着）；地方（M 族）留着，因为每个地方还有没画过的题
+      ? bankForms(band).filter(q => !(state.allSessions || []).some(r => r.status === "done" && (r.task_id || r.quest_id) === q.id))
+          .map(q => ({ key: q.id, icon: q.icon, color: q.color, kind: q.type, title: q.title,
           locked: false, task: q, blurb: q.card }))
           .concat(grown.map(fid => famCard((state.families || []).find(f => f.id === fid))).filter(c => c.key))
           // 下一个要开的地方先摆一张锁卡：说「有」，不说还有多少
@@ -4453,8 +4455,8 @@
     const row = (state.allSessions || []).find(r => r.session_id === sid) || {};
     const q = state.quests.find(x => x.id === qid);
     $("#work-title").textContent = (q && q.title) || qid;
-    $("#work-sub").textContent = whenText(row.created_at)
-      + (row.revised ? " · 完成后修改过一次" : "") + (row.status === "done" ? "" : " · 未完成");
+    $("#work-sub").textContent = whenText(row.created_at) + (row.status === "done" ? "" : " · 未完成");
+    paintWorkDetail(null, row, q);           // 先摆题目；其余的等完整记录到了再补
     const img = $("#work-img");
     img.classList.remove("hidden");
     img.onerror = () => img.classList.add("hidden");
@@ -4466,6 +4468,7 @@
     if (row.status === "done") {
       api(`${API}/sessions/${encodeURIComponent(sid)}`).then(full => {
         if (workModal.classList.contains("hidden") || workModal.dataset.sid !== sid) return;
+        paintWorkDetail(full, row, q);
         const after = (full.after || {}).scores, before = full.revised ? (full.before || {}).scores : null;
         if (!after || !after.dims) return;
         rose.innerHTML = roseChart(after, before && before.dims ? before : null, q ? q.focus_dims : []);
@@ -4497,6 +4500,36 @@
       } finally { yes.disabled = false; }
     };
     workModal.classList.remove("hidden");
+  }
+  /** 画的详细内容（2026-10-12 用户要的）：当时看到的题面和要做到、画了多久、心情和心愿、彩点说过的话、改没改过。
+   *  读的是 session 里冻着的快照（`full.task`），不是现在的题库——题面后来改了，这里仍是孩子当时看到的那句。 */
+  function paintWorkDetail(full, row, q) {
+    const box = $("#work-detail"); if (!box) return;
+    const task = (full && full.task) || q || {};
+    const rows = [];
+    const famName = task.family_name || (q && q.type) || "";
+    if (task.instruction) rows.push(["题目", (famName ? famName + " · " : "") + (task.instruction || "")]);
+    if (task.requirements) rows.push(["要做到", task.requirements]);
+    if (full) {
+      const ms = (full.times || {}).duration_ms;
+      if (ms) rows.push(["用时", `约 ${Math.max(1, Math.round(ms / 60000))} 分钟`]);
+      const it = full.intent || {};
+      if (it.emotion) rows.push(["心情", it.emotion]);
+      if (it.text) rows.push(["想画的", it.text]);
+      const fb = (full.feedback || {}).text;
+      if (fb) rows.push(["彩点说", fb]);
+      const hints = (full.events || []).filter(e => e.type === "HINT_SHOW").length;
+      if (hints) rows.push(["看过提示", `${hints} 条`]);
+      if (full.revised) rows.push(["修改", "完成后修改过一次"]);
+      const qn = full.questionnaire || {};
+      if (qn.reflection) rows.push(["我的回答", qn.reflection]);
+    } else if (row.revised) rows.push(["修改", "完成后修改过一次"]);
+    const stim = task.stimulus || {};
+    const refFile = (task.reference && task.reference.file) || (stim.kind === "reference" ? stim.file : "") || "";
+    const ref = refFile ? `<img class="work-detail-ref" src="${refFile}" alt="参考图">` : "";
+    box.innerHTML = `<summary>详细内容</summary>` + ref
+      + rows.map(([k, v]) => `<div class="wd-row"><span class="req-k">${k}</span><span>${v}</span></div>`).join("");
+    box.classList.toggle("hidden", !rows.length && !ref);
   }
   /** 问 / 不问删除那一步：两组按钮同时只有一组在。 */
   function askDelete(on) {

@@ -2306,6 +2306,13 @@ body.offline .needs-net { display:none !important; }
 /* 首访任务库：题面是「常显」的——窄屏上也不夹成两三行；要做到 / 提示也是 p，一起放开 */
 .brief .quest-card.small.bank p, .brief .quest-card.small.bank h3 { display:block; -webkit-line-clamp:unset; overflow:visible; }
 
+/* 画廊卡点开后的「详细内容」：一个折叠块，行首一个小标签 */
+.work-detail { margin-top:10px; border:2px solid var(--line); border-radius:var(--r); padding:8px 12px; background:var(--soft); }
+.work-detail summary { cursor:pointer; font-weight:800; font-size:0.875rem; color:var(--muted); }
+.work-detail .wd-row { display:flex; gap:8px; align-items:flex-start; margin-top:8px; font-size:0.8125rem; line-height:1.6; color:var(--ink); }
+.work-detail .wd-row .req-k { flex:0 0 auto; margin-top:2px; }
+.work-detail-ref { display:block; max-height:120px; max-width:100%; margin:8px auto 0; border-radius:10px; object-fit:contain; background:#fff; }
+
 /* ===== 首访地图：一列，不是散点（2026-10-12 用户：一个号一开始只有四五道，散点是给十个地方的）===== */
 .map.list { aspect-ratio:auto; min-height:0; max-width:none; display:flex; flex-direction:column; gap:10px; padding:14px; overflow:visible; }
 .map.list .quest-card { position:static; transform:none; width:auto; display:flex; align-items:center; gap:14px; text-align:left;
