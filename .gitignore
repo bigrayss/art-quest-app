@@ -21,3 +21,8 @@ tools/fonts-src/
 
 # 精灵素材的预览动图 / 重复 PNG（几十 MB，脚本用不到）
 art-src/mascot/previews/
+
+# 任务空间报告是 tools/taskspace_report.py 的生成物（README + 600KB JSON + 44 张显示帧），本地重跑即可，不进仓库
+docs/任务空间/
+# 参考图源包：内容已应用到 static/refs/bank/（含 图片清单.csv / source_manifest.json），源 zip 不进仓库
+docs/*.zip
