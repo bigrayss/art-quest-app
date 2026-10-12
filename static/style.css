@@ -2343,5 +2343,5 @@ body.offline .needs-net { display:none !important; }
   background:#fff; color:var(--accent); border:1.5px solid var(--accent); font-size:0.5625rem; font-weight:800; letter-spacing:.06em; }
 .map.list .quest-card .qc-text { padding-right:28px; }
 /* 年龄旁边那一句：为什么要填 */
-.acct-hint { margin:-4px 0 8px; font-size:0.8125rem; color:var(--muted-2); line-height:1.5; }
-.age-gate .acct-hint { margin:-6px 0 12px; }
+.acct-hint { margin:6px 2px 10px; font-size:0.8125rem; color:var(--muted-2); line-height:1.5; }
+.age-gate .acct-hint { margin:-4px 0 12px; }
