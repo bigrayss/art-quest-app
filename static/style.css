@@ -2329,3 +2329,8 @@ body.offline .needs-net { display:none !important; }
 .map.list .quest-card.locked h3 { color:var(--muted); }
 .map.list .quest-card::before { display:none; }
 #view-quest .map.list { aspect-ratio:auto; height:auto; min-height:0; }
+/* 两栏：未完成 / 已完成（2026-10-12）。窄屏上下排，宽屏并排 */
+.map.list .map-col { display:flex; flex-direction:column; gap:10px; min-width:0; }
+.map.list .map-col h4 { margin:4px 0 2px; font-size:0.875rem; font-weight:800; color:var(--muted); }
+.map.list .map-col-empty { margin:0; font-size:0.8125rem; color:var(--muted-2); }
+@media (min-width: 701px) { .map.list { flex-direction:row; gap:16px; } .map.list .map-col { flex:1 1 0; } }

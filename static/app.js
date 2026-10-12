@@ -2921,7 +2921,7 @@
     paintMapBackground();
     state.rolls = {};                 // 重新进地图，每个主题重新抽一道
     const grid = $("#quest-grid"); if (!grid) return;
-    grid.querySelectorAll(".quest-card").forEach(el => el.remove());
+    grid.querySelectorAll(".quest-card, .map-col").forEach(el => el.remove());
     const seq = state.study && state.study.sequence ? state.study.sequence : null;
     const byId = Object.fromEntries(state.quests.map(q => [q.id, q]));
 
@@ -2950,9 +2950,8 @@
           key: q.id, icon: q.icon, color: q.color, kind: q.type, title: q.title,
           locked: i !== state.seqIdx, task: q }))
       : state.bank
-      // 画过的题不再摆在地图上（画廊里保存着）；地方（M 族）留着，因为每个地方还有没画过的题
-      ? bankForms(band).filter(q => !(state.allSessions || []).some(r => r.status === "done" && (r.task_id || r.quest_id) === q.id))
-          .map(q => ({ key: q.id, icon: q.icon, color: q.color, kind: q.type, title: q.title,
+      // 画过的题列在「已完成」一栏（2026-10-12 用户：未完成 / 已完成两列）；地方（M 族）在「未完成」，每个地方还有没画过的题
+      ? bankForms(band).map(q => ({ key: q.id, icon: q.icon, color: q.color, kind: q.type, title: q.title,
           locked: false, task: q, blurb: q.card }))
           .concat(grown.map(fid => famCard((state.families || []).find(f => f.id === fid))).filter(c => c.key))
           // 下一个要开的地方先摆一张锁卡：说「有」，不说还有多少
@@ -2983,6 +2982,13 @@
     // 首访的地图只有四五道，散点是给十个地方设计的：这里排成一列，老的插画图标放左边，名字和一句简介放右边
     const listMode = !!state.bank && !seq;
     grid.classList.toggle("list", listMode);
+    // 两栏：未完成（没画过的题 + 已开的地方 + 锁卡）/ 已完成（画过的题）
+    let colTodo = null, colDone = null;
+    if (listMode) {
+      colTodo = document.createElement("div"); colTodo.className = "map-col todo"; colTodo.innerHTML = `<h4>未完成</h4>`;
+      colDone = document.createElement("div"); colDone.className = "map-col done"; colDone.innerHTML = `<h4>已完成</h4><p class="map-col-empty">画完的会放在这里。</p>`;
+      grid.appendChild(colTodo); grid.appendChild(colDone);
+    }
     // 初始选中的还是原来「今天从这儿开始」那一个：第一个没走过的地方。
     // 孩子自己点过别的地方，回到地图时还选着它（state.mapPick），不另加推荐规则。
     let nextMarked = false, nDone = 0, nextCard = null;
@@ -3029,7 +3035,11 @@
         paintToday(c, nDone, cards.length);
       };
       if (isNext) nextCard = c;
-      grid.appendChild(el);
+      if (listMode) {
+        const col = done && c.task ? colDone : colTodo;
+        if (col === colDone) col.querySelector(".map-col-empty")?.remove();
+        col.appendChild(el);
+      } else grid.appendChild(el);
     });
     paintToday(nextCard, nDone, cards.length);
     paintMapPath();
