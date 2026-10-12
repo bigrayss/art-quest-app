@@ -11,7 +11,7 @@
     hints = [{id, text}, …]     按需显示的固定提示（不是必要条件）；显示时记 HINT_SHOW 事件
     requirements                必要条件，和题面一致，学生看得见
     reflection                  完成后可跳过的反思问题
-    condition.revision_enabled = False   首访默认不开修改轮
+    condition.revision_enabled = True    修改轮和 M 族一样都有（文档原来写首访不开；用户 2026-10-12 定：refine 是必要的，不能有时有有时没有）
     stimulus.fit = "contain"    参考图完整显示，不裁
 
 共用的完成后配置 `first_visit_common_v1`：保存一幅首稿；喜欢程度 / 感觉难度 / 反思各可跳过；不因反馈未到而阻止结束。
@@ -101,7 +101,7 @@ def build_bank(row_fn, families: Dict[str, Dict[str, Any]]) -> List[Dict[str, An
             stim = {"kind": "reference", "stimulus_id": sid, "id": sid, "file": f"/static/refs/bank/{ref_file(sid)}",
                     "mode": "always", "fit": "contain", "size": _ref_size(sid), "svg": False}   # 没有可编辑 SVG（v3 包说明）
         cond = dict(bank=BANK, bank_version=BANK_VERSION, band=t["band"], age_min=t["age_min"], age_max=t["age_max"],
-                    post_config=POST_CONFIG, revision_enabled=False, reference_fit="contain",
+                    post_config=POST_CONFIG, revision_enabled=True, reference_fit="contain",
                     hint_ids=[h["id"] for h in zh["hints"]])
         row = row_fn(fam, t["task_id"], title=zh["title"], instruction=zh["prompt"], hint="",
                      stimulus=stim, condition=cond, version=BANK_VERSION, tiers=[], anchor=False, legacy=False)

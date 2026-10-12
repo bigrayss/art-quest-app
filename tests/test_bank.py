@@ -47,7 +47,7 @@ class Library(unittest.TestCase):
             self.assertTrue(r["instruction"] and r["requirements"] and r["card"] and r["reflection"], r["task_id"])
             self.assertEqual([h["id"] for h in r["hints"]], ["H1", "H2"], r["task_id"])
             self.assertEqual(r["hint"], "")              # 提示不是单条 hint 字段，是按需显示的两条
-            self.assertEqual(r["condition"]["revision_enabled"], False)
+            self.assertEqual(r["condition"]["revision_enabled"], True)    # 修改轮和 M 族一样都有（2026-10-12 用户定）
             self.assertEqual(r["condition"]["post_config"], "first_visit_common_v1")
             self.assertEqual(r["condition"]["reference_fit"], "contain")
             # 必要条件和题面一致：文档说「不在研究分析时补加隐藏要求」——快照里也冻着原文
@@ -154,7 +154,7 @@ class Session(unittest.TestCase):
         self.assertEqual(meta["routing"]["band"], "B2")
         self.assertEqual(meta["routing"]["age_source"], "asked")
         snap = meta["condition_snapshot"] if "condition_snapshot" in meta else meta.get("task", {})
-        self.assertEqual((snap.get("task_condition") or snap.get("condition") or {}).get("revision_enabled"), False)
+        self.assertEqual((snap.get("task_condition") or snap.get("condition") or {}).get("revision_enabled"), True)
         # 提示显示是词表里的事件
         self.assertTrue(is_known(HINT_SHOW))
         r = c.post(f"/api/v1/sessions/{sid}/log", json={"events": [{"type": "HINT_SHOW", "t_ms": 1200, "payload": {"hint_id": "H1", "task_id": "B2_FG_01", "n": 1}}], "strokes": []})

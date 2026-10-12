@@ -320,7 +320,7 @@ window.ARTQUEST_LANG_EN = {
   "下次在进化关改一处，就能获得「进化大师」。": "Revise one part in Level Up next time to earn \"Level Up Master\".",
   "哪里最难？": "What was hardest?",
   "好了": "OK",
-  "获得宝藏": "Treasure collected",
+  "今天的成果": "Today's work",
   "修改后": "After revision",
   "你的作品": "Your drawing",
   "看看别人的画法": "See how others approached it",
@@ -609,7 +609,7 @@ window.ARTQUEST_LANG_EN = {
   "画画": "Draw",
   "彩点说": "Dot's feedback",
   "进化": "Level Up",
-  "宝藏": "Treasure",
+  "成果": "Result",
 
   // ---------- 历史 ----------
   "你的创作历程": "Your drawing history",

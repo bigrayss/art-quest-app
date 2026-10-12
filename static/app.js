@@ -957,7 +957,7 @@
     { key: "draw",   name: "画画" },
     { key: "result", name: "彩点说" },
     { key: "evolve", name: "进化" },
-    { key: "final",  name: "宝藏" },
+    { key: "final",  name: "成果" },
   ];
   /** The stations this condition actually visits: with no feedback there is no
    *  支招 and no 进化, and a bar that promises steps the child can never reach
