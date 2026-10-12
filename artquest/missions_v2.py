@@ -4,7 +4,10 @@
 同日按 docs/彩绘冒险_文案清单_第五部分简化完整版.md 再简化，题目和 M8 规则的措辞也改了，id 没动 → 2.4；
 同日 M1 八道改成「照着图把这个地方画下来」+ 博物馆的理由（原来说图破了、缺了一块，可孩子看到的图是完整的、画布是空的），
 M2_A1/J3/J4、M3_E3/J3 的故事改成和图对得上，所有任务取消限时 → 2.5；
-再把 M1 改成强调「整幅、每样东西都在原位」，和 M2「看准几样东西的大小前后」拉开 → 2.6）。
+再把 M1 改成强调「整幅、每样东西都在原位」，和 M2「看准几样东西的大小前后」拉开 → 2.6；
+2026-10-11 按任务初始化检查（docs/任务初始化.md）的四条决定：M4_J4 把「还看得出是茶壶变的」写进题面（原来是隐藏期望）、
+M6_A2/E4/J4/J5 的「这里」改成「图里的这个地方」（题面要指向常显的参考图）、M7 第一步删掉「（60 秒）」（程序不计时）、
+152 条可被合理绕开的 secondary 关联按实例降为 exploratory（exploratory_overrides；其中 M8 四道尺度规则题保留「变形」，实际降 148 条）→ 2.7）。
 
 十个家族量什么没变（`missions.FAMILIES`，评分契约不动），变的是每道题的说法和主题：
 
@@ -94,7 +97,7 @@ V2: Dict[str, List[Dict[str, Any]]] = {
            base="clock", env="desert", goal="transportation"),
         _f("J3", F, "鞋子变生物", "把一只鞋变成住在大森林里的生物，还要看得出鞋子的样子。", "哪些部分留下，哪些部分改变？",
            base="shoe", env="giant forest", goal="creature"),
-        _f("J4", F, "茶壶救援机", "把茶壶改成太空救援机器，至少能救两个人。", "先想怎么救人，再想茶壶要怎么改。",
+        _f("J4", F, "茶壶救援机", "把茶壶改成太空救援机器，至少能救两个人。保留一些茶壶的特征，让人还能看出它是茶壶变的。保留哪些部分由你决定。", "先想怎么救人，再想茶壶要怎么改。",
            base="teapot", env="outer space", goal="rescue machine"),
         _f("J5", F, "自行车变机甲", "把自行车改成一台机甲机器人。想想它能做什么。", "自行车的哪些部分可以用在机甲上？",
            base="bicycle", env="", goal="rescue machine"),
@@ -113,15 +116,15 @@ V2: Dict[str, List[Dict[str, Any]]] = {
     ],
     "M6": [   # scene = 参考图 m6_scene_<x>；mood 是研究元数据
         _f("A1", BOTH, "夜晚", "保留图里的场景，只改颜色和明暗，把它画成夜晚。", "夜晚也有亮的地方。", scene="a", mood="night"),
-        _f("A2", BOTH, "吓人的地方", "不加新的怪物。只改颜色和明暗，让这里有点吓人。", "想想哪里亮，哪里暗。", scene="d", mood="scary"),
+        _f("A2", BOTH, "吓人的地方", "不加新的怪物。只改颜色和明暗，让图里的这个地方有点吓人。", "想想哪里亮，哪里暗。", scene="d", mood="scary"),
         # 2026-10-03 对调：绿油油的小河改冷，颜色变化大；本来就亮的海滩改热闹，加饱和就够
         _f("E3", S, "寒冷", "不换掉图里的东西。只改颜色，让这里看起来很冷。", "不一定只用蓝色。", scene="c", mood="cold"),
-        _f("E4", S, "热闹", "不加新的东西。只改颜色，让这里看起来热闹。", "想想哪里更亮，哪些颜色的差别更大。", scene="b", mood="lively"),
+        _f("E4", S, "热闹", "不加新的东西。只改颜色，让图里的这个地方看起来热闹。", "想想哪里更亮，哪些颜色的差别更大。", scene="b", mood="lively"),
         _f("E5", S, "温暖", "不换掉图里的东西。只改颜色，让这里看起来温暖。", "同一种暖色也可以有深有浅。", scene="e", mood="warm"),
         # 2026-10-03 转了一圈：暴风雨要大天空（海滩那张就是为它画的），两个世界要中间一条分界线（小河那张）
         _f("J3", F, "神秘", "不改图里的东西。只改颜色和明暗，让这里像藏着秘密。", "颜色和明暗的差别可以大，也可以小。", scene="e", mood="mysterious"),
-        _f("J4", F, "暴风雨要来了", "尽量不加新的东西。用颜色、明暗和对比，画出暴风雨快来的样子。", "想想天空和地面哪里亮，哪里暗。", scene="b", mood="storm"),
-        _f("J5", F, "安全和危险", "不加新的东西。只改颜色和明暗，让画面一边看起来安全，一边看起来危险。", "两边不一定用直线分开。", scene="c", mood="two_worlds"),
+        _f("J4", F, "暴风雨要来了", "尽量不加新的东西。用颜色、明暗和对比，画出图里的这个地方暴风雨快来的样子。", "想想天空和地面哪里亮，哪里暗。", scene="b", mood="storm"),
+        _f("J5", F, "安全和危险", "不加新的东西。只改颜色和明暗，让图里的这个地方一边看起来安全，一边看起来危险。", "两边不一定用直线分开。", scene="c", mood="two_worlds"),
     ],
     "M7": [   # 两步：step1 只有铅笔 60 秒画一个概念；step2 发展成画。concept 是研究元数据
         _f("A1", BOTH, "风", "只用线条画出「风」的感觉，不画具体的东西。", "画线时，可以快一点，也可以慢一点。",
@@ -167,6 +170,40 @@ V2: Dict[str, List[Dict[str, Any]]] = {
 M8_LEAD = "画里要有这两点："
 M8_LEAD_CHALLENGE = "按下面两条画一个世界："
 M8_CHALLENGE = "可选：{text}"
-# M7 第一步的固定说法：{seconds} 秒；「只用线条、不画具体的东西」写在每道题自己的句子里
-M7_STEP1 = "第一步（{seconds} 秒）：{text}"
+# M7 第一步的固定说法。2026-10-11 删掉「（60 秒）」：程序不计时，不把它当受控时间条件；phases[0].seconds 只是元数据
+M7_STEP1 = "第一步：{text}"
 M7_STEP2 = "第二步：{text}"
+
+
+# ---------------------------------------------------------------------------
+# 实例级的关联降级（2026-10-11 用户授权）：家族 rubric 里标为 secondary、但在这道题里**孩子可以合理完成任务却完全
+# 不产生这项表现、任务目标也不依赖它**的维度，在这道题上降为 exploratory。
+# 这改的是任务实例里的证据地位，不是删九维关联、不是改作品评分（九个维度照样全评）。
+# 反例清单见 artquest/taskspace/candidates.DIM_NOTES（bypass=True 的那些）；例外写在下面，不一刀切。
+# 旧 session 的 condition_snapshot 冻着旧角色，不追溯改写。
+# ---------------------------------------------------------------------------
+_BYPASSABLE_SECONDARY = {
+    "M1": {"line_texture": "铅笔线的粗细与力度可观察，但照着图把东西画在原位不依赖它"},
+    "M2": {"line_texture": "同 M1"},
+    "M3": {"deformation": "碎片可以被夸张，但不夸张也能完成一幅完整的画", "line_combination": "接着线条画，但目标不依赖线条组织"},
+    "M4": {"picture_organization": "单件物品的改造不依赖画面安排", "line_combination": "可单色也可上色，目标不依赖线条组织"},
+    "M5": {"picture_organization": "融合物本身是目标，画面安排不是"},
+    "M6": {"picture_organization": "重画场景时的布局可观察，但目标只在颜色和明暗", "line_texture": "同上"},
+    "M7": {"picture_organization": "最终画面的组织可观察，目标在线条与转化"},
+    "M8": {"realism": "可观察，规则世界不要求写实", "deformation": "规则不涉及尺度时，不夸张也能让规则成立",
+           "color_richness": "允许上色但目标不依赖颜色，单色线稿也能让规则成立", "color_contrast": "同上",
+           "line_combination": "可观察，目标不依赖", "line_texture": "可观察，目标不依赖"},
+    "M9": {"transformation": "故事开头转成画面，但不要求转化", "color_richness": "可单色线稿完成，目标不依赖颜色", "line_combination": "可观察，目标不依赖"},
+}
+# 例外：这些题的规则直接涉及尺度，「变形」在这道题里不可绕开，保持 secondary
+_KEEP = {("M8", "E3", "deformation"), ("M8", "E5", "deformation"), ("M8", "J3", "deformation"), ("M8", "J5", "deformation")}
+
+
+def exploratory_overrides(family: str, code: str) -> Dict[str, Dict[str, str]]:
+    """这道题上从 secondary 降为 exploratory 的维度 → {from, to, reason}。"""
+    out: Dict[str, Dict[str, str]] = {}
+    for dim, reason in _BYPASSABLE_SECONDARY.get(family, {}).items():
+        if (family, code, dim) in _KEEP:
+            continue
+        out[dim] = {"from": "secondary", "to": "exploratory", "reason": reason}
+    return out
