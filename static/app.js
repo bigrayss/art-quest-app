@@ -2853,6 +2853,14 @@
       .sort((a, b) => order.indexOf(a.family) - order.indexOf(b.family));
   }
   const revisionOff = () => !!(state.quest && state.quest.condition && state.quest.condition.revision_enabled === false);
+  // 新任务第一次出现在地图上，右边打一个 NEW；点过（选中过）就不再打。记在本机。
+  const SEEN_KEY = "artquest.seen_tasks";
+  function seenTasks() { try { return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || "[]")); } catch (e) { return new Set(); } }
+  function markSeen(key) {
+    const seen = seenTasks(); if (seen.has(key)) return;
+    seen.add(key);
+    try { localStorage.setItem(SEEN_KEY, JSON.stringify([...seen])); } catch (e) { /* 无所谓 */ }
+  }
 
   // 每次进地图重新抽（state.rolls 在 renderQuests 里清空）：同一次停留里点同一个地方是同一道，
   // 离开再回来换一道。原来按「账号|家族|做过几道」取种子、做完一道才换，用户 2026-10-05：
@@ -2952,6 +2960,7 @@
         }).filter(Boolean))
       : [];
     const pendingCards = [], finishedCards = [];
+    const seen = seenTasks();
     let rest = 0;
     sequence.forEach(c => {
       if (c.finished) finishedCards.push(c);
@@ -3039,10 +3048,12 @@
         // 挂着自己画的画的时候不用再盖一颗星：那张画本身就是「来过」
         + (done && !shot ? `<span class="node-star">${icon("star", 14)}</span>` : "")
         + `</div><div class="qc-text"><h3>${nameHtml(c.title)}</h3>`
-        + `<div class="node-sub">${c.locked ? (c.kind || "稍后开放") : (listMode ? (c.blurb || FAMILY_BLURB[fam] || "") : c.kind)}</div></div>`;
+        + `<div class="node-sub">${c.locked ? (c.kind || "稍后开放") : (listMode ? (c.blurb || FAMILY_BLURB[fam] || "") : c.kind)}</div></div>`
+        + (listMode && !c.locked && !c.finished && !seen.has(c.key) ? `<span class="qc-new" data-no-i18n>NEW</span>` : "");
       // 点一个地方 = 选中它：右边的任务卡跟着换，进去的那一步由卡上的「开始画」做
       if (!c.locked) el.onclick = () => {
         state.mapPick = c.key;
+        markSeen(c.key); el.querySelector(".qc-new")?.remove();
         // 手机上那张卡在地图上面：点了下面的主题，滚回去让「开始画」露出来
         if (innerWidth <= 700) requestAnimationFrame(() => { const t = $("#today"); if (t) t.scrollIntoView({ behavior: "smooth", block: "start" }); });
         grid.querySelectorAll(".quest-card").forEach(x => x.classList.toggle("next", x === el));
@@ -3119,16 +3130,18 @@
     // 右边那张卡（2026-10-04 用户定的顺序）：当前选择 / 任务名 / 一句简介（没有就不放）/ 开始画 / 探索精灵。
     // 地图上的地点被点中就换这张卡；「开始画」还是原来那条进入逻辑。
     const fam = card && (card.family || (card.task && card.task.family)) || "";
-    const blurb = card ? (card.blurb || FAMILY_BLURB[fam] || "") : "";
+    // 描述：首访的题用整句题面（用户 2026-10-12：详细一点），地方用那一句介绍
+    const blurb = card ? ((card.task && card.task.prompt) || card.blurb || FAMILY_BLURB[fam] || "") : "";
+    // 精灵和「开始画」在上，标题和描述在下（用户 2026-10-12）
     box.innerHTML =
-      `<div class="t-body">`
+      buddyHtml("t-sprite", all ? "happy" : "explore", null, "fig")
+      + `<div class="t-go"><button class="primary big grow" id="btn-today">`
+      +   `${all ? "随机选一个" : "开始画"}${icon("arrowRight", 17)}</button></div>`
+      + `<div class="t-body">`
       +   `<div class="t-kicker">当前选择</div>`
       +   `<div class="t-title">${all ? "再挑一个" : card.title}</div>`
       +   (blurb ? `<p class="t-blurb">${blurb}</p>` : "")
-      + `</div>`
-      + `<div class="t-go"><button class="primary big grow" id="btn-today">`
-      +   `${all ? "随机选一个" : "开始画"}${icon("arrowRight", 17)}</button></div>`
-      + buddyHtml("t-sprite", all ? "happy" : "explore", null, "fig");
+      + `</div>`;
     box.classList.remove("hidden");
     $("#btn-today").onclick = () => {
       const q = card ? (card.task || randomForm(card.family))
@@ -3472,17 +3485,8 @@
   function paintHints(q) {
     const card = $("#draw-quest-card"); if (!card || !isBank(q)) return;
     if (q.requirements) card.insertAdjacentHTML("beforeend", `<p class="req"><span class="req-k">要做到</span>${q.requirements}</p>`);
-    const hints = q.hints || []; if (!hints.length) return;
-    card.insertAdjacentHTML("beforeend", `<div class="hints" id="hint-box"><button class="linkbtn" id="btn-hint">看一条提示</button></div>`);
-    let n = 0;
-    $("#btn-hint").onclick = () => {
-      const h = hints[n]; if (!h) return;
-      n += 1;
-      $("#hint-box").insertAdjacentHTML("beforebegin", `<p class="hint-line"><span class="req-k">提示</span>${h.text}</p>`);
-      logEvent("HINT_SHOW", { hint_id: h.id, task_id: q.id, n });
-      if (n >= hints.length) $("#hint-box").classList.add("hidden");
-      else $("#btn-hint").textContent = "再看一条提示";
-    };
+    // 提示（H1/H2）不显示给孩子（用户 2026-10-12：那是分析时的踩点参考，不是题目里显示的）。
+    // 它们仍在快照里；HINT_SHOW 事件留在词表里，现在没人发。
   }
   /** 整张画布还是白的？每隔 4 个像素抽一个看，1024×704 也就几万次比较。 */
   function canvasIsBlank() {

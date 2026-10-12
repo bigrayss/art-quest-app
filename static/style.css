@@ -296,7 +296,7 @@ h2 .muted { font-weight:700; }
 .today .t-go button { width:100%; }
 /* 精灵接在按钮下面（上面留 28px，卡底留 22px），不是贴在整条侧栏的底部。
    200px 是图的宽度，透明 PNG 自带留白，角色本身没那么大——别去裁原图的边。 */
-.today .t-sprite { width:200px; height:183px; max-width:100%; flex:none; overflow:visible; align-self:center; margin-top:14px; }
+.today .t-sprite { width:200px; height:183px; max-width:100%; flex:none; overflow:visible; align-self:center; margin-top:0; }
 /* 和封面那只一样 Q 弹：很轻的呼吸（3px）+ 戳一下压扁再弹回来（hero-idle / hero-poke 是封面那两条） */
 .today .t-sprite { transform-origin:50% 88%; animation:hero-idle 4.8s ease-in-out infinite;
   cursor:pointer; -webkit-tap-highlight-color:transparent; }
@@ -305,8 +305,10 @@ h2 .muted { font-weight:700; }
   /* 窄屏：地图在上、卡在下，内容横着排，精灵在右边 */
   .today { flex-direction:row; flex-wrap:wrap; align-items:center; gap:12px 16px; padding:14px 16px; }
   .today .t-body { flex:1 1 180px; }
-  .today .t-sprite { width:96px; height:88px; margin:0; order:1; }
-  .today .t-go { flex:1 1 100%; order:2; }
+  /* 窄屏：精灵和「开始画」并排在上，标题和描述在下（2026-10-12） */
+  .today .t-sprite { width:96px; height:88px; margin:0; order:0; }
+  .today .t-go { flex:1 1 160px; order:0; }
+  .today .t-body { flex:1 1 100%; order:2; }
 }
 
 /* ===== 流程进度条：做一幅画的六步 ===== */
@@ -2334,3 +2336,8 @@ body.offline .needs-net { display:none !important; }
 .map.list details.map-col { margin-top:6px; }
 .map.list details.map-col summary { cursor:pointer; font-size:0.875rem; font-weight:800; color:var(--muted); padding:6px 4px; }
 .map.list details.map-col .quest-card { margin-top:10px; }
+/* 新任务第一次出现：右边一个小小的 NEW。卡要 relative 才能挂角标；left/top 得归零，否则散点地图的 --mx/--my 还在起作用 */
+.map.list .quest-card { position:relative; left:auto; top:auto; transform:none; }
+.qc-new { position:absolute; right:12px; top:50%; transform:translateY(-50%); padding:3px 8px; border-radius:999px;
+  background:var(--accent); color:#fff; font-size:0.6875rem; font-weight:900; letter-spacing:.04em; }
+.map.list .quest-card .qc-text { padding-right:44px; }
