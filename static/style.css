@@ -2305,3 +2305,20 @@ body.offline .needs-net { display:none !important; }
 .sq-reflect textarea { width:100%; box-sizing:border-box; border:2px solid var(--line); border-radius:12px; padding:10px; font:inherit; font-size:0.9375rem; }
 /* 首访任务库：题面是「常显」的——窄屏上也不夹成两三行；要做到 / 提示也是 p，一起放开 */
 .brief .quest-card.small.bank p, .brief .quest-card.small.bank h3 { display:block; -webkit-line-clamp:unset; overflow:visible; }
+
+/* ===== 首访地图：一列，不是散点（2026-10-12 用户：一个号一开始只有四五道，散点是给十个地方的）===== */
+.map.list { aspect-ratio:auto; min-height:0; max-width:none; display:flex; flex-direction:column; gap:10px; padding:14px; overflow:visible; }
+.map.list .quest-card { position:static; transform:none; width:auto; display:flex; align-items:center; gap:14px; text-align:left;
+  padding:10px 14px 10px 10px; border-radius:18px; background:var(--card); border:2px solid var(--line); cursor:pointer; }
+.map.list .quest-card:active { transform:none; }
+.map.list .quest-card .node-btn { width:64px; height:64px; margin:0; flex:0 0 auto; }
+.map.list .quest-card .node-art { width:112%; height:112%; }
+.map.list .quest-card h3 { margin:0; font-size:1rem; }
+.map.list .node-sub { display:block; margin-top:3px; font-size:0.8125rem; color:var(--muted-2); font-weight:600; line-height:1.45; }
+.map.list .quest-card .qc-text { min-width:0; }
+.map.list .quest-card.next { border-color:var(--accent); background:#fff8ef; }
+.map.list .quest-card.done { opacity:.75; }
+.map.list .quest-card.locked { background:var(--soft); border-style:dashed; cursor:default; }
+.map.list .quest-card.locked h3 { color:var(--muted); }
+.map.list .quest-card::before { display:none; }
+#view-quest .map.list { aspect-ratio:auto; height:auto; min-height:0; }

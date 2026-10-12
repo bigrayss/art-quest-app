@@ -2978,6 +2978,9 @@
       if (f && !shotOf[f]) shotOf[f] = r.session_id;
     });
     const spots = mapSpots(cards.length);
+    // 首访的地图只有四五道，散点是给十个地方设计的：这里排成一列，老的插画图标放左边，名字和一句简介放右边
+    const listMode = !!state.bank && !seq;
+    grid.classList.toggle("list", listMode);
     // 初始选中的还是原来「今天从这儿开始」那一个：第一个没走过的地方。
     // 孩子自己点过别的地方，回到地图时还选着它（state.mapPick），不另加推荐规则。
     let nextMarked = false, nDone = 0, nextCard = null;
@@ -2998,7 +3001,7 @@
       const spot = spots[i] || [50, 50];
       el.style.setProperty("--mx", spot[0] + "%");
       el.style.setProperty("--my", spot[1] + "%");
-      const art = artFor("families", fam);
+      const art = artFor("families", listMode ? (GLYPH_ALIAS[fam] || fam) : fam);   // 首访五类借用最近的 M 族插画图标
       const glyphMark = art ? `<img class="node-art" src="${art}" alt="">`
         : glyph(fam, "currentColor", 34) || `<span class="qc-icon">${c.icon || ""}</span>`;
       // 2026-09-28 用户：圆里换成孩子的画反而难看，字形保持原样；去过的地方靠实心色圆 + 星表示
@@ -3013,8 +3016,8 @@
         `<div class="node-btn${shot ? " has-shot" : ""}">${mark}`
         // 挂着自己画的画的时候不用再盖一颗星：那张画本身就是「来过」
         + (done && !shot ? `<span class="node-star">${icon("star", 14)}</span>` : "")
-        + `</div><h3>${nameHtml(c.title)}</h3>`
-        + `<div class="node-sub">${c.locked ? (c.kind || "稍后开放") : c.kind}</div>`;
+        + `</div><div class="qc-text"><h3>${nameHtml(c.title)}</h3>`
+        + `<div class="node-sub">${c.locked ? (c.kind || "稍后开放") : (listMode ? (c.blurb || FAMILY_BLURB[fam] || "") : c.kind)}</div></div>`;
       // 点一个地方 = 选中它：右边的任务卡跟着换，进去的那一步由卡上的「开始画」做
       if (!c.locked) el.onclick = () => {
         state.mapPick = c.key;
@@ -3041,6 +3044,7 @@
   function paintMapPath() {
     const map = $("#quest-grid"), svg = $("#map-path");
     if (!map || !svg) return;
+    if (map.classList.contains("list")) { svg.innerHTML = ""; return; }   // 一列的时候没有小路
     const nodes = [...map.querySelectorAll(".quest-card .node-btn")];
     const mb = map.getBoundingClientRect();
     if (nodes.length < 2 || !mb.width || !mb.height) { svg.innerHTML = ""; return; }
