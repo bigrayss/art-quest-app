@@ -46,7 +46,7 @@
     startedAt: null, dirtySinceSnapshot: false, timers: [], before: null, color: "#f79433", buddyTick: 0,
     anonId: "", condition: {}, study: null, seqIdx: 0, lastActivity: 0, idle: false, timeUp: false, pendingFinal: null,
     entered: false, worldColor: "", buddyName: "", account: null, unclaimed: 0,
-    mode: "full", baseUi: "full" };
+    mode: "simple" };      // 2026-10-12：只剩简单版，这个字段只是给 deviceInfo 记一笔
 
   // ---------- research identity & environment ----------
   // Two anonymous ids: one the device keeps by itself (so free play still lines
@@ -87,7 +87,7 @@
     screen: [screen.width, screen.height], viewport: [innerWidth, innerHeight], dpr: devicePixelRatio || 1,
     pointer_types: [matchMedia("(pointer:fine)").matches ? "fine" : "", matchMedia("(any-pointer:coarse)").matches ? "coarse" : ""].filter(Boolean),
     timezone: (Intl.DateTimeFormat().resolvedOptions() || {}).timeZone || "", language: navigator.language || "",
-    ui_lang: LANG, ui_mode: state.mode,
+    ui_lang: LANG, ui_mode: "simple",
     // 哪个壳：浏览器里是空的；app 里记下平台和 app 版本——Pencil 的压感、采样率
     // 都跟壳有关，分析时它是协变量
     app: NATIVE ? { platform: NATIVE.platform || "ios", version: NATIVE.version || "" } : {},
@@ -560,13 +560,8 @@
       paintIntentIdentity();        // 心愿页那句「起个名字」现在不用再说了
       await loadAccount();          // 顺便问一句这台设备上有没有还没写名字的画
       await loadCollection(); renderQuests();
-      // 年龄小的推荐简单版：不替他决定，弹选择框，「推荐」只是个标签
-      const acc = state.account || {};
-      // v2.2：简单版 = 小学的题，完整版 = 初中的题。12 岁及以下推荐简单版（只是推荐，孩子自己点）
-      const recommend = acctMode === "register" && acc.age != null && acc.age <= 12 && state.mode !== "simple";
-      // 从门口进来的：先进世界、看完导览，再推荐——导览的暗幕会压住选择框
-      if (welcomeOn) { state.recommendMode = recommend; await finishWelcome(); return; }
-      if (recommend) openMode();
+      // 从门口进来的：先进世界、看完导览（版本推荐那一步 2026-10-12 删了：只剩简单版）
+      if (welcomeOn) { await finishWelcome(); return; }
       await loadSessions();
     } catch (e) {
       acctError(errText(e));
@@ -968,7 +963,8 @@
   function flowStages() {
     const quiet = state.condition && state.condition.feedback_source !== "ai";
     // 简单版没有心愿那一站，条上也别数它
-    return ALL_STAGES.filter(s => !(quiet && (s.key === "result" || s.key === "evolve")) && !(isSimple() && s.key === "intent"));
+    return ALL_STAGES.filter(s => !(quiet && (s.key === "result" || s.key === "evolve")) && !(isSimple() && s.key === "intent")
+      && !(revisionOff() && s.key === "evolve"));   // 首访默认不开修改轮：条上也别数它
   }
   function renderFlow(currentKey) {
     const bar = $("#flow"); if (!bar) return;
@@ -1213,7 +1209,6 @@
     tourOn = false;
     tourEl.classList.add("hidden");
     try { localStorage.setItem(TOUR_KEY, "1"); } catch (e) { /* 无所谓 */ }
-    if (state.recommendMode) { state.recommendMode = false; openMode(); }   // 注册时年龄小：导览完了再推荐简单版
     checkFeatured();
   }
   $("#btn-tour-next").onclick = () => nextTour(false);
@@ -1370,7 +1365,7 @@
     try { localStorage.setItem(WELCOME_KEY, "1"); } catch (e) { /* 无所谓 */ }
     await renderWorld(); show("world");
     if (!guideSeen() && state.condition.ui !== "quiet") startTour();
-    else { if (state.recommendMode) { state.recommendMode = false; openMode(); } checkFeatured(); }
+    else checkFeatured();
   }
   // 切语言：两个钮显示的是**另一种**语言的名字（在中文界面上写 English，反之写 中文），
   // 这是「切到哪儿去」而不是「现在是哪儿」，孩子一眼就懂。整页重载。
@@ -1394,28 +1389,7 @@
     window.I18N.set(to);
   });
   $("#btn-lang-cancel").onclick = () => langModal.classList.add("hidden");
-  // 版本：简单 / 完整。「我的」里语言旁边一颗钮；注册时年龄 ≤ 8 会主动弹一次。
-  const modeModal = $("#mode-modal");
-  const MODE_NAMES = { full: "完整版", simple: "简单版" };
-  function paintModeButton() {
-    const b = $("#btn-mode-me"); if (!b) return;
-    $("#mode-me-label").textContent = MODE_NAMES[state.mode];
-    b.classList.toggle("hidden", state.baseUi !== "full");   // 研究员定了别的档，孩子的开关不显示
-  }
-  function openMode() {
-    const age = (state.account || {}).age;
-    const rec = age == null ? "" : (age <= 12 ? "simple" : "full");
-    modeModal.querySelectorAll("[data-mode]").forEach(o => {
-      o.classList.toggle("on", o.dataset.mode === state.mode);
-      o.querySelector(".tag")?.remove();
-      if (o.dataset.mode === rec) o.querySelector("b").insertAdjacentHTML("afterend", `<span class="tag">推荐</span>`);
-    });
-    modeModal.classList.remove("hidden");
-  }
-  $("#btn-mode-me").onclick = openMode;
-  modeModal.querySelectorAll("[data-mode]").forEach(o => o.onclick = () => { modeModal.classList.add("hidden"); if (o.dataset.mode !== state.mode) setMode(o.dataset.mode); });
-  $("#btn-mode-cancel").onclick = () => modeModal.classList.add("hidden");
-  modeModal.onclick = (e) => { if (e.target === modeModal) modeModal.classList.add("hidden"); };
+  // 「简单版 / 完整版」的选择框 2026-10-12 删了：只剩简单版，没有东西可选
   langModal.onclick = (e) => { if (e.target === langModal) langModal.classList.add("hidden"); };
   $("#btn-welcome-register").onclick = () => openAcct("register");
   $("#btn-welcome-login").onclick = () => openAcct("login");
@@ -1476,8 +1450,10 @@
     return have.includes(key) ? `/static/art/${kind}/${encodeURIComponent(key)}.${kind === "map" ? "jpg" : "png"}` : "";
   }
   /** A family glyph at `size` px, in that family's colour. */
+  // 首访五个家族借用最近的 M 族字形（这个 app 不用 emoji）
+  const GLYPH_ALIAS = { OB: "M2", ST: "M9", FG: "M3", TR: "M4", DS: "M5" };
   function glyph(familyId, color, size) {
-    const g = GLYPHS[familyId];
+    const g = GLYPHS[familyId] || GLYPHS[GLYPH_ALIAS[familyId]];
     if (!g) return "";
     return `<svg class="glyph" viewBox="0 0 24 24" width="${size}" height="${size}" `
       + `fill="none" stroke="${color || "currentColor"}" stroke-width="2.2" `
@@ -2578,7 +2554,6 @@
       state.condition = { ...state.condition, ...state.study.condition };
       state.seqIdx = 0;
     } catch (e) { console.warn("study assign failed", e); }
-    state.baseUi = state.condition.ui || "full";     // 研究员定的那一档；孩子的开关只在它是 full 时起作用
     renderStudyBar();
   }
   function renderStudyBar() {
@@ -2606,25 +2581,16 @@
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
   /** Apply the frozen condition to the UI (gamification level, undo, reference). */
-  // 简单 / 完整 是孩子设备上的开关（artquest.mode）。它只在研究员定的 ui 是 full 时起作用：
-  // 对照组（quiet）是实验臂，开关改不动它；研究员在 study.json 里直接写 simple 也行。
-  const MODE_KEY = "artquest.mode";
+  // 2026-10-12 用户：「简单版 / 完整版」两档删掉，只留简单版——不问心情和心愿、不做问卷、不摆成长图、彩点只说一句。
+  // ui 只剩 simple | quiet：quiet 是研究员定的对照组（去游戏化），其余一律 simple。
   const isSimple = () => state.condition.ui === "simple";
-  function setMode(mode, { silent } = {}) {
-    state.mode = mode === "simple" ? "simple" : "full";
-    try { localStorage.setItem(MODE_KEY, state.mode); } catch (e) { /* 无所谓 */ }
-    applyCondition();
-    paintModeButton();
-    if (!silent) logEvent("UI_MODE_SWITCH", { to: state.mode });
-  }
   function applyCondition() {
     const c = state.condition;
-    if (state.baseUi === "full") c.ui = state.mode === "simple" ? "simple" : "full";
+    if (c.ui !== "quiet") c.ui = "simple";
     document.body.classList.toggle("simple", c.ui === "simple");
-    // 简单版的钮上字也少
     const rv = $("#btn-revise"), sk = $("#btn-skip-revise");
-    if (rv) rv.innerHTML = c.ui === "simple" ? `${icon("sparkle", 19)}再改一改${icon("arrowRight", 17)}` : `${icon("sparkle", 19)}去进化关，再改一改${icon("arrowRight", 17)}`;
-    if (sk) sk.textContent = c.ui === "simple" ? "保留原样" : "保留现在的样子";
+    if (rv) rv.innerHTML = `${icon("sparkle", 19)}再改一改${icon("arrowRight", 17)}`;
+    if (sk) sk.textContent = "保留原样";
     document.body.classList.toggle("quiet", c.ui === "quiet");
     ["#btn-undo", "#btn-redo"].forEach(sel => { const b = $(sel); if (b) { b.disabled = !c.undo_allowed; b.classList.toggle("hidden", !c.undo_allowed); } });
     $("#zoombar").classList.toggle("hidden", !zoomAllowed());
@@ -2647,6 +2613,8 @@
       refImgs.forEach(im => { if (im.getAttribute("src") !== src) { im.removeAttribute("src"); im.src = src; } });
       // always：缩略图一直在右栏里；on_demand：只有一颗钮，画面要他自己点开
       $("#refpanel").classList.toggle("peek", ref.mode !== "always");
+      // 首访任务库：参考图完整显示（contain），不能裁掉叶柄、车轮、笔筒底
+      $("#refpanel").classList.toggle("fit-contain", !!(q.stimulus && q.stimulus.fit === "contain"));
       applyRefView();
       // presented by the task, as distinct from the child choosing to open it
       logEvent(EV.REFERENCE_SHOW, { reference_id: ref.id, mode: ref.mode,
@@ -2838,9 +2806,9 @@
   /** Pick which parallel form of a family this child gets in free play.
    *  In Study Mode the protocol has already chosen; here it is just variety. */
   // v2.2：每个家族小学版 5 道、初中版 5 道（其中 2 道两版共用）。孩子看哪一版跟着
-  // 简单/完整版走（quiet 对照组按完整版）。抽一道**没做过**的，按「谁 + 家族 + 做过几道」
+  // 只剩简单版（2026-10-12）：地图上是锚定题 + 小学题；初中题（J）留在库里给旧数据查 id，不再上地图。抽一道**没做过**的
   // 取种子：没做完之前重进还是这一道，做完下一次换一道。v1 的题（legacy）不再上地图。
-  const myTier = () => (isSimple() ? "simple" : "full");
+  const myTier = () => "simple";
   function tierForms(familyId) {
     const tier = myTier();
     return state.quests.filter(q => q.family === familyId && !q.legacy && (q.tiers || []).includes(tier));
@@ -2850,6 +2818,45 @@
     for (const ch of String(key)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
     return n ? h % n : 0;
   }
+  // ===== 任务库按年龄起步、跟着成果长大（2026-10-12，docs/Task_Library_zh_CN.md + 用户下午的决定）=====
+  // 一个新账号的地图上先只有**按年龄固定的五道**（观察 / 表达 / 图形片段 / 物品改造 / 视觉设计），一次做一道。
+  // 每画完一张，地图上就多开一个「地方」（M 族的一个家族，按 UNLOCK_ORDER 的顺序），画完的题留在地图上带星。
+  // 年龄是入口路由，不是能力分数：没有年龄就先问一句，范围外（<6 或 >16）不静默分配，回到原地图。
+  // ?bank=0 强制看原来的十家族地图，给研究员和测试用。
+  const bankCfg = () => (state.cfg && state.cfg.first_visit) || {};
+  const isBank = (q) => !!(q && q.bank);
+  const ASKED_AGE_KEY = "artquest.age";
+  /** 年龄从哪来：账号 > 刚才问的（localStorage）> 没有。来源一起记进 condition。 */
+  function myAge() {
+    const acc = state.account;
+    if (acc && acc.role !== "teacher" && acc.age != null) return { age: +acc.age, source: "account" };
+    try { const a = localStorage.getItem(ASKED_AGE_KEY); if (a) return { age: +a, source: "asked" }; } catch (e) { /* 无所谓 */ }
+    return { age: null, source: "" };
+  }
+  function bandOf(age) {
+    if (age == null || isNaN(age)) return null;
+    return (bankCfg().bands || []).find(b => age >= b.age_min && age <= b.age_max) || null;
+  }
+  function bankForced() { try { return new URLSearchParams(location.search).get("bank"); } catch (e) { return null; } }
+  function firstVisitMode() {
+    if (!bankCfg().enabled) return false;
+    if (bankForced() === "0") return false;
+    if (state.study && state.study.sequence) return false;          // 研究协议定的序列优先
+    return true;
+  }
+  // 画完几张就多开几个地方：顺序固定，先讲故事、换颜色这些门槛低的，再到规则世界
+  const UNLOCK_ORDER = ["M9", "M6", "M3", "M4", "M5", "M1", "M2", "M7", "M8", "M0"];
+  function unlockedFamilies(nDone) {
+    return UNLOCK_ORDER.filter(f => tierForms(f).length).slice(0, Math.max(0, nDone));
+  }
+  function bankForms(band) {
+    if (!band) return [];
+    const order = bankCfg().order || [];
+    return state.quests.filter(q => q.bank && q.band === band.id)
+      .sort((a, b) => order.indexOf(a.family) - order.indexOf(b.family));
+  }
+  const revisionOff = () => !!(state.quest && state.quest.condition && state.quest.condition.revision_enabled === false);
+
   // 每次进地图重新抽（state.rolls 在 renderQuests 里清空）：同一次停留里点同一个地方是同一道，
   // 离开再回来换一道。原来按「账号|家族|做过几道」取种子、做完一道才换，用户 2026-10-05：
   // 「不是说任务随机吗，我打开一直是一个」。仍然只在本版、没做过的题里抽。
@@ -2921,10 +2928,33 @@
     // Study Mode: the protocol names exact forms, in order. Free play: the child
     // picks a *mission family* — 75 forms is a task library, not a treasure map,
     // and which parallel form they get is not a choice the child should make.
+    // 首访：先问年龄（没有就不往下走），有了就按年龄段摆五道固定的题
+    const fv = !seq && firstVisitMode();
+    const who = fv ? myAge() : { age: null, source: "" };
+    const band = fv ? bandOf(who.age) : null;
+    const gate = $("#age-gate");
+    if (gate) {
+      gate.classList.toggle("hidden", !(fv && who.age == null));
+      const note = $("#age-gate-note");
+      if (note) note.classList.toggle("hidden", !(fv && who.age != null && !band));
+    }
+    if (fv && who.age == null) { paintToday(null, 0, 0); $("#map-lead-text").textContent = ""; return; }
+    state.bank = fv && band ? { band: band.id, age: who.age, age_source: who.source } : null;
+    const nDoneAll = (state.allSessions || []).filter(r => r.status === "done").length;
+    const grown = state.bank ? unlockedFamilies(nDoneAll) : [];
+    const nextFam = state.bank ? UNLOCK_ORDER.filter(f => tierForms(f).length)[grown.length] : null;
+    const famCard = (f) => ({ key: f.id, icon: f.icon, color: f.color, kind: `${tierForms(f.id).length} 种玩法`,
+                              title: f.name, locked: false, family: f.id });
     const cards = seq
       ? seq.map(id => byId[id]).filter(Boolean).map((q, i) => ({
           key: q.id, icon: q.icon, color: q.color, kind: q.type, title: q.title,
           locked: i !== state.seqIdx, task: q }))
+      : state.bank
+      ? bankForms(band).map(q => ({ key: q.id, icon: q.icon, color: q.color, kind: q.type, title: q.title,
+          locked: false, task: q, blurb: q.card }))
+          .concat(grown.map(fid => famCard((state.families || []).find(f => f.id === fid))).filter(c => c.key))
+          // 下一个要开的地方先摆一张锁卡：说「有」，不说还有多少
+          .concat(nextFam ? [{ key: `locked:${nextFam}`, icon: "", color: "#cfcbc4", kind: "画完一张再开", title: "？", locked: true, family: nextFam }] : [])
       // 家族卡：标题已经是家族名了，副标题换成「这个家族有几种玩法」
       : (state.families || []).filter(f => tierForms(f.id).length).map(f => ({
           key: f.id, icon: f.icon, color: f.color, kind: `${tierForms(f.id).length} 种玩法`,
@@ -2933,7 +2963,8 @@
     const doneRows2 = (state.allSessions || []).filter(r => r.status === "done");
     const doneFam = new Set(doneRows2.map(r => familyOf(r.task_id)).filter(Boolean));
     // 上面那一行：研究模式里任务是定好的，不能一边限制一边写「随便选」
-    $("#map-lead-text").textContent = seq ? "这是今天的任务，点「开始画」就可以开始。" : "选一个主题，开始今天的创作。";
+    $("#map-lead-text").textContent = seq ? "这是今天的任务，点「开始画」就可以开始。"
+      : state.bank ? (grown.length ? "选一个地方，开始今天的创作。" : "今天从这五个里选一道画。") : "选一个主题，开始今天的创作。";
     // 「已体验 n 个主题」= 存过作品的不同主题数：点过不算，同一主题画三次算一个。没有就不显示。
     const cnt = $("#map-count");
     cnt.textContent = doneFam.size ? `已体验 ${doneFam.size} 个主题` : "";
@@ -2953,7 +2984,7 @@
     const pickable = cards.find(c => c.key === state.mapPick && !c.locked);
     cards.forEach((c, i) => {
       const fam = c.family || (c.task && c.task.family) || "";
-      const done = !c.locked && doneFam.has(fam);
+      const done = !c.locked && (c.task ? doneRows2.some(r => (r.task_id || r.quest_id) === c.task.id) : doneFam.has(fam));
       const isNext = pickable ? c === pickable : (!c.locked && !done && !nextMarked);
       if (done) nDone++;
       if (isNext) nextMarked = true;
@@ -2983,7 +3014,7 @@
         // 挂着自己画的画的时候不用再盖一颗星：那张画本身就是「来过」
         + (done && !shot ? `<span class="node-star">${icon("star", 14)}</span>` : "")
         + `</div><h3>${nameHtml(c.title)}</h3>`
-        + `<div class="node-sub">${c.locked ? "稍后开放" : c.kind}</div>`;
+        + `<div class="node-sub">${c.locked ? (c.kind || "稍后开放") : c.kind}</div>`;
       // 点一个地方 = 选中它：右边的任务卡跟着换，进去的那一步由卡上的「开始画」做
       if (!c.locked) el.onclick = () => {
         state.mapPick = c.key;
@@ -3061,7 +3092,7 @@
     // 右边那张卡（2026-10-04 用户定的顺序）：当前选择 / 任务名 / 一句简介（没有就不放）/ 开始画 / 探索精灵。
     // 地图上的地点被点中就换这张卡；「开始画」还是原来那条进入逻辑。
     const fam = card && (card.family || (card.task && card.task.family)) || "";
-    const blurb = card ? (FAMILY_BLURB[fam] || "") : "";
+    const blurb = card ? (card.blurb || FAMILY_BLURB[fam] || "") : "";
     box.innerHTML =
       `<div class="t-body">`
       +   `<div class="t-kicker">当前选择</div>`
@@ -3078,6 +3109,21 @@
       if (q) chooseQuest(q);
     };
   }
+
+  // 年龄门：只在首访模式、而且账号里也没有年龄时出现。填了就记在本机（账号在的话也写进账号），然后重新摆地图。
+  $("#age-gate-input") && ($("#age-gate-input").oninput = (e) => { e.target.value = e.target.value.replace(/\D/g, "").slice(0, 2); });
+  $("#btn-age-gate") && ($("#btn-age-gate").onclick = async () => {
+    const v = parseInt($("#age-gate-input").value, 10);
+    if (!(v >= 3 && v <= 99)) { $("#age-gate-input").focus(); return; }
+    try { localStorage.setItem(ASKED_AGE_KEY, String(v)); } catch (e) { /* 无所谓 */ }
+    if (state.account && state.account.role !== "teacher" && state.account.age == null) {
+      try {
+        const r = await api(`${API}/accounts/profile`, { method: "POST", body: JSON.stringify({ token: savedToken(), age: v }) });
+        state.account = r.account; cacheAccount(r.account); paintAccount();
+      } catch (e) { /* 账号没写上也不拦：本机那份已经够路由 */ }
+    }
+    renderQuests(); paintMapPath();
+  });
 
   /** One child-facing line per family — never the research goal. */
   const FAMILY_BLURB = {
@@ -3202,8 +3248,7 @@
     // 「全部记录」= 这台设备 / 这个账号自己的那些。全服的列表要研究员令牌，不是界面上的一个链接。
     const ex = $("#export-link"); if (ex) ex.href = `${API}/sessions?${whoQuery()}`;
     await setupStudy();
-    try { state.mode = localStorage.getItem(MODE_KEY) === "simple" ? "simple" : "full"; } catch (e) { /* 无所谓 */ }
-    applyCondition(); paintModeButton();
+    applyCondition();
     $("#participant").value = savedPid();
     renderQuests();
     const chips = $("#emotion-chips"); chips.innerHTML = "";
@@ -3264,7 +3309,8 @@
     // 写心愿的时候就把参考图拉进缓存，进创作屏时不用等
     if (ref && state.condition.reference_allowed) { const pre = new Image(); pre.src = ref.file || `/static/refs/${ref.id}.png`; }
     const refImg = showRef ? `<img class="intent-ref" src="${ref.file || `/static/refs/${ref.id}.png`}" alt="参考图">` : "";
-    $("#intent-quest-card").innerHTML = `<div class="type">${q.type}</div><h3 id="intent-quest-title">${q.title}</h3><p id="intent-quest-prompt">${q.prompt}</p>${refImg}`;
+    const req = isBank(q) && q.requirements ? `<p class="req"><span class="req-k">要做到</span>${q.requirements}</p>` : "";
+    $("#intent-quest-card").innerHTML = `<div class="type">${q.type}</div><h3 id="intent-quest-title">${q.title}</h3><p id="intent-quest-prompt">${q.prompt}</p>${req}${refImg}`;
     paintIntentIdentity();
     paintBuddy($("#intent-sprite"), "reading", buddyColor(), "fig");
     buddyPrefetch("thinking", "happy", "encourage");   // 画画屏要用的，趁写心愿的时候拉
@@ -3348,6 +3394,8 @@
       participant: { anon_id: state.anonId, participant_id: savedPid(), account_id: accountId(),
                      label: "", buddy_name: state.buddyName, age: (state.account || {}).age ?? null },
       condition: state.condition, device: deviceInfo(), canvas: canvasGeom(),
+      // 首访任务库：这道题是按年龄路由到的——年龄、年龄从哪来、年龄段；M 族这里是空的
+      routing: isBank(state.quest) ? { ...(state.bank || {}), first_visit: true, bank: state.quest.bank } : {},
       study: state.study ? { active: !!state.study.active, study_id: state.study.study_id, group: state.study.group || "",
         order_index: state.seqIdx, sequence_id: (state.study.sequence || []).join(">") } : {},
     };
@@ -3380,6 +3428,8 @@
     await ArtLog.start(state.sessionId);
     applyTask(state.quest);
     $("#draw-quest-card").innerHTML = `<div class="type">${state.quest.type}</div><h3>${state.quest.title}</h3><p>${state.quest.prompt}</p>`;
+    $("#draw-quest-card").classList.toggle("bank", isBank(state.quest));   // 首访：题面常显、不夹行
+    paintHints(state.quest);
     assistReset(intent);
     // 不承诺走不到的站：条件里没有 AI 反馈时，这颗按钮后面根本没有「支招」那一步。
     // 「画好了」什么都不许诺，两臂用同一句；有没有反馈是后面那一屏的事。
@@ -3390,6 +3440,23 @@
     logEvent(EV.CANVAS_GEOMETRY, canvasGeom());
   }
 
+  /** 首访任务库的「要做到」+ 按需提示：提示是预先固定的过程支持，点一次露一条，每次记 HINT_SHOW（hint_id / 第几次）。
+   *  看过提示不等于没独立思考——所以这里只记事实。M 族没有这些，卡上什么都不加。 */
+  function paintHints(q) {
+    const card = $("#draw-quest-card"); if (!card || !isBank(q)) return;
+    if (q.requirements) card.insertAdjacentHTML("beforeend", `<p class="req"><span class="req-k">要做到</span>${q.requirements}</p>`);
+    const hints = q.hints || []; if (!hints.length) return;
+    card.insertAdjacentHTML("beforeend", `<div class="hints" id="hint-box"><button class="linkbtn" id="btn-hint">看一条提示</button></div>`);
+    let n = 0;
+    $("#btn-hint").onclick = () => {
+      const h = hints[n]; if (!h) return;
+      n += 1;
+      $("#hint-box").insertAdjacentHTML("beforebegin", `<p class="hint-line"><span class="req-k">提示</span>${h.text}</p>`);
+      logEvent("HINT_SHOW", { hint_id: h.id, task_id: q.id, n });
+      if (n >= hints.length) $("#hint-box").classList.add("hidden");
+      else $("#btn-hint").textContent = "再看一条提示";
+    };
+  }
   /** 整张画布还是白的？每隔 4 个像素抽一个看，1024×704 也就几万次比较。 */
   function canvasIsBlank() {
     const d = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
@@ -3447,7 +3514,11 @@
       paintOrCheer($("#fb-sprite"), "happy", "save_ok");
       // remember which feedback this is, so the revision can be attributed to it
       state.feedback = { id: r.feedback.feedback_id || "", text: r.feedback.text || "", shown_ms: elapsed() };
-      $("#feedback-text").textContent = r.feedback.text; show("result");
+      $("#feedback-text").textContent = r.feedback.text;
+      // 首访默认不开修改轮：只有「继续」，反馈照样给看
+      $("#btn-revise").classList.toggle("hidden", revisionOff());
+      if (revisionOff()) $("#btn-skip-revise").innerHTML = "继续" + icon("arrowRight", 17);
+      show("result");
     } catch (e) { alert("提交失败：" + e.message); startTimers(); }
     overlay(null);
   };
@@ -3530,10 +3601,39 @@
       row.querySelectorAll("button").forEach(x => x.classList.toggle("active", x === b));
     }));
   }
+  // 首访任务库的完成后三题（first_visit_common_v1）：喜欢程度、感觉难度、题目自己的反思——每一题都可以不答，
+  // 没答的记进 skipped，不补成 0；「哪里最难」那格不出现。
+  const SURVEY_BANK = [
+    { key: "enjoyment", q: "喜欢这次画画吗？", lo: "不喜欢", hi: "很喜欢" },
+    { key: "difficulty", q: "这次画起来难吗？", lo: "很简单", hi: "很难" },
+  ];
+  function renderBankSurvey() {
+    SURVEY.forEach(i => delete answers[i.key]);
+    state.hardestChoice = null;
+    paintOrCheer($("#survey-sprite"), "encourage", "save_ok");
+    const q = state.quest || {};
+    $("#survey").innerHTML = SURVEY_BANK.map(item => `<div class="sq" data-key="${item.key}">
+      <div class="sq-q">${item.q}</div>
+      <div class="sq-scale"><span class="sq-end">${item.lo}</span>${[1, 2, 3, 4, 5].map(v => `<button data-v="${v}">${v}</button>`).join("")}<span class="sq-end">${item.hi}</span></div></div>`).join("")
+      + (q.reflection ? `<div class="sq sq-reflect"><div class="sq-q">${q.reflection}</div><textarea id="survey-reflection" rows="2" placeholder="可以不写"></textarea></div>` : "");
+    $("#survey").querySelectorAll(".sq[data-key]").forEach(row => row.querySelectorAll("button").forEach(b => b.onclick = () => {
+      answers[row.dataset.key] = +b.dataset.v;
+      row.querySelectorAll("button").forEach(x => x.classList.toggle("active", x === b));
+    }));
+  }
   async function sendSurvey(skip) {
-    const body = skip ? { t_ms: elapsed() } : { ...answers,
-      hardest_part_choice: state.hardestChoice || null,
-      hardest_part: $("#survey-hardest").value.trim(), t_ms: elapsed() };
+    let body;
+    if (isBank(state.quest)) {
+      const refl = ($("#survey-reflection") || {}).value || "";
+      const skipped = SURVEY_BANK.filter(i => skip || answers[i.key] == null).map(i => i.key);
+      if (skip || !refl.trim()) skipped.push("reflection");
+      body = { instrument: (state.quest.post_config || "first_visit_common_v1"), skipped, t_ms: elapsed() };
+      if (!skip) { SURVEY_BANK.forEach(i => { if (answers[i.key] != null) body[i.key] = answers[i.key]; }); body.reflection = refl.trim(); }
+    } else {
+      body = skip ? { t_ms: elapsed() } : { ...answers,
+        hardest_part_choice: state.hardestChoice || null,
+        hardest_part: $("#survey-hardest").value.trim(), t_ms: elapsed() };
+    }
     try { await api(`${API}/sessions/${state.sessionId}/questionnaire`, { method: "POST", body: JSON.stringify(body) }); }
     catch (e) { console.warn("questionnaire failed", e); }
     const f = state.pendingFinal; if (f) showFinal(f.session, f.beforeImg, f.afterImg, f.comparison);
@@ -3549,6 +3649,8 @@
     if (pending) console.warn(`${pending} 条记录尚未上传，已保留在本地队列`);
     state.pendingFinal = { session, beforeImg, afterImg, comparison };
     state.revised = session.revised;   // the trail must show ✨进化关 correctly on the survey too
+    document.querySelector("#view-survey .sq-hard")?.classList.toggle("hidden", isBank(state.quest));
+    if (isBank(state.quest)) { renderBankSurvey(); show("survey"); return; }   // 首访：三题各可跳过，简单版也问（有「跳过」）
     if (state.condition.questionnaire && !isSimple()) { renderSurvey(); show("survey"); return; }
     showFinal(session, beforeImg, afterImg, comparison);
   }
@@ -3557,7 +3659,7 @@
     state.revised = session.revised;
     $("#final-before").src = beforeImg; $("#final-after").src = afterImg;
     // no revision happened, so "before / after" would be the same image twice
-    const noRevision = state.condition && state.condition.feedback_source !== "ai";
+    const noRevision = (state.condition && state.condition.feedback_source !== "ai") || revisionOff();
     $("#final-before").closest("figure").classList.toggle("hidden", noRevision);
     document.querySelector("#view-final .compare")?.classList.toggle("single", noRevision);
     const cap = $("#final-after").nextElementSibling;
@@ -3567,7 +3669,7 @@
     // badges, but no evaluation: assessment keeps running server-side, it just
     // stops being an intervention this session.
     const quiet = state.condition.feedback_source !== "ai";
-    $("#comparison-text").textContent = quiet
+    $("#comparison-text").textContent = (quiet || revisionOff())
       ? "画好了，作品已保存。"
       : (comparison ? comparison.text : "下次在进化关改一处，就能获得「进化大师」。");
     // 「这一关练的是」那张卡不再放在结算页：能力图上练的那几项本来就是橙色高亮的，

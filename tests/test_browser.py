@@ -355,13 +355,12 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
                 page.wait_for_selector("#quest-grid .quest-card")
                 page.click("#quest-grid .quest-card")
                 page.click("#btn-today")
-                page.wait_for_selector("#view-intent:not(.hidden)")
-
+                # 只剩简单版（2026-10-12）：没有心愿页，直接进画布。研究员的把手照样不能出现在孩子面前
+                page.wait_for_selector("#view-draw:not(.hidden)")
                 self.assertTrue(page.is_hidden("#pidbox"), "代号框不该出现在孩子面前")
-                # 这一屏上除了任务本身，只有两个短问题——多一句说明都算话多
-                words = page.inner_text("#view-intent")
-                for banned in ("代号", "起个名字", "设备", "提示："):
-                    self.assertNotIn(banned, words, f"心愿页上不该出现「{banned}」")
+                words = page.inner_text("#view-draw .brief")
+                for banned in ("代号", "起个名字", "设备"):
+                    self.assertNotIn(banned, words, f"创作屏右栏不该出现「{banned}」")
 
                 # 研究员那条路还在：带 pid 进来，代号框出现并且已经填好
                 page2 = browser.new_page(viewport={"width": 820, "height": 1180})
@@ -379,8 +378,8 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
                 # 代号框露不露面，不是点击手感，所以直接让那张卡自己 click。
                 page2.eval_on_selector("#quest-grid .quest-card:not(.locked)", "e => e.click()")
                 page2.click("#btn-today")
-                page2.wait_for_selector("#view-intent:not(.hidden)")
-                self.assertTrue(page2.is_visible("#pidbox"))
+                page2.wait_for_selector("#view-draw:not(.hidden)")
+                # 代号从 ?pid= 来，填在（现在不再展示的）那格里，session 照样带着它
                 self.assertEqual(page2.input_value("#participant"), "P07")
             finally:
                 browser.close()
@@ -441,10 +440,8 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
             page.eval_on_selector_all("#quest-grid .quest-card", f"(e)=>e[{titles.index(family)}].click()")
         else:
             page.click("#quest-grid .quest-card")
-        page.click("#btn-today")           # 点地点只是选中，右边那颗「开始画」才进去
-        page.click("#emotion-chips button")
-        page.fill("#intent-text", intent)
-        page.click("#btn-start-draw")
+        page.click("#btn-today")           # 点地点只是选中，右边那颗「开始画」才进去；只剩简单版，没有心愿页
+        void_intent = intent               # 心愿文字不再收（2026-10-12），参数留着免得改一串调用
         page.wait_for_selector("#view-draw:not(.hidden)")
 
     @staticmethod

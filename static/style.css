@@ -2282,3 +2282,26 @@ body[data-room="grade"], body[data-room="rubric"] { --room:var(--blue); --room-d
 
 /* 没网：要服务器的东西不露面（app.js paintNet 给 body 加 .offline） */
 body.offline .needs-net { display:none !important; }
+
+
+/* ===== 首访任务库（2026-10-12）===== */
+/* 年龄门：一句话 + 一格数字 + 一颗钮，放在地图上方；账号里有年龄或已经问过就不出现 */
+.age-gate { grid-column:1 / -1; background:var(--card); border:2px solid var(--line); border-radius:var(--r); padding:18px 20px; margin-bottom:12px; }
+.age-gate-q { margin:0 0 12px; font-weight:700; }
+.age-gate-row { display:flex; gap:10px; align-items:center; }
+.age-gate-row input { width:6rem; font-size:1.25rem; text-align:center; padding:10px; border:2px solid var(--line); border-radius:12px; }
+.map-note { grid-column:1 / -1; margin:0 0 10px; color:var(--muted-2); font-size:0.875rem; }
+/* 要做到 / 提示：卡里再加两行，字号跟题面一致，前面一个小标签 */
+.quest-card.small .req, .quest-card.small .hint-line { margin:8px 0 0; font-size:0.75rem; color:var(--muted-2); line-height:1.6; font-weight:600; }
+.quest-card.small.intent-task .req { font-size:1rem; margin-top:14px; }
+.req-k { display:inline-block; margin-right:6px; padding:1px 7px; border-radius:999px; background:var(--soft); color:var(--muted); font-size:0.6875rem; font-weight:800; vertical-align:1px; }
+.hints { margin-top:8px; }
+.hints .linkbtn { display:inline; padding:0; min-height:0; background:none; border:none; color:var(--blue-d); font-weight:800; font-size:0.8125rem; cursor:pointer; }
+/* 参考图 contain：整张图完整可见，4:3 的框，白底；首访的 15 张都走这条（不能裁掉叶柄、车轮、笔筒底） */
+.refpanel.fit-contain .ref-thumb { height:auto; aspect-ratio:4 / 3; background:#fff; }
+.refpanel.fit-contain .ref-thumb img { object-fit:contain; }
+/* 完成后的反思：一格两行的输入框，可以不写 */
+.sq-reflect { grid-template-columns:1fr; }
+.sq-reflect textarea { width:100%; box-sizing:border-box; border:2px solid var(--line); border-radius:12px; padding:10px; font:inherit; font-size:0.9375rem; }
+/* 首访任务库：题面是「常显」的——窄屏上也不夹成两三行；要做到 / 提示也是 p，一起放开 */
+.brief .quest-card.small.bank p, .brief .quest-card.small.bank h3 { display:block; -webkit-line-clamp:unset; overflow:visible; }

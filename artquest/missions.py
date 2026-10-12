@@ -324,7 +324,7 @@ def _row(family: str, form_id: str, *, title: str, instruction: str,
 
 
 LEGACY_VERSION = "1.0"     # v1 的 75 道：留在库里，不上地图
-TASK_VERSION = "2.6"       # 2026-10-05：2.5 + M1 强调「整幅、每样东西都在原位」（和 M2 的观察记录拉开）
+TASK_VERSION = "2.7"       # 2026-10-11：2.6 + 任务初始化检查的四条决定（M4_J4 明示保留特征、M6 四题指向图、M7 删 60 秒、实例级降级），见 missions_v2 开头
 
 
 def _build_m1() -> List[Dict[str, Any]]:
@@ -498,12 +498,14 @@ _BUILDERS = {"M0": _build_m0, "M1": _build_m1, "M2": _build_m2, "M3": _build_m3,
 # v2.2：按年龄分两版（missions_v2.py 是题面唯一的家，这里只把它变成行）
 # ---------------------------------------------------------------------------
 def _build_v2() -> List[Dict[str, Any]]:
-    from .missions_v2 import V2, M7_STEP1, M7_STEP2, M8_LEAD, M8_LEAD_CHALLENGE, M8_CHALLENGE
+    from .missions_v2 import V2, M7_STEP1, M7_STEP2, M8_LEAD, M8_LEAD_CHALLENGE, M8_CHALLENGE, exploratory_overrides
     out = []
     for fam, forms in V2.items():
         for f in forms:
             common = dict(version=TASK_VERSION, tiers=f["tiers"], anchor=f["anchor"], legacy=False,
                           title=f["title"], hint=f.get("hint", ""))
+            # 实例级降级：这道题上可被合理绕开的 secondary → exploratory（家族 rubric 本身不动）
+            overrides = exploratory_overrides(fam, f["code"])
             text = f["instruction"]
             stim, cond = None, {"tiers": list(f["tiers"]), "anchor": f["anchor"]}
             if fam in ("M1", "M2"):
@@ -523,8 +525,7 @@ def _build_v2() -> List[Dict[str, Any]]:
                 stim = _reference(f"/static/refs/m6/{sid}.jpg", sid)
                 cond["mood"] = f["mood"]
             elif fam == "M7":
-                seconds = FAMILIES["M7"]["phases"][0]["seconds"]
-                text = (M7_STEP1.format(seconds=seconds, text=f["instruction"]) + "\n"
+                text = (M7_STEP1.format(text=f["instruction"]) + "\n"
                         + M7_STEP2.format(text=f["step2"]))
                 cond.update(concept=f["concept"], two_phase=True)
             elif fam == "M8":
@@ -534,16 +535,28 @@ def _build_v2() -> List[Dict[str, Any]]:
                 if f.get("challenge"):
                     text += "\n" + M8_CHALLENGE.format(text=f["challenge"])
                 cond.update(rules=rules, challenge=f.get("challenge", ""))
-            out.append(_row(fam, f["code"], instruction=text, stimulus=stim, condition=cond, **common))
+            row = _row(fam, f["code"], instruction=text, stimulus=stim, condition=cond, **common)
+            if overrides:
+                rub = {k: list(v) for k, v in row["rubric"].items()}
+                rub["secondary_dimensions"] = [d for d in rub.get("secondary_dimensions", []) if d not in overrides]
+                row["rubric"] = rub
+                row["rubric_overrides"] = overrides          # 原角色 / 新角色 / 反例，冻进 condition_snapshot
+            out.append(row)
     return out
+
+
+# 首访任务库（2026-10-12）：五个家族挂进同一张 FAMILIES 表，行由 missions_bank 生成
+from .missions_bank import BANK_FAMILIES, build_bank  # noqa: E402
+FAMILIES.update(BANK_FAMILIES)
 
 
 def build_library() -> List[Dict[str, Any]]:
     """Every curated form, in family order. Ids are stable across runs.
 
-    v2.2 rows first (what the map shows), then the v1 rows flagged `legacy`
-    (ids that existing sessions point at)."""
+    v2.2 rows first (what the map shows), then the first-visit bank (B1_…B5_，按年龄路由),
+    then the v1 rows flagged `legacy` (ids that existing sessions point at)."""
     out: List[Dict[str, Any]] = list(_build_v2())
-    for family in FAMILIES:
+    out.extend(build_bank(_row, FAMILIES))
+    for family in _BUILDERS:
         out.extend(_BUILDERS[family]())
     return out

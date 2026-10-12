@@ -196,7 +196,9 @@ def build_md() -> str:
         for q in qs:
             t += 1
             qe = i18n.quest_for(q, "en")
-            rows.append((f"T{t}", q.get("id", ""), TIER.get(tuple(q.get("tiers") or []), ""), q.get("title", ""), q.get("instruction", ""), q.get("hint", "") or "",
+            rows.append((f"T{t}", q.get("id", ""), TIER.get(tuple(q.get("tiers") or []), "") or (f"首访 {q.get('age_min')}–{q.get('age_max')} 岁" if q.get("bank") else ""), q.get("title", ""),
+                         q.get("instruction", "") + (("\n要做到：" + q["requirements"]) if q.get("requirements") else ""),
+                         (q.get("hint", "") or "") + (" / ".join(f"{h['id']} {h['text']}" for h in q.get("hints") or []) if q.get("hints") else ""),
                          qe.get("title", ""), qe.get("instruction", ""), flags(q.get("instruction", "") + (q.get("hint") or ""))))
         parts.append(table(["#", "id", "版本", "题目", "说明", "提示", "题目(en)", "说明(en)", "标记"], rows))
         parts.append("")

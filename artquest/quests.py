@@ -42,6 +42,8 @@ TASK_DEFAULTS: Dict[str, Any] = {
     "hint": "", "icon": "🎨", "color": "#f79433", "enabled": True,
     # v2.2：tiers = 哪一版的孩子看到（simple / full）；legacy = v1 的题，只给旧数据查 id
     "tiers": [], "anchor": False, "legacy": False,
+    # 首访任务库（2026-10-12）：按需提示、必要条件、反思问题；M 族这些都是空的
+    "bank": "", "band": "", "hints": [], "requirements": "", "card": "", "reflection": "", "post_config": "",
 }
 
 CUSTOM_TASKS_PATH = DATA_DIR / "tasks.json"
@@ -143,6 +145,10 @@ def condition_snapshot(task: Dict[str, Any], *, app_version: str = "",
         "prompt_style": task.get("prompt_style", ""),
         "title": task.get("title", ""), "instruction": task.get("instruction", ""),
         "hint": task.get("hint", ""),
+        # 首访任务库：孩子能看到的必要条件和提示原文也冻进来——分析时不能补加文案里没有的要求
+        "bank": task.get("bank", ""), "band": task.get("band", ""),
+        "requirements": task.get("requirements", ""), "hints": list(task.get("hints") or []),
+        "reflection": task.get("reflection", ""), "post_config": task.get("post_config", ""),
         "stimulus": stim, "stimulus_id": task.get("stimulus_id", ""),
         "reference_id": (task.get("reference") or {}).get("id", ""),
         "time_limit_sec": task.get("time_limit_sec"),

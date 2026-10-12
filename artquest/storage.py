@@ -121,7 +121,8 @@ class SessionStore:
                device: Optional[Dict[str, Any]] = None,
                study: Optional[Dict[str, Any]] = None,
                canvas: Optional[Dict[str, Any]] = None,
-               sid: Optional[str] = None, lang: str = "zh") -> Dict[str, Any]:
+               sid: Optional[str] = None, lang: str = "zh",
+               routing: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """开一次创作。
 
         `sid` 给了就是**花掉一张预发的票**（见 `issue`）：目录和 id 早就占住了，
@@ -200,6 +201,7 @@ class SessionStore:
             "lang": lang or "zh",
             "device": dict(device or {}),
             "canvas": dict(canvas or {}),
+            "routing": dict(routing or {}),     # 首访任务库：age / age_source / band / first_visit
             "times": {"created_at": now_iso(), "started_at": None, "ended_at": None, "duration_ms": None},
             "intent": intent,
             "status": "drawing",

@@ -74,12 +74,12 @@ class SubmitWithNoNetwork(_off.DrawingWithNoNetwork):
             page.goto(self.base, wait_until="networkidle")
             page.wait_for_function("async () => (await ArtLog.countTickets()) > 0")
             page.wait_for_selector("#view-world:not(.hidden)"); page.click("#btn-enter-world")
-            page.wait_for_selector("#quest-grid .quest-card"); page.click("#quest-grid .quest-card"); page.click("#btn-today")
-            page.wait_for_timeout(400); page.click("#emotion-chips button")
+            page.wait_for_selector("#quest-grid .quest-card"); page.click("#quest-grid .quest-card"); page.wait_for_timeout(400)
 
             context.set_offline(True)                                   # ← 拔网线
             page.evaluate("() => window.dispatchEvent(new Event('offline'))")
-            page.click("#btn-start-draw"); page.wait_for_selector("#view-draw:not(.hidden)"); page.wait_for_timeout(500)
+            # 只剩简单版（2026-10-12）：没有心愿页，「开始画」直接进画布
+            page.click("#btn-today"); page.wait_for_selector("#view-draw:not(.hidden)"); page.wait_for_timeout(500)
             self.assertTrue(page.evaluate("() => document.body.classList.contains('offline')"), "没网 body 要带 .offline")
             box = page.locator("#canvas").bounding_box()
             for k in range(4):

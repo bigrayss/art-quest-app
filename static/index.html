@@ -129,7 +129,13 @@
        而它右边那个「走过 5/10 关」并进了下面这张条里。
        十个平级的选项 = 无从下手。所以先给一个默认的起点，其余的仍然全部开着。 -->
   <!-- 两栏上方一行：左边一句操作引导，右边「已体验 n 个主题」（按存过作品的不同主题数算；没有就不显示，不加进度条） -->
+  <!-- 首访任务库（2026-10-12）：第一次来、还不知道年龄时先问一句——任务按年龄段来选，不静默分配 -->
+  <div class="age-gate hidden" id="age-gate">
+    <p class="age-gate-q">先告诉彩点你几岁，任务会按年龄来选。</p>
+    <div class="age-gate-row"><input id="age-gate-input" type="text" inputmode="numeric" maxlength="2" placeholder="几岁"><button class="primary" id="btn-age-gate">开始<i data-icon="arrowRight" data-size="17"></i></button></div>
+  </div>
   <div class="map-lead" id="map-lead"><span id="map-lead-text">选一个主题，开始今天的创作。</span><span class="map-count hidden" id="map-count"></span></div>
+  <p class="map-note hidden" id="age-gate-note">这个年龄段还没有首访任务，先从下面的主题里挑一个。</p>
   <div class="map" id="quest-grid">
     <!-- 十个地方之间的小路。它**不表示顺序**（家族之间本来就没有先后），
          它只做一件事：把十个散落的点变成一片连着的地。
@@ -298,8 +304,6 @@
   <button class="secondary student-only" id="btn-opinion"><i data-icon="feather" data-size="17"></i>问卷</button>
   <!-- 语言就摆在这一行，不藏进「这台设备」的折叠里——进来之后也要一眼找得到 -->
   <button class="secondary" id="btn-lang-me"><i data-icon="swap" data-size="17"></i><span data-no-i18n id="lang-me-label"></span></button>
-  <!-- 版本也在这一行：简单 / 完整，进来之后随时能换 -->
-  <button class="secondary student-only" id="btn-mode-me"><i data-icon="sliders" data-size="17"></i><span id="mode-me-label"></span></button>
   <details class="techbox" id="techbox">
     <summary><i data-icon="sliders" data-size="16"></i>这台设备<span class="me-sync hidden" id="me-sync"></span></summary>
     <div class="infolist">
@@ -654,20 +658,7 @@
 </div>
 
 
-<!-- 版本：简单 / 完整。简单版字最少：不问心情和心愿、不做问卷、不摆成长图、彩点只说一句；进化关两版都有。
-     注册时填了年龄的，8 岁及以下推荐简单版——推荐只是一个标签，选哪个孩子说了算。 -->
-<div class="modal hidden" id="mode-modal">
-  <div class="modal-card">
-    <h3>选一个版本</h3>
-    <div class="choice" id="mode-choices">
-      <button data-mode="simple"><span><b>简单版</b><small>说明更少，直接开始画；彩点只说一句。</small></span><i data-icon="check" data-size="18"></i></button>
-      <button data-mode="full"><span><b>完整版</b><small>画前记录心情，画后查看成长图。</small></span><i data-icon="check" data-size="18"></i></button>
-    </div>
-    <div class="actions column">
-      <button class="ghost" id="btn-mode-cancel">取消</button>
-    </div>
-  </div>
-</div>
+<!-- 「简单版 / 完整版」的选择框 2026-10-12 删了：只剩简单版 -->
 
 <!-- 语言：一张选择框，选了才换，不是点一下就跳 -->
 <div class="modal hidden" id="lang-modal">

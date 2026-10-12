@@ -28,6 +28,8 @@ FAMILY_NAMES_EN: Dict[str, str] = {
     "M7": "Line Adventure",
     "M8": "Impossible World",
     "M9": "Story Challenge",
+    # 首访任务库（2026-10-12）
+    "OB": "Observation", "ST": "Expression", "FG": "Fragments", "TR": "Redesign", "DS": "Design",
 }
 
 PHASE_LABELS_EN: Dict[str, str] = {
@@ -328,6 +330,15 @@ def translate_task(task: Dict[str, Any]) -> Dict[str, Any]:
     """
     out = dict(task)
     fam = task.get("family")
+    if task.get("i18n_en"):                       # 首访任务库：英文随行带着（docs/Task_Library_en.md）
+        e = task["i18n_en"]
+        out.update(title=e["title"], instruction=e["instruction"], prompt=e["instruction"], hint=e.get("hint", ""),
+                   card=e.get("card", ""), requirements=e.get("requirements", ""), hints=list(e.get("hints") or []),
+                   reflection=e.get("reflection", ""))
+        if fam in FAMILY_NAMES_EN:
+            out["family_name"] = out["type"] = FAMILY_NAMES_EN[fam]
+        out["lang"] = "en"
+        return out
     builder = _BY_FAMILY.get(fam)
     en: Optional[Dict[str, str]] = _v2(task)      # v2.2 的题按 task_id 直接给
     if en is None and builder is not None:
@@ -411,7 +422,7 @@ V2_EN: Dict[str, Dict[str, Any]] = {
     "M4_E4": {"title": "Teapot to rocket", "instruction": "Turn a teapot into a rocket that can fly into space.", "hint": "How can the teapot's shape help?"},
     "M4_E5": {"title": "Clock to car", "instruction": "Turn a clock into a car that can travel through the desert.", "hint": "Which parts of the clock become parts of the car?"},
     "M4_J3": {"title": "Shoe to creature", "instruction": "Turn a shoe into a creature that lives in a huge forest. It must still look partly like a shoe.", "hint": "Which structures stay, which change?"},
-    "M4_J4": {"title": "Teapot rescue machine", "instruction": "Turn a teapot into a space rescue machine that can rescue at least two people.", "hint": "Think about the rescue job first, then how to change the shape."},
+    "M4_J4": {"title": "Teapot rescue machine", "instruction": "Turn a teapot into a space rescue machine that can rescue at least two people. Keep some features of the teapot so people can still tell it was a teapot. Which parts to keep is up to you.", "hint": "Think about the rescue job first, then how to change the shape."},
     "M4_J5": {"title": "Bicycle to mech", "instruction": "Turn a bicycle into a mech robot. Think about what it can do.", "hint": "Which parts of the bicycle become parts of the mech?"},
     # M5
     "M5_A1": {"title": "Castle + jellyfish", "instruction": "Draw a castle and a jellyfish combined into one. It could be a creature or a building.", "hint": "Features of both should still be there."},
@@ -424,13 +435,13 @@ V2_EN: Dict[str, Dict[str, Any]] = {
     "M5_J5": {"title": "Whale + school", "instruction": "Draw a school combined with a whale.", "hint": "Do not just put the school on the whale's back."},
     # M6
     "M6_A1": {"title": "Night", "instruction": "Keep the scene. Change only its colors and light and dark areas to make it nighttime.", "hint": "Night has bright spots too."},
-    "M6_A2": {"title": "A scary place", "instruction": "Do not add new monsters. Change only the colors and light and dark areas to make the place a little scary.", "hint": "Where is it bright, where is it dark?"},
+    "M6_A2": {"title": "A scary place", "instruction": "Do not add new monsters. Change only the colors and light and dark areas to make the place in the picture a little scary.", "hint": "Where is it bright, where is it dark?"},
     "M6_E3": {"title": "Cold", "instruction": "Keep the things in the picture. Change only the colors to make the place look very cold.", "hint": "Cold colours are not only blue."},
-    "M6_E4": {"title": "Lively", "instruction": "Do not add new things. Change only the colors to make the place look lively.", "hint": "Where could it be brighter, with more contrast?"},
+    "M6_E4": {"title": "Lively", "instruction": "Do not add new things. Change only the colors to make the place in the picture look lively.", "hint": "Where could it be brighter, with more contrast?"},
     "M6_E5": {"title": "Warm", "instruction": "Keep the things in the picture. Change only the colors to make the place look warm.", "hint": "Warm colours can be light or deep too."},
     "M6_J3": {"title": "Mysterious", "instruction": "Keep the things in the picture. Change only the colors and light and dark areas to make the place feel mysterious, as if it holds a secret.", "hint": "Contrast can be strong or soft."},
-    "M6_J4": {"title": "A storm is coming", "instruction": "Try not to add new things. Use color, light and dark, and contrast to show that a storm is coming.", "hint": "How do the sky and the ground change?"},
-    "M6_J5": {"title": "Safe and dangerous", "instruction": "Do not add new things. Change only the colors and light and dark areas so one side looks safe and the other looks dangerous.", "hint": "The dividing line does not have to be straight."},
+    "M6_J4": {"title": "A storm is coming", "instruction": "Try not to add new things. Use color, light and dark, and contrast to show that a storm is coming to the place in the picture.", "hint": "How do the sky and the ground change?"},
+    "M6_J5": {"title": "Safe and dangerous", "instruction": "Do not add new things. Change only the colors and light and dark areas so one side of the place in the picture looks safe and the other looks dangerous.", "hint": "The dividing line does not have to be straight."},
     # M7（step1 = 第一步的概念句；step2 = 第二步）
     "M7_A1": {"title": "Wind", "step1": "Use only lines to show the feeling of wind. Do not draw objects.", "step2": "Do not erase the lines. Look at what they remind you of and keep drawing.", "hint": "Lines can be fast or slow."},
     "M7_A2": {"title": "Speed", "step1": "Use only lines to show the feeling of speed. Do not draw objects.", "step2": "Do not erase the lines. Look at what they remind you of and keep drawing.", "hint": "Direction and spacing change how fast it feels."},
@@ -462,7 +473,7 @@ V2_EN: Dict[str, Dict[str, Any]] = {
 M8_LEAD_EN = " Show both of these:"
 M8_LEAD_CHALLENGE_EN = "Draw a world with both of these rules:"
 M8_CHALLENGE_EN = "Optional: {text}"
-M7_STEP1_EN = "Step 1 ({seconds} seconds): {text}"
+M7_STEP1_EN = "Step 1: {text}"      # 2026-10-11 删秒数，和中文同步
 M7_STEP2_EN = "Step 2: {text}"
 
 
@@ -472,9 +483,7 @@ def _v2(task: Dict[str, Any]) -> Optional[Dict[str, str]]:
         return None
     fam = task.get("family")
     if fam == "M7":
-        phases = task.get("phases") or []
-        seconds = phases[0]["seconds"] if phases else 60
-        text = M7_STEP1_EN.format(seconds=seconds, text=en["step1"]) + "\n" + M7_STEP2_EN.format(text=en["step2"])
+        text = M7_STEP1_EN.format(text=en["step1"]) + "\n" + M7_STEP2_EN.format(text=en["step2"])
         return {"title": en["title"], "instruction": text, "hint": en["hint"]}
     if fam == "M8":
         text = (M8_LEAD_CHALLENGE_EN if en.get("challenge") else en["instruction"] + M8_LEAD_EN) + "\n" + "\n".join(f"· {r}" for r in en["rules"])

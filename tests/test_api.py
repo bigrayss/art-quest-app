@@ -92,7 +92,7 @@ class StageOneLoop(unittest.TestCase):
         self.assertEqual(r.status_code, 200, r.text)
         body = r.json()
         self.assertEqual(len(body["scores"]["dims"]), 9)
-        self.assertIn("我看到", body["feedback"]["text"])
+        self.assertTrue(body["feedback"]["text"].strip(), "简单版的模板反馈是一句话（2026-10-12 只剩简单版）")
 
         # cannot submit before twice
         self.assertEqual(self.c.post(f"/api/sessions/{sid}/submit", json={"image": _data_url(), "elapsed_ms": 1, "phase": "before"}).status_code, 409)

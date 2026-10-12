@@ -40,6 +40,8 @@ class EveryTaskHasAnEnglishTwin(unittest.TestCase):
     def test_the_english_keeps_the_same_moving_parts_as_the_chinese(self):
         by_family, v2 = {}, {}
         for t in QUESTS:
+            if t.get("bank"):
+                continue        # 首访任务库（B1_…）按年龄段路由，不是 2 + 3 + 3 的结构；它有自己的测试
             (v2 if not t.get("legacy") else by_family).setdefault(t["family"], []).append(t)
         # v2.2：M8 规则一条不少、挑战那条也在；M7 两步；M5 两个名词都在题目里
         for t in v2["M8"]:
@@ -48,7 +50,10 @@ class EveryTaskHasAnEnglishTwin(unittest.TestCase):
             self.assertEqual("Optional:" in en["instruction"], bool(t["condition"].get("challenge")))
         for t in v2["M7"]:
             en = translate_task(t)
-            self.assertIn(f"({t['phases'][0]['seconds']} seconds)", en["instruction"])
+            # 2026-10-11：第一步不再写秒数（程序不计时），中英都不写
+            self.assertTrue(en["instruction"].startswith("Step 1: "), en["instruction"])
+            self.assertNotIn("seconds", en["instruction"])
+            self.assertNotIn("秒", t["instruction"])
             self.assertIn("Step 2", en["instruction"])
         for t in v2["M5"]:
             en = translate_task(t)

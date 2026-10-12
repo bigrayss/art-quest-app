@@ -1,0 +1,2415 @@
+{
+ "bank": "first_visit_v1",
+ "version": "1.0.0",
+ "frozen": "2026-10-12",
+ "source_docs": [
+  "docs/Task_Library_zh_CN.md",
+  "docs/Task_Library_en.md",
+  "docs/Student_Tasks_CN_EN.md"
+ ],
+ "bands": [
+  {
+   "id": "B1",
+   "age_min": 6,
+   "age_max": 7
+  },
+  {
+   "id": "B2",
+   "age_min": 8,
+   "age_max": 10
+  },
+  {
+   "id": "B3",
+   "age_min": 11,
+   "age_max": 12
+  },
+  {
+   "id": "B4",
+   "age_min": 13,
+   "age_max": 14
+  },
+  {
+   "id": "B5",
+   "age_min": 15,
+   "age_max": 16
+  }
+ ],
+ "families": {
+  "OB": "observe",
+  "ST": "express",
+  "FG": "fragments",
+  "TR": "redesign",
+  "DS": "design"
+ },
+ "post_config": "first_visit_common_v1",
+ "tasks": [
+  {
+   "task_id": "B1_DS_01",
+   "band": "B1",
+   "age_min": 6,
+   "age_max": 7,
+   "family": "DS",
+   "family_slug": "design",
+   "order": 4,
+   "reference": null,
+   "reference_svg": false,
+   "source_ids": [
+    "C22",
+    "YIN22",
+    "PISA23"
+   ],
+   "dims": [
+    {
+     "key": "picture_organization",
+     "role": "primary",
+     "why_zh": "图形需要作为一个整体服务标志的用途。",
+     "why_en": "The visual elements need to work together as a sign."
+    },
+    {
+     "key": "imagination",
+     "role": "exploratory",
+     "why_zh": "个人化符号可能体现新构想，常见图形也可合理完成。",
+     "why_en": "A personal symbol may reveal imagination, but a familiar image can also meet the brief."
+    },
+    {
+     "key": "color_contrast",
+     "role": "exploratory",
+     "why_zh": "使用颜色时可观察对比，不要求多色。",
+     "why_en": "Contrast may be observed when colour is used; multiple colours are not required."
+    }
+   ],
+   "zh": {
+    "title": "玩具箱标志",
+    "age_family": "6—7岁 / 视觉设计",
+    "card": "用一个图告诉大家玩具放在哪。",
+    "prompt": "给放玩具的箱子画一个标志，让别人看到图就知道这里放玩具。画面由你决定，不用写字。",
+    "requirements": "画一个用于玩具箱的标志；通过图形表达玩具收纳的用途。",
+    "freedom": "可以画真实玩具、简单符号或想象图形；没有指定边框、颜色或形状。",
+    "materials": "没有参考成品，从空白画布开始。",
+    "intention": "用简明图像服务一个熟悉的生活用途。",
+    "complexity": "一个熟悉用途、单个标志、无文字输入依赖。",
+    "analysis": "记录图形与收纳用途的联系；将是否传达用途与图片的艺术属性分开。",
+    "limits": "没有文字不扣分；不能把没画某一种指定玩具判为错误。",
+    "reflection": "看到你的标志，别人会想到什么？",
+    "post_config": "保存一幅首稿；共用first_visit_common_v1；喜欢程度和感觉难度各一题可跳过；反思可跳过；不因反馈未完成而阻止退出。",
+    "sources": "[C22], [YIN22], [PISA23] · 第一学段：表达自己的感受、改进生活用品、参与造型游戏活动",
+    "adaptation": "借鉴第一学段造型游戏及生活设计方向，玩具箱情境为项目改编；PISA仅支持目的导向视觉设计的形式。",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "想想你想让别人先看到什么。"
+     },
+     {
+      "id": "H2",
+      "text": "不需要画出所有玩具。"
+     }
+    ]
+   },
+   "en": {
+    "title": "A Toy-Box Sign",
+    "age_family": "Ages 6–7 / Visual communication design",
+    "card": "Use a picture to show where toys belong.",
+    "prompt": "Draw a sign for a toy box so that people can tell from the picture that it holds toys. Choose your own image; writing is not needed.",
+    "requirements": "Make one sign for a toy box. Use the image to communicate toy storage.",
+    "freedom": "Use a toy, a simple symbol or an invented image. No border, colour or shape is prescribed.",
+    "materials": "No finished example is provided. Start on a blank canvas.",
+    "intention": "Use a visual sign for a familiar practical purpose.",
+    "complexity": "One familiar purpose, one sign and no text-entry requirement.",
+    "analysis": "Record how the image relates to storage. Keep communication of purpose separate from artwork attributes.",
+    "limits": "No penalty for omitting words. No particular toy is required.",
+    "reflection": "What might someone think of when they see your sign?",
+    "post_config": "Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.",
+    "sources": "[C22], [YIN22], [PISA23] · Grades 1–2: personal expression, improving everyday objects and visual play",
+    "adaptation": "Adapted from first-band visual activities and everyday design. The toy-box context is original; PISA informs only purpose-directed visual design.",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "Think about what you want people to notice first."
+     },
+     {
+      "id": "H2",
+      "text": "You do not need to show every toy."
+     }
+    ]
+   }
+  },
+  {
+   "task_id": "B1_FG_01",
+   "band": "B1",
+   "age_min": 6,
+   "age_max": 7,
+   "family": "FG",
+   "family_slug": "fragments",
+   "order": 2,
+   "reference": "B1_FG_ref",
+   "reference_svg": true,
+   "source_ids": [
+    "C22",
+    "YIN22",
+    "URBAN05"
+   ],
+   "dims": [
+    {
+     "key": "imagination",
+     "role": "primary",
+     "why_zh": "任务要求从未完成的线条提出一个视觉构想。",
+     "why_en": "The task calls for an idea developed from an incomplete line."
+    },
+    {
+     "key": "deformation",
+     "role": "exploratory",
+     "why_zh": "学生可能改变或延展形状，也可能保留简单形象。",
+     "why_en": "The learner may transform or extend the shape, or use a simple representation."
+    },
+    {
+     "key": "picture_organization",
+     "role": "exploratory",
+     "why_zh": "如果构想包含多个元素，可观察它们的组织。",
+     "why_en": "Organisation becomes observable if the idea includes several elements."
+    }
+   ],
+   "zh": {
+    "title": "一条线变什么",
+    "age_family": "6—7岁 / 图形片段创作",
+    "card": "从一段弯线开始，画出自己的想法。",
+    "prompt": "看参考图里的那段弯线，把它画进你的画里，再添上自己的内容，让它变成你想到的东西。线可以转方向或变大变小，但要让人找得到原来的弯线。",
+    "requirements": "使用参考图中的一段弯线发展一幅画；让原来的弯线仍能被找到。",
+    "freedom": "画什么由你决定；可以移动、转动或缩放弯线；不要求精确临摹。",
+    "materials": "[独立参考PNG](../assets/B1_FG_ref.png)；[可编辑SVG](../assets/B1_FG_ref.svg)。参考图：可随时查看，按完整比例显示。 所有片段为本包原创；照参考转抄到空白画布，不复制原TCT-DP题纸。",
+    "intention": "从模糊图形刺激发展个人构想。",
+    "complexity": "一个片段；单幅画；不要求限时、原测验边框或原量表。",
+    "analysis": "记录原片段如何被纳入画面、增添内容如何形成想法；片段使用是任务内容记录，不另加分。",
+    "limits": "不是TCT-DP或TTCT原题；转抄线条存在额外操作负担，不与原测验常模比较。",
+    "reflection": "那段弯线在你的画里变成了什么？",
+    "post_config": "保存一幅首稿；共用first_visit_common_v1；喜欢程度和感觉难度各一题可跳过；反思可跳过；不因反馈未完成而阻止退出。",
+    "sources": "[C22], [YIN22], [URBAN05] · 第一学段：表达自己的感受、改进生活用品、参与造型游戏活动",
+    "adaptation": "仅借鉴Urban（2005）第273页的图形片段创作范式；本包使用一段原创弯线、参考区呈现和自由手绘。",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "换个方向看看这段线。"
+     },
+     {
+      "id": "H2",
+      "text": "不必猜一个正确答案。"
+     }
+    ]
+   },
+   "en": {
+    "title": "What Can This Line Become?",
+    "age_family": "Ages 6–7 / Creation from figural fragments",
+    "card": "Start with a curve and make it your own.",
+    "prompt": "Look at the curved fragment in the reference. Draw it into your picture and add your own ideas to make it become something. You may turn or resize it, but the original curve should still be recognisable.",
+    "requirements": "Develop one drawing using the curved fragment. Keep the original curve recognisable.",
+    "freedom": "Choose your subject. You may relocate, rotate or resize the curve; exact copying is not required.",
+    "materials": "[Independent reference PNG](../assets/B1_FG_ref.png); [editable SVG](../assets/B1_FG_ref.svg). Reference: keep available throughout the task and display without cropping. All fragments are original to this bank. Reproduce them on the blank canvas; no original TCT-DP sheet is copied.",
+    "intention": "Develop a personal idea from an ambiguous figural stimulus.",
+    "complexity": "One fragment; one drawing; no time limit, original test frame or test scale.",
+    "analysis": "Record how the fragment is incorporated and how additions develop an idea. Fragment use is a task-content observation, not an extra score.",
+    "limits": "This is not a TCT-DP or TTCT item. Reproducing the fragment adds a motor demand; original test norms do not apply.",
+    "reflection": "What did the curve become in your picture?",
+    "post_config": "Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.",
+    "sources": "[C22], [YIN22], [URBAN05] · Grades 1–2: personal expression, improving everyday objects and visual play",
+    "adaptation": "Only the fragment-based drawing paradigm on Urban (2005), p. 273 is adapted. This item uses one original curve, side-reference presentation and freehand drawing.",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "Try imagining the curve turned another way."
+     },
+     {
+      "id": "H2",
+      "text": "There is no single answer to guess."
+     }
+    ]
+   }
+  },
+  {
+   "task_id": "B1_OB_01",
+   "band": "B1",
+   "age_min": 6,
+   "age_max": 7,
+   "family": "OB",
+   "family_slug": "observe",
+   "order": 0,
+   "reference": "B1_OB_ref",
+   "reference_svg": false,
+   "source_ids": [
+    "C22",
+    "YIN22"
+   ],
+   "dims": [
+    {
+     "key": "realism",
+     "role": "primary",
+     "why_zh": "共同参考允许比较外形与可见特征，不等于真实植物写生的全部能力。",
+     "why_en": "A shared reference allows comparison of outline and visible features, not a complete measure of drawing from life."
+    },
+    {
+     "key": "line_combination",
+     "role": "primary",
+     "why_zh": "任务明确要求表现外边缘与叶脉之间的不同线条。",
+     "why_en": "The task explicitly involves outer edges and internal vein lines."
+    },
+    {
+     "key": "picture_organization",
+     "role": "exploratory",
+     "why_zh": "两片叶子的安排可观察，但没有规定固定位置。",
+     "why_en": "The arrangement of the leaves is observable, but positions are not prescribed."
+    },
+    {
+     "key": "color_richness",
+     "role": "exploratory",
+     "why_zh": "只有学生主动用色时才可能出现相关信息。",
+     "why_en": "Relevant only if the learner chooses to use colour."
+    }
+   ],
+   "zh": {
+    "title": "两片叶子",
+    "age_family": "6—7岁 / 观察与表现",
+    "card": "看看两片叶子有什么不同。",
+    "prompt": "看看图里的两片叶子，把它们都画下来。让人能看出哪片宽、哪片长，再画上你看到的叶柄和叶脉。只画线条也可以。",
+    "requirements": "画出参考图中的两片叶子；表现外形差别，并加入看到的叶柄和叶脉。",
+    "freedom": "线稿或上色都可以；大小、位置可自行安排，不要求每条叶脉完全相同。",
+    "materials": "[独立参考PNG](../assets/B1_OB_ref.png)。参考图：可随时查看，按完整比例显示。",
+    "intention": "比较自然对象的外形与局部特征。",
+    "complexity": "两个分离对象；没有遮挡要求；图像而非实物观察。",
+    "analysis": "观察外形是否有区别、叶柄如何连接、叶脉如何分布；记录学生使用的表现方式，不要求复制插画笔触。",
+    "limits": "不得因只用一种颜色判定本题失败；从插画临绘中不能推断真实植物知识。",
+    "reflection": "你觉得这两片叶子哪里最不一样？",
+    "post_config": "保存一幅首稿；共用first_visit_common_v1；喜欢程度和感觉难度各一题可跳过；反思可跳过；不因反馈未完成而阻止退出。",
+    "sources": "[C22], [YIN22] · 第一学段：表达自己的感受、改进生活用品、参与造型游戏活动",
+    "adaptation": "自然观察方向来自课程；两片叶子、宽长对照和本张插画均由本项目设置，不是教材原图。",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "先看叶子的外边，再看里面的线。"
+     },
+     {
+      "id": "H2",
+      "text": "可以把两片叶子画得大一些。"
+     }
+    ]
+   },
+   "en": {
+    "title": "Two Leaves",
+    "age_family": "Ages 6–7 / Observation and representation",
+    "card": "Notice how the two leaves differ.",
+    "prompt": "Look at the two leaves in the reference and draw both. Show which one is broad and which one is long, and add the stems and veins you can see. A line drawing is fine.",
+    "requirements": "Draw both leaves from the reference. Show their different outlines and include visible stems and veins.",
+    "freedom": "Use lines or colour. Choose the scale and arrangement; individual veins need not be exact.",
+    "materials": "[Independent reference PNG](../assets/B1_OB_ref.png). Reference: keep available throughout the task and display without cropping.",
+    "intention": "Compare the outlines and local features of natural objects.",
+    "complexity": "Two separate objects; no occlusion requirement; observation from an image rather than life.",
+    "analysis": "Look for differentiated outlines, stem connections and vein placement. Record the chosen representation rather than expecting imitation of the illustration style.",
+    "limits": "A monochrome response is not a task failure. Copying an illustration does not establish botanical knowledge.",
+    "reflection": "Where do you think the two leaves differ most?",
+    "post_config": "Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.",
+    "sources": "[C22], [YIN22] · Grades 1–2: personal expression, improving everyday objects and visual play",
+    "adaptation": "The curriculum informs natural observation. The two-leaf contrast and this illustration are project choices, not textbook stimuli.",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "Look at the outside edges first, then the lines inside."
+     },
+     {
+      "id": "H2",
+      "text": "You may draw the leaves fairly large."
+     }
+    ]
+   }
+  },
+  {
+   "task_id": "B1_ST_01",
+   "band": "B1",
+   "age_min": 6,
+   "age_max": 7,
+   "family": "ST",
+   "family_slug": "express",
+   "order": 1,
+   "reference": null,
+   "reference_svg": false,
+   "source_ids": [
+    "C22",
+    "YIN22"
+   ],
+   "dims": [
+    {
+     "key": "picture_organization",
+     "role": "primary",
+     "why_zh": "人物和主要动作需要组织在同一情境中。",
+     "why_en": "Participants and actions need to be arranged in one situation."
+    },
+    {
+     "key": "imagination",
+     "role": "exploratory",
+     "why_zh": "可以出现想象游戏，但真实经历同样符合任务。",
+     "why_en": "An invented game may provide evidence, but a real experience is equally valid."
+    },
+    {
+     "key": "line_combination",
+     "role": "exploratory",
+     "why_zh": "动作和形象可能通过线条呈现，技法不限。",
+     "why_en": "Lines may carry figures and actions; no technique is prescribed."
+    },
+    {
+     "key": "color_contrast",
+     "role": "exploratory",
+     "why_zh": "用色不是必要条件。",
+     "why_en": "Colour is not required."
+    }
+   ],
+   "zh": {
+    "title": "一起玩",
+    "age_family": "6—7岁 / 个人表达与叙事",
+    "card": "画你喜欢的一起玩的时刻。",
+    "prompt": "画一件你和别人一起玩的事，也可以画你想象中的游戏。让人看出谁在玩、在做什么。只画一幅，不用写故事。",
+    "requirements": "用一幅画表现一起玩的活动；让人物和主要动作在画面中出现。",
+    "freedom": "可以画真人、动物或想象角色；不用画真实姓名或学校。颜色和背景自由。",
+    "materials": "没有参考成品，从空白画布开始。",
+    "intention": "用形象和动作表达一个生活或想象情境。",
+    "complexity": "一个活动、单幅叙事；不要求连环画或准确人体比例。",
+    "analysis": "结合画面和自愿说明理解活动；关注人物之间是否有可辨识的活动联系。",
+    "limits": "不依据游戏内容推断社交能力、家庭情况或心理状态；真实题材不比幻想题材低级。",
+    "reflection": "你最想让别人看见谁在做什么？",
+    "post_config": "保存一幅首稿；共用first_visit_common_v1；喜欢程度和感觉难度各一题可跳过；反思可跳过；不因反馈未完成而阻止退出。",
+    "sources": "[C22], [YIN22] · 第一学段：表达自己的感受、改进生活用品、参与造型游戏活动",
+    "adaptation": "借鉴课程的生活感受表达；共同游戏、单幅产出和无文字要求均为项目设计。",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "先想好最想画的那个动作。"
+     },
+     {
+      "id": "H2",
+      "text": "人物可以画得简单，重要的是看出在做什么。"
+     }
+    ]
+   },
+   "en": {
+    "title": "Playing Together",
+    "age_family": "Ages 6–7 / Personal expression and narrative",
+    "card": "Draw a moment of playing together.",
+    "prompt": "Draw something you play with someone else, or invent a game. Show who is playing and what they are doing. Make one picture; you do not need to write a story.",
+    "requirements": "Show a shared play activity in one picture. Include the participants and the main action.",
+    "freedom": "Use people, animals or imagined characters. Real names and schools are unnecessary. Colour and background are your choice.",
+    "materials": "No finished example is provided. Start on a blank canvas.",
+    "intention": "Express an everyday or imagined situation through figures and actions.",
+    "complexity": "One activity in one image; no comic sequence or anatomical accuracy is required.",
+    "analysis": "Use the image and any optional explanation to understand the activity. Notice visible connections between participants.",
+    "limits": "Do not infer social competence, family circumstances or mental state. Realistic subject matter is not inferior to fantasy.",
+    "reflection": "Who is doing what in the part you most want others to notice?",
+    "post_config": "Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.",
+    "sources": "[C22], [YIN22] · Grades 1–2: personal expression, improving everyday objects and visual play",
+    "adaptation": "Informed by curriculum-based expression of experience. Shared play, one image and no writing requirement are project specifications.",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "Choose the action you most want to show."
+     },
+     {
+      "id": "H2",
+      "text": "The figures may be simple; focus on what they are doing."
+     }
+    ]
+   }
+  },
+  {
+   "task_id": "B1_TR_01",
+   "band": "B1",
+   "age_min": 6,
+   "age_max": 7,
+   "family": "TR",
+   "family_slug": "redesign",
+   "order": 3,
+   "reference": "B1_TR_ref",
+   "reference_svg": true,
+   "source_ids": [
+    "C22",
+    "YIN22"
+   ],
+   "dims": [
+    {
+     "key": "imagination",
+     "role": "primary",
+     "why_zh": "需要提出原参考杯子没有展示的新用途。",
+     "why_en": "A new use not shown by the original cup is required."
+    },
+    {
+     "key": "deformation",
+     "role": "primary",
+     "why_zh": "可以通过改造外形或部件实现变化。",
+     "why_en": "Changes to the form or parts can express the redesign."
+    },
+    {
+     "key": "picture_organization",
+     "role": "exploratory",
+     "why_zh": "可从新物品与使用场景的组织获得补充信息。",
+     "why_en": "The organisation of the object and its use scene may add information."
+    },
+    {
+     "key": "color_richness",
+     "role": "exploratory",
+     "why_zh": "色彩不是实现新用途的必要条件。",
+     "why_en": "Colour is not necessary to communicate the new use."
+    }
+   ],
+   "zh": {
+    "title": "会帮忙的杯子",
+    "age_family": "6—7岁 / 物品创意改造",
+    "card": "让普通杯子多一种本领。",
+    "prompt": "看看图里的杯子，把它变成一个会帮忙的新东西。画出它怎样帮忙，并保留一些杯子的特征，让人看得出它是杯子变的。",
+    "requirements": "从参考杯子出发，画出一种帮助用途；保留能辨认出杯子来源的特征。",
+    "freedom": "本领可以现实也可以幻想；不规定保留哪一个部件，不需要真的做出来。",
+    "materials": "[独立参考PNG](../assets/B1_TR_ref.png)；[可编辑SVG](../assets/B1_TR_ref.svg)。参考图：可随时查看，按完整比例显示。",
+    "intention": "将日常物品特征与新的用途建立联系。",
+    "complexity": "一个熟悉物品、一个用途；参考图没有预画改造答案。",
+    "analysis": "区分保留的物品特征、增加的结构和它所帮助的事情；不要用固定的改造示例限制学生。",
+    "limits": "不按机械可制造性评价；保留特征已明示，不再要求固定的把手、杯口或杯身。",
+    "reflection": "它会帮谁做什么？",
+    "post_config": "保存一幅首稿；共用first_visit_common_v1；喜欢程度和感觉难度各一题可跳过；反思可跳过；不因反馈未完成而阻止退出。",
+    "sources": "[C22], [YIN22] · 第一学段：表达自己的感受、改进生活用品、参与造型游戏活动",
+    "adaptation": "借鉴第一学段“改进生活用品”；杯子和“能辨认来源”的条件是项目设定。",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "先想想它想帮谁。"
+     },
+     {
+      "id": "H2",
+      "text": "杯子的哪些部分想留下，由你决定。"
+     }
+    ]
+   },
+   "en": {
+    "title": "A Helpful Cup",
+    "age_family": "Ages 6–7 / Reimagining an object",
+    "card": "Give an ordinary cup a helpful new ability.",
+    "prompt": "Look at the cup in the reference and turn it into something helpful. Show how it helps, and keep some features of the cup so that people can recognise what it came from.",
+    "requirements": "Begin with the reference cup and show one helpful use. Retain recognisable features of the original cup.",
+    "freedom": "The ability may be practical or imaginary. No specific part must remain, and you do not need to build it.",
+    "materials": "[Independent reference PNG](../assets/B1_TR_ref.png); [editable SVG](../assets/B1_TR_ref.svg). Reference: keep available throughout the task and display without cropping.",
+    "intention": "Relate a familiar object to a new purpose.",
+    "complexity": "One familiar object and one purpose; the reference contains no redesign solution.",
+    "analysis": "Distinguish retained features, additions and the intended help. Do not expect a particular example solution.",
+    "limits": "Do not judge engineering feasibility. Recognisability is explicit, but a particular handle, rim or body is not mandatory.",
+    "reflection": "Whom would it help, and how?",
+    "post_config": "Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.",
+    "sources": "[C22], [YIN22] · Grades 1–2: personal expression, improving everyday objects and visual play",
+    "adaptation": "Informed by the first-band curriculum task of improving everyday objects. The cup and explicit recognisability condition are project choices.",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "First decide whom it could help."
+     },
+     {
+      "id": "H2",
+      "text": "You decide which parts of the cup to keep."
+     }
+    ]
+   }
+  },
+  {
+   "task_id": "B2_DS_01",
+   "band": "B2",
+   "age_min": 8,
+   "age_max": 10,
+   "family": "DS",
+   "family_slug": "design",
+   "order": 4,
+   "reference": null,
+   "reference_svg": false,
+   "source_ids": [
+    "C22",
+    "YIN22",
+    "PISA23"
+   ],
+   "dims": [
+    {
+     "key": "picture_organization",
+     "role": "primary",
+     "why_zh": "视觉元素需要共同传达阅读场所的含义。",
+     "why_en": "The elements need to work together to suggest a reading space."
+    },
+    {
+     "key": "imagination",
+     "role": "exploratory",
+     "why_zh": "个人符号可能提供想象信息，但不是必须画奇幻内容。",
+     "why_en": "Personal symbols may reveal imagination; fantasy is not required."
+    },
+    {
+     "key": "color_contrast",
+     "role": "exploratory",
+     "why_zh": "颜色可帮助识别，但单色标志同样有效。",
+     "why_en": "Colour may aid recognition, but a monochrome sign can be effective."
+    }
+   ],
+   "zh": {
+    "title": "图书角标志",
+    "age_family": "8—10岁 / 视觉设计",
+    "card": "不用写字，让图形表达阅读。",
+    "prompt": "为班级图书角设计一个标志，让同学看到图形就想到这里可以阅读。图形和颜色由你决定，不必画一本书，也不用写字。",
+    "requirements": "设计一个用于图书角的标志；用图形表达与阅读场所的联系。",
+    "freedom": "可以用常见或自创符号；不限定图形数量、边框和颜色；文字完全可选。",
+    "materials": "没有参考成品，从空白画布开始。",
+    "intention": "根据清楚的使用目的组织视觉信息。",
+    "complexity": "一个受众和一个用途；不依赖文字输入。",
+    "analysis": "分析符号与使用目的的联系；把传达清晰度保留为任务分析，不另造九维外总分。",
+    "limits": "不能将“出现书本”当唯一正确答案；不评价文字书写和语法。",
+    "reflection": "你希望同学第一眼想到什么？",
+    "post_config": "保存一幅首稿；共用first_visit_common_v1；喜欢程度和感觉难度各一题可跳过；反思可跳过；不因反馈未完成而阻止退出。",
+    "sources": "[C22], [YIN22], [PISA23] · 第二学段：表达自己的想法、装点我们的生活",
+    "adaptation": "参考第二学段“装点我们的生活”和PISA目的导向视觉设计；图书角主题为改编，不是PISA原题。",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "先想好你希望同学想到什么。"
+     },
+     {
+      "id": "H2",
+      "text": "试着让最重要的图形容易看见。"
+     }
+    ]
+   },
+   "en": {
+    "title": "A Reading-Corner Sign",
+    "age_family": "Ages 8–10 / Visual communication design",
+    "card": "Let an image communicate reading without words.",
+    "prompt": "Design a sign for a classroom reading corner so that the image suggests a place for reading. Choose the shapes and colours yourself. You do not have to draw a book or use words.",
+    "requirements": "Design one sign for a reading corner. Use the image to communicate its connection to reading.",
+    "freedom": "Use familiar or invented symbols. No fixed count, border or palette; words are optional.",
+    "materials": "No finished example is provided. Start on a blank canvas.",
+    "intention": "Organise visual information for a clear purpose.",
+    "complexity": "One audience and one purpose; no text-entry dependency.",
+    "analysis": "Analyse the relation between symbol and purpose. Communication clarity remains task analysis, not an invented additional total score.",
+    "limits": "A book is not the only correct image. Handwriting and grammar are not evaluated.",
+    "reflection": "What do you want classmates to think of first?",
+    "post_config": "Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.",
+    "sources": "[C22], [YIN22], [PISA23] · Grades 3–5: expressing ideas and design for everyday life",
+    "adaptation": "Informed by second-band design for everyday life and PISA purpose-directed visual design. The reading-corner theme is an adaptation, not a PISA item.",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "First decide what you want classmates to think of."
+     },
+     {
+      "id": "H2",
+      "text": "Try making the most important part easy to notice."
+     }
+    ]
+   }
+  },
+  {
+   "task_id": "B2_FG_01",
+   "band": "B2",
+   "age_min": 8,
+   "age_max": 10,
+   "family": "FG",
+   "family_slug": "fragments",
+   "order": 2,
+   "reference": "B2_FG_ref",
+   "reference_svg": true,
+   "source_ids": [
+    "C22",
+    "YIN22",
+    "URBAN05"
+   ],
+   "dims": [
+    {
+     "key": "imagination",
+     "role": "primary",
+     "why_zh": "需要为片段发展自己的含义。",
+     "why_en": "The learner develops meanings for the fragments."
+    },
+    {
+     "key": "picture_organization",
+     "role": "primary",
+     "why_zh": "两个片段需要在同一场景内形成联系。",
+     "why_en": "The fragments need to relate within one scene."
+    },
+    {
+     "key": "deformation",
+     "role": "exploratory",
+     "why_zh": "片段可以通过延展和变化成为新形象。",
+     "why_en": "Extensions and modifications may turn fragments into new forms."
+    },
+    {
+     "key": "line_texture",
+     "role": "exploratory",
+     "why_zh": "线条质感可出现但未被要求。",
+     "why_en": "Line texture may emerge but is not required."
+    }
+   ],
+   "zh": {
+    "title": "两段线条的故事",
+    "age_family": "8—10岁 / 图形片段创作",
+    "card": "让两段线条在同一幅画里相遇。",
+    "prompt": "把参考图里的两段线条都画进一幅画里，再加上自己的内容，让它们成为同一个场景的一部分。可以移动、转向或变大小，但原来的两段线条要还能找到。",
+    "requirements": "使用两段给定线条；在同一幅画中将它们联系成一个场景，并保留可辨认形状。",
+    "freedom": "题材、位置、方向和颜色自主；不需要把线条画得与参考完全等长。",
+    "materials": "[独立参考PNG](../assets/B2_FG_ref.png)；[可编辑SVG](../assets/B2_FG_ref.svg)。参考图：可随时查看，按完整比例显示。 所有片段为本包原创；照参考转抄到空白画布，不复制原TCT-DP题纸。",
+    "intention": "利用多个模糊片段建立画面中的联系。",
+    "complexity": "两片段、一个场景；整合要求明确写进题面。",
+    "analysis": "记录片段如何被使用和联系；连接不一定需要一条物理连线。",
+    "limits": "不因画常见物体直接判想象力低；不使用TCT-DP总分或时间指标。",
+    "reflection": "这两段线条在你的画里有什么关系？",
+    "post_config": "保存一幅首稿；共用first_visit_common_v1；喜欢程度和感觉难度各一题可跳过；反思可跳过；不因反馈未完成而阻止退出。",
+    "sources": "[C22], [YIN22], [URBAN05] · 第二学段：表达自己的想法、装点我们的生活",
+    "adaptation": "借鉴Urban（2005）片段创作；两片段、同场景与转抄方式均为项目原创实例。",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "它们可以变成不同东西，再放进同一个场景。"
+     },
+     {
+      "id": "H2",
+      "text": "不用寻找别人画过的答案。"
+     }
+    ]
+   },
+   "en": {
+    "title": "A Story from Two Fragments",
+    "age_family": "Ages 8–10 / Creation from figural fragments",
+    "card": "Bring two fragments together in one scene.",
+    "prompt": "Include both line fragments from the reference in one drawing. Add your own ideas so that they belong to the same scene. You may move, rotate or resize them, but both original fragments should remain recognisable.",
+    "requirements": "Use both given fragments. Connect them within one scene while retaining recognisable fragment shapes.",
+    "freedom": "Choose subject, positions, orientations and colour. Exact line lengths are not required.",
+    "materials": "[Independent reference PNG](../assets/B2_FG_ref.png); [editable SVG](../assets/B2_FG_ref.svg). Reference: keep available throughout the task and display without cropping. All fragments are original to this bank. Reproduce them on the blank canvas; no original TCT-DP sheet is copied.",
+    "intention": "Create visual connections from multiple ambiguous fragments.",
+    "complexity": "Two fragments in one scene; integration is explicit in the prompt.",
+    "analysis": "Record how the fragments are used and related. A connecting line is not mandatory.",
+    "limits": "A familiar object does not by itself imply low imagination. No TCT-DP total or timing metric is used.",
+    "reflection": "How are the two fragments related in your drawing?",
+    "post_config": "Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.",
+    "sources": "[C22], [YIN22], [URBAN05] · Grades 3–5: expressing ideas and design for everyday life",
+    "adaptation": "Adapted from Urban (2005). The two fragments, common-scene instruction and reproduction method are project-designed.",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "They may become different things within the same scene."
+     },
+     {
+      "id": "H2",
+      "text": "You do not need to find an example someone else has drawn."
+     }
+    ]
+   }
+  },
+  {
+   "task_id": "B2_OB_01",
+   "band": "B2",
+   "age_min": 8,
+   "age_max": 10,
+   "family": "OB",
+   "family_slug": "observe",
+   "order": 0,
+   "reference": "B2_OB_ref",
+   "reference_svg": true,
+   "source_ids": [
+    "C22",
+    "YIN22"
+   ],
+   "dims": [
+    {
+     "key": "realism",
+     "role": "primary",
+     "why_zh": "可以核对对象外形与关系的表现。",
+     "why_en": "Representation of object forms and relationships can be compared with a shared reference."
+    },
+    {
+     "key": "picture_organization",
+     "role": "primary",
+     "why_zh": "题面明确涉及多个对象的位置和遮挡组织。",
+     "why_en": "The brief explicitly concerns the arrangement and overlap of multiple objects."
+    },
+    {
+     "key": "line_combination",
+     "role": "exploratory",
+     "why_zh": "轮廓和结构可能通过不同线条表现。",
+     "why_en": "Different lines may express contours and structure."
+    },
+    {
+     "key": "color_contrast",
+     "role": "exploratory",
+     "why_zh": "单色完成仍符合任务。",
+     "why_en": "Monochrome work can fully satisfy the task."
+    }
+   ],
+   "zh": {
+    "title": "苹果和两本书",
+    "age_family": "8—10岁 / 观察与表现",
+    "card": "画出三件物品和它们的前后关系。",
+    "prompt": "看参考图，画出苹果和两本书，保留它们的大致位置。注意苹果挡住书的地方，让人能看出谁在前面。可以只用线条。",
+    "requirements": "画出苹果和两本书；保留大致位置并表现苹果在书前面。",
+    "freedom": "线稿或上色均可；整体可以放大或缩小；不要求精确临摹纹理。",
+    "materials": "[独立参考PNG](../assets/B2_OB_ref.png)；[可编辑SVG](../assets/B2_OB_ref.svg)。参考图：可随时查看，按完整比例显示。",
+    "intention": "在共同参考下观察和表现物体间的空间联系。",
+    "complexity": "三个对象、一项明确前后关系；复杂度为设计描述，不是实测难度。",
+    "analysis": "观察苹果与书交界处的线索，以及两本书叠放的相对位置；空间关系记录不另建0—2分量表。",
+    "limits": "物品本来大小不同，不因“苹果画得大”自动推断透视错误；只评价可见证据。",
+    "reflection": "你用哪里让人看出苹果在前面？",
+    "post_config": "保存一幅首稿；共用first_visit_common_v1；喜欢程度和感觉难度各一题可跳过；反思可跳过；不因反馈未完成而阻止退出。",
+    "sources": "[C22], [YIN22] · 第二学段：表达自己的想法、装点我们的生活",
+    "adaptation": "参考第二学段空间观察方向；三个物品及苹果遮挡书的布置由本项目固定，不是教材平行卷。",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "先看看哪条边被前面的物品挡住了。"
+     },
+     {
+      "id": "H2",
+      "text": "不用把参考图的颜色和阴影一模一样地画下来。"
+     }
+    ]
+   },
+   "en": {
+    "title": "An Apple and Two Books",
+    "age_family": "Ages 8–10 / Observation and representation",
+    "card": "Draw three objects and their front-to-back relationship.",
+    "prompt": "Look at the reference and draw the apple and the two books in roughly the same arrangement. Notice where the apple overlaps the book and show which object is in front. A line drawing is fine.",
+    "requirements": "Include the apple and both books. Keep the rough arrangement and show the apple in front of the book.",
+    "freedom": "Use lines or colour and choose the overall scale. Exact texture copying is unnecessary.",
+    "materials": "[Independent reference PNG](../assets/B2_OB_ref.png); [editable SVG](../assets/B2_OB_ref.svg). Reference: keep available throughout the task and display without cropping.",
+    "intention": "Observe and represent object relations using a shared reference.",
+    "complexity": "Three objects and one explicit front-to-back relation; this describes design complexity, not calibrated difficulty.",
+    "analysis": "Observe cues at the apple–book boundary and how the two books are stacked. Do not create a separate 0–2 spatial score.",
+    "limits": "The objects differ in real-world size; a large apple alone does not prove a perspective error. Use visible evidence.",
+    "reflection": "What part of your drawing shows the apple in front?",
+    "post_config": "Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.",
+    "sources": "[C22], [YIN22] · Grades 3–5: expressing ideas and design for everyday life",
+    "adaptation": "Informed by second-band spatial observation. The three objects and apple–book overlap are project-fixed material conditions, not validated parallel textbook items.",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "Notice which edge is hidden by the object in front."
+     },
+     {
+      "id": "H2",
+      "text": "You do not need to reproduce every colour and shadow."
+     }
+    ]
+   }
+  },
+  {
+   "task_id": "B2_ST_01",
+   "band": "B2",
+   "age_min": 8,
+   "age_max": 10,
+   "family": "ST",
+   "family_slug": "express",
+   "order": 1,
+   "reference": null,
+   "reference_svg": false,
+   "source_ids": [
+    "C22",
+    "YIN22"
+   ],
+   "dims": [
+    {
+     "key": "picture_organization",
+     "role": "primary",
+     "why_zh": "人物、动作和环境需要形成事件关系。",
+     "why_en": "Character, action and setting need to form an event."
+    },
+    {
+     "key": "imagination",
+     "role": "exploratory",
+     "why_zh": "允许想象，但真实事件不因此低分。",
+     "why_en": "Imagination is permitted; a real event is not penalised."
+    },
+    {
+     "key": "line_combination",
+     "role": "exploratory",
+     "why_zh": "行动线索可能来自形状与线条。",
+     "why_en": "Action may be communicated through shapes and lines."
+    },
+    {
+     "key": "color_contrast",
+     "role": "exploratory",
+     "why_zh": "色彩使用自主。",
+     "why_en": "Colour use is optional."
+    }
+   ],
+   "zh": {
+    "title": "放学以后",
+    "age_family": "8—10岁 / 个人表达与叙事",
+    "card": "选一个放学后的时刻，把它画出来。",
+    "prompt": "用一幅画表现放学后的一件事，可以是真实经历，也可以是想象。让人看出主要人物在什么地方、正在做什么。不用画很多件事，也不用写故事。",
+    "requirements": "画出一个放学后的事件；用人物、动作和环境表达事件。",
+    "freedom": "可以换成动物角色或想象地点；无需真实姓名、具体校名；单色也可以。",
+    "materials": "没有参考成品，从空白画布开始。",
+    "intention": "将个人选择的事件组织成单幅视觉叙事。",
+    "complexity": "一个事件；至少可辨识的行动意图；不需要漫画分镜。",
+    "analysis": "记录画面怎样支持学生想表达的事件；自愿说明仅辅助理解，不代替画面。",
+    "limits": "不评价家庭资源、课外活动丰富程度或记忆真实性。",
+    "reflection": "这幅画里最重要的时刻是什么？",
+    "post_config": "保存一幅首稿；共用first_visit_common_v1；喜欢程度和感觉难度各一题可跳过；反思可跳过；不因反馈未完成而阻止退出。",
+    "sources": "[C22], [YIN22] · 第二学段：表达自己的想法、装点我们的生活",
+    "adaptation": "来源为第二学段“表达自己的想法”；放学主题、单幅限制和匿名情境为项目设定。",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "先选最想让别人看到的那个时刻。"
+     },
+     {
+      "id": "H2",
+      "text": "背景只需要帮助别人看懂发生的事。"
+     }
+    ]
+   },
+   "en": {
+    "title": "After School",
+    "age_family": "Ages 8–10 / Personal expression and narrative",
+    "card": "Choose an after-school moment and draw it.",
+    "prompt": "Show one after-school event in one picture. It may be real or imagined. Show where the main character is and what they are doing. You do not need several events or a written story.",
+    "requirements": "Show one after-school event. Use a character, action and setting to convey the event.",
+    "freedom": "Animal characters and imagined places are welcome. Real names and school names are unnecessary; monochrome is fine.",
+    "materials": "No finished example is provided. Start on a blank canvas.",
+    "intention": "Organise a self-chosen event as a single visual narrative.",
+    "complexity": "One event with a discernible action intention; no comic panels required.",
+    "analysis": "Record how the image supports the intended event. Optional explanation supplements, rather than replaces, visual evidence.",
+    "limits": "Do not evaluate family resources, extracurricular opportunities or factual memory accuracy.",
+    "reflection": "What is the most important moment in this picture?",
+    "post_config": "Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.",
+    "sources": "[C22], [YIN22] · Grades 3–5: expressing ideas and design for everyday life",
+    "adaptation": "Informed by the curriculum task of expressing one’s ideas. The after-school context, single image and non-identifying setting are project choices.",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "Choose the moment you most want others to see."
+     },
+     {
+      "id": "H2",
+      "text": "Use the background only as much as it helps explain the event."
+     }
+    ]
+   }
+  },
+  {
+   "task_id": "B2_TR_01",
+   "band": "B2",
+   "age_min": 8,
+   "age_max": 10,
+   "family": "TR",
+   "family_slug": "redesign",
+   "order": 3,
+   "reference": "B2_TR_ref",
+   "reference_svg": true,
+   "source_ids": [
+    "C22",
+    "YIN22"
+   ],
+   "dims": [
+    {
+     "key": "imagination",
+     "role": "primary",
+     "why_zh": "新增本领需要超出原物展示。",
+     "why_en": "The new ability goes beyond what is shown by the original object."
+    },
+    {
+     "key": "deformation",
+     "role": "primary",
+     "why_zh": "物品外形和部件可能被改造。",
+     "why_en": "The form or parts may be redesigned."
+    },
+    {
+     "key": "picture_organization",
+     "role": "exploratory",
+     "why_zh": "可以通过使用场景补充功能表达。",
+     "why_en": "A use scene may add functional clarity."
+    },
+    {
+     "key": "color_richness",
+     "role": "exploratory",
+     "why_zh": "单色结构表达仍可以完成。",
+     "why_en": "A monochrome design can complete the task."
+    }
+   ],
+   "zh": {
+    "title": "雨伞的新本领",
+    "age_family": "8—10岁 / 物品创意改造",
+    "card": "雨天里，雨伞还能帮什么忙？",
+    "prompt": "把参考图里的雨伞改造成能在雨天多帮一个忙的新雨伞。画出新增本领怎样使用，并保留一些雨伞的特征，让人还能认出它。",
+    "requirements": "提出一种雨天的新用途，并在画面中表达；保留雨伞来源的可辨认特征。",
+    "freedom": "本领可以幻想；保留哪些部件自行决定；不要求工程结构图。",
+    "materials": "[独立参考PNG](../assets/B2_TR_ref.png)；[可编辑SVG](../assets/B2_TR_ref.svg)。参考图：可随时查看，按完整比例显示。",
+    "intention": "将熟悉物品与特定情境中的需求关联。",
+    "complexity": "一个物品与一个情境要求；不需要可移动图像部件。",
+    "analysis": "区分用途新意、原物联系与图像呈现；不要将增加装饰直接视为新增功能。",
+    "limits": "不因现实中做不出来而否定幻想；也不默认增加更多功能更好。",
+    "reflection": "它比普通雨伞多帮了什么忙？",
+    "post_config": "保存一幅首稿；共用first_visit_common_v1；喜欢程度和感觉难度各一题可跳过；反思可跳过；不因反馈未完成而阻止退出。",
+    "sources": "[C22], [YIN22] · 第二学段：表达自己的想法、装点我们的生活",
+    "adaptation": "借鉴第二学段生活设计方向；雨天、一个新增用途和保留来源特征为项目条件。",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "先选雨天遇到的一件小事。"
+     },
+     {
+      "id": "H2",
+      "text": "可以用一个小场景说明新本领。"
+     }
+    ]
+   },
+   "en": {
+    "title": "An Umbrella with a New Job",
+    "age_family": "Ages 8–10 / Reimagining an object",
+    "card": "What else could an umbrella help with on a rainy day?",
+    "prompt": "Redesign the umbrella in the reference so that it can do one additional helpful job on a rainy day. Show how the new ability is used and keep enough features for it to remain recognisable as an umbrella.",
+    "requirements": "Propose and show one additional rainy-day use. Retain recognisable umbrella features.",
+    "freedom": "The ability may be imaginary. Choose which parts remain; no engineering plan is required.",
+    "materials": "[Independent reference PNG](../assets/B2_TR_ref.png); [editable SVG](../assets/B2_TR_ref.svg). Reference: keep available throughout the task and display without cropping.",
+    "intention": "Connect a familiar object to a need in a specific situation.",
+    "complexity": "One object and one contextual requirement; movable image elements are unnecessary.",
+    "analysis": "Distinguish the proposed purpose, link to the original and visual representation. Decoration alone is not automatically a new function.",
+    "limits": "Do not reject an imagined ability for being unbuildable, or assume that more functions are always better.",
+    "reflection": "What extra help does it offer compared with an ordinary umbrella?",
+    "post_config": "Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.",
+    "sources": "[C22], [YIN22] · Grades 3–5: expressing ideas and design for everyday life",
+    "adaptation": "Informed by second-band everyday design. Rainy-day context, one added use and recognisability are project conditions.",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "Choose one small rainy-day problem first."
+     },
+     {
+      "id": "H2",
+      "text": "A small use scene may help explain the new ability."
+     }
+    ]
+   }
+  },
+  {
+   "task_id": "B3_DS_01",
+   "band": "B3",
+   "age_min": 11,
+   "age_max": 12,
+   "family": "DS",
+   "family_slug": "design",
+   "order": 4,
+   "reference": null,
+   "reference_svg": false,
+   "source_ids": [
+    "C22",
+    "YIN22",
+    "PISA23"
+   ],
+   "dims": [
+    {
+     "key": "imagination",
+     "role": "primary",
+     "why_zh": "任务要求形成自己的角色方案。",
+     "why_en": "The task calls for a character proposal."
+    },
+    {
+     "key": "picture_organization",
+     "role": "primary",
+     "why_zh": "角色各部分需要构成有意义的整体。",
+     "why_en": "The character’s parts need to work as a meaningful whole."
+    },
+    {
+     "key": "deformation",
+     "role": "exploratory",
+     "why_zh": "夸张可服务角色表达，但不是必须采用的画法。",
+     "why_en": "Exaggeration may support expression but is not required."
+    },
+    {
+     "key": "color_contrast",
+     "role": "exploratory",
+     "why_zh": "配色可支持识别，但多色不是条件。",
+     "why_en": "Colour may aid recognition; multiple colours are not required."
+    }
+   ],
+   "zh": {
+    "title": "运动会吉祥物",
+    "age_family": "11—12岁 / 视觉设计",
+    "card": "设计一个能代表运动会的角色。",
+    "prompt": "为学校运动会设计一个吉祥物，让它的形象、动作或一个细节表达运动会的气氛。可以是动物、人物或自创角色。名字可写可不写。",
+    "requirements": "设计一个吉祥物角色；通过形象、动作或细节联系运动会。",
+    "freedom": "不限定物种、性别、配色或特定器材；可以单色；不要求专业三视图。",
+    "materials": "没有参考成品，从空白画布开始。",
+    "intention": "将角色构想与公共活动的视觉传达结合。",
+    "complexity": "单个角色、明确活动用途；不用现成答案参考图。",
+    "analysis": "分析角色特征与活动目的的联系；分开记录“与运动会相关”与图片各维度评价。",
+    "limits": "不因选择常见动物就直接判缺乏想象；不评价校名、口号和文字长度。",
+    "reflection": "哪个地方最能让人想到运动会？",
+    "post_config": "保存一幅首稿；共用first_visit_common_v1；喜欢程度和感觉难度各一题可跳过；反思可跳过；不因反馈未完成而阻止退出。",
+    "sources": "[C22], [YIN22], [PISA23] · 第三学段：传递我们的创意、营造环境",
+    "adaptation": "借鉴第三学段“传递我们的创意”及目的导向视觉表达；具体吉祥物任务是项目改编。",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "先想这个角色给人的感觉。"
+     },
+     {
+      "id": "H2",
+      "text": "选择一个最能表达运动会的细节。"
+     }
+    ]
+   },
+   "en": {
+    "title": "A Sports-Day Mascot",
+    "age_family": "Ages 11–12 / Visual communication design",
+    "card": "Create a character for a sports day.",
+    "prompt": "Design a mascot for a school sports day. Let its appearance, action or a detail communicate the event’s spirit. It may be an animal, a person or an invented character. A written name is optional.",
+    "requirements": "Design one mascot character. Relate it to the sports day through appearance, action or detail.",
+    "freedom": "No required species, gender, palette or sporting equipment. Monochrome is allowed; professional model sheets are not needed.",
+    "materials": "No finished example is provided. Start on a blank canvas.",
+    "intention": "Connect character design to visual communication for an event.",
+    "complexity": "One character and a clear event purpose; no model answer image.",
+    "analysis": "Analyse the link between character features and the event, keeping purpose alignment separate from artwork ratings.",
+    "limits": "A familiar animal does not automatically mean low imagination. School names, slogans and word counts are not assessed.",
+    "reflection": "Which part most clearly suggests a sports day?",
+    "post_config": "Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.",
+    "sources": "[C22], [YIN22], [PISA23] · Grades 6–7: communicating creative ideas and shaping environments",
+    "adaptation": "Informed by third-band creative communication and purpose-directed visual expression. This mascot brief is a project adaptation.",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "Decide what feeling the character should convey."
+     },
+     {
+      "id": "H2",
+      "text": "Choose a detail that helps communicate the event."
+     }
+    ]
+   }
+  },
+  {
+   "task_id": "B3_FG_01",
+   "band": "B3",
+   "age_min": 11,
+   "age_max": 12,
+   "family": "FG",
+   "family_slug": "fragments",
+   "order": 2,
+   "reference": "B3_FG_ref",
+   "reference_svg": true,
+   "source_ids": [
+    "C22",
+    "YIN22",
+    "URBAN05"
+   ],
+   "dims": [
+    {
+     "key": "imagination",
+     "role": "primary",
+     "why_zh": "需要为给定片段发展场所构想。",
+     "why_en": "The learner develops a place from the given fragments."
+    },
+    {
+     "key": "picture_organization",
+     "role": "primary",
+     "why_zh": "多个元素需要在整体场景中建立联系。",
+     "why_en": "Several elements need to relate within an overall scene."
+    },
+    {
+     "key": "deformation",
+     "role": "exploratory",
+     "why_zh": "可将线条发展成不同形象，但变形不是必须增加的评分项目。",
+     "why_en": "Fragments may develop into different forms, but deformation is not an extra mandatory score."
+    },
+    {
+     "key": "color_richness",
+     "role": "exploratory",
+     "why_zh": "单色仍是合法完成方式。",
+     "why_en": "Monochrome remains a valid response."
+    }
+   ],
+   "zh": {
+    "title": "线条里的地方",
+    "age_family": "11—12岁 / 图形片段创作",
+    "card": "用三段线条构想一个地方。",
+    "prompt": "把图里的三段线条都画进一幅画，发展成一个真实或想象的地方。三段线都要能找到，但位置、方向和大小可以改变。其他内容由你决定。",
+    "requirements": "在一幅画中使用全部三段线；形成一个地方，并保留片段可辨认的特征。",
+    "freedom": "可写实、夸张或抽象；不规定建筑、植物或人物必须出现。",
+    "materials": "[独立参考PNG](../assets/B3_FG_ref.png)；[可编辑SVG](../assets/B3_FG_ref.svg)。参考图：可随时查看，按完整比例显示。 所有片段为本包原创；照参考转抄到空白画布，不复制原TCT-DP题纸。",
+    "intention": "在一个总体情境中整合多个模糊刺激。",
+    "complexity": "三片段整合为一个场景；转抄方式已作为任务条件保存。",
+    "analysis": "观察三个片段的去向和场景联系；精确像素重合不作为片段使用判据。",
+    "limits": "不等同于TCT-DP；不能依据片段数量推定难度严格递增。",
+    "reflection": "你最早从哪段线想到这个地方？",
+    "post_config": "保存一幅首稿；共用first_visit_common_v1；喜欢程度和感觉难度各一题可跳过；反思可跳过；不因反馈未完成而阻止退出。",
+    "sources": "[C22], [YIN22], [URBAN05] · 第三学段：传递我们的创意、营造环境",
+    "adaptation": "Urban（2005）支持片段创作形式；三个原创片段和场所主题属于项目实例。",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "先想这个地方有什么特点。"
+     },
+     {
+      "id": "H2",
+      "text": "三段线不必变成同一种东西。"
+     }
+    ]
+   },
+   "en": {
+    "title": "A Place from Fragments",
+    "age_family": "Ages 11–12 / Creation from figural fragments",
+    "card": "Build a place from three line fragments.",
+    "prompt": "Include all three fragments from the reference in one drawing and develop them into a real or imagined place. Keep each fragment recognisable, but you may change its position, orientation and size. Decide the rest yourself.",
+    "requirements": "Use all three fragments in one image. Develop a place while keeping the fragment shapes recognisable.",
+    "freedom": "Use realistic, exaggerated or abstract forms. Buildings, plants and figures are not prescribed.",
+    "materials": "[Independent reference PNG](../assets/B3_FG_ref.png); [editable SVG](../assets/B3_FG_ref.svg). Reference: keep available throughout the task and display without cropping. All fragments are original to this bank. Reproduce them on the blank canvas; no original TCT-DP sheet is copied.",
+    "intention": "Integrate several ambiguous stimuli into an overall setting.",
+    "complexity": "Three fragments integrated into a place; manual reproduction is recorded as a task condition.",
+    "analysis": "Track the fragments and their relation to the place. Exact pixel matching is not required to recognise use.",
+    "limits": "This is not TCT-DP, and fragment count does not establish a strictly increasing difficulty scale.",
+    "reflection": "Which fragment first gave you the idea for this place?",
+    "post_config": "Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.",
+    "sources": "[C22], [YIN22], [URBAN05] · Grades 6–7: communicating creative ideas and shaping environments",
+    "adaptation": "Urban (2005) supports the paradigm. Three original fragments and a place-based theme are project choices.",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "Think about what makes this place distinctive."
+     },
+     {
+      "id": "H2",
+      "text": "The three fragments do not have to become the same kind of thing."
+     }
+    ]
+   }
+  },
+  {
+   "task_id": "B3_OB_01",
+   "band": "B3",
+   "age_min": 11,
+   "age_max": 12,
+   "family": "OB",
+   "family_slug": "observe",
+   "order": 0,
+   "reference": "B3_OB_ref",
+   "reference_svg": true,
+   "source_ids": [
+    "C22",
+    "YIN22"
+   ],
+   "dims": [
+    {
+     "key": "picture_organization",
+     "role": "primary",
+     "why_zh": "任务明确涉及四件物品和两处空间关系的组织。",
+     "why_en": "The task explicitly concerns four objects and two spatial relationships."
+    },
+    {
+     "key": "realism",
+     "role": "primary",
+     "why_zh": "共同参考提供对象特征和关系的对照。",
+     "why_en": "A shared reference supports comparison of object features and relations."
+    },
+    {
+     "key": "line_combination",
+     "role": "exploratory",
+     "why_zh": "可以观察轮廓和交界线的使用。",
+     "why_en": "Contours and boundary lines may provide additional evidence."
+    },
+    {
+     "key": "color_contrast",
+     "role": "exploratory",
+     "why_zh": "允许单色，颜色不是完成条件。",
+     "why_en": "Monochrome is allowed; colour is not a completion requirement."
+    }
+   ],
+   "zh": {
+    "title": "桌上的四件物品",
+    "age_family": "11—12岁 / 观察与表现",
+    "card": "用四件物品表现两处前后关系。",
+    "prompt": "根据参考图画出盆栽、笔筒、橡皮和笔记本，保留它们的大致大小与位置关系。让人看出橡皮在盆栽前面、笔记本在笔筒前面。线稿或上色都可以。",
+    "requirements": "包括盆栽、笔筒、橡皮和笔记本；表现橡皮在盆栽前、笔记本在笔筒前，并保留大致布局。",
+    "freedom": "无需相同颜色、光影或精确纹理；可选择自己的线条风格。",
+    "materials": "[独立参考PNG](../assets/B3_OB_ref.png)；[可编辑SVG](../assets/B3_OB_ref.svg)。参考图：可随时查看，按完整比例显示。",
+    "intention": "比较局部遮挡与整体布置之间的联系。",
+    "complexity": "四对象、两项明确关系；不要求完整明暗造型。",
+    "analysis": "分别描述两处交界和整体相对布局；局部关系正确不自动意味着完整画面组织满分。",
+    "limits": "物体数量和遮挡数量是材料条件，不是课标要求；不可因此使用原项目平行卷等值结论。",
+    "reflection": "哪一处前后关系最难画？",
+    "post_config": "保存一幅首稿；共用first_visit_common_v1；喜欢程度和感觉难度各一题可跳过；反思可跳过；不因反馈未完成而阻止退出。",
+    "sources": "[C22], [YIN22] · 第三学段：传递我们的创意、营造环境",
+    "adaptation": "参考第三学段造型与构图相关方向；四对象两遮挡为项目控制条件。",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "先安排整体位置，再处理遮住的边。"
+     },
+     {
+      "id": "H2",
+      "text": "注意比较画面里的大小，不必推测物品真实尺寸。"
+     }
+    ]
+   },
+   "en": {
+    "title": "Four Things on a Table",
+    "age_family": "Ages 11–12 / Observation and representation",
+    "card": "Show two front-to-back relations among four objects.",
+    "prompt": "Draw the potted plant, pen holder, eraser and notebook from the reference, keeping their broad size and position relationships. Show the eraser in front of the plant and the notebook in front of the pen holder. Use lines or colour.",
+    "requirements": "Include the potted plant, pen holder, eraser and notebook. Show the eraser in front of the plant and the notebook in front of the pen holder, preserving the broad layout.",
+    "freedom": "Exact colours, shading and texture are unnecessary; choose your line style.",
+    "materials": "[Independent reference PNG](../assets/B3_OB_ref.png); [editable SVG](../assets/B3_OB_ref.svg). Reference: keep available throughout the task and display without cropping.",
+    "intention": "Relate local overlaps to the overall arrangement.",
+    "complexity": "Four objects and two explicit relations; fully modelled shading is not required.",
+    "analysis": "Describe the two overlaps and overall arrangement separately. Correct overlap alone does not imply a top overall organisation score.",
+    "limits": "Object and overlap counts are material specifications, not curriculum mandates or evidence of parallel-form equivalence.",
+    "reflection": "Which front-to-back relation was hardest to show?",
+    "post_config": "Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.",
+    "sources": "[C22], [YIN22] · Grades 6–7: communicating creative ideas and shaping environments",
+    "adaptation": "Informed by third-band representation and composition. Four objects and two overlaps are project-controlled conditions.",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "Place the objects first, then work on the hidden edges."
+     },
+     {
+      "id": "H2",
+      "text": "Compare sizes in the image rather than guessing real-world measurements."
+     }
+    ]
+   }
+  },
+  {
+   "task_id": "B3_ST_01",
+   "band": "B3",
+   "age_min": 11,
+   "age_max": 12,
+   "family": "ST",
+   "family_slug": "express",
+   "order": 1,
+   "reference": null,
+   "reference_svg": false,
+   "source_ids": [
+    "C22",
+    "YIN22"
+   ],
+   "dims": [
+    {
+     "key": "picture_organization",
+     "role": "primary",
+     "why_zh": "画面需要组织事件线索与关注重点。",
+     "why_en": "The picture needs to organise event cues and focal attention."
+    },
+    {
+     "key": "imagination",
+     "role": "exploratory",
+     "why_zh": "想象情节可能相关，真实事件同样被允许。",
+     "why_en": "Invented events may be relevant; real events are equally allowed."
+    },
+    {
+     "key": "deformation",
+     "role": "exploratory",
+     "why_zh": "夸张动作可能是表达选择，而不是造型错误。",
+     "why_en": "Exaggerated action may be an expressive choice rather than a drawing error."
+    },
+    {
+     "key": "color_contrast",
+     "role": "exploratory",
+     "why_zh": "视觉重点可不依赖颜色。",
+     "why_en": "A focal point need not rely on colour."
+    }
+   ],
+   "zh": {
+    "title": "一件意外的事",
+    "age_family": "11—12岁 / 个人表达与叙事",
+    "card": "把突然发生的那一刻画出来。",
+    "prompt": "用一幅画表现一件突然发生的事。可以是真实的，也可以是想象的。让人物的动作、表情或环境变化，帮助别人看出发生了什么。",
+    "requirements": "用一幅画表现一个突然发生的事件；用可见的动作、表情或环境变化提供线索。",
+    "freedom": "故事可以幽默、平常或幻想；人物比例和表现方式自由；不必写文字。",
+    "materials": "没有参考成品，从空白画布开始。",
+    "intention": "在单幅画中选择关键线索表达事件。",
+    "complexity": "单幅叙事、可选择的事件线索；不增加多页保存需求。",
+    "analysis": "记录哪些视觉线索支持故事理解；如果解释与图像不同，分别保留，不凭说明虚构图中内容。",
+    "limits": "不推断学生经历过创伤，也不要求危险、暴力或强烈负面事件。",
+    "reflection": "你选了哪个瞬间，为什么？",
+    "post_config": "保存一幅首稿；共用first_visit_common_v1；喜欢程度和感觉难度各一题可跳过；反思可跳过；不因反馈未完成而阻止退出。",
+    "sources": "[C22], [YIN22] · 第三学段：传递我们的创意、营造环境",
+    "adaptation": "借鉴第三学段创意表达；单幅关键瞬间由项目设置，并未移用完整微电影或漫画课程。",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "先选故事中最关键的那一刻。"
+     },
+     {
+      "id": "H2",
+      "text": "不必把前因后果都画出来。"
+     }
+    ]
+   },
+   "en": {
+    "title": "An Unexpected Moment",
+    "age_family": "Ages 11–12 / Personal expression and narrative",
+    "card": "Capture the moment something unexpected happens.",
+    "prompt": "Use one picture to show something that happens unexpectedly, real or imagined. Use a character’s action, expression or a change in the setting to help others understand what happened.",
+    "requirements": "Show one unexpected event in one picture. Provide visible cues through action, expression or changes in the setting.",
+    "freedom": "The event may be humorous, ordinary or fantastical. Figure proportions and style are open; words are optional.",
+    "materials": "No finished example is provided. Start on a blank canvas.",
+    "intention": "Select key visual cues to convey an event in one image.",
+    "complexity": "A single narrative image with flexible cues; no multi-page storage is needed.",
+    "analysis": "Record the visual cues supporting interpretation. If the explanation and image differ, retain both without inventing unseen content.",
+    "limits": "Do not infer trauma or require danger, violence or strongly negative events.",
+    "reflection": "Which moment did you choose, and why?",
+    "post_config": "Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.",
+    "sources": "[C22], [YIN22] · Grades 6–7: communicating creative ideas and shaping environments",
+    "adaptation": "Informed by third-band creative expression. A single key moment is a project format, not a reproduction of a film or comics course.",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "Choose the key moment first."
+     },
+     {
+      "id": "H2",
+      "text": "You do not need to draw the whole sequence of events."
+     }
+    ]
+   }
+  },
+  {
+   "task_id": "B3_TR_01",
+   "band": "B3",
+   "age_min": 11,
+   "age_max": 12,
+   "family": "TR",
+   "family_slug": "redesign",
+   "order": 3,
+   "reference": "B3_TR_ref",
+   "reference_svg": true,
+   "source_ids": [
+    "C22",
+    "YIN22"
+   ],
+   "dims": [
+    {
+     "key": "imagination",
+     "role": "primary",
+     "why_zh": "救援用途需要形成新的构想。",
+     "why_en": "A rescue purpose calls for a new idea."
+    },
+    {
+     "key": "deformation",
+     "role": "primary",
+     "why_zh": "原物可能通过重组或变形发展新形象。",
+     "why_en": "Reorganisation or deformation may develop the original into a new form."
+    },
+    {
+     "key": "picture_organization",
+     "role": "exploratory",
+     "why_zh": "场景和机器可以共同说明救援。",
+     "why_en": "The machine and setting may jointly communicate the rescue."
+    },
+    {
+     "key": "color_contrast",
+     "role": "exploratory",
+     "why_zh": "结构和动作也可以用单色表达。",
+     "why_en": "Structure and action can be shown in monochrome."
+    }
+   ],
+   "zh": {
+    "title": "茶壶救援机",
+    "age_family": "11—12岁 / 物品创意改造",
+    "card": "让茶壶变成你设计的救援机器。",
+    "prompt": "把图里的茶壶改造成一台救援机器，选择一种需要它帮忙的情况，并画出它怎样救援。保留一些茶壶的特征，让人还能看出它是茶壶变的，保留哪些部分由你决定。",
+    "requirements": "从参考茶壶出发，表现一种救援用途；保留能辨认茶壶来源的特征。",
+    "freedom": "可以救助人、动物或物品；场景可幻想；不规定必须保留壶嘴或把手。",
+    "materials": "[独立参考PNG](../assets/B3_TR_ref.png)；[可编辑SVG](../assets/B3_TR_ref.svg)。参考图：可随时查看，按完整比例显示。",
+    "intention": "将原物的形象资源转成有目的的创意方案。",
+    "complexity": "一个原物、一个用途、明确原物联系；单幅产出。",
+    "analysis": "记录原物特征、改造和救援用途之间的联系；不以部件数量代替创意判断。",
+    "limits": "本题不是PISA已有作品评价改进；幻想无需现实可制造；避免要求危险操作细节。",
+    "reflection": "你保留了茶壶的什么，它怎样帮助救援？",
+    "post_config": "保存一幅首稿；共用first_visit_common_v1；喜欢程度和感觉难度各一题可跳过；反思可跳过；不因反馈未完成而阻止退出。",
+    "sources": "[C22], [YIN22] · 第三学段：传递我们的创意、营造环境",
+    "adaptation": "参考第三学段创意表达和设计方向；茶壶救援情境与来源可辨认条件为项目原创，并全部写进题面。",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "先确定它要帮助的对象。"
+     },
+     {
+      "id": "H2",
+      "text": "让改造部件和它要做的事有联系。"
+     }
+    ]
+   },
+   "en": {
+    "title": "Teapot Rescue Machine",
+    "age_family": "Ages 11–12 / Reimagining an object",
+    "card": "Turn a teapot into your own rescue machine.",
+    "prompt": "Turn the teapot in the reference into a rescue machine. Choose one situation in which it helps and show how the rescue works. Keep some teapot features so its origin remains recognisable; you decide which parts to keep.",
+    "requirements": "Use the teapot as the starting point for one rescue purpose. Retain recognisable features of the teapot.",
+    "freedom": "It may help people, animals or objects in a real or imagined setting. Neither spout nor handle is individually mandatory.",
+    "materials": "[Independent reference PNG](../assets/B3_TR_ref.png); [editable SVG](../assets/B3_TR_ref.svg). Reference: keep available throughout the task and display without cropping.",
+    "intention": "Develop the original object’s visual features into a purposeful design.",
+    "complexity": "One source object, one purpose and an explicit link to the original; one image.",
+    "analysis": "Record links between retained features, modifications and rescue purpose. The number of parts is not a creativity measure.",
+    "limits": "This is not PISA evaluation-and-improvement. Fantasy need not be buildable, and dangerous procedural detail is unnecessary.",
+    "reflection": "What did you keep from the teapot, and how does it help with the rescue?",
+    "post_config": "Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.",
+    "sources": "[C22], [YIN22] · Grades 6–7: communicating creative ideas and shaping environments",
+    "adaptation": "Informed by third-band creative expression and design. The rescue context and recognisability condition are project-created and explicit in the prompt.",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "Decide whom or what it will help."
+     },
+     {
+      "id": "H2",
+      "text": "Connect the redesigned parts to the job they perform."
+     }
+    ]
+   }
+  },
+  {
+   "task_id": "B4_DS_01",
+   "band": "B4",
+   "age_min": 13,
+   "age_max": 14,
+   "family": "DS",
+   "family_slug": "design",
+   "order": 4,
+   "reference": null,
+   "reference_svg": false,
+   "source_ids": [
+    "C22",
+    "YIN22",
+    "PISA23"
+   ],
+   "dims": [
+    {
+     "key": "picture_organization",
+     "role": "primary",
+     "why_zh": "海报需要安排主次和视觉重点。",
+     "why_en": "The poster needs visual hierarchy and a focal point."
+    },
+    {
+     "key": "imagination",
+     "role": "exploratory",
+     "why_zh": "概念和组合可能有原创表现，不能只看题材新奇。",
+     "why_en": "Ideas and combinations may be original; subject novelty alone is insufficient."
+    },
+    {
+     "key": "color_contrast",
+     "role": "exploratory",
+     "why_zh": "对比可来自色彩或明暗，未要求彩色。",
+     "why_en": "Contrast may arise through colour or value; colour is not mandatory."
+    },
+    {
+     "key": "transformation",
+     "role": "exploratory",
+     "why_zh": "若将抽象活动精神转成图形，可记录相关信息。",
+     "why_en": "Relevant if an abstract event idea is translated into imagery."
+    }
+   ],
+   "zh": {
+    "title": "校园活动海报",
+    "age_family": "13—14岁 / 视觉设计",
+    "card": "用海报介绍你想参加的校园活动。",
+    "prompt": "选一项你愿意参加的校园活动，为它设计一张海报。让主要图像表达活动内容，并让人愿意了解这项活动。可以加简短标题，但不用写日期、地点或真实校名。",
+    "requirements": "围绕一项校园活动完成一张海报；让主要图像与活动内容有清楚联系。",
+    "freedom": "活动类型、表现风格、配色自由；单色和无文字海报均允许。",
+    "materials": "没有参考成品，从空白画布开始。",
+    "intention": "围绕受众和目的组织视觉传播。",
+    "complexity": "一个活动、一个视觉传播目标；没有素材拖放要求。",
+    "analysis": "把是否传达活动与作品九维评价分开；不把“看起来像海报”当所有维度的总判断。",
+    "limits": "不评价书写准确度和宣传文案长度；没有文字也可成立。",
+    "reflection": "观众第一眼应该注意什么？",
+    "post_config": "保存一幅首稿；共用first_visit_common_v1；喜欢程度和感觉难度各一题可跳过；反思可跳过；不因反馈未完成而阻止退出。",
+    "sources": "[C22], [YIN22], [PISA23] · 第四学段：表现无限创意、我们与设计同行",
+    "adaptation": "课程设计应用＋PISA视觉表达中的目的导向海报形式；活动选择、自由画布和无文字条件均为项目改编。",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "先确定海报最想传达的一件事。"
+     },
+     {
+      "id": "H2",
+      "text": "想想观众第一眼会看到哪里。"
+     }
+    ]
+   },
+   "en": {
+    "title": "A School Activity Poster",
+    "age_family": "Ages 13–14 / Visual communication design",
+    "card": "Introduce a school activity through a poster.",
+    "prompt": "Choose a school activity you would like to join and design a poster for it. Let the main image communicate the activity and invite interest. A short title is optional; dates, locations and a real school name are not required.",
+    "requirements": "Create one poster for one school activity. Make the main image clearly relate to the activity.",
+    "freedom": "Choose the activity, style and palette. Monochrome and wordless posters are allowed.",
+    "materials": "No finished example is provided. Start on a blank canvas.",
+    "intention": "Organise visual communication around an audience and purpose.",
+    "complexity": "One event and one communication goal; no drag-and-drop tool is required.",
+    "analysis": "Separate activity communication from nine-dimensional artwork evaluation. Looking like a poster is not a global score.",
+    "limits": "Handwriting accuracy and promotional word count are not evaluated; a wordless poster is valid.",
+    "reflection": "What should the viewer notice first?",
+    "post_config": "Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.",
+    "sources": "[C22], [YIN22], [PISA23] · Grades 8–9: creative expression and design",
+    "adaptation": "Curriculum design application plus purpose-directed poster creation in PISA visual expression. Activity choice, freehand canvas and optional text are project adaptations.",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "Decide the single most important message."
+     },
+     {
+      "id": "H2",
+      "text": "Consider where a viewer’s eye will go first."
+     }
+    ]
+   }
+  },
+  {
+   "task_id": "B4_FG_01",
+   "band": "B4",
+   "age_min": 13,
+   "age_max": 14,
+   "family": "FG",
+   "family_slug": "fragments",
+   "order": 2,
+   "reference": "B4_FG_ref",
+   "reference_svg": true,
+   "source_ids": [
+    "C22",
+    "YIN22",
+    "URBAN05"
+   ],
+   "dims": [
+    {
+     "key": "imagination",
+     "role": "primary",
+     "why_zh": "任务明确要求发展自创角色。",
+     "why_en": "The brief explicitly calls for a self-designed character."
+    },
+    {
+     "key": "picture_organization",
+     "role": "primary",
+     "why_zh": "四个刺激需要在角色或场景中形成整体。",
+     "why_en": "Four stimuli need to form a coherent character picture or setting."
+    },
+    {
+     "key": "deformation",
+     "role": "exploratory",
+     "why_zh": "夸张与变形可能成为角色策略。",
+     "why_en": "Exaggeration and deformation may support the character."
+    },
+    {
+     "key": "line_texture",
+     "role": "exploratory",
+     "why_zh": "线条质感并不是完成条件。",
+     "why_en": "Line texture is not a completion requirement."
+    }
+   ],
+   "zh": {
+    "title": "线条变角色",
+    "age_family": "13—14岁 / 图形片段创作",
+    "card": "用四段线条发展一个自己的角色。",
+    "prompt": "把参考图里的四段线条都融入一幅角色画，让它们成为角色或角色所处场景的一部分。你可以移动、旋转和改变大小，但四段线都应能找到。角色由你设计。",
+    "requirements": "使用全部四段线条并保留可辨认形状；形成一幅包含自创角色的画。",
+    "freedom": "角色可以非人类；片段不必是身体部件；不要求写设定故事。",
+    "materials": "[独立参考PNG](../assets/B4_FG_ref.png)；[可编辑SVG](../assets/B4_FG_ref.svg)。参考图：可随时查看，按完整比例显示。 所有片段为本包原创；照参考转抄到空白画布，不复制原TCT-DP题纸。",
+    "intention": "围绕角色表达整合多个视觉片段。",
+    "complexity": "四片段、单幅角色与场景整合。",
+    "analysis": "观察片段与角色意图的联系；重组位置属于允许操作，不按原布局扣分。",
+    "limits": "不要求怪异程度越高越好；片段识别不采用像素匹配。",
+    "reflection": "哪个片段最影响你的角色设计？",
+    "post_config": "保存一幅首稿；共用first_visit_common_v1；喜欢程度和感觉难度各一题可跳过；反思可跳过；不因反馈未完成而阻止退出。",
+    "sources": "[C22], [YIN22], [URBAN05] · 第四学段：表现无限创意、我们与设计同行",
+    "adaptation": "借鉴Urban（2005）的片段创作形式；本包四片段和角色主题均为原创，不含原测验边界突破指标。",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "先想角色在做什么，再决定片段用在哪。"
+     },
+     {
+      "id": "H2",
+      "text": "片段可以分布在角色和场景中。"
+     }
+    ]
+   },
+   "en": {
+    "title": "From Fragments to a Character",
+    "age_family": "Ages 13–14 / Creation from figural fragments",
+    "card": "Develop your own character from four fragments.",
+    "prompt": "Integrate all four fragments from the reference into one character picture, using them in the character or its setting. You may move, rotate and resize them, but all four should remain recognisable. Design the character yourself.",
+    "requirements": "Use all four fragments with recognisable shapes. Create one picture containing your own character.",
+    "freedom": "The character need not be human, and fragments need not become body parts. A written backstory is unnecessary.",
+    "materials": "[Independent reference PNG](../assets/B4_FG_ref.png); [editable SVG](../assets/B4_FG_ref.svg). Reference: keep available throughout the task and display without cropping. All fragments are original to this bank. Reproduce them on the blank canvas; no original TCT-DP sheet is copied.",
+    "intention": "Integrate multiple fragments around character expression.",
+    "complexity": "Four fragments integrated into one character picture.",
+    "analysis": "Observe the relation between fragments and character intention. Relocation is allowed and is not a violation of the reference layout.",
+    "limits": "Greater strangeness is not automatically better. Fragment recognition is not pixel matching.",
+    "reflection": "Which fragment most influenced your character design?",
+    "post_config": "Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.",
+    "sources": "[C22], [YIN22], [URBAN05] · Grades 8–9: creative expression and design",
+    "adaptation": "Informed by Urban (2005). The four fragments and character theme are original; no original-test boundary-breaking score is used.",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "Think about the character’s action, then where the fragments could fit."
+     },
+     {
+      "id": "H2",
+      "text": "Fragments may appear in both the character and the setting."
+     }
+    ]
+   }
+  },
+  {
+   "task_id": "B4_OB_01",
+   "band": "B4",
+   "age_min": 13,
+   "age_max": 14,
+   "family": "OB",
+   "family_slug": "observe",
+   "order": 0,
+   "reference": "B4_OB_ref",
+   "reference_svg": true,
+   "source_ids": [
+    "C22",
+    "YIN22"
+   ],
+   "dims": [
+    {
+     "key": "picture_organization",
+     "role": "primary",
+     "why_zh": "需要处理对象与窗口、台面之间的整体关系。",
+     "why_en": "The objects need to be organised relative to the window and surface."
+    },
+    {
+     "key": "realism",
+     "role": "primary",
+     "why_zh": "参考材料提供可见形体与关系的共同依据。",
+     "why_en": "The reference supplies shared visible forms and relationships."
+    },
+    {
+     "key": "line_combination",
+     "role": "exploratory",
+     "why_zh": "可以用线条取舍来表现结构。",
+     "why_en": "Selective use of lines may express structure."
+    },
+    {
+     "key": "color_contrast",
+     "role": "exploratory",
+     "why_zh": "单色完成不违反要求。",
+     "why_en": "Monochrome completion is valid."
+    }
+   ],
+   "zh": {
+    "title": "窗边静物",
+    "age_family": "13—14岁 / 观察与表现",
+    "card": "在一个场景中安排物体和空间。",
+    "prompt": "根据参考图画出窗边的花瓶、花和书，保留它们的主要位置关系。选择你认为重要的形状和空间线索，可以省略窗外细节。线稿或上色均可。",
+    "requirements": "包含花瓶、花和书；保留它们的主要位置关系。",
+    "freedom": "可简化纹理与窗外景物；可以改变用色；不要求照片式复制或完整透视作图。",
+    "materials": "[独立参考PNG](../assets/B4_OB_ref.png)；[可编辑SVG](../assets/B4_OB_ref.svg)。参考图：可随时查看，按完整比例显示。",
+    "intention": "对场景进行选择性观察与整体组织。",
+    "complexity": "对象组与环境关系；允许选择性简化。",
+    "analysis": "观察取舍是否保留主要关系；不要以画得更满、更细直接替代组织判断。",
+    "limits": "不要求加入复杂明暗；插画参考具有风格化，不能当作真实场景几何测量。",
+    "reflection": "你省略了什么，又保留了什么？",
+    "post_config": "保存一幅首稿；共用first_visit_common_v1；喜欢程度和感觉难度各一题可跳过；反思可跳过；不因反馈未完成而阻止退出。",
+    "sources": "[C22], [YIN22] · 第四学段：表现无限创意、我们与设计同行",
+    "adaptation": "借鉴第四学段多种造型与构图方向；窗边布局是原创参考材料，不是教材复刻。",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "先比较物体在整个画面中的位置。"
+     },
+     {
+      "id": "H2",
+      "text": "选择能说明空间的线索，不必逐个复制细节。"
+     }
+    ]
+   },
+   "en": {
+    "title": "Still Life by a Window",
+    "age_family": "Ages 13–14 / Observation and representation",
+    "card": "Represent objects within a setting.",
+    "prompt": "Draw the vase, the flowers and the books shown by the window in the reference, preserving their main relative positions. Select the shapes and spatial cues you consider important; details outside the window may be omitted. Use lines or colour.",
+    "requirements": "Include the vase, the flowers and the books. Preserve their main relative positions.",
+    "freedom": "Simplify textures and the view outside. Colours may change; photographic copying and formal perspective construction are not required.",
+    "materials": "[Independent reference PNG](../assets/B4_OB_ref.png); [editable SVG](../assets/B4_OB_ref.svg). Reference: keep available throughout the task and display without cropping.",
+    "intention": "Observe selectively and organise a complete setting.",
+    "complexity": "Object–environment relationships with selective simplification.",
+    "analysis": "Observe whether simplification retains the main relationships. Density and detail do not substitute for organisation.",
+    "limits": "Complex shading is not required. The stylised reference is not a geometric measurement of a real scene.",
+    "reflection": "What did you leave out, and what did you keep?",
+    "post_config": "Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.",
+    "sources": "[C22], [YIN22] · Grades 8–9: creative expression and design",
+    "adaptation": "Informed by fourth-band representation and composition. The windowsill layout is an original stimulus, not a textbook reproduction.",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "Compare the objects’ positions in the whole image first."
+     },
+     {
+      "id": "H2",
+      "text": "Select useful spatial cues rather than copying every detail."
+     }
+    ]
+   }
+  },
+  {
+   "task_id": "B4_ST_01",
+   "band": "B4",
+   "age_min": 13,
+   "age_max": 14,
+   "family": "ST",
+   "family_slug": "express",
+   "order": 1,
+   "reference": null,
+   "reference_svg": false,
+   "source_ids": [
+    "C22",
+    "YIN22"
+   ],
+   "dims": [
+    {
+     "key": "picture_organization",
+     "role": "primary",
+     "why_zh": "题目要求在整体内组织两个不同区域。",
+     "why_en": "Two different areas need to be organised within one whole."
+    },
+    {
+     "key": "transformation",
+     "role": "primary",
+     "why_zh": "安静与忙碌需转成可见的表达线索。",
+     "why_en": "Quiet and busyness need to become visible expressive cues."
+    },
+    {
+     "key": "color_contrast",
+     "role": "exploratory",
+     "why_zh": "用色是可选策略，不能把缺色当失败。",
+     "why_en": "Colour is one optional strategy; lack of colour is not failure."
+    },
+    {
+     "key": "line_combination",
+     "role": "exploratory",
+     "why_zh": "线条疏密和方向可能支持表达。",
+     "why_en": "Line density and direction may support expression."
+    }
+   ],
+   "zh": {
+    "title": "同一个地方的两种感觉",
+    "age_family": "13—14岁 / 个人表达与叙事",
+    "card": "让一个地方同时有安静和忙碌的区域。",
+    "prompt": "在同一幅画里画一个地方，让其中一部分显得安静，另一部分显得忙碌。可以用人物、形状、线条、颜色或物品安排表现差别。不要分成两张画。",
+    "requirements": "只画一个连续场景；在其中表现安静与忙碌的差别。",
+    "freedom": "地点和角色可真实或想象；单色、抽象和夸张均可；不限定左右分区。",
+    "materials": "没有参考成品，从空白画布开始。",
+    "intention": "通过视觉组织表达对比性情境。",
+    "complexity": "一个场景内组织对照；不需要保存多张草图。",
+    "analysis": "结合学生意图观察视觉策略；不把某种颜色固定解释为某种情绪。",
+    "limits": "不是两个创意方案，也不测多样化构想；不由画面判断学生自身情绪状态。",
+    "reflection": "你用什么让两种感觉同时出现？",
+    "post_config": "保存一幅首稿；共用first_visit_common_v1；喜欢程度和感觉难度各一题可跳过；反思可跳过；不因反馈未完成而阻止退出。",
+    "sources": "[C22], [YIN22] · 第四学段：表现无限创意、我们与设计同行",
+    "adaptation": "参考第四学段表达创意与多种表现手法；同场景对照由项目提出。",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "先确定两个区域怎样在一个地方联系起来。"
+     },
+     {
+      "id": "H2",
+      "text": "不一定靠颜色，疏密和动作也可以表达。"
+     }
+    ]
+   },
+   "en": {
+    "title": "Two Moods in One Place",
+    "age_family": "Ages 13–14 / Personal expression and narrative",
+    "card": "Show quiet and busy areas within one place.",
+    "prompt": "Draw one place in a single picture, making one part feel quiet and another feel busy. Use figures, shapes, lines, colours or the arrangement of objects to create the difference. Do not split the work into two separate pictures.",
+    "requirements": "Make one continuous scene. Show a contrast between quiet and busy areas within it.",
+    "freedom": "The setting and characters may be real or imagined. Monochrome, abstraction and exaggeration are allowed; the areas need not be left and right.",
+    "materials": "No finished example is provided. Start on a blank canvas.",
+    "intention": "Express contrasting situations through visual organisation.",
+    "complexity": "Contrast within one scene; no multi-canvas storage required.",
+    "analysis": "Observe visual strategies in relation to intention. Do not assign a fixed emotion to a particular colour.",
+    "limits": "This is not a two-solution ideation task. Do not infer the learner’s emotional state from the picture.",
+    "reflection": "What did you use to show both moods?",
+    "post_config": "Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.",
+    "sources": "[C22], [YIN22] · Grades 8–9: creative expression and design",
+    "adaptation": "Informed by fourth-band creative expression and varied visual methods. The within-scene contrast is project-designed.",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "Decide how the two areas belong to the same place."
+     },
+     {
+      "id": "H2",
+      "text": "Colour is optional; spacing and actions may also communicate the contrast."
+     }
+    ]
+   }
+  },
+  {
+   "task_id": "B4_TR_01",
+   "band": "B4",
+   "age_min": 13,
+   "age_max": 14,
+   "family": "TR",
+   "family_slug": "redesign",
+   "order": 3,
+   "reference": "B4_TR_ref",
+   "reference_svg": true,
+   "source_ids": [
+    "C22",
+    "YIN22"
+   ],
+   "dims": [
+    {
+     "key": "imagination",
+     "role": "primary",
+     "why_zh": "需要形成针对用途的改造构想。",
+     "why_en": "A purpose-related redesign idea is required."
+    },
+    {
+     "key": "deformation",
+     "role": "primary",
+     "why_zh": "可以重新组织物品形态与部件。",
+     "why_en": "The object’s form and parts may be reorganised."
+    },
+    {
+     "key": "picture_organization",
+     "role": "exploratory",
+     "why_zh": "使用方式可通过场景与对象的布局表达。",
+     "why_en": "Arrangement of the object and scene may explain use."
+    },
+    {
+     "key": "color_richness",
+     "role": "exploratory",
+     "why_zh": "颜色丰富不是功能表达条件。",
+     "why_en": "Rich colour is not required to communicate function."
+    }
+   ],
+   "zh": {
+    "title": "自行车的新用途",
+    "age_family": "13—14岁 / 物品创意改造",
+    "card": "把自行车变成校园里的帮手。",
+    "prompt": "从参考图里的自行车出发，设计一个能帮助校园生活的新用途。画出改造后的样子和使用方式，并保留一些能辨认出自行车的特征。保留哪些部分由你决定。",
+    "requirements": "设计并表达一个校园使用目的；保留可辨认的自行车来源特征。",
+    "freedom": "不必保留所有零件；可画使用场景；允许幻想，不需要尺寸标注。",
+    "materials": "[独立参考PNG](../assets/B4_TR_ref.png)；[可编辑SVG](../assets/B4_TR_ref.svg)。参考图：可随时查看，按完整比例显示。",
+    "intention": "将物品结构线索与情境化设计需要联系。",
+    "complexity": "较丰富的原物结构；仅一个用途；参考图完整保留轮子。",
+    "analysis": "分析来源可辨认特征与用途之间的联系；纯装饰变化与功能构想分别记录。",
+    "limits": "不要求现实可制造或机械安全认证；不借此推断工程知识。",
+    "reflection": "你选择解决校园里的什么需要？",
+    "post_config": "保存一幅首稿；共用first_visit_common_v1；喜欢程度和感觉难度各一题可跳过；反思可跳过；不因反馈未完成而阻止退出。",
+    "sources": "[C22], [YIN22] · 第四学段：表现无限创意、我们与设计同行",
+    "adaptation": "参考第四学段“我们与设计同行”；自行车、校园用途和可辨认条件为项目设定。",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "先选校园里一个具体的需要。"
+     },
+     {
+      "id": "H2",
+      "text": "改造的部分要能帮助说明用途。"
+     }
+    ]
+   },
+   "en": {
+    "title": "A Bicycle with a New Purpose",
+    "age_family": "Ages 13–14 / Reimagining an object",
+    "card": "Turn a bicycle into a helper for school life.",
+    "prompt": "Start from the bicycle in the reference and design a new use that helps school life. Show the redesigned object and how it is used, retaining some recognisable bicycle features. You decide which parts remain.",
+    "requirements": "Design and communicate one school-life purpose. Retain recognisable features of the source bicycle.",
+    "freedom": "Not every part must remain. A use scene is welcome; fantasy is allowed and dimensions are unnecessary.",
+    "materials": "[Independent reference PNG](../assets/B4_TR_ref.png); [editable SVG](../assets/B4_TR_ref.svg). Reference: keep available throughout the task and display without cropping.",
+    "intention": "Connect visual structural cues to a situated design need.",
+    "complexity": "A structurally richer source object, one purpose and an uncropped bicycle reference.",
+    "analysis": "Analyse the link between recognisable source features and purpose. Record decorative changes separately from functional ideas.",
+    "limits": "No real-world manufacturability or engineering certification is required; engineering knowledge is not inferred.",
+    "reflection": "Which school-life need did you choose to address?",
+    "post_config": "Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.",
+    "sources": "[C22], [YIN22] · Grades 8–9: creative expression and design",
+    "adaptation": "Informed by the fourth-band design curriculum. The bicycle, school purpose and recognisability condition are project specifications.",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "Choose one specific school-life need."
+     },
+     {
+      "id": "H2",
+      "text": "Let the modifications help explain the purpose."
+     }
+    ]
+   }
+  },
+  {
+   "task_id": "B5_DS_01",
+   "band": "B5",
+   "age_min": 15,
+   "age_max": 16,
+   "family": "DS",
+   "family_slug": "design",
+   "order": 4,
+   "reference": null,
+   "reference_svg": false,
+   "source_ids": [
+    "C20",
+    "PISA23"
+   ],
+   "dims": [
+    {
+     "key": "picture_organization",
+     "role": "primary",
+     "why_zh": "主图需要组织行动信息和视觉重点。",
+     "why_en": "The main image needs to organise the action message and visual emphasis."
+    },
+    {
+     "key": "transformation",
+     "role": "primary",
+     "why_zh": "需要将议题与行动转成图像，而非只列文字。",
+     "why_en": "The issue and action need to be translated into imagery rather than only listed in text."
+    },
+    {
+     "key": "imagination",
+     "role": "exploratory",
+     "why_zh": "图形概念和组合可以体现构想。",
+     "why_en": "Visual concepts and combinations may reveal ideation."
+    },
+    {
+     "key": "color_contrast",
+     "role": "exploratory",
+     "why_zh": "视觉传达也可通过单色对比完成。",
+     "why_en": "Visual communication may also work through monochrome contrast."
+    }
+   ],
+   "zh": {
+    "title": "校园少浪费",
+    "age_family": "15—16岁 / 视觉设计",
+    "card": "把一个减少浪费的行动变成海报。",
+    "prompt": "为校园里的“少浪费”行动设计一张海报，选择一种具体的浪费问题，用主要图像表达可以采取的一个行动。可以加文字，但不依赖长篇说明；不需要真实校名和日期。",
+    "requirements": "选择一个校园浪费问题；通过一张海报的主要图像表达一个具体行动。",
+    "freedom": "问题可涉及纸张、用水、食物或你想到的其他情况；这些只是可选主题。单色可用，文字可省略。",
+    "materials": "没有参考成品，从空白画布开始。",
+    "intention": "将公共生活议题转成可理解的视觉行动信息。",
+    "complexity": "一个议题、一个行动、单张海报；不强制文字和多图。",
+    "analysis": "记录图像表达的行动是否与选定问题相关；不把社会态度赞同程度变成艺术分。",
+    "limits": "不要求环保数据、复杂科学论证或真实行动结果；不能由海报推断道德品质。",
+    "reflection": "看完海报，你希望别人做哪一件事？",
+    "post_config": "保存一幅首稿；共用first_visit_common_v1；喜欢程度和感觉难度各一题可跳过；反思可跳过；不因反馈未完成而阻止退出。",
+    "sources": "[C20], [PISA23] · 绘画模块、设计模块",
+    "adaptation": "高中视觉传达设计＋PISA目的导向视觉构想；校园少浪费主题为项目原创。",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "先选一个问题，再决定希望观众做什么。"
+     },
+     {
+      "id": "H2",
+      "text": "突出一个信息，不必塞进所有建议。"
+     }
+    ]
+   },
+   "en": {
+    "title": "Less Waste at School",
+    "age_family": "Ages 15–16 / Visual communication design",
+    "card": "Turn a waste-reduction action into a poster.",
+    "prompt": "Design a poster for a school waste-reduction action. Choose one specific waste issue and use the main image to communicate one action people can take. Text is optional, but avoid relying on a long explanation; real school names and dates are unnecessary.",
+    "requirements": "Choose one school waste issue. Use one poster’s main image to communicate one concrete action.",
+    "freedom": "Possible issues include paper, water, food or another situation you choose; these are options, not required topics. Monochrome and wordless designs are allowed.",
+    "materials": "No finished example is provided. Start on a blank canvas.",
+    "intention": "Translate a public-life issue into a comprehensible visual action message.",
+    "complexity": "One issue, one action and one poster; neither text nor multiple images is required.",
+    "analysis": "Record the relationship between the shown action and issue. Agreement with a social stance is not an art score.",
+    "limits": "Environmental statistics, detailed scientific arguments and real-world outcomes are not required. Do not infer moral character.",
+    "reflection": "What single action do you want viewers to take?",
+    "post_config": "Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.",
+    "sources": "[C20], [PISA23] · Upper-secondary Drawing and Design modules",
+    "adaptation": "Informed by upper-secondary visual communication and PISA purpose-directed ideation. The school waste-reduction theme is project-created.",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "Choose one issue, then decide what you want viewers to do."
+     },
+     {
+      "id": "H2",
+      "text": "Emphasise one message rather than every possible suggestion."
+     }
+    ]
+   }
+  },
+  {
+   "task_id": "B5_FG_01",
+   "band": "B5",
+   "age_min": 15,
+   "age_max": 16,
+   "family": "FG",
+   "family_slug": "fragments",
+   "order": 2,
+   "reference": "B5_FG_ref",
+   "reference_svg": true,
+   "source_ids": [
+    "C20",
+    "URBAN05"
+   ],
+   "dims": [
+    {
+     "key": "transformation",
+     "role": "primary",
+     "why_zh": "需要将“连接”转为可见的视觉关系。",
+     "why_en": "Connection must be translated into visible relationships."
+    },
+    {
+     "key": "imagination",
+     "role": "primary",
+     "why_zh": "片段与主题需要形成个人构想。",
+     "why_en": "Fragments and theme need a personally developed idea."
+    },
+    {
+     "key": "picture_organization",
+     "role": "primary",
+     "why_zh": "多个片段需与总体表达建立联系。",
+     "why_en": "Several fragments need to support the overall expression."
+    },
+    {
+     "key": "deformation",
+     "role": "exploratory",
+     "why_zh": "可通过变形发展片段，也可保留其简洁形态。",
+     "why_en": "Fragments may be transformed or remain simple."
+    },
+    {
+     "key": "color_richness",
+     "role": "exploratory",
+     "why_zh": "概念表达不依赖丰富色彩。",
+     "why_en": "Concept expression need not depend on many colours."
+    }
+   ],
+   "zh": {
+    "title": "看见连接",
+    "age_family": "15—16岁 / 图形片段创作",
+    "card": "用片段和自己的构想表达“连接”。",
+    "prompt": "把参考图中的四段线条融入一幅以“连接”为主题的画。可以移动、旋转和改变片段大小，但四段线都要能辨认。连接可以发生在人、自然、物品或想法之间，具体表现由你决定。",
+    "requirements": "使用全部四段原创片段；形成一幅表达“连接”的画，并保留片段可辨认特征。",
+    "freedom": "可抽象或具象；片段可作为主体或环境；不要求固定构图或文字说明。",
+    "materials": "[独立参考PNG](../assets/B5_FG_ref.png)；[可编辑SVG](../assets/B5_FG_ref.svg)。参考图：可随时查看，按完整比例显示。 所有片段为本包原创；照参考转抄到空白画布，不复制原TCT-DP题纸。",
+    "intention": "在给定视觉起点下进行概念整合。",
+    "complexity": "四片段和一个概念；不是比较多个备选方案。",
+    "analysis": "记录片段整合和概念表达，不把是否物理连接作为唯一判断。",
+    "limits": "不是TCT-DP原题或其高龄版本；不因更抽象就自动判更有创造力。",
+    "reflection": "你的画里，什么和什么连接起来了？",
+    "post_config": "保存一幅首稿；共用first_visit_common_v1；喜欢程度和感觉难度各一题可跳过；反思可跳过；不因反馈未完成而阻止退出。",
+    "sources": "[C20], [URBAN05] · 绘画模块、设计模块",
+    "adaptation": "Urban（2005）片段创作＋高中创意实践的联想、组合与转化；四片段和主题均为项目设计。",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "连接不一定是一根直接连起来的线。"
+     },
+     {
+      "id": "H2",
+      "text": "先选择想表达的联系，再安排片段。"
+     }
+    ]
+   },
+   "en": {
+    "title": "Making Connection Visible",
+    "age_family": "Ages 15–16 / Creation from figural fragments",
+    "card": "Use the fragments and your ideas to express connection.",
+    "prompt": "Integrate the four reference fragments into one image about “connection”. You may move, rotate and resize the fragments, but keep all four recognisable. Connection may involve people, nature, objects or ideas; choose your own interpretation.",
+    "requirements": "Use all four original fragments. Create one image expressing connection, with recognisable fragments.",
+    "freedom": "Abstract and representational approaches are welcome. Fragments may belong to subjects or setting; no fixed composition or written explanation is required.",
+    "materials": "[Independent reference PNG](../assets/B5_FG_ref.png); [editable SVG](../assets/B5_FG_ref.svg). Reference: keep available throughout the task and display without cropping. All fragments are original to this bank. Reproduce them on the blank canvas; no original TCT-DP sheet is copied.",
+    "intention": "Integrate a concept with given visual starting points.",
+    "complexity": "Four fragments and one concept; not a comparison of alternative solutions.",
+    "analysis": "Record fragment integration and conceptual expression; physical contact is not the only way to show connection.",
+    "limits": "This is not an original or age-equated TCT-DP item. Greater abstraction is not automatically greater creativity.",
+    "reflection": "What is connected to what in your picture?",
+    "post_config": "Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.",
+    "sources": "[C20], [URBAN05] · Upper-secondary Drawing and Design modules",
+    "adaptation": "Combines the fragment paradigm in Urban (2005) with upper-secondary association, combination and transformation. The four fragments and theme are original project specifications.",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "Connection does not have to be a literal connecting line."
+     },
+     {
+      "id": "H2",
+      "text": "Choose the relationship you want to express, then arrange the fragments."
+     }
+    ]
+   }
+  },
+  {
+   "task_id": "B5_OB_01",
+   "band": "B5",
+   "age_min": 15,
+   "age_max": 16,
+   "family": "OB",
+   "family_slug": "observe",
+   "order": 0,
+   "reference": "B5_OB_ref",
+   "reference_svg": true,
+   "source_ids": [
+    "C20"
+   ],
+   "dims": [
+    {
+     "key": "picture_organization",
+     "role": "primary",
+     "why_zh": "建筑、道路和留白需要形成空间整体。",
+     "why_en": "Building, street and open space need to form a spatial whole."
+    },
+    {
+     "key": "realism",
+     "role": "primary",
+     "why_zh": "共同参考允许比较可见形体关系，而不是测量真实建筑。",
+     "why_en": "A shared reference permits comparison of visible forms, not measurement of a real building."
+    },
+    {
+     "key": "line_combination",
+     "role": "exploratory",
+     "why_zh": "线条方向可支持空间表达。",
+     "why_en": "Line direction may support spatial expression."
+    },
+    {
+     "key": "color_contrast",
+     "role": "exploratory",
+     "why_zh": "单色绘制仍符合任务。",
+     "why_en": "A monochrome response meets the medium requirement."
+    }
+   ],
+   "zh": {
+    "title": "街角",
+    "age_family": "15—16岁 / 观察与表现",
+    "card": "选择关键线索，表现一个街角的空间。",
+    "prompt": "根据参考图画出街角建筑和人行道，保留建筑两个面的关系以及道路延伸的方向。你可以简化窗户、植物和装饰，选择线稿或色彩表现。",
+    "requirements": "画出街角建筑和道路或人行道的联系；保留建筑两个面的关系及道路延伸方向。",
+    "freedom": "不用正式作消失点图；可改变颜色和简化装饰；不要求复制所有窗户。",
+    "materials": "[独立参考PNG](../assets/B5_OB_ref.png)；[可编辑SVG](../assets/B5_OB_ref.svg)。参考图：可随时查看，按完整比例显示。",
+    "intention": "通过整体观察和取舍表达空间结构。",
+    "complexity": "建筑两面与道路方向；允许概括表达，不预设已掌握高中模块全部内容。",
+    "analysis": "观察选择保留的边如何说明转角；不把省略细节等同于低投入。",
+    "limits": "参考是原创风格化场景，不是真实地点照片；不以其投影作为严格几何真值。",
+    "reflection": "哪些线索最能表达你画的转角？",
+    "post_config": "保存一幅首稿；共用first_visit_common_v1；喜欢程度和感觉难度各一题可跳过；反思可跳过；不因反馈未完成而阻止退出。",
+    "sources": "[C20] · 绘画模块、设计模块",
+    "adaptation": "参考高中绘画模块的整体观察、比较与表现；街角图与简化许可由项目设计。",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "先观察转角，再决定保留哪些边。"
+     },
+     {
+      "id": "H2",
+      "text": "细节可以省略，主要空间关系尽量保留。"
+     }
+    ]
+   },
+   "en": {
+    "title": "Street Corner",
+    "age_family": "Ages 15–16 / Observation and representation",
+    "card": "Select the key cues that show a street corner.",
+    "prompt": "Draw the corner building and pavement from the reference. Retain the relationship between the building’s two faces and the directions in which the street extends. Simplify windows, plants and decoration as you wish; use lines or colour.",
+    "requirements": "Show the relationship between the corner building and street or pavement. Retain the two-face relationship and street directions.",
+    "freedom": "Formal vanishing-point construction is unnecessary. Change colours and simplify decoration; every window need not be copied.",
+    "materials": "[Independent reference PNG](../assets/B5_OB_ref.png); [editable SVG](../assets/B5_OB_ref.svg). Reference: keep available throughout the task and display without cropping.",
+    "intention": "Express spatial structure through overall observation and selection.",
+    "complexity": "Two building faces and street directions; selective representation is allowed without assuming mastery of the full module.",
+    "analysis": "Observe how selected edges convey the corner. Omitting detail does not establish low effort.",
+    "limits": "The reference is an original stylised scene, not a photograph. Its projection is not a strict geometric ground truth.",
+    "reflection": "Which cues best convey the corner in your drawing?",
+    "post_config": "Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.",
+    "sources": "[C20] · Upper-secondary Drawing and Design modules",
+    "adaptation": "Informed by the upper-secondary Drawing module on observation, comparison and representation. The corner stimulus and simplification rules are project-designed.",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "Observe the corner first, then choose the edges to retain."
+     },
+     {
+      "id": "H2",
+      "text": "Details may be omitted while the main spatial relationships remain."
+     }
+    ]
+   }
+  },
+  {
+   "task_id": "B5_ST_01",
+   "band": "B5",
+   "age_min": 15,
+   "age_max": 16,
+   "family": "ST",
+   "family_slug": "express",
+   "order": 1,
+   "reference": null,
+   "reference_svg": false,
+   "source_ids": [
+    "C20"
+   ],
+   "dims": [
+    {
+     "key": "transformation",
+     "role": "primary",
+     "why_zh": "任务直接要求将概念转成图像。",
+     "why_en": "The brief explicitly requires a concept-to-image translation."
+    },
+    {
+     "key": "picture_organization",
+     "role": "primary",
+     "why_zh": "距离可通过形象与空间关系表达。",
+     "why_en": "Distance may be communicated through imagery and spatial relationships."
+    },
+    {
+     "key": "imagination",
+     "role": "exploratory",
+     "why_zh": "视觉构想可能提供相关信息，仍需看具体作品。",
+     "why_en": "Visual ideas may provide relevant evidence, depending on the actual work."
+    },
+    {
+     "key": "color_contrast",
+     "role": "exploratory",
+     "why_zh": "颜色是可选表达路径。",
+     "why_en": "Colour is an optional expressive route."
+    }
+   ],
+   "zh": {
+    "title": "距离",
+    "age_family": "15—16岁 / 个人表达与叙事",
+    "card": "把你理解的“距离”变成画面。",
+    "prompt": "用一幅画表达你对“距离”的理解，可以是人与人、物体、地方或想法之间的距离。让形象、布局、线条或颜色承担表达；可以有文字，但不只用文字解释。",
+    "requirements": "围绕“距离”完成一幅画；使用视觉方式表达，不只提交文字。",
+    "freedom": "可具体、抽象、写实或幻想；不必涉及自己的私人关系；单色有效。",
+    "materials": "没有参考成品，从空白画布开始。",
+    "intention": "将一个开放概念转化为个人视觉表达。",
+    "complexity": "开放概念、单幅视觉表达；不设字数或语言能力门槛。",
+    "analysis": "依据画面和自愿说明识别表达策略；概念转化与文字说明能力分开。",
+    "limits": "不得诊断孤独、亲密关系或心理健康；抽象风格不等于表达不清。",
+    "reflection": "你选择了哪一种“距离”，画面怎样表达？",
+    "post_config": "保存一幅首稿；共用first_visit_common_v1；喜欢程度和感觉难度各一题可跳过；反思可跳过；不因反馈未完成而阻止退出。",
+    "sources": "[C20] · 绘画模块、设计模块",
+    "adaptation": "参考高中绘画模块思想与情感表达；“距离”主题和单幅视觉条件为项目提出。",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "先决定你说的是哪一种距离。"
+     },
+     {
+      "id": "H2",
+      "text": "想想不用说明时，画面还能传达什么。"
+     }
+    ]
+   },
+   "en": {
+    "title": "Distance",
+    "age_family": "Ages 15–16 / Personal expression and narrative",
+    "card": "Turn your interpretation of distance into an image.",
+    "prompt": "Express your interpretation of “distance” in one image. It may concern people, objects, places or ideas. Use imagery, arrangement, lines or colour to carry the meaning. Words are allowed, but should not be the only explanation.",
+    "requirements": "Create one image about distance. Communicate visually rather than submitting words alone.",
+    "freedom": "Concrete, abstract, realistic and imagined approaches are allowed. Personal relationships need not be disclosed; monochrome is valid.",
+    "materials": "No finished example is provided. Start on a blank canvas.",
+    "intention": "Translate an open concept into personal visual expression.",
+    "complexity": "An open concept expressed in one image; no word-count or language-proficiency threshold.",
+    "analysis": "Identify expressive strategies using the image and optional explanation. Separate concept translation from verbal explanation skill.",
+    "limits": "Do not diagnose loneliness, relationships or mental health. Abstraction does not automatically imply unclear expression.",
+    "reflection": "What kind of distance did you choose, and how does the image convey it?",
+    "post_config": "Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.",
+    "sources": "[C20] · Upper-secondary Drawing and Design modules",
+    "adaptation": "Informed by thought and emotion expression in the upper-secondary Drawing module. The distance theme and single-image format are project choices.",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "Decide what kind of distance you mean."
+     },
+     {
+      "id": "H2",
+      "text": "Consider what the image can communicate without an explanation."
+     }
+    ]
+   }
+  },
+  {
+   "task_id": "B5_TR_01",
+   "band": "B5",
+   "age_min": 15,
+   "age_max": 16,
+   "family": "TR",
+   "family_slug": "redesign",
+   "order": 3,
+   "reference": "B5_TR_ref",
+   "reference_svg": true,
+   "source_ids": [
+    "C20"
+   ],
+   "dims": [
+    {
+     "key": "imagination",
+     "role": "primary",
+     "why_zh": "需要形成适合情境的新方案。",
+     "why_en": "A new proposal responding to the context is required."
+    },
+    {
+     "key": "deformation",
+     "role": "primary",
+     "why_zh": "外形与部件可被重新组织。",
+     "why_en": "Form and components may be reorganised."
+    },
+    {
+     "key": "picture_organization",
+     "role": "exploratory",
+     "why_zh": "使用场景可帮助说明方案。",
+     "why_en": "A use scene may help explain the design."
+    },
+    {
+     "key": "line_combination",
+     "role": "exploratory",
+     "why_zh": "结构可以通过线条表达。",
+     "why_en": "Lines may communicate structure."
+    }
+   ],
+   "zh": {
+    "title": "小空间台灯",
+    "age_family": "15—16岁 / 物品创意改造",
+    "card": "让台灯更适合空间有限的桌面。",
+    "prompt": "参考图里的台灯，为一张空间很小的学习桌重新设计它。画出它怎样放置或使用，让桌面更方便，同时保留能辨认出台灯的特征。保留哪些部分由你决定。",
+    "requirements": "围绕小桌面的使用需要重新设计台灯；表达放置或使用方式，并保留可辨认的来源特征。",
+    "freedom": "可改变底座、灯臂或其他部分，不规定必须改哪项；不需要电路、尺寸或材料清单。",
+    "materials": "[独立参考PNG](../assets/B5_TR_ref.png)；[可编辑SVG](../assets/B5_TR_ref.svg)。参考图：可随时查看，按完整比例显示。",
+    "intention": "将结构改造与具体功能情境联系。",
+    "complexity": "明确功能约束、一个原物；单幅使用方案，不需拖动既有对象。",
+    "analysis": "区分设计意图、可见改造和使用说明；是否真正节省物理空间不能只凭绘画确认。",
+    "limits": "不要求机械、电气或安全设计证明；常见但适合用途的方案可以有效完成。",
+    "reflection": "你的方案为桌面解决了什么问题？",
+    "post_config": "保存一幅首稿；共用first_visit_common_v1；喜欢程度和感觉难度各一题可跳过；反思可跳过；不因反馈未完成而阻止退出。",
+    "sources": "[C20] · 绘画模块、设计模块",
+    "adaptation": "高中设计模块包含功能与审美、组合置换等内容；小桌面情境和参考灯由项目原创。",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "先确定桌面上最需要腾出的空间。"
+     },
+     {
+      "id": "H2",
+      "text": "让图像说明怎样使用，不必画技术图纸。"
+     }
+    ]
+   },
+   "en": {
+    "title": "A Lamp for a Small Space",
+    "age_family": "Ages 15–16 / Reimagining an object",
+    "card": "Adapt a lamp to a space-limited desk.",
+    "prompt": "Redesign the lamp in the reference for a study desk with very little space. Show how it is placed or used to make the desk more convenient, retaining recognisable lamp features. You decide which parts remain.",
+    "requirements": "Redesign the lamp for a small desk. Show placement or use and retain recognisable source features.",
+    "freedom": "You may change the base, arm or other parts without a prescribed solution. Circuits, dimensions and material lists are unnecessary.",
+    "materials": "[Independent reference PNG](../assets/B5_TR_ref.png); [editable SVG](../assets/B5_TR_ref.svg). Reference: keep available throughout the task and display without cropping.",
+    "intention": "Relate structural redesign to a concrete functional context.",
+    "complexity": "One explicit functional constraint and one source object; a single use proposal without manipulating existing objects.",
+    "analysis": "Separate intention, visible modifications and use explanation. Actual physical space savings cannot be established from the drawing alone.",
+    "limits": "No mechanical, electrical or safety validation is required. A familiar but appropriate idea can be a valid response.",
+    "reflection": "What desk-space problem does your design address?",
+    "post_config": "Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.",
+    "sources": "[C20] · Upper-secondary Drawing and Design modules",
+    "adaptation": "The upper-secondary Design module informs function, form and recombination. The small-desk context and lamp stimulus are project-created.",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "Decide what space on the desk most needs to be freed."
+     },
+     {
+      "id": "H2",
+      "text": "Let the image explain use; technical drawings are unnecessary."
+     }
+    ]
+   }
+  }
+ ]
+}

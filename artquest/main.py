@@ -13,7 +13,8 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__
-from . import config as cfg   # 不叫 config：下面 /api/config 那个端点函数就叫这个名字
+from . import config as cfg
+from . import missions_bank   # 不叫 config：下面 /api/config 那个端点函数就叫这个名字
 from . import events as ev
 from . import gallery as gallery_mod
 from . import history as history_mod
@@ -157,7 +158,7 @@ def _quest_for_engines(meta: Dict[str, Any]) -> Dict[str, Any]:
     """评分 / 反馈 / 陪伴引擎看到的任务：按会话语言翻好，再带上 `ui`（simple 时话要短）。
     是一份拷贝，引擎只读。"""
     quest = i18n.quest_for(QUESTS_BY_ID[meta["quest_id"]], meta.get("lang", "zh"))
-    return {**quest, "ui": (meta.get("condition") or {}).get("ui", "full")}
+    return {**quest, "ui": (meta.get("condition") or {}).get("ui", "simple")}
 
 
 def _session_or_404(sid: str) -> Dict[str, Any]:
@@ -344,6 +345,9 @@ def config():
         "post_use": post_use.definition(),
         "process_labels": list(PROCESS_LABELS),
         "study": {"active": st["active"], "study_id": st["study_id"], "order": st["order"]},
+        # 首访任务库：开关 + 年龄段表；题本身在 /quests 里（bank 字段）
+        "first_visit": {"enabled": cfg.FIRST_VISIT_BANK, "bank": missions_bank.BANK, "version": missions_bank.BANK_VERSION,
+                        "bands": missions_bank.BANDS, "order": missions_bank.ORDER, "post_config": missions_bank.POST_CONFIG},
     }
 
 
@@ -367,6 +371,8 @@ QUEST_FIELDS_APP = (
     "id", "task_id", "family", "family_name", "type", "title", "instruction", "prompt", "hint",
     "icon", "color", "difficulty", "time_limit_sec", "allowed_tools",
     "stimulus", "reference", "condition", "rubric", "focus_dims", "tiers", "legacy", "lang",
+    # 首访任务库（2026-10-12）：年龄段路由、必要条件、按需提示、反思问题、选题卡摘要
+    "bank", "band", "age_min", "age_max", "order", "requirements", "hints", "reflection", "card", "post_config",
 )
 
 
@@ -955,7 +961,7 @@ def create_session(body: CreateSession, request: Request):
             quest, body.intent.model_dump(),
             participant=body.participant_dict(), condition=condition,
             device=body.device.model_dump(), study=st, canvas=body.canvas.model_dump(),
-            sid=body.session_id or None, lang=lang,
+            sid=body.session_id or None, lang=lang, routing=dict(body.routing or {}),
         )
     except KeyError:
         # 带了一个从没发出去过的票号。不当场给它建一个——那正是「客户端自己发 id」

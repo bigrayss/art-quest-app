@@ -95,3 +95,7 @@ def resolve_backend(setting: str, ai_name: str, fallback_name: str) -> str:
     if setting in _LLM_ALIASES:
         return ai_name
     return setting
+
+# 首访任务库（2026-10-12）：第一次来的孩子按年龄看到固定五道（docs/Task_Library_zh_CN.md）。
+# off = 回到原来的十个家族地图。
+FIRST_VISIT_BANK = os.environ.get("ARTQUEST_FIRST_VISIT", "on").strip().lower() not in ("off", "0", "false", "no")

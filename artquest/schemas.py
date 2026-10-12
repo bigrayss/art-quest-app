@@ -80,6 +80,9 @@ class CreateSession(BaseModel):
     device: Device = Device()
     canvas: Canvas = Canvas()
     study: StudyContext = StudyContext()
+    # 首访任务库（2026-10-12）：这道题是怎么被路由到的——age / age_source(account|asked) / band / first_visit / bank。
+    # 年龄是入口路由不是能力分数；记下来是为了分析时分得开「按年龄段」和「按任务」。M 族的 session 这里是空的。
+    routing: Dict[str, Any] = {}
 
     def task(self) -> str:
         return self.quest_id or self.task_id
@@ -275,6 +278,10 @@ class Questionnaire(BaseModel):
     # …and the child's own words, which is also what older sessions stored here
     hardest_part: str = ""
     free_text: str = ""
+    # 首访任务库（first_visit_common_v1）：题目自己的反思问题的回答；三题各可跳过，跳过的列在 skipped 里
+    reflection: str = ""
+    instrument: str = Field("", description="界面当时用的问卷版本；空 = 原来的三道 1–5 + 哪里最难")
+    skipped: List[str] = Field([], description="孩子跳过了哪几题（enjoyment / difficulty / reflection）")
     t_ms: int = Field(0, description="会话计时，保证事件在统一时间线上有精确位置")
 
     @field_validator("hardest_part_choice")
@@ -505,7 +512,7 @@ class Register(BaseModel):
     pin: str = Field(..., max_length=8, description="四位数字暗号")
     anon_id: str = Field("", description="当前这台设备的代号")
     buddy_name: str = Field("", max_length=16, description="伙伴的名字，跟着账号走")
-    age: Optional[int] = Field(None, ge=3, le=99, description="几岁。学生必填（老师不填），成年初学者也用这个 app，所以上限只是防手滑的 99；≤12 推荐简单版；分析时的主协变量")
+    age: Optional[int] = Field(None, ge=3, le=99, description="几岁。学生必填（老师不填），成年初学者也用这个 app，所以上限只是防手滑的 99；首访任务库按它路由年龄段；分析时的主协变量")
     # 老师和学生用同一张注册表，多一个开关。老师要邀请码（服务器 ARTQUEST_TEACHER_CODE），
     # 不然谁都能注册成老师、看到全部孩子的画。
     role: Literal["student", "teacher"] = "student"

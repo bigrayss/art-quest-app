@@ -253,9 +253,7 @@ class TheShellRunsFromAnotherOrigin(unittest.TestCase):
             page.click('.tab[data-tab="map"]')
             page.wait_for_selector("#view-quest:not(.hidden)")
             page.click("#quest-grid .quest-card")
-            page.click("#btn-today")
-            page.wait_for_selector("#view-intent:not(.hidden)")
-            page.click("#btn-start-draw")
+            page.click("#btn-today")                 # 只剩简单版：没有心愿页
             page.wait_for_selector("#view-draw:not(.hidden)")
             page.wait_for_function("() => document.querySelector('#recstat') && !document.querySelector('#recstat').classList.contains('hidden')")
             keep_awake = page.evaluate("window.__native.filter(m => m.type === 'keepAwake').map(m => m.on)")
@@ -341,11 +339,7 @@ class TheShellRunsFromAnotherOrigin(unittest.TestCase):
             page.click('.tab[data-tab="map"]')
             page.wait_for_selector("#view-quest:not(.hidden)")
             page.click("#quest-grid .quest-card")
-            page.click("#btn-today")
-            page.wait_for_selector("#view-intent:not(.hidden)")
-            page.click("#emotion-chips button")
-            page.fill("#intent-text", "一座会走路的房子")
-            page.click("#btn-start-draw")
+            page.click("#btn-today")                 # 只剩简单版：没有心愿页
             page.wait_for_selector("#view-draw:not(.hidden)")
             page.wait_for_function("() => !document.querySelector('#recstat').classList.contains('hidden')")
             self.assertIn(True, page.evaluate("window.__native.filter(m=>m.type==='keepAwake').map(m=>m.on)"),

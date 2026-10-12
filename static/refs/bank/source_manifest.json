@@ -1,0 +1,368 @@
+{
+  "package_version": "v3-displayed-preview-extracts",
+  "purpose": "Correct the mismatch between displayed previews and packaged legacy-style files.",
+  "new_preview_panels": 14,
+  "unchanged_supplementary_images": 6,
+  "high_resolution_originals_of_new_panels_available": false,
+  "resampled_or_upscaled": false,
+  "files": [
+    {
+      "path": "01_插画版_实际展示的9张/B1_TR_ref.png",
+      "title_zh": "杯子",
+      "width": 306,
+      "height": 342,
+      "sha256": "c85580e76fc6a7fb481dbf21504b0196ebd6c0362f63f3d8cea3343543fb309c",
+      "status": "exact_crop_of_displayed_preview",
+      "source_file": "a_clean_flat_modern_cartoon_vector_illustration.png",
+      "source_sha256": "236a2ea3c72755cca049c3f7990a8b5c81496d49e3eb538d19190919ec147640",
+      "crop_box_xyxy": [
+        9,
+        96,
+        315,
+        438
+      ],
+      "upscaled": false,
+      "same_as_previous_v2": false,
+      "old_v2_sha256": "53893a8d73cf300bfaa384eeef56cdbf784bedb04d1b2a7ebcf12cff2f5a8c14",
+      "editable_svg_available": false
+    },
+    {
+      "path": "01_插画版_实际展示的9张/B2_OB_ref.png",
+      "title_zh": "苹果与两本书",
+      "width": 295,
+      "height": 342,
+      "sha256": "1952e47ae77078966a5af1b00feb5fd1b8166fe5f932a657bd677b1be6946345",
+      "status": "exact_crop_of_displayed_preview",
+      "source_file": "a_clean_flat_modern_cartoon_vector_illustration.png",
+      "source_sha256": "236a2ea3c72755cca049c3f7990a8b5c81496d49e3eb538d19190919ec147640",
+      "crop_box_xyxy": [
+        318,
+        96,
+        613,
+        438
+      ],
+      "upscaled": false,
+      "same_as_previous_v2": false,
+      "old_v2_sha256": "c439ae54b0be2506266908ffa490448ebbb3ae525d1dd8f12f12dfcd76f28dfb",
+      "editable_svg_available": false
+    },
+    {
+      "path": "01_插画版_实际展示的9张/B2_TR_ref.png",
+      "title_zh": "展开的雨伞",
+      "width": 297,
+      "height": 342,
+      "sha256": "409bec1b9d9546821313d0756c24797bc1ce3291fd1a95e6b47747b6a88b215f",
+      "status": "exact_crop_of_displayed_preview",
+      "source_file": "a_clean_flat_modern_cartoon_vector_illustration.png",
+      "source_sha256": "236a2ea3c72755cca049c3f7990a8b5c81496d49e3eb538d19190919ec147640",
+      "crop_box_xyxy": [
+        617,
+        96,
+        914,
+        438
+      ],
+      "upscaled": false,
+      "same_as_previous_v2": false,
+      "old_v2_sha256": "978be84a8a2e66295c7e3dba28364d9a7c5ad0e49d1366cfac7ce07e757b9f6a",
+      "editable_svg_available": false
+    },
+    {
+      "path": "01_插画版_实际展示的9张/B3_OB_ref.png",
+      "title_zh": "盆栽、笔筒、橡皮和笔记本",
+      "width": 297,
+      "height": 342,
+      "sha256": "ff2c3ef5811344700f3446c6f449f128fc20d9c6c68821af9228af67eaeeef10",
+      "status": "exact_crop_of_displayed_preview",
+      "source_file": "a_clean_flat_modern_cartoon_vector_illustration.png",
+      "source_sha256": "236a2ea3c72755cca049c3f7990a8b5c81496d49e3eb538d19190919ec147640",
+      "crop_box_xyxy": [
+        918,
+        96,
+        1215,
+        438
+      ],
+      "upscaled": false,
+      "same_as_previous_v2": false,
+      "old_v2_sha256": "06e303540f78678f1846538eb4eae550b504a1480ef425cbc3308e892f3a3097",
+      "editable_svg_available": false
+    },
+    {
+      "path": "01_插画版_实际展示的9张/B3_TR_ref.png",
+      "title_zh": "蓝白茶壶",
+      "width": 308,
+      "height": 342,
+      "sha256": "34803a961a4b175b8a533cfc97351d08044e06d15fa7a59767a056c815fe3d79",
+      "status": "exact_crop_of_displayed_preview",
+      "source_file": "a_clean_flat_modern_cartoon_vector_illustration.png",
+      "source_sha256": "236a2ea3c72755cca049c3f7990a8b5c81496d49e3eb538d19190919ec147640",
+      "crop_box_xyxy": [
+        1219,
+        96,
+        1527,
+        438
+      ],
+      "upscaled": false,
+      "same_as_previous_v2": false,
+      "old_v2_sha256": "2e219d027e164a4f8b02878bfb145afc6d78027dedc17f245b43aea65eb77642",
+      "editable_svg_available": false
+    },
+    {
+      "path": "01_插画版_实际展示的9张/B4_OB_ref.png",
+      "title_zh": "窗边花瓶与书",
+      "width": 365,
+      "height": 364,
+      "sha256": "ffe2fa1c0746b53477b974fb4618b49cb81213726620976b210320eb8cc92146",
+      "status": "exact_crop_of_displayed_preview",
+      "source_file": "a_clean_flat_modern_cartoon_vector_illustration.png",
+      "source_sha256": "236a2ea3c72755cca049c3f7990a8b5c81496d49e3eb538d19190919ec147640",
+      "crop_box_xyxy": [
+        9,
+        517,
+        374,
+        881
+      ],
+      "upscaled": false,
+      "same_as_previous_v2": false,
+      "old_v2_sha256": "45175b7abcc8ebbe35ac8394030baeb57cd8f5262c0551bdc3016307f42883f0",
+      "editable_svg_available": false
+    },
+    {
+      "path": "01_插画版_实际展示的9张/B4_TR_ref.png",
+      "title_zh": "蓝色自行车",
+      "width": 443,
+      "height": 364,
+      "sha256": "5c6e057212c4d32926ed799e18c6dcef1d4b99fa1733e5d3a76a4f6fa56ba47c",
+      "status": "exact_crop_of_displayed_preview",
+      "source_file": "a_clean_flat_modern_cartoon_vector_illustration.png",
+      "source_sha256": "236a2ea3c72755cca049c3f7990a8b5c81496d49e3eb538d19190919ec147640",
+      "crop_box_xyxy": [
+        378,
+        517,
+        821,
+        881
+      ],
+      "upscaled": false,
+      "same_as_previous_v2": false,
+      "old_v2_sha256": "ead67a75be1377f710272587d88131008062f54be6b3401f3ecd288eb9637802",
+      "editable_svg_available": false
+    },
+    {
+      "path": "01_插画版_实际展示的9张/B5_OB_ref.png",
+      "title_zh": "街角",
+      "width": 342,
+      "height": 364,
+      "sha256": "085c1052f8447d04fdf87cc826138048718e8d7a4ad100df3d45f7058bca42f2",
+      "status": "exact_crop_of_displayed_preview",
+      "source_file": "a_clean_flat_modern_cartoon_vector_illustration.png",
+      "source_sha256": "236a2ea3c72755cca049c3f7990a8b5c81496d49e3eb538d19190919ec147640",
+      "crop_box_xyxy": [
+        824,
+        517,
+        1166,
+        881
+      ],
+      "upscaled": false,
+      "same_as_previous_v2": false,
+      "old_v2_sha256": "759d928e9d6b861552629f7de03cd101c51ae319c8569ffb1ecb5cafee829b43",
+      "editable_svg_available": false
+    },
+    {
+      "path": "01_插画版_实际展示的9张/B5_TR_ref.png",
+      "title_zh": "绿色台灯",
+      "width": 357,
+      "height": 364,
+      "sha256": "1d1d84311a1c035a7e66e9a40d92a03c99fc2579c26c3c853c645b1819357c7e",
+      "status": "exact_crop_of_displayed_preview",
+      "source_file": "a_clean_flat_modern_cartoon_vector_illustration.png",
+      "source_sha256": "236a2ea3c72755cca049c3f7990a8b5c81496d49e3eb538d19190919ec147640",
+      "crop_box_xyxy": [
+        1170,
+        517,
+        1527,
+        881
+      ],
+      "upscaled": false,
+      "same_as_previous_v2": false,
+      "old_v2_sha256": "0cf20764d14a1a32a6b5148fbb0027f0759595a39011f80ecb3f61713dd93f2f",
+      "editable_svg_available": false
+    },
+    {
+      "path": "02_写实版_另一次展示的5张/B1_TR_ref.png",
+      "title_zh": "白色杯子",
+      "width": 491,
+      "height": 365,
+      "sha256": "39aee0c5c72242fd7ac017ee3ac8c186466a7e2bf43104cc961407870567c52b",
+      "status": "exact_crop_of_displayed_preview",
+      "source_file": "a_clean_infographic_collage_with_multiple_object_p.png",
+      "source_sha256": "63173aa44581ee132cdbabddef732cc6e56f159e10bf294363f84d2d9de26456",
+      "crop_box_xyxy": [
+        14,
+        92,
+        505,
+        457
+      ],
+      "upscaled": false,
+      "same_as_previous_v2": false,
+      "old_v2_sha256": "53893a8d73cf300bfaa384eeef56cdbf784bedb04d1b2a7ebcf12cff2f5a8c14",
+      "editable_svg_available": false
+    },
+    {
+      "path": "02_写实版_另一次展示的5张/B2_TR_ref.png",
+      "title_zh": "收拢的蓝色雨伞",
+      "width": 490,
+      "height": 365,
+      "sha256": "e5d79f6c34b27ccbb36361c2df6fc4dd6395b30df339141810235c932d84577e",
+      "status": "exact_crop_of_displayed_preview",
+      "source_file": "a_clean_infographic_collage_with_multiple_object_p.png",
+      "source_sha256": "63173aa44581ee132cdbabddef732cc6e56f159e10bf294363f84d2d9de26456",
+      "crop_box_xyxy": [
+        510,
+        92,
+        1000,
+        457
+      ],
+      "upscaled": false,
+      "same_as_previous_v2": false,
+      "old_v2_sha256": "978be84a8a2e66295c7e3dba28364d9a7c5ad0e49d1366cfac7ce07e757b9f6a",
+      "editable_svg_available": false
+    },
+    {
+      "path": "02_写实版_另一次展示的5张/B3_TR_ref.png",
+      "title_zh": "白色茶壶",
+      "width": 494,
+      "height": 365,
+      "sha256": "f8c0d800daf187b6f60b6d35924ad4827e55f4ae1c746f58e42ec6460b2efb43",
+      "status": "exact_crop_of_displayed_preview",
+      "source_file": "a_clean_infographic_collage_with_multiple_object_p.png",
+      "source_sha256": "63173aa44581ee132cdbabddef732cc6e56f159e10bf294363f84d2d9de26456",
+      "crop_box_xyxy": [
+        1005,
+        92,
+        1499,
+        457
+      ],
+      "upscaled": false,
+      "same_as_previous_v2": false,
+      "old_v2_sha256": "2e219d027e164a4f8b02878bfb145afc6d78027dedc17f245b43aea65eb77642",
+      "editable_svg_available": false
+    },
+    {
+      "path": "02_写实版_另一次展示的5张/B4_TR_ref.png",
+      "title_zh": "蓝色自行车",
+      "width": 737,
+      "height": 411,
+      "sha256": "e67a9f98b00746faa6085b873066c5b1697b85f4f00c80fabc31ddb94a61d0c5",
+      "status": "exact_crop_of_displayed_preview",
+      "source_file": "a_clean_infographic_collage_with_multiple_object_p.png",
+      "source_sha256": "63173aa44581ee132cdbabddef732cc6e56f159e10bf294363f84d2d9de26456",
+      "crop_box_xyxy": [
+        15,
+        514,
+        752,
+        925
+      ],
+      "upscaled": false,
+      "same_as_previous_v2": false,
+      "old_v2_sha256": "ead67a75be1377f710272587d88131008062f54be6b3401f3ecd288eb9637802",
+      "editable_svg_available": false
+    },
+    {
+      "path": "02_写实版_另一次展示的5张/B5_TR_ref.png",
+      "title_zh": "绿色台灯",
+      "width": 741,
+      "height": 411,
+      "sha256": "6fabf2a5bae3a4cc53f4f3316a9206b76fb19394c14cde453e1890ecc3b74026",
+      "status": "exact_crop_of_displayed_preview",
+      "source_file": "a_clean_infographic_collage_with_multiple_object_p.png",
+      "source_sha256": "63173aa44581ee132cdbabddef732cc6e56f159e10bf294363f84d2d9de26456",
+      "crop_box_xyxy": [
+        758,
+        514,
+        1499,
+        925
+      ],
+      "upscaled": false,
+      "same_as_previous_v2": false,
+      "old_v2_sha256": "0cf20764d14a1a32a6b5148fbb0027f0759595a39011f80ecb3f61713dd93f2f",
+      "editable_svg_available": false
+    },
+    {
+      "path": "03_原样保留_叶子与5张图形片段/B1_OB_ref.png",
+      "title_zh": "两片叶子",
+      "width": 1600,
+      "height": 1200,
+      "sha256": "784d192b12b4018919676822a402f61e59e34fc4ede3616fd7796157ce48428d",
+      "status": "unchanged_previous_material",
+      "source_file": "B1_OB_ref.png",
+      "upscaled": false,
+      "same_as_previous_v1": true,
+      "same_as_previous_v2": false,
+      "editable_svg_available": false
+    },
+    {
+      "path": "03_原样保留_叶子与5张图形片段/B1_FG_ref.png",
+      "title_zh": "原有图形片段",
+      "width": 1600,
+      "height": 1200,
+      "sha256": "4a6ff7fe29324518fd88a6bca7c35e77f54f6c01ce19d11e626ba5cf6e825621",
+      "status": "unchanged_previous_material",
+      "source_file": "B1_FG_ref.png",
+      "upscaled": false,
+      "same_as_previous_v1": true,
+      "same_as_previous_v2": true,
+      "editable_svg_available": false
+    },
+    {
+      "path": "03_原样保留_叶子与5张图形片段/B2_FG_ref.png",
+      "title_zh": "原有图形片段",
+      "width": 1600,
+      "height": 1200,
+      "sha256": "de856a817ab9f85885c07c4098a95825f4379c08b7cc2bc78a18b5c89a15909b",
+      "status": "unchanged_previous_material",
+      "source_file": "B2_FG_ref.png",
+      "upscaled": false,
+      "same_as_previous_v1": true,
+      "same_as_previous_v2": true,
+      "editable_svg_available": false
+    },
+    {
+      "path": "03_原样保留_叶子与5张图形片段/B3_FG_ref.png",
+      "title_zh": "原有图形片段",
+      "width": 1600,
+      "height": 1200,
+      "sha256": "3bc613c4538de66486a4773112fc733864f34f4d65921bbcada1741a60f15c33",
+      "status": "unchanged_previous_material",
+      "source_file": "B3_FG_ref.png",
+      "upscaled": false,
+      "same_as_previous_v1": true,
+      "same_as_previous_v2": true,
+      "editable_svg_available": false
+    },
+    {
+      "path": "03_原样保留_叶子与5张图形片段/B4_FG_ref.png",
+      "title_zh": "原有图形片段",
+      "width": 1600,
+      "height": 1200,
+      "sha256": "1e04306c92fd2344828a027152a3baf06f5fde480102991eac4c7ccfb3e732f7",
+      "status": "unchanged_previous_material",
+      "source_file": "B4_FG_ref.png",
+      "upscaled": false,
+      "same_as_previous_v1": true,
+      "same_as_previous_v2": true,
+      "editable_svg_available": false
+    },
+    {
+      "path": "03_原样保留_叶子与5张图形片段/B5_FG_ref.png",
+      "title_zh": "原有图形片段",
+      "width": 1600,
+      "height": 1200,
+      "sha256": "b0dd388c0e980bc603d42864a741583a898307803fb6df9a918814fbb13e8085",
+      "status": "unchanged_previous_material",
+      "source_file": "B5_FG_ref.png",
+      "upscaled": false,
+      "same_as_previous_v1": true,
+      "same_as_previous_v2": true,
+      "editable_svg_available": false
+    }
+  ]
+}

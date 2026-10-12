@@ -28,9 +28,9 @@ ROSTER_PATH = DATA_DIR / "participants.json"
 
 # Frozen into every session's metadata, study or not.
 DEFAULT_CONDITION: Dict[str, Any] = {
-    # full = 完整；simple = 简单版（不问心情/心愿/问卷、不摆成长图，进化关保留）——孩子自己或按年龄推荐切；
-    # quiet = 对照组（去游戏化），只能由研究员设，孩子的开关改不动它
-    "ui": "full",              # full | simple | quiet
+    # 2026-10-12 用户：「简单版 / 完整版」两档删掉，只留简单版（不问心情/心愿/问卷、不摆成长图，进化关保留）。
+    # quiet = 对照组（去游戏化），只能由研究员设。旧 session 里存着 "full" 的照旧，新的只会是 simple | quiet。
+    "ui": "simple",            # simple | quiet（"full" 已废，收到就折成 simple）
     "reference_allowed": True,
     "undo_allowed": True,
     "zoom_allowed": True,      # zooming/panning the canvas at all
@@ -108,10 +108,12 @@ def resolve_condition(overrides: Optional[Dict[str, Any]] = None, group: str = "
         cond.update({k: v for k, v in (study["groups"].get(group) or {}).items() if k in CONDITION_KEYS})
     if overrides:
         ov = {k: v for k, v in overrides.items() if k in CONDITION_KEYS}
-        # 对照组是研究员定的实验臂，孩子设备上的「简单 / 完整」开关改不动它
+        # 对照组是研究员定的实验臂，客户端改不动它
         if cond.get("ui") == "quiet":
             ov.pop("ui", None)
         cond.update(ov)
+    if cond.get("ui") == "full":        # 完整版已删（2026-10-12）：旧客户端 / 旧 study.json 送来的 full 一律按简单版
+        cond["ui"] = "simple"
     return cond
 
 
@@ -204,9 +206,10 @@ def _forms_of(family: str, pool: Dict[str, Any], tier: str = "") -> List[str]:
     allowed = pool.get(family)
     if allowed:
         return [t for t in allowed if t in QUESTS_BY_ID]
-    # v1 的题不再分给任何人；protocol 写了 tier 就只在那一版里轮
+    # v1 的题不再分给任何人；完整版已删（2026-10-12），protocol 没写 tier 就按简单版轮（锚定题 + 小学题）
+    tier = tier or "simple"
     return [q["id"] for q in QUESTS if q.get("family") == family and not q.get("legacy")
-            and (not tier or tier in (q.get("tiers") or []))]
+            and tier in (q.get("tiers") or [])]
 
 
 def _pick_style(forms: List[str], rule: str, index: int) -> List[str]:
