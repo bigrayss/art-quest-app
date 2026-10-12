@@ -132,6 +132,7 @@
   <!-- 首访任务库（2026-10-12）：第一次来、还不知道年龄时先问一句——任务按年龄段来选，不静默分配 -->
   <div class="age-gate hidden" id="age-gate">
     <p class="age-gate-q">你今年几岁？</p>
+    <p class="acct-hint">填年龄是为了推荐更合适的任务。</p>
     <div class="age-gate-row"><input id="age-gate-input" type="text" inputmode="numeric" maxlength="2" placeholder="几岁"><button class="primary" id="btn-age-gate">开始<i data-icon="arrowRight" data-size="17"></i></button></div>
   </div>
   <div class="map-lead" id="map-lead"><span id="map-lead-text">选一个主题，开始今天的创作。</span><span class="map-count hidden" id="map-count"></span></div>
@@ -647,6 +648,8 @@
     </div>
     <input id="acct-age-input" class="pin" type="text" inputmode="numeric" maxlength="2"
            autocomplete="off" placeholder="年龄">
+    <!-- 为什么要年龄：一句话说清用途（用户 2026-10-12），不说年龄段 -->
+    <p class="acct-hint" id="acct-age-hint">填年龄是为了推荐更合适的任务。</p>
     <input id="acct-code-input" class="hidden" type="text" autocomplete="off" autocapitalize="off"
            spellcheck="false" placeholder="老师邀请码">
     <p class="acct-err hidden" id="acct-err"></p>

@@ -2342,3 +2342,6 @@ body.offline .needs-net { display:none !important; }
 .qc-new { position:absolute; right:8px; top:6px; padding:0 5px; line-height:1.5; border-radius:5px;
   background:#fff; color:var(--accent); border:1.5px solid var(--accent); font-size:0.5625rem; font-weight:800; letter-spacing:.06em; }
 .map.list .quest-card .qc-text { padding-right:28px; }
+/* 年龄旁边那一句：为什么要填 */
+.acct-hint { margin:-4px 0 8px; font-size:0.8125rem; color:var(--muted-2); line-height:1.5; }
+.age-gate .acct-hint { margin:-6px 0 12px; }

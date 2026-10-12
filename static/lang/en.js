@@ -5,6 +5,7 @@ window.ARTQUEST_LANG_EN = {
   "语言": "Language",
   // 首访任务库（2026-10-12）
   "你今年几岁？": "How old are you?",
+  "填年龄是为了推荐更合适的任务。": "Your age helps us suggest tasks that fit you.",
   "几岁": "Age",
   "开始": "Start",
   "今天从这五个里选一道画。": "Pick one of these five to draw today.",

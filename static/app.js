@@ -511,6 +511,7 @@
     $("#acct-role").classList.toggle("hidden", mode !== "register");
     setAcctRole(TEACHER_ENTRANCE ? "teacher" : "student");
     $("#acct-age-input").classList.toggle("hidden", mode !== "register");
+    $("#acct-age-hint").classList.toggle("hidden", mode !== "register");
     $("#acct-err").classList.add("hidden");
     $("#acct-name-input").value = "";
     $("#acct-pin-input").value = "";
@@ -574,6 +575,7 @@
     $("#acct-role").querySelectorAll("[data-role]").forEach(b => b.classList.toggle("on", b.dataset.role === acctRole));
     $("#acct-code-input").classList.toggle("hidden", !(acctMode === "register" && acctRole === "teacher"));
     $("#acct-age-input").classList.toggle("hidden", !(acctMode === "register" && acctRole === "student"));
+    $("#acct-age-hint").classList.toggle("hidden", !(acctMode === "register" && acctRole === "student"));
   }
   $("#acct-role").querySelectorAll("[data-role]").forEach(b => b.onclick = () => setAcctRole(b.dataset.role));
   $("#acct-code-input").onkeydown = (e) => { if (e.key === "Enter") submitAcct(); };
