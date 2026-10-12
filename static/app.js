@@ -2846,9 +2846,6 @@
   }
   // 画完几张就多开几个地方：顺序固定，先讲故事、换颜色这些门槛低的，再到规则世界
   const UNLOCK_ORDER = ["M9", "M6", "M3", "M4", "M5", "M1", "M2", "M7", "M8", "M0"];
-  function unlockedFamilies(nDone) {
-    return UNLOCK_ORDER.filter(f => tierForms(f).length).slice(0, Math.max(0, nDone));
-  }
   function bankForms(band) {
     if (!band) return [];
     const order = bankCfg().order || [];
@@ -2940,22 +2937,37 @@
     }
     if (fv && who.age == null) { paintToday(null, 0, 0); $("#map-lead-text").textContent = ""; return; }
     state.bank = fv && band ? { band: band.id, age: who.age, age_source: who.source } : null;
-    const nDoneAll = (state.allSessions || []).filter(r => r.status === "done").length;
-    const grown = state.bank ? unlockedFamilies(nDoneAll) : [];
-    const nextFam = state.bank ? UNLOCK_ORDER.filter(f => tierForms(f).length)[grown.length] : null;
+    // 待办只有 PENDING_SLOTS 个位置（2026-10-12 用户：一个号同时就该只有四五个没完成的）。本段的五道先占着；
+    // 做完一个，序列里的下一个地方才进来；一个地方的题全画完了它也算完成。完成的折在下面。
+    const PENDING_SLOTS = 5;
+    const doneIds = new Set((state.allSessions || []).filter(r => r.status === "done").map(r => r.task_id || r.quest_id));
     const famCard = (f) => ({ key: f.id, icon: f.icon, color: f.color, kind: `${tierForms(f.id).length} 种玩法`,
                               title: f.name, locked: false, family: f.id });
+    const sequence = state.bank
+      ? bankForms(band).map(q => ({ key: q.id, icon: q.icon, color: q.color, kind: q.type, title: q.title,
+          locked: false, task: q, blurb: q.card, finished: doneIds.has(q.id) }))
+        .concat(UNLOCK_ORDER.filter(f => tierForms(f).length).map(fid => {
+          const f = (state.families || []).find(x => x.id === fid); if (!f) return null;
+          return { ...famCard(f), finished: tierForms(fid).every(q => doneIds.has(q.id)) };
+        }).filter(Boolean))
+      : [];
+    const pendingCards = [], finishedCards = [];
+    let rest = 0;
+    sequence.forEach(c => {
+      if (c.finished) finishedCards.push(c);
+      else if (pendingCards.length < PENDING_SLOTS) pendingCards.push(c);
+      else rest += 1;
+    });
+    const nextFam = rest ? "more" : null;
     const cards = seq
       ? seq.map(id => byId[id]).filter(Boolean).map((q, i) => ({
           key: q.id, icon: q.icon, color: q.color, kind: q.type, title: q.title,
           locked: i !== state.seqIdx, task: q }))
       : state.bank
-      // 画过的题列在「已完成」一栏（2026-10-12 用户：未完成 / 已完成两列）；地方（M 族）在「未完成」，每个地方还有没画过的题
-      ? bankForms(band).map(q => ({ key: q.id, icon: q.icon, color: q.color, kind: q.type, title: q.title,
-          locked: false, task: q, blurb: q.card }))
-          .concat(grown.map(fid => famCard((state.families || []).find(f => f.id === fid))).filter(c => c.key))
-          // 下一个要开的地方先摆一张锁卡：说「有」，不说还有多少
-          .concat(nextFam ? [{ key: `locked:${nextFam}`, icon: "", color: "#cfcbc4", kind: "画完一张再开", title: "？", locked: true, family: nextFam }] : [])
+      ? pendingCards
+          // 后面还有没开的：摆一张锁卡，说「有」，不说还有多少
+          .concat(nextFam ? [{ key: "locked:next", icon: "", color: "#cfcbc4", kind: "画完一张再开", title: "？", locked: true, family: "" }] : [])
+          .concat(finishedCards)
       // 家族卡：标题已经是家族名了，副标题换成「这个家族有几种玩法」
       : (state.families || []).filter(f => tierForms(f.id).length).map(f => ({
           key: f.id, icon: f.icon, color: f.color, kind: `${tierForms(f.id).length} 种玩法`,
@@ -2965,7 +2977,7 @@
     const doneFam = new Set(doneRows2.map(r => familyOf(r.task_id)).filter(Boolean));
     // 上面那一行：研究模式里任务是定好的，不能一边限制一边写「随便选」
     $("#map-lead-text").textContent = seq ? "这是今天的任务，点「开始画」就可以开始。"
-      : state.bank ? (grown.length ? "选一个地方，开始今天的创作。" : "今天从这五个里选一道画。") : "选一个主题，开始今天的创作。";
+      : state.bank ? "选一个，开始今天的创作。" : "选一个主题，开始今天的创作。";
     // 「已体验 n 个主题」= 存过作品的不同主题数：点过不算，同一主题画三次算一个。没有就不显示。
     const cnt = $("#map-count");
     cnt.textContent = doneFam.size ? `已体验 ${doneFam.size} 个主题` : "";
@@ -2982,12 +2994,14 @@
     // 首访的地图只有四五道，散点是给十个地方设计的：这里排成一列，老的插画图标放左边，名字和一句简介放右边
     const listMode = !!state.bank && !seq;
     grid.classList.toggle("list", listMode);
-    // 两栏：未完成（没画过的题 + 已开的地方 + 锁卡）/ 已完成（画过的题）
+    // 一列：待办在上；已完成折在下面（像游戏的任务栏），默认收着
     let colTodo = null, colDone = null;
     if (listMode) {
-      colTodo = document.createElement("div"); colTodo.className = "map-col todo"; colTodo.innerHTML = `<h4>未完成</h4>`;
-      colDone = document.createElement("div"); colDone.className = "map-col done"; colDone.innerHTML = `<h4>已完成</h4><p class="map-col-empty">画完的会放在这里。</p>`;
-      grid.appendChild(colTodo); grid.appendChild(colDone);
+      colTodo = document.createElement("div"); colTodo.className = "map-col todo";
+      colDone = document.createElement("details"); colDone.className = "map-col done";
+      colDone.innerHTML = `<summary>已完成 · ${finishedCards.length}</summary>`;
+      grid.appendChild(colTodo);
+      if (finishedCards.length) grid.appendChild(colDone);
     }
     // 初始选中的还是原来「今天从这儿开始」那一个：第一个没走过的地方。
     // 孩子自己点过别的地方，回到地图时还选着它（state.mapPick），不另加推荐规则。
@@ -2995,7 +3009,7 @@
     const pickable = cards.find(c => c.key === state.mapPick && !c.locked);
     cards.forEach((c, i) => {
       const fam = c.family || (c.task && c.task.family) || "";
-      const done = !c.locked && (c.task ? doneRows2.some(r => (r.task_id || r.quest_id) === c.task.id) : doneFam.has(fam));
+      const done = !c.locked && (listMode ? !!c.finished : (c.task ? doneRows2.some(r => (r.task_id || r.quest_id) === c.task.id) : doneFam.has(fam)));
       const isNext = pickable ? c === pickable : (!c.locked && !done && !nextMarked);
       if (done) nDone++;
       if (isNext) nextMarked = true;
@@ -3035,11 +3049,8 @@
         paintToday(c, nDone, cards.length);
       };
       if (isNext) nextCard = c;
-      if (listMode) {
-        const col = done && c.task ? colDone : colTodo;
-        if (col === colDone) col.querySelector(".map-col-empty")?.remove();
-        col.appendChild(el);
-      } else grid.appendChild(el);
+      if (listMode) (c.finished ? colDone : colTodo).appendChild(el);
+      else grid.appendChild(el);
     });
     paintToday(nextCard, nDone, cards.length);
     paintMapPath();
