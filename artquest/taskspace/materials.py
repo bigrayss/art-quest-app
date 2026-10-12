@@ -92,10 +92,13 @@ def _bank_specs() -> Dict[str, Dict[str, Any]]:
         if not sid:
             continue
         kind = {"OB": "正式观察参考（首访 OB）", "FG": "片段参考（首访 FG：转抄到空白画布，不印在画布上）", "TR": "供改造的物品参考（首访 TR）"}[t["family"]]
+        if t["band"] == "B6":
+            kind += "；第六段沿用本项目 M 族素材"
         size = None
         try:
             from PIL import Image
-            with Image.open(REFS / "bank" / f"{sid}.png") as im:
+            fp = file_of(sid)
+            with Image.open(fp) as im:
                 size = im.size
         except Exception:
             pass
@@ -121,8 +124,11 @@ def file_of(sid: str) -> Optional[Path]:
         p = REFS / fam / f"{sid}{ext}"
         if p.exists():
             return p
-    p = REFS / "bank" / f"{sid}.png"          # 首访任务库的图都在 refs/bank/
-    return p if p.exists() else None
+    for ext in (".png", ".jpg"):               # 首访任务库的图都在 refs/bank/（B6_OB 是 jpg）
+        p = REFS / "bank" / f"{sid}{ext}"
+        if p.exists():
+            return p
+    return None
 
 
 def questions(spec: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -192,6 +198,10 @@ HUMAN_NOTES: Dict[str, tuple] = {
     "B3_TR_ref": (OK, "茶壶（CSV：蓝白茶壶）"), "B4_TR_ref": (OK, "蓝色自行车，整车在框内"), "B5_TR_ref": (OK, "台灯（CSV：绿色台灯）"),
     "B1_FG_ref": (OK, "旧素材原样保留，1600×1200"), "B2_FG_ref": (OK, "同上"), "B3_FG_ref": (OK, "三段线条，和题面「三段线条」一致"),
     "B4_FG_ref": (OK, "同上，四段"), "B5_FG_ref": (OK, "同上，四段"),
+    # 第六段（17 岁及以上）：沿用本项目素材（2026-10-12）
+    "B6_OB_ref": (OK, "M1 客厅场景 m1_scene_a：沙发（有猫）、茶几、书架、台灯、盆栽、窗，三层纵深，和题面一致"),
+    "B6_FG_ref": (OK, "M3 碎片组 E 渲染成 1600×1200：七块（弧、两点、线、角、曲线、缺口矩形）"),
+    "B6_TR_ref": (OK, "M4 鞋子 m4_shoe：运动鞋侧视，鞋带鞋底可见"),
 }
 
 

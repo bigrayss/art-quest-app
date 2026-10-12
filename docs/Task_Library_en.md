@@ -1,6 +1,6 @@
 # Phase 0 Fixed First-Visit Task Bank | Complete English Guide
 
-Version 1.0.1. Content frozen on 12 October 2026 (1.0.1: per the user's decision to follow the images, the object names in B2/B3/B4 observation tasks now match the v3 references; nothing else changed). Twenty-five new tasks cover ages 6–16 in five bands. Each band offers five fixed choices; the learner completes one task per session.
+Version 1.1.0. Content frozen on 12 October 2026 (1.1.0: adds a sixth band, ages 17 and over, with prompts reused from the M-family library; 1.0.1: per the user's decision to follow the images, the object names in B2/B3/B4 observation tasks now match the v3 references; nothing else changed). Thirty tasks cover ages 6 and over in six bands (the sixth, ages 17 and over, reuses prompts from the project's existing M-family library). Each band offers five fixed choices; the learner completes one task per session.
 
 This is a complete textual task specification, not an infographic. Each task includes learner-facing wording, hints, requirements, freedom, materials, attributes, dimension associations, interpretation notes and a post-task prompt. The Chinese guide and JSON files are generated from the same bilingual source.
 
@@ -21,6 +21,7 @@ These are 25 replacement first-visit tasks, not a reconstruction of every legacy
 | Ages 11–12 | Compulsory education, Grades 6–7 | B3_OB_01 Four Things on a Table; B3_ST_01 An Unexpected Moment; B3_FG_01 A Place from Fragments; B3_TR_01 Teapot Rescue Machine; B3_DS_01 A Sports-Day Mascot |
 | Ages 13–14 | Compulsory education, Grades 8–9 | B4_OB_01 Still Life by a Window; B4_ST_01 Two Moods in One Place; B4_FG_01 From Fragments to a Character; B4_TR_01 A Bicycle with a New Purpose; B4_DS_01 A School Activity Poster |
 | Ages 15–16 | Early upper secondary; informed by drawing and design modules, not their completion standards | B5_OB_01 Street Corner; B5_ST_01 Distance; B5_FG_01 Making Connection Visible; B5_TR_01 A Lamp for a Small Space; B5_DS_01 Less Waste at School |
+| Ages 17 and over | No matching school band; informed by upper-secondary drawing and design modules, prompts taken from the project's existing M-family library | B6_OB_01 Living Room; B6_ST_01 A Place on the Map; B6_FG_01 Fragments of a Mural; B6_TR_01 A Shoe Becomes a Creature; B6_DS_01 A Sign for My Gallery |
 
 ## 3. Shared delivery and post-task settings
 
@@ -1057,6 +1058,206 @@ These are 25 replacement first-visit tasks, not a reconstruction of every legacy
 **Source location**: [C20], [PISA23] · Upper-secondary Drawing and Design modules
 
 **Explicit adaptation**: Informed by upper-secondary visual communication and PISA purpose-directed ideation. The school waste-reduction theme is project-created.
+
+---
+
+### B6_OB_01 · Living Room
+
+**Age and family**: Ages 17 and over / Observation and representation
+
+**Card summary**: Draw a whole room from the reference.
+
+**Learner prompt (always visible)**: Draw the whole living room from the reference. Keep the large pieces such as the sofa, table and bookshelf in their places, and keep their sizes and front-to-back relations as close to the picture as you can. Smaller items are your choice. Use lines or colour.
+
+**Requirements (matching the prompt)**: Draw the main furniture of the living room. Keep their positions, sizes and front-to-back relations.
+
+**On-request hints**: H1: Place the large pieces such as the sofa and bookshelf first, then the small things. / H2: Compare which piece is in front and which is behind, then compare their sizes.
+
+**Creative freedom**: Small items, colours and details are your choice. You need not copy the illustration style or the view outside the window.
+
+**Materials and use**: [Independent reference PNG](../assets/B6_OB_ref.png). Reference: keep available throughout the task and display without cropping. Reuses the living-room reference of the project's M1 family (m1_scene_a).
+
+**Learning intention**: Observe a whole space and reproduce several objects by position and size.
+
+**Complexity descriptors (not calibrated difficulty)**: Six to eight objects in three depth layers; small items may be omitted.
+
+**Nine-dimensional associations (task metadata, not scores)**
+
+- Focus · Realism (`realism`): A shared reference allows comparison of overall structure and positions, not measurement of a real room.
+- Focus · Picture Organization (`picture_organization`): The arrangement of the whole scene is given by the reference and can be compared directly.
+- Exploratory · Line Combination (`line_combination`): Outlines and structural lines of furniture are observable; no technique is prescribed.
+- Exploratory · Color Richness (`color_richness`): A monochrome line drawing fully satisfies the task.
+
+**Task-content analysis**: Check first whether the large pieces keep their positions and layers, then how small items were selected; omitting small items is not weak observation.
+
+**Interpretation limits**: The illustrated reference is a stylised scene, not a measurement of a real room; perspective accuracy is not the only criterion.
+
+**Optional post-task reflection**: Which piece did you draw first, and why?
+
+**Submission and post-task configuration**: Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.
+
+**Source location**: [C20] · Drawing module; the project's M-family library, M1_J5 “Redraw this picture” (library 2.7)
+
+**Explicit adaptation**: Prompt and reference reuse M1_J5; the museum narrative is removed and requirements, hints and reflection follow the first-visit format.
+
+---
+### B6_ST_01 · A Place on the Map
+
+**Age and family**: Ages 17 and over / Personal expression and narrative
+
+**Card summary**: Draw a place that exists only on a map.
+
+**Learner prompt (always visible)**: The map shows a place that does not exist in real life. Imagine you find it and draw what it looks like in one picture. Leave one or two clues so viewers can guess what happened here. One picture; no writing needed.
+
+**Requirements (matching the prompt)**: Draw an imagined place. Include one or two recognisable clues in the picture.
+
+**On-request hints**: H1: Decide what kind of place it is first, then think of the clues. / H2: A clue can be one object or one trace; you do not need many.
+
+**Creative freedom**: Realistic or fantastic, colour, and whether people appear are your choice. A place name is not required.
+
+**Materials and use**: No finished example is provided. Start on a blank canvas.
+
+**Learning intention**: Let picture details carry narrative information.
+
+**Complexity descriptors (not calibrated difficulty)**: One place, one picture, at least one clue; no comic sequence.
+
+**Nine-dimensional associations (task metadata, not scores)**
+
+- Focus · Imagination (`imagination`): Both the place and the clues are invented by the learner.
+- Focus · Picture Organization (`picture_organization`): Clues need to be placed where they can be seen.
+- Exploratory · Transformation (`transformation`): “What happened” must become visible traces, but the way is not prescribed.
+- Exploratory · Color Contrast (`color_contrast`): Colour is not required.
+
+**Task-content analysis**: Record what the clues are and where they sit. Viewers need not guess correctly.
+
+**Interpretation limits**: Do not infer mental state from the subject. Fantasy and realism are not ranked.
+
+**Optional post-task reflection**: What clue did you leave, and what does it tell?
+
+**Submission and post-task configuration**: Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.
+
+**Source location**: [C20] · Drawing module; the project's M-family library, M9_J5 “A place on the map”
+
+**Explicit adaptation**: Prompt reuses M9_J5, adding “one picture, no writing” and the clue requirement.
+
+---
+### B6_FG_01 · Fragments of a Mural
+
+**Age and family**: Ages 17 and over / Creation from figural fragments
+
+**Card summary**: Build a story from a set of fragments.
+
+**Learner prompt (always visible)**: The line fragments in the reference come from a mural. Draw all of them into one picture and continue it into the story the mural might tell. You may move, rotate or resize the fragments, but each one should still be recognisable.
+
+**Requirements (matching the prompt)**: Use all fragments from the reference. Keep each fragment recognisable and develop one complete picture.
+
+**On-request hints**: H1: Look at what the shapes resemble first, then decide what they are in the story. / H2: They do not all have to become the same kind of thing.
+
+**Creative freedom**: Story, subject and colour are free. No original artwork needs to be restored.
+
+**Materials and use**: [Independent reference PNG](../assets/B6_FG_ref.png). Reference: keep available throughout the task and display without cropping. The fragments are the project's M3 fragment set E rendered as a reference; reproduce them on the blank canvas, they are not printed on it.
+
+**Learning intention**: Integrate several abstract fragments into one narrative picture.
+
+**Complexity descriptors (not calibrated difficulty)**: Seven fragments (arc, two dots, line, corner, curve, open rectangle), one picture; three more than B4/B5.
+
+**Nine-dimensional associations (task metadata, not scores)**
+
+- Focus · Imagination (`imagination`): What the fragments become and the story are invented by the learner.
+- Focus · Transformation (`transformation`): Abstract fragments must become meaningful images.
+- Exploratory · Picture Organization (`picture_organization`): How seven fragments are integrated is observable.
+- Exploratory · Deformation (`deformation`): Fragments may be exaggerated or extended, or kept as they are.
+
+**Task-content analysis**: Record what each fragment became and whether it stays recognisable. Fragment use is a content record, not an extra score.
+
+**Interpretation limits**: Not a TCT-DP item. More fragments than other bands; no equivalence is claimed.
+
+**Optional post-task reflection**: Which fragment first gave you the story?
+
+**Submission and post-task configuration**: Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.
+
+**Source location**: [URBAN05]; the project's M-family library, M3_J4 “Mural” plus fragment set E
+
+**Explicit adaptation**: M3 prints fragments on the canvas; here they sit in the reference area like the other bands. The prompt keeps the mural narrative of M3_J4.
+
+---
+### B6_TR_01 · A Shoe Becomes a Creature
+
+**Age and family**: Ages 17 and over / Reimagining an object
+
+**Card summary**: Turn a shoe into a creature that lives in a forest.
+
+**Learner prompt (always visible)**: Turn the shoe in the reference into a creature that lives in a great forest. Show how it lives there, and keep some features of the shoe so that people can still tell it came from a shoe. You decide which parts to keep.
+
+**Requirements (matching the prompt)**: Start from the reference shoe. Show how it looks or what it does in the forest. Retain recognisable shoe features.
+
+**On-request hints**: H1: Decide how it moves and what it eats in the forest first. / H2: Laces and sole patterns can become other things.
+
+**Creative freedom**: The creature may be realistic or fantastic; whether to draw the forest is your choice; colour is free.
+
+**Materials and use**: [Independent reference PNG](../assets/B6_TR_ref.png). Reference: keep available throughout the task and display without cropping. Reuses the project's M4 shoe reference (m4_shoe); the reference contains no redesign solution.
+
+**Learning intention**: Transform the structure of a familiar object into a creature with a habitat.
+
+**Complexity descriptors (not calibrated difficulty)**: One object and one environment condition; the reference contains no answer.
+
+**Nine-dimensional associations (task metadata, not scores)**
+
+- Focus · Deformation (`deformation`): The shoe's structure must be changed into a creature.
+- Focus · Transformation (`transformation`): From object to creature is a change of function and identity.
+- Exploratory · Imagination (`imagination`): The creature's way of life is invented by the learner.
+- Exploratory · Picture Organization (`picture_organization`): Observable when a forest setting is drawn.
+
+**Task-content analysis**: Distinguish retained shoe features, added creature features and the setting. Do not expect a particular answer.
+
+**Interpretation limits**: Do not judge biological plausibility. Recognisability is explicit, but no particular part is required.
+
+**Optional post-task reflection**: Which part of the shoe did you keep, and what did it become?
+
+**Submission and post-task configuration**: Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.
+
+**Source location**: [C20] · Design module; the project's M-family library, M4_J3 “Shoe to creature”
+
+**Explicit adaptation**: Prompt reuses M4_J3, adding “show how it lives” and first-visit-style requirements.
+
+---
+### B6_DS_01 · A Sign for My Gallery
+
+**Age and family**: Ages 17 and over / Visual communication design
+
+**Card summary**: Make a sign for your own gallery.
+
+**Learner prompt (always visible)**: This app has a gallery wall that shows your drawings. Design a sign for it so that people know this is your place. Choose the shapes and colours yourself; a short name is optional, and you do not have to write anything.
+
+**Requirements (matching the prompt)**: Design one sign. Let the image stand for “your gallery”.
+
+**On-request hints**: H1: Think of the one thing that best stands for you. / H2: The sign should still be recognisable when small.
+
+**Creative freedom**: Shapes, colours and whether to use words are free. You need not draw your face or use your real name.
+
+**Materials and use**: No finished example is provided. Start on a blank canvas.
+
+**Learning intention**: Express identity and purpose through one image.
+
+**Complexity descriptors (not calibrated difficulty)**: One purpose, one sign; no text required.
+
+**Nine-dimensional associations (task metadata, not scores)**
+
+- Focus · Picture Organization (`picture_organization`): The image needs to work as a whole for the purpose of a sign.
+- Exploratory · Imagination (`imagination`): A personal symbol may reveal imagination, but a familiar image can also meet the brief.
+- Exploratory · Color Contrast (`color_contrast`): Contrast may be observed when colour is used; multiple colours are not required.
+
+**Task-content analysis**: Record how the image relates to “self / gallery”. Do not judge likeness to the person.
+
+**Interpretation limits**: Do not infer personality from the sign. Words are not required.
+
+**Optional post-task reflection**: What about you will people think of when they see this sign?
+
+**Submission and post-task configuration**: Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.
+
+**Source location**: [C20] · Design module; [PISA23]; the project's gallery feature
+
+**Explicit adaptation**: Same operation as B2_DS “Reading-corner sign”, with the purpose changed to the learner's own gallery in this app.
 
 ---
 

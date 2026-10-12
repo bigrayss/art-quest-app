@@ -2,7 +2,7 @@
 
 > 由 `tools/taskspace_report.py` 生成，**别手改**；改 `artquest/taskspace/*.py` 再重跑。
 
-候选 105 道：clear 105 · open 0 · blocked 0。
+候选 110 道：clear 110 · open 0 · blocked 0。
 
 现有产品能力（任务要求的操作必须由工具 + 材料共同支持）：
 
@@ -317,7 +317,7 @@
 
 | 问题 | 回答 |
 | --- | --- |
-| 适用学段 | 来源：一(1–2)、二(3–5)、三(6–7)、四(8–9)、高中起始；拟适用：simple = None；full = None |
+| 适用学段 | 来源：一(1–2)、二(3–5)、三(6–7)、四(8–9)、高中起始、17+（无学段，取自 M 族题库）；拟适用：simple = None；full = None |
 | 学习目标 | 用共同参考比较外形与关系；复杂度按对象数和关系数描述，不是实测难度 |
 | 操作 | observe_represent（观察与表现：看着真实或给定的对象，按其结构 / 关系表现出来）；内容属性：space_perspective, line |
 | 必须提供的输入 | reference: 单张参考 PNG（1600×1200），always，contain；canvas: 空白 |
@@ -342,7 +342,7 @@
 
 | 问题 | 回答 |
 | --- | --- |
-| 适用学段 | 来源：一(1–2)、二(3–5)、三(6–7)、四(8–9)、高中起始；拟适用：simple = None；full = None |
+| 适用学段 | 来源：一(1–2)、二(3–5)、三(6–7)、四(8–9)、高中起始、17+（无学段，取自 M 族题库）；拟适用：simple = None；full = None |
 | 学习目标 | 用形象、动作、布局表达一个生活 / 想象情境或一个概念；单幅、不写故事 |
 | 操作 | personal_expression（个人表达：按自己的想法用造型元素表达所见所闻所感所想）；内容属性：narrative, composition |
 | 必须提供的输入 | reference: 无参考图（明确配置）；canvas: 空白 |
@@ -367,7 +367,7 @@
 
 | 问题 | 回答 |
 | --- | --- |
-| 适用学段 | 来源：一(1–2)、二(3–5)、三(6–7)、四(8–9)、高中起始；拟适用：simple = None；full = None |
+| 适用学段 | 来源：一(1–2)、二(3–5)、三(6–7)、四(8–9)、高中起始、17+（无学段，取自 M 族题库）；拟适用：simple = None；full = None |
 | 学习目标 | 从模糊图形刺激发展个人构想；片段在参考区，由孩子转抄到空白画布（不印在画布上，不是 TCT-DP 原题） |
 | 操作 | personal_expression（个人表达：按自己的想法用造型元素表达所见所闻所感所想）；内容属性：deformation_methods, composition |
 | 必须提供的输入 | reference: 片段参考 PNG（+ 可编辑 SVG），always，contain；canvas: 空白 |
@@ -392,7 +392,7 @@
 
 | 问题 | 回答 |
 | --- | --- |
-| 适用学段 | 来源：一(1–2)、二(3–5)、三(6–7)、四(8–9)、高中起始；拟适用：simple = None；full = None |
+| 适用学段 | 来源：一(1–2)、二(3–5)、三(6–7)、四(8–9)、高中起始、17+（无学段，取自 M 族题库）；拟适用：simple = None；full = None |
 | 学习目标 | 把熟悉物品的特征和一个新用途联系起来；「保留可辨认特征」写在题面里，不是隐藏要求 |
 | 操作 | purposeful_design（有目的的设计：为一个明确用途 / 功能设计一个方案）；内容属性：deformation_methods |
 | 必须提供的输入 | reference: 单件物品 PNG，always，contain（参考图不含改造答案）；canvas: 空白 |
@@ -417,7 +417,7 @@
 
 | 问题 | 回答 |
 | --- | --- |
-| 适用学段 | 来源：一(1–2)、二(3–5)、三(6–7)、四(8–9)、高中起始；拟适用：simple = None；full = None |
+| 适用学段 | 来源：一(1–2)、二(3–5)、三(6–7)、四(8–9)、高中起始、17+（无学段，取自 M 族题库）；拟适用：simple = None；full = None |
 | 学习目标 | 让图像为一个明确用途服务；不要求文字、不要求真实校名日期 |
 | 操作 | purposeful_design（有目的的设计：为一个明确用途 / 功能设计一个方案）；内容属性：composition |
 | 必须提供的输入 | reference: 无参考图（明确配置）；canvas: 空白 |
@@ -597,10 +597,11 @@
 | task_id | 版本 | 题 | 相对锚定题改变了 | 九维关联（* = 可合理绕开） | 实例级降级（2026-10-11） | 材料 → 检查 | 状态 | 未决问题 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | B1_OB_01 |  | 两片叶子 | 锚定题 | realism, line_combination, picture_organization*, color_richness* | — | B1_OB_ref（always）→ 无法判断 | clear | — |
-| B2_OB_01 |  | 苹果和两本书 | 材料；condition.age_max；condition.age_min；condition.band；题材 / 叙事 | realism, picture_organization, line_combination*, color_contrast* | — | B2_OB_ref（always）→ 无法判断 | clear | — |
-| B3_OB_01 |  | 桌上的四件物品 | 材料；condition.age_max；condition.age_min；condition.band；题材 / 叙事 | picture_organization, realism, line_combination*, color_contrast* | — | B3_OB_ref（always）→ 无法判断 | clear | — |
-| B4_OB_01 |  | 窗边静物 | 材料；condition.age_max；condition.age_min；condition.band；题材 / 叙事 | picture_organization, realism, line_combination*, color_contrast* | — | B4_OB_ref（always）→ 无法判断 | clear | — |
-| B5_OB_01 |  | 街角 | 材料；condition.age_max；condition.age_min；condition.band；题材 / 叙事 | picture_organization, realism, line_combination*, color_contrast* | — | B5_OB_ref（always）→ 无法判断 | clear | — |
+| B2_OB_01 |  | 苹果和两本书 | 材料；condition.age_max；condition.age_min；condition.band；题材 / 叙事 | realism, picture_organization, line_combination*, color_contrast* | — | B2_OB_ref（always）→ 不符合 | clear | — |
+| B3_OB_01 |  | 桌上的四件物品 | 材料；condition.age_max；condition.age_min；condition.band；题材 / 叙事 | picture_organization, realism, line_combination*, color_contrast* | — | B3_OB_ref（always）→ 不符合 | clear | — |
+| B4_OB_01 |  | 窗边静物 | 材料；condition.age_max；condition.age_min；condition.band；题材 / 叙事 | picture_organization, realism, line_combination*, color_contrast* | — | B4_OB_ref（always）→ 不符合 | clear | — |
+| B5_OB_01 |  | 街角 | 材料；condition.age_max；condition.age_min；condition.band；题材 / 叙事 | picture_organization, realism, line_combination*, color_contrast* | — | B5_OB_ref（always）→ 不符合 | clear | — |
+| B6_OB_01 |  | 客厅 | 材料；condition.age_max；condition.age_min；condition.band；题材 / 叙事 | realism, picture_organization, line_combination*, color_richness* | — | B6_OB_ref（always）→ 不符合 | clear | — |
 
 ### ST → BP_ST
 
@@ -611,6 +612,7 @@
 | B3_ST_01 |  | 一件意外的事 | condition.age_max；condition.age_min；condition.band；题材 / 叙事 | picture_organization, imagination*, deformation*, color_contrast* | — | 无参考图（明确配置） | clear | — |
 | B4_ST_01 |  | 同一个地方的两种感觉 | condition.age_max；condition.age_min；condition.band；题材 / 叙事 | picture_organization, transformation, color_contrast*, line_combination* | — | 无参考图（明确配置） | clear | — |
 | B5_ST_01 |  | 距离 | condition.age_max；condition.age_min；condition.band；题材 / 叙事 | transformation, picture_organization, imagination*, color_contrast* | — | 无参考图（明确配置） | clear | — |
+| B6_ST_01 |  | 地图上的地方 | condition.age_max；condition.age_min；condition.band；题材 / 叙事 | imagination, picture_organization, transformation*, color_contrast* | — | 无参考图（明确配置） | clear | — |
 
 ### FG → BP_FG
 
@@ -621,16 +623,18 @@
 | B3_FG_01 |  | 线条里的地方 | 材料；condition.age_max；condition.age_min；condition.band；题材 / 叙事 | imagination, picture_organization, deformation*, color_richness* | — | B3_FG_ref（always）→ 无法判断 | clear | — |
 | B4_FG_01 |  | 线条变角色 | 材料；condition.age_max；condition.age_min；condition.band；题材 / 叙事 | imagination, picture_organization, deformation*, line_texture* | — | B4_FG_ref（always）→ 无法判断 | clear | — |
 | B5_FG_01 |  | 看见连接 | 材料；condition.age_max；condition.age_min；condition.band；题材 / 叙事 | transformation, imagination, picture_organization, deformation*, color_richness* | — | B5_FG_ref（always）→ 无法判断 | clear | — |
+| B6_FG_01 |  | 壁画的碎片 | 材料；condition.age_max；condition.age_min；condition.band；题材 / 叙事 | imagination, transformation, picture_organization*, deformation* | — | B6_FG_ref（always）→ 无法判断 | clear | — |
 
 ### TR → BP_TR
 
 | task_id | 版本 | 题 | 相对锚定题改变了 | 九维关联（* = 可合理绕开） | 实例级降级（2026-10-11） | 材料 → 检查 | 状态 | 未决问题 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| B1_TR_01 |  | 会帮忙的杯子 | 锚定题 | imagination, deformation, picture_organization*, color_richness* | — | B1_TR_ref（always）→ 无法判断 | clear | — |
-| B2_TR_01 |  | 雨伞的新本领 | 材料；condition.age_max；condition.age_min；condition.band；题材 / 叙事 | imagination, deformation, picture_organization*, color_richness* | — | B2_TR_ref（always）→ 无法判断 | clear | — |
-| B3_TR_01 |  | 茶壶救援机 | 材料；condition.age_max；condition.age_min；condition.band；题材 / 叙事 | imagination, deformation, picture_organization*, color_contrast* | — | B3_TR_ref（always）→ 无法判断 | clear | — |
-| B4_TR_01 |  | 自行车的新用途 | 材料；condition.age_max；condition.age_min；condition.band；题材 / 叙事 | imagination, deformation, picture_organization*, color_richness* | — | B4_TR_ref（always）→ 无法判断 | clear | — |
-| B5_TR_01 |  | 小空间台灯 | 材料；condition.age_max；condition.age_min；condition.band；题材 / 叙事 | imagination, deformation, picture_organization*, line_combination* | — | B5_TR_ref（always）→ 无法判断 | clear | — |
+| B1_TR_01 |  | 会帮忙的杯子 | 锚定题 | imagination, deformation, picture_organization*, color_richness* | — | B1_TR_ref（always）→ 不符合 | clear | — |
+| B2_TR_01 |  | 雨伞的新本领 | 材料；condition.age_max；condition.age_min；condition.band；题材 / 叙事 | imagination, deformation, picture_organization*, color_richness* | — | B2_TR_ref（always）→ 不符合 | clear | — |
+| B3_TR_01 |  | 茶壶救援机 | 材料；condition.age_max；condition.age_min；condition.band；题材 / 叙事 | imagination, deformation, picture_organization*, color_contrast* | — | B3_TR_ref（always）→ 不符合 | clear | — |
+| B4_TR_01 |  | 自行车的新用途 | 材料；condition.age_max；condition.age_min；condition.band；题材 / 叙事 | imagination, deformation, picture_organization*, color_richness* | — | B4_TR_ref（always）→ 不符合 | clear | — |
+| B5_TR_01 |  | 小空间台灯 | 材料；condition.age_max；condition.age_min；condition.band；题材 / 叙事 | imagination, deformation, picture_organization*, line_combination* | — | B5_TR_ref（always）→ 不符合 | clear | — |
+| B6_TR_01 |  | 鞋子变生物 | 材料；condition.age_max；condition.age_min；condition.band；题材 / 叙事 | deformation, transformation, imagination*, picture_organization* | — | B6_TR_ref（always）→ 不符合 | clear | — |
 
 ### DS → BP_DS
 
@@ -641,6 +645,7 @@
 | B3_DS_01 |  | 运动会吉祥物 | condition.age_max；condition.age_min；condition.band；题材 / 叙事 | imagination, picture_organization, deformation*, color_contrast* | — | 无参考图（明确配置） | clear | — |
 | B4_DS_01 |  | 校园活动海报 | condition.age_max；condition.age_min；condition.band；题材 / 叙事 | picture_organization, imagination*, color_contrast*, transformation* | — | 无参考图（明确配置） | clear | — |
 | B5_DS_01 |  | 校园少浪费 | condition.age_max；condition.age_min；condition.band；题材 / 叙事 | picture_organization, transformation, imagination*, color_contrast* | — | 无参考图（明确配置） | clear | — |
+| B6_DS_01 |  | 我的画廊标志 | condition.age_max；condition.age_min；condition.band；题材 / 叙事 | picture_organization, imagination*, color_contrast* | — | 无参考图（明确配置） | clear | — |
 
 
 ## 3.x 草案（2026-10-11 先补的两类；**没有进库**，没有 task_id 和评分契约）
@@ -689,19 +694,22 @@
 | m6_scene_e | 供改色的中性场景（M6） | 扁平插画 | sat=0.358 fill_h=1.0 | 无法判断 | — | 4 项待看图 / 8 项被前提阻塞 |
 | B1_OB_ref | 正式观察参考（首访 OB） | PNG 1600×1200（原样保留的旧素材） | sat=0.131 fill_h=0.552 | 无法判断 | — | 1 项待看图 / 5 项被前提阻塞 |
 | B1_FG_ref | 片段参考（首访 FG：转抄到空白画布，不印在画布上） | PNG 1600×1200（原样保留的旧素材） | sat=0.0 fill_h=0.13 | 无法判断 | — | 1 项待看图 / 5 项被前提阻塞 |
-| B1_TR_ref | 供改造的物品参考（首访 TR） | 插画版（从展示拼版精确裁出，原生 306×342，非 1600×1200） | sat=0.303 fill_h=1.0 | 无法判断 | — | 1 项待看图 / 5 项被前提阻塞 |
-| B2_OB_ref | 正式观察参考（首访 OB） | 插画版（从展示拼版精确裁出，原生 295×342，非 1600×1200） | sat=0.288 fill_h=1.0 | 无法判断 | — | 1 项待看图 / 5 项被前提阻塞 |
+| B1_TR_ref | 供改造的物品参考（首访 TR） | PNG 1600×1200（原样保留的旧素材） | sat=0.303 fill_h=1.0 | 不符合 | 306×342（规格 1600×1200） | 1 项待看图 / 5 项被前提阻塞 |
+| B2_OB_ref | 正式观察参考（首访 OB） | PNG 1600×1200（原样保留的旧素材） | sat=0.288 fill_h=1.0 | 不符合 | 295×342（规格 1600×1200） | 1 项待看图 / 5 项被前提阻塞 |
 | B2_FG_ref | 片段参考（首访 FG：转抄到空白画布，不印在画布上） | PNG 1600×1200（原样保留的旧素材） | sat=0.001 fill_h=0.297 | 无法判断 | — | 1 项待看图 / 5 项被前提阻塞 |
-| B2_TR_ref | 供改造的物品参考（首访 TR） | 插画版（从展示拼版精确裁出，原生 297×342，非 1600×1200） | sat=0.312 fill_h=1.0 | 无法判断 | — | 1 项待看图 / 5 项被前提阻塞 |
-| B3_OB_ref | 正式观察参考（首访 OB） | 插画版（从展示拼版精确裁出，原生 297×342，非 1600×1200） | sat=0.251 fill_h=1.0 | 无法判断 | — | 1 项待看图 / 5 项被前提阻塞 |
+| B2_TR_ref | 供改造的物品参考（首访 TR） | PNG 1600×1200（原样保留的旧素材） | sat=0.312 fill_h=1.0 | 不符合 | 297×342（规格 1600×1200） | 1 项待看图 / 5 项被前提阻塞 |
+| B3_OB_ref | 正式观察参考（首访 OB） | PNG 1600×1200（原样保留的旧素材） | sat=0.251 fill_h=1.0 | 不符合 | 297×342（规格 1600×1200） | 1 项待看图 / 5 项被前提阻塞 |
 | B3_FG_ref | 片段参考（首访 FG：转抄到空白画布，不印在画布上） | PNG 1600×1200（原样保留的旧素材） | sat=0.001 fill_h=0.375 | 无法判断 | — | 1 项待看图 / 5 项被前提阻塞 |
-| B3_TR_ref | 供改造的物品参考（首访 TR） | 插画版（从展示拼版精确裁出，原生 308×342，非 1600×1200） | sat=0.192 fill_h=1.0 | 无法判断 | — | 1 项待看图 / 5 项被前提阻塞 |
-| B4_OB_ref | 正式观察参考（首访 OB） | 插画版（从展示拼版精确裁出，原生 365×364，非 1600×1200） | sat=0.127 fill_h=1.0 | 无法判断 | — | 1 项待看图 / 5 项被前提阻塞 |
+| B3_TR_ref | 供改造的物品参考（首访 TR） | PNG 1600×1200（原样保留的旧素材） | sat=0.192 fill_h=1.0 | 不符合 | 308×342（规格 1600×1200） | 1 项待看图 / 5 项被前提阻塞 |
+| B4_OB_ref | 正式观察参考（首访 OB） | PNG 1600×1200（原样保留的旧素材） | sat=0.127 fill_h=1.0 | 不符合 | 365×364（规格 1600×1200） | 1 项待看图 / 5 项被前提阻塞 |
 | B4_FG_ref | 片段参考（首访 FG：转抄到空白画布，不印在画布上） | PNG 1600×1200（原样保留的旧素材） | sat=0.001 fill_h=0.443 | 无法判断 | — | 1 项待看图 / 5 项被前提阻塞 |
-| B4_TR_ref | 供改造的物品参考（首访 TR） | 插画版（从展示拼版精确裁出，原生 443×364，非 1600×1200） | sat=0.099 fill_h=1.0 | 无法判断 | — | 1 项待看图 / 5 项被前提阻塞 |
-| B5_OB_ref | 正式观察参考（首访 OB） | 插画版（从展示拼版精确裁出，原生 342×364，非 1600×1200） | sat=0.291 fill_h=1.0 | 无法判断 | — | 1 项待看图 / 5 项被前提阻塞 |
+| B4_TR_ref | 供改造的物品参考（首访 TR） | PNG 1600×1200（原样保留的旧素材） | sat=0.099 fill_h=1.0 | 不符合 | 443×364（规格 1600×1200） | 1 项待看图 / 5 项被前提阻塞 |
+| B5_OB_ref | 正式观察参考（首访 OB） | PNG 1600×1200（原样保留的旧素材） | sat=0.291 fill_h=1.0 | 不符合 | 342×364（规格 1600×1200） | 1 项待看图 / 5 项被前提阻塞 |
 | B5_FG_ref | 片段参考（首访 FG：转抄到空白画布，不印在画布上） | PNG 1600×1200（原样保留的旧素材） | sat=0.001 fill_h=0.474 | 无法判断 | — | 1 项待看图 / 5 项被前提阻塞 |
-| B5_TR_ref | 供改造的物品参考（首访 TR） | 插画版（从展示拼版精确裁出，原生 357×364，非 1600×1200） | sat=0.205 fill_h=1.0 | 无法判断 | — | 1 项待看图 / 5 项被前提阻塞 |
+| B5_TR_ref | 供改造的物品参考（首访 TR） | PNG 1600×1200（原样保留的旧素材） | sat=0.205 fill_h=1.0 | 不符合 | 357×364（规格 1600×1200） | 1 项待看图 / 5 项被前提阻塞 |
+| B6_OB_ref | 正式观察参考（首访 OB）；第六段沿用本项目 M 族素材 | PNG 1600×1200（原样保留的旧素材） | sat=0.451 fill_h=1.0 | 不符合 | 2048×1408（规格 1600×1200） | 1 项待看图 / 5 项被前提阻塞 |
+| B6_FG_ref | 片段参考（首访 FG：转抄到空白画布，不印在画布上）；第六段沿用本项目 M 族素材 | PNG 1600×1200（原样保留的旧素材） | sat=0.0 fill_h=0.573 | 无法判断 | — | 1 项待看图 / 5 项被前提阻塞 |
+| B6_TR_ref | 供改造的物品参考（首访 TR）；第六段沿用本项目 M 族素材 | PNG 1600×1200（原样保留的旧素材） | sat=0.063 fill_h=0.506 | 不符合 | 2048×1408（规格 1600×1200） | 1 项待看图 / 5 项被前提阻塞 |
 | d2_nature_a | 正式观察参考（D2：形状 / 颜色 / 纹理） | 照片或写实插画（和 M1/M2 不是一套也没关系：这是单对象特写） | 矢量 | 不符合 | 文件不存在（草案材料：待制作） | 0 项待看图 / 0 项被前提阻塞 |
 | d2_nature_b | 正式观察参考（D2） | 照片或写实插画 | 矢量 | 不符合 | 文件不存在（草案材料：待制作） | 0 项待看图 / 0 项被前提阻塞 |
 

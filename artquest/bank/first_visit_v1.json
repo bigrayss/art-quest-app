@@ -32,6 +32,11 @@
    "id": "B5",
    "age_min": 15,
    "age_max": 16
+  },
+  {
+   "id": "B6",
+   "age_min": 17,
+   "age_max": 99
   }
  ],
  "families": {
@@ -2407,6 +2412,471 @@
      {
       "id": "H2",
       "text": "Let the image explain use; technical drawings are unnecessary."
+     }
+    ]
+   }
+  },
+  {
+   "task_id": "B6_DS_01",
+   "band": "B6",
+   "age_min": 17,
+   "age_max": 99,
+   "family": "DS",
+   "family_slug": "design",
+   "order": 4,
+   "reference": null,
+   "reference_svg": false,
+   "source_ids": [
+    "C20",
+    "PISA23"
+   ],
+   "dims": [
+    {
+     "key": "picture_organization",
+     "role": "primary",
+     "why_zh": "图形要作为一个整体服务标志的用途。",
+     "why_en": "The image needs to work as a whole for the purpose of a sign."
+    },
+    {
+     "key": "imagination",
+     "role": "exploratory",
+     "why_zh": "个人化符号可能体现新构想，常见图形也可合理完成。",
+     "why_en": "A personal symbol may reveal imagination, but a familiar image can also meet the brief."
+    },
+    {
+     "key": "color_contrast",
+     "role": "exploratory",
+     "why_zh": "使用颜色时可观察对比，不要求多色。",
+     "why_en": "Contrast may be observed when colour is used; multiple colours are not required."
+    }
+   ],
+   "zh": {
+    "title": "我的画廊标志",
+    "age_family": "17岁及以上 / 视觉传达设计",
+    "card": "给自己的画廊做一个标志。",
+    "prompt": "这个 app 里有一面挂着你作品的画廊。为它设计一个标志，让看到的人知道这是你的地方。图形和颜色由你决定，可以加一个简短的名字，也可以不写字。",
+    "requirements": "设计一个标志；让图形能代表「你的画廊」。",
+    "freedom": "图形、颜色、是否有字都自由；不要求画自己的脸或真名。",
+    "materials": "没有参考成品，从空白画布开始。",
+    "intention": "用一个图形表达身份与用途。",
+    "complexity": "一个用途、一幅标志；不要求文字。",
+    "analysis": "记录图形与「自己 / 画廊」的联系；不评价像不像本人。",
+    "limits": "不从标志推断性格；不要求写字。",
+    "reflection": "别人看到这个标志会想到你的什么？",
+    "post_config": "保存一幅首稿；共用first_visit_common_v1；喜欢程度和感觉难度各一题可跳过；反思可跳过；不因反馈未完成而阻止退出。",
+    "sources": "[C20] · 设计模块；[PISA23]；本项目的画廊功能",
+    "adaptation": "和 B2_DS「图书角标志」同一操作，用途换成本 app 里的个人画廊。",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "先想一个最能代表你的东西。"
+     },
+     {
+      "id": "H2",
+      "text": "标志缩小了也要认得出。"
+     }
+    ]
+   },
+   "en": {
+    "title": "A Sign for My Gallery",
+    "age_family": "Ages 17 and over / Visual communication design",
+    "card": "Make a sign for your own gallery.",
+    "prompt": "This app has a gallery wall that shows your drawings. Design a sign for it so that people know this is your place. Choose the shapes and colours yourself; a short name is optional, and you do not have to write anything.",
+    "requirements": "Design one sign. Let the image stand for “your gallery”.",
+    "freedom": "Shapes, colours and whether to use words are free. You need not draw your face or use your real name.",
+    "materials": "No finished example is provided. Start on a blank canvas.",
+    "intention": "Express identity and purpose through one image.",
+    "complexity": "One purpose, one sign; no text required.",
+    "analysis": "Record how the image relates to “self / gallery”. Do not judge likeness to the person.",
+    "limits": "Do not infer personality from the sign. Words are not required.",
+    "reflection": "What about you will people think of when they see this sign?",
+    "post_config": "Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.",
+    "sources": "[C20] · Design module; [PISA23]; the project's gallery feature",
+    "adaptation": "Same operation as B2_DS “Reading-corner sign”, with the purpose changed to the learner's own gallery in this app.",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "Think of the one thing that best stands for you."
+     },
+     {
+      "id": "H2",
+      "text": "The sign should still be recognisable when small."
+     }
+    ]
+   }
+  },
+  {
+   "task_id": "B6_FG_01",
+   "band": "B6",
+   "age_min": 17,
+   "age_max": 99,
+   "family": "FG",
+   "family_slug": "fragments",
+   "order": 2,
+   "reference": "B6_FG_ref",
+   "reference_svg": false,
+   "source_ids": [
+    "URBAN05"
+   ],
+   "dims": [
+    {
+     "key": "imagination",
+     "role": "primary",
+     "why_zh": "碎片变成什么、故事是什么由学生构想。",
+     "why_en": "What the fragments become and the story are invented by the learner."
+    },
+    {
+     "key": "transformation",
+     "role": "primary",
+     "why_zh": "抽象碎片要变成有意义的形象。",
+     "why_en": "Abstract fragments must become meaningful images."
+    },
+    {
+     "key": "picture_organization",
+     "role": "exploratory",
+     "why_zh": "七块碎片的整合可观察。",
+     "why_en": "How seven fragments are integrated is observable."
+    },
+    {
+     "key": "deformation",
+     "role": "exploratory",
+     "why_zh": "碎片可被夸张或延展，也可保留原样。",
+     "why_en": "Fragments may be exaggerated or extended, or kept as they are."
+    }
+   ],
+   "zh": {
+    "title": "壁画的碎片",
+    "age_family": "17岁及以上 / 图形片段创作",
+    "card": "从一组碎片里接出一个故事。",
+    "prompt": "参考图里的这些线条碎片来自一幅壁画。把它们都画进一幅画，接着画出这幅壁画可能讲的故事。碎片可以移动、转向或变大小，但每一块都要还能找到。",
+    "requirements": "使用参考图中的全部碎片；保持每块碎片可辨认，并发展成一幅完整画面。",
+    "freedom": "故事、主题、颜色自由；不要求复原某个原作。",
+    "materials": "[独立参考PNG](../assets/B6_FG_ref.png)。参考图：可随时查看，按完整比例显示。 碎片是本项目 M3 家族的碎片组 E 渲染成的参考图；照参考转抄到空白画布，不印在画布上。",
+    "intention": "从多段抽象片段整合出一个有叙事的画面。",
+    "complexity": "七块碎片（弧、两点、线、角、曲线、缺口矩形）、单幅；比 B4/B5 多三块。",
+    "analysis": "记录每块碎片被用成什么、是否可辨认；碎片使用是内容记录，不另加分。",
+    "limits": "不是 TCT-DP 原题；碎片数量多于其他年龄段，不作等值比较。",
+    "reflection": "哪一块碎片最先让你想到这个故事？",
+    "post_config": "保存一幅首稿；共用first_visit_common_v1；喜欢程度和感觉难度各一题可跳过；反思可跳过；不因反馈未完成而阻止退出。",
+    "sources": "[URBAN05]；本项目 M 族题库 M3_J4「壁画」+ M3 碎片组 E",
+    "adaptation": "M3 把碎片印在画布上，这里改为参考区转抄，和其他年龄段一致；题面沿用 M3_J4 的壁画叙事。",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "先看碎片的形状像什么，再想它们在故事里是什么。"
+     },
+     {
+      "id": "H2",
+      "text": "不必把它们全部变成同一种东西。"
+     }
+    ]
+   },
+   "en": {
+    "title": "Fragments of a Mural",
+    "age_family": "Ages 17 and over / Creation from figural fragments",
+    "card": "Build a story from a set of fragments.",
+    "prompt": "The line fragments in the reference come from a mural. Draw all of them into one picture and continue it into the story the mural might tell. You may move, rotate or resize the fragments, but each one should still be recognisable.",
+    "requirements": "Use all fragments from the reference. Keep each fragment recognisable and develop one complete picture.",
+    "freedom": "Story, subject and colour are free. No original artwork needs to be restored.",
+    "materials": "[Independent reference PNG](../assets/B6_FG_ref.png). Reference: keep available throughout the task and display without cropping. The fragments are the project's M3 fragment set E rendered as a reference; reproduce them on the blank canvas, they are not printed on it.",
+    "intention": "Integrate several abstract fragments into one narrative picture.",
+    "complexity": "Seven fragments (arc, two dots, line, corner, curve, open rectangle), one picture; three more than B4/B5.",
+    "analysis": "Record what each fragment became and whether it stays recognisable. Fragment use is a content record, not an extra score.",
+    "limits": "Not a TCT-DP item. More fragments than other bands; no equivalence is claimed.",
+    "reflection": "Which fragment first gave you the story?",
+    "post_config": "Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.",
+    "sources": "[URBAN05]; the project's M-family library, M3_J4 “Mural” plus fragment set E",
+    "adaptation": "M3 prints fragments on the canvas; here they sit in the reference area like the other bands. The prompt keeps the mural narrative of M3_J4.",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "Look at what the shapes resemble first, then decide what they are in the story."
+     },
+     {
+      "id": "H2",
+      "text": "They do not all have to become the same kind of thing."
+     }
+    ]
+   }
+  },
+  {
+   "task_id": "B6_OB_01",
+   "band": "B6",
+   "age_min": 17,
+   "age_max": 99,
+   "family": "OB",
+   "family_slug": "observe",
+   "order": 0,
+   "reference": "B6_OB_ref",
+   "reference_svg": false,
+   "source_ids": [
+    "C20"
+   ],
+   "dims": [
+    {
+     "key": "realism",
+     "role": "primary",
+     "why_zh": "共同参考允许比较整体结构与位置，不等于真实房间的测量。",
+     "why_en": "A shared reference allows comparison of overall structure and positions, not measurement of a real room."
+    },
+    {
+     "key": "picture_organization",
+     "role": "primary",
+     "why_zh": "整幅场景的安排由参考图给定，可直接比较。",
+     "why_en": "The arrangement of the whole scene is given by the reference and can be compared directly."
+    },
+    {
+     "key": "line_combination",
+     "role": "exploratory",
+     "why_zh": "家具的轮廓与结构线可观察，技法不限。",
+     "why_en": "Outlines and structural lines of furniture are observable; no technique is prescribed."
+    },
+    {
+     "key": "color_richness",
+     "role": "exploratory",
+     "why_zh": "单色线稿同样符合任务。",
+     "why_en": "A monochrome line drawing fully satisfies the task."
+    }
+   ],
+   "zh": {
+    "title": "客厅",
+    "age_family": "17岁及以上 / 观察与表现",
+    "card": "把一整个房间照着画下来。",
+    "prompt": "照着参考图把整个客厅画出来，沙发、茶几、书架这些大件要在原来的位置，大小和前后关系也尽量和图里一样。小物件可以取舍，线稿或上色都可以。",
+    "requirements": "画出客厅里的主要家具；保留它们的位置、大小和前后关系。",
+    "freedom": "小物件、颜色和细节可取舍；不要求复制插画笔触和窗外的景。",
+    "materials": "[独立参考PNG](../assets/B6_OB_ref.png)。参考图：可随时查看，按完整比例显示。 沿用本项目 M1 家族的客厅参考图（m1_scene_a）。",
+    "intention": "整体观察一个空间，按位置和大小关系重现多个对象。",
+    "complexity": "六到八个对象、前中后三层；允许取舍小物件。",
+    "analysis": "先看大件的位置和层次是否保留，再看小物件的取舍；省略小物件不等于观察不足。",
+    "limits": "插画参考是风格化场景，不是真实房间的测量；不以透视精确度作为唯一判断。",
+    "reflection": "你先画了哪一件，为什么？",
+    "post_config": "保存一幅首稿；共用first_visit_common_v1；喜欢程度和感觉难度各一题可跳过；反思可跳过；不因反馈未完成而阻止退出。",
+    "sources": "[C20] · 绘画模块；本项目 M 族题库 M1_J5「重画这幅画」（任务库 2.7）",
+    "adaptation": "题面和参考图沿用 M1_J5；去掉博物馆叙事，按首访库的格式补必要条件、提示和反思。",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "先定沙发、书架这些大块的位置，再放小东西。"
+     },
+     {
+      "id": "H2",
+      "text": "比一比哪件在前、哪件在后，再看它们的大小。"
+     }
+    ]
+   },
+   "en": {
+    "title": "Living Room",
+    "age_family": "Ages 17 and over / Observation and representation",
+    "card": "Draw a whole room from the reference.",
+    "prompt": "Draw the whole living room from the reference. Keep the large pieces such as the sofa, table and bookshelf in their places, and keep their sizes and front-to-back relations as close to the picture as you can. Smaller items are your choice. Use lines or colour.",
+    "requirements": "Draw the main furniture of the living room. Keep their positions, sizes and front-to-back relations.",
+    "freedom": "Small items, colours and details are your choice. You need not copy the illustration style or the view outside the window.",
+    "materials": "[Independent reference PNG](../assets/B6_OB_ref.png). Reference: keep available throughout the task and display without cropping. Reuses the living-room reference of the project's M1 family (m1_scene_a).",
+    "intention": "Observe a whole space and reproduce several objects by position and size.",
+    "complexity": "Six to eight objects in three depth layers; small items may be omitted.",
+    "analysis": "Check first whether the large pieces keep their positions and layers, then how small items were selected; omitting small items is not weak observation.",
+    "limits": "The illustrated reference is a stylised scene, not a measurement of a real room; perspective accuracy is not the only criterion.",
+    "reflection": "Which piece did you draw first, and why?",
+    "post_config": "Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.",
+    "sources": "[C20] · Drawing module; the project's M-family library, M1_J5 “Redraw this picture” (library 2.7)",
+    "adaptation": "Prompt and reference reuse M1_J5; the museum narrative is removed and requirements, hints and reflection follow the first-visit format.",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "Place the large pieces such as the sofa and bookshelf first, then the small things."
+     },
+     {
+      "id": "H2",
+      "text": "Compare which piece is in front and which is behind, then compare their sizes."
+     }
+    ]
+   }
+  },
+  {
+   "task_id": "B6_ST_01",
+   "band": "B6",
+   "age_min": 17,
+   "age_max": 99,
+   "family": "ST",
+   "family_slug": "express",
+   "order": 1,
+   "reference": null,
+   "reference_svg": false,
+   "source_ids": [
+    "C20"
+   ],
+   "dims": [
+    {
+     "key": "imagination",
+     "role": "primary",
+     "why_zh": "地方和线索都由学生构想。",
+     "why_en": "Both the place and the clues are invented by the learner."
+    },
+    {
+     "key": "picture_organization",
+     "role": "primary",
+     "why_zh": "线索要安排在能被看见的位置。",
+     "why_en": "Clues need to be placed where they can be seen."
+    },
+    {
+     "key": "transformation",
+     "role": "exploratory",
+     "why_zh": "「发生过什么」要转成可见的痕迹，但不规定方式。",
+     "why_en": "“What happened” must become visible traces, but the way is not prescribed."
+    },
+    {
+     "key": "color_contrast",
+     "role": "exploratory",
+     "why_zh": "用色不是必要条件。",
+     "why_en": "Colour is not required."
+    }
+   ],
+   "zh": {
+    "title": "地图上的地方",
+    "age_family": "17岁及以上 / 个人表达与叙事",
+    "card": "画出一个只存在于地图上的地方。",
+    "prompt": "地图上标着一个现实中不存在的地方。想象你找到了它，用一幅画画出那里的样子，并留一两个线索，让看的人猜得到这里发生过什么。只画一幅，不用写文字。",
+    "requirements": "画出一个想象中的地方；画面里有一两个可以辨认的线索。",
+    "freedom": "真实或奇幻、颜色、有没有人物都由你定；不要求写地名。",
+    "materials": "没有参考成品，从空白画布开始。",
+    "intention": "用画面细节承担叙事信息。",
+    "complexity": "一个地方、一幅画、至少一个线索；不要求连环画。",
+    "analysis": "记录线索是什么、放在哪里；不要求看画的人一定猜中。",
+    "limits": "不根据题材推断心理状态；奇幻与写实不分高下。",
+    "reflection": "你留的线索是什么，它说了什么？",
+    "post_config": "保存一幅首稿；共用first_visit_common_v1；喜欢程度和感觉难度各一题可跳过；反思可跳过；不因反馈未完成而阻止退出。",
+    "sources": "[C20] · 绘画模块；本项目 M 族题库 M9_J5「地图上的地方」",
+    "adaptation": "题面沿用 M9_J5，加了「只画一幅、不用写文字」和线索的必要条件。",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "先决定这是什么样的地方，再想线索。"
+     },
+     {
+      "id": "H2",
+      "text": "线索可以是一件东西、一个痕迹，不用很多。"
+     }
+    ]
+   },
+   "en": {
+    "title": "A Place on the Map",
+    "age_family": "Ages 17 and over / Personal expression and narrative",
+    "card": "Draw a place that exists only on a map.",
+    "prompt": "The map shows a place that does not exist in real life. Imagine you find it and draw what it looks like in one picture. Leave one or two clues so viewers can guess what happened here. One picture; no writing needed.",
+    "requirements": "Draw an imagined place. Include one or two recognisable clues in the picture.",
+    "freedom": "Realistic or fantastic, colour, and whether people appear are your choice. A place name is not required.",
+    "materials": "No finished example is provided. Start on a blank canvas.",
+    "intention": "Let picture details carry narrative information.",
+    "complexity": "One place, one picture, at least one clue; no comic sequence.",
+    "analysis": "Record what the clues are and where they sit. Viewers need not guess correctly.",
+    "limits": "Do not infer mental state from the subject. Fantasy and realism are not ranked.",
+    "reflection": "What clue did you leave, and what does it tell?",
+    "post_config": "Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.",
+    "sources": "[C20] · Drawing module; the project's M-family library, M9_J5 “A place on the map”",
+    "adaptation": "Prompt reuses M9_J5, adding “one picture, no writing” and the clue requirement.",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "Decide what kind of place it is first, then think of the clues."
+     },
+     {
+      "id": "H2",
+      "text": "A clue can be one object or one trace; you do not need many."
+     }
+    ]
+   }
+  },
+  {
+   "task_id": "B6_TR_01",
+   "band": "B6",
+   "age_min": 17,
+   "age_max": 99,
+   "family": "TR",
+   "family_slug": "redesign",
+   "order": 3,
+   "reference": "B6_TR_ref",
+   "reference_svg": false,
+   "source_ids": [
+    "C20"
+   ],
+   "dims": [
+    {
+     "key": "deformation",
+     "role": "primary",
+     "why_zh": "鞋子的结构要被改变成生物。",
+     "why_en": "The shoe's structure must be changed into a creature."
+    },
+    {
+     "key": "transformation",
+     "role": "primary",
+     "why_zh": "从物品到生物是功能和身份的转化。",
+     "why_en": "From object to creature is a change of function and identity."
+    },
+    {
+     "key": "imagination",
+     "role": "exploratory",
+     "why_zh": "生物的生活方式由学生构想。",
+     "why_en": "The creature's way of life is invented by the learner."
+    },
+    {
+     "key": "picture_organization",
+     "role": "exploratory",
+     "why_zh": "画了森林环境时可观察。",
+     "why_en": "Observable when a forest setting is drawn."
+    }
+   ],
+   "zh": {
+    "title": "鞋子变生物",
+    "age_family": "17岁及以上 / 物品创意改造",
+    "card": "让一只鞋变成住在森林里的生物。",
+    "prompt": "把参考图里的这只鞋变成住在大森林里的生物。画出它怎样在森林里生活，并保留一些鞋子的特征，让人还看得出它是鞋子变的。保留哪些部分由你决定。",
+    "requirements": "从参考鞋子出发；画出它在森林里的样子或活动；保留可辨认的鞋子特征。",
+    "freedom": "生物可现实可奇幻；是否画森林环境由你定；颜色自由。",
+    "materials": "[独立参考PNG](../assets/B6_TR_ref.png)。参考图：可随时查看，按完整比例显示。 沿用本项目 M4 家族的鞋子参考图（m4_shoe）；参考图不含改造答案。",
+    "intention": "把熟悉物品的结构转化为一个有生活环境的生物。",
+    "complexity": "一件物品、一个环境条件；参考图无答案。",
+    "analysis": "区分保留的鞋子特征、新增的生物特征和环境；不预设某种答案。",
+    "limits": "不判断生物学合理性；可辨认写在题面里，但不规定部件。",
+    "reflection": "你留下了鞋子的哪一部分，它变成了什么？",
+    "post_config": "保存一幅首稿；共用first_visit_common_v1；喜欢程度和感觉难度各一题可跳过；反思可跳过；不因反馈未完成而阻止退出。",
+    "sources": "[C20] · 设计模块；本项目 M 族题库 M4_J3「鞋子变生物」",
+    "adaptation": "题面沿用 M4_J3，补「画出它怎样生活」和首访库格式的必要条件。",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "先想它在森林里怎么动、吃什么。"
+     },
+     {
+      "id": "H2",
+      "text": "鞋带、鞋底的纹路都可以变成别的东西。"
+     }
+    ]
+   },
+   "en": {
+    "title": "A Shoe Becomes a Creature",
+    "age_family": "Ages 17 and over / Reimagining an object",
+    "card": "Turn a shoe into a creature that lives in a forest.",
+    "prompt": "Turn the shoe in the reference into a creature that lives in a great forest. Show how it lives there, and keep some features of the shoe so that people can still tell it came from a shoe. You decide which parts to keep.",
+    "requirements": "Start from the reference shoe. Show how it looks or what it does in the forest. Retain recognisable shoe features.",
+    "freedom": "The creature may be realistic or fantastic; whether to draw the forest is your choice; colour is free.",
+    "materials": "[Independent reference PNG](../assets/B6_TR_ref.png). Reference: keep available throughout the task and display without cropping. Reuses the project's M4 shoe reference (m4_shoe); the reference contains no redesign solution.",
+    "intention": "Transform the structure of a familiar object into a creature with a habitat.",
+    "complexity": "One object and one environment condition; the reference contains no answer.",
+    "analysis": "Distinguish retained shoe features, added creature features and the setting. Do not expect a particular answer.",
+    "limits": "Do not judge biological plausibility. Recognisability is explicit, but no particular part is required.",
+    "reflection": "Which part of the shoe did you keep, and what did it become?",
+    "post_config": "Save one initial image; use first_visit_common_v1. Interest and perceived difficulty are each skippable; reflection is optional. Ending does not depend on feedback completion.",
+    "sources": "[C20] · Design module; the project's M-family library, M4_J3 “Shoe to creature”",
+    "adaptation": "Prompt reuses M4_J3, adding “show how it lives” and first-visit-style requirements.",
+    "hints": [
+     {
+      "id": "H1",
+      "text": "Decide how it moves and what it eats in the forest first."
+     },
+     {
+      "id": "H2",
+      "text": "Laces and sole patterns can become other things."
      }
     ]
    }

@@ -27,7 +27,7 @@ BANK_ROWS = [r for r in build_library() if r.get("bank")]
 
 class Library(unittest.TestCase):
     def test_twenty_five_tasks_five_per_band_in_fixed_order(self):
-        self.assertEqual(len(BANK_ROWS), 25)
+        self.assertEqual(len(BANK_ROWS), 30)
         by_band = {}
         for r in BANK_ROWS:
             by_band.setdefault(r["band"], []).append(r["family"])
@@ -35,7 +35,7 @@ class Library(unittest.TestCase):
         for band, fams in by_band.items():
             self.assertEqual(fams, ORDER, band)          # 观察 / 表达 / 图形片段 / 物品改造 / 视觉设计，顺序固定
         for r in BANK_ROWS:
-            self.assertRegex(r["task_id"], r"^B[1-5]_(OB|ST|FG|TR|DS)_01$")
+            self.assertRegex(r["task_id"], r"^B[1-6]_(OB|ST|FG|TR|DS)_01$")
             self.assertEqual(r["tiers"], [])             # 不进简单版 / 完整版的抽题
             self.assertFalse(r["legacy"])
             self.assertIsNone(r["time_limit_sec"])       # 没有 60 秒阶段、没有限时
@@ -88,7 +88,7 @@ class Library(unittest.TestCase):
                 self.assertGreaterEqual(min(im.size), 290, "小于展示拼版原生尺寸 = 被缩过")
             self.assertFalse(QUESTS_BY_ID[r["task_id"]]["stimulus_placeholder"], "真图已到位，不该再标 placeholder")
             self.assertFalse(stim["svg"], "v3 包没有可编辑 SVG，不能假称有")
-        self.assertEqual(n, 15)
+        self.assertEqual(n, 18)
 
     def test_english_travels_with_the_row(self):
         for r in BANK_ROWS:
@@ -113,7 +113,9 @@ class Routing(unittest.TestCase):
         self.assertEqual(band_of(11)["id"], "B3")
         self.assertEqual(band_of(14)["id"], "B4")
         self.assertEqual(band_of(16)["id"], "B5")
-        for bad in (5, 17, None, "", "x"):
+        self.assertEqual(band_of(17)["id"], "B6")     # 17 岁及以上：成年初学者也用这个 app
+        self.assertEqual(band_of(45)["id"], "B6")
+        for bad in (5, 100, None, "", "x"):
             self.assertEqual(band_of(bad), {}, bad)
 
     def test_config_exposes_the_bands_and_quests_expose_the_bank(self):
@@ -126,14 +128,18 @@ class Routing(unittest.TestCase):
         finally:
             cfg_mod.FIRST_VISIT_BANK = old
         self.assertTrue(cfg["enabled"])
-        self.assertEqual([b["id"] for b in cfg["bands"]], ["B1", "B2", "B3", "B4", "B5"])
+        self.assertEqual([b["id"] for b in cfg["bands"]], ["B1", "B2", "B3", "B4", "B5", "B6"])
         self.assertEqual(cfg["order"], ORDER)
         qs = c.get("/api/v1/quests").json()
         bank = [q for q in qs if q.get("bank")]
-        self.assertEqual(len(bank), 25)
+        self.assertEqual(len(bank), 30)
         self.assertTrue(all(q["hints"] and q["requirements"] for q in bank))
         en = [q for q in c.get("/api/v1/quests", headers={"Accept-Language": "en"}).json() if q.get("bank")]
         self.assertEqual(en[0]["hints"][0]["id"], "H1")
+        # 第六段的图沿用 M 族素材，一张是 jpg
+        b6 = {q["task_id"]: q for q in bank if q["band"] == "B6"}
+        self.assertEqual(len(b6), 5)
+        self.assertTrue(b6["B6_OB_01"]["stimulus"]["file"].endswith(".jpg"))
         self.assertNotEqual(en[0]["instruction"], bank[0]["instruction"])
 
 

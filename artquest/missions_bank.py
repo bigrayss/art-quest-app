@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 BANK = "first_visit_v1"
-BANK_VERSION = "1.0.1"          # 1.0.0 冻结 2026-10-12；1.0.1 同日：B2/B3/B4 观察题按图改对象名。改题面 → 改 docs → 重跑 import_bank → 升这里
+BANK_VERSION = "1.1.0"          # 1.0.0 冻结 2026-10-12；1.0.1 B2/B3/B4 按图改对象名；1.1.0 加第六段（17 岁及以上，题面取自 M 族）。改题面 → 改 docs → 重跑 import_bank → 升这里
 POST_CONFIG = "first_visit_common_v1"
 DATA = Path(__file__).resolve().parent / "bank" / "first_visit_v1.json"
 
@@ -29,12 +29,20 @@ _DOC: Dict[str, Any] = json.loads(DATA.read_text("utf-8"))
 REFS_DIR = Path(__file__).resolve().parents[1] / "static" / "refs" / "bank"
 
 
+def ref_file(sid: str) -> str:
+    """参考图文件名：png 优先，没有就 jpg（B6_OB 沿用 M1 的 jpg 场景图）。"""
+    for ext in (".png", ".jpg"):
+        if (REFS_DIR / f"{sid}{ext}").exists():
+            return f"{sid}{ext}"
+    return f"{sid}.png"
+
+
 def _ref_size(sid: str) -> List[int]:
     """参考图的原生像素。2026-10-12 用户给的图不是 1600×1200（插画版是从展示拼版精确裁出的 295–443 px），
     文档的规格数字不作依据；记实际尺寸，显示用 contain，不放大不裁切。"""
     try:
         from PIL import Image
-        with Image.open(REFS_DIR / f"{sid}.png") as im:
+        with Image.open(REFS_DIR / ref_file(sid)) as im:
             return list(im.size)
     except Exception:
         return []
@@ -90,7 +98,7 @@ def build_bank(row_fn, families: Dict[str, Dict[str, Any]]) -> List[Dict[str, An
         stim = None
         if t["reference"]:
             sid = t["reference"]            # B1_OB_ref
-            stim = {"kind": "reference", "stimulus_id": sid, "id": sid, "file": f"/static/refs/bank/{sid}.png",
+            stim = {"kind": "reference", "stimulus_id": sid, "id": sid, "file": f"/static/refs/bank/{ref_file(sid)}",
                     "mode": "always", "fit": "contain", "size": _ref_size(sid), "svg": False}   # 没有可编辑 SVG（v3 包说明）
         cond = dict(bank=BANK, bank_version=BANK_VERSION, band=t["band"], age_min=t["age_min"], age_max=t["age_max"],
                     post_config=POST_CONFIG, revision_enabled=False, reference_fit="contain",

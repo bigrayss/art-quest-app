@@ -131,11 +131,11 @@
   <!-- 两栏上方一行：左边一句操作引导，右边「已体验 n 个主题」（按存过作品的不同主题数算；没有就不显示，不加进度条） -->
   <!-- 首访任务库（2026-10-12）：第一次来、还不知道年龄时先问一句——任务按年龄段来选，不静默分配 -->
   <div class="age-gate hidden" id="age-gate">
-    <p class="age-gate-q">先告诉彩点你几岁，任务会按年龄来选。</p>
+    <p class="age-gate-q">你今年几岁？</p>
     <div class="age-gate-row"><input id="age-gate-input" type="text" inputmode="numeric" maxlength="2" placeholder="几岁"><button class="primary" id="btn-age-gate">开始<i data-icon="arrowRight" data-size="17"></i></button></div>
   </div>
   <div class="map-lead" id="map-lead"><span id="map-lead-text">选一个主题，开始今天的创作。</span><span class="map-count hidden" id="map-count"></span></div>
-  <p class="map-note hidden" id="age-gate-note">这个年龄段还没有首访任务，先从下面的主题里挑一个。</p>
+  <p class="map-note hidden" id="age-gate-note">先从下面的主题里挑一个。</p>
   <div class="map" id="quest-grid">
     <!-- 十个地方之间的小路。它**不表示顺序**（家族之间本来就没有先后），
          它只做一件事：把十个散落的点变成一片连着的地。

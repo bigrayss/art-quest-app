@@ -4,13 +4,13 @@
 window.ARTQUEST_LANG_EN = {
   "语言": "Language",
   // 首访任务库（2026-10-12）
-  "先告诉彩点你几岁，任务会按年龄来选。": "First tell Dot how old you are. Tasks are chosen by age.",
+  "你今年几岁？": "How old are you?",
   "几岁": "Age",
   "开始": "Start",
   "今天从这五个里选一道画。": "Pick one of these five to draw today.",
   "选一个地方，开始今天的创作。": "Pick a place and start today's drawing.",
   "画完一张再开": "Opens after your next drawing",
-  "这个年龄段还没有首访任务，先从下面的主题里挑一个。": "There is no first-visit task for this age yet. Pick a theme below instead.",
+  "先从下面的主题里挑一个。": "Pick a theme below to start.",
   "要做到": "Must include",
   "看一条提示": "Show a hint",
   "再看一条提示": "Show another hint",

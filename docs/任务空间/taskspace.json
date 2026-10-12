@@ -1357,14 +1357,16 @@
     "二(3–5)",
     "三(6–7)",
     "四(8–9)",
-    "高中起始"
+    "高中起始",
+    "17+（无学段，取自 M 族题库）"
    ],
    "band_proposed": {
     "B1": "6–7 两片叶子",
     "B2": "8–10 三件物品 + 一处遮挡",
     "B3": "11–12 四件物品 + 两处前后",
     "B4": "13–14 窗边静物",
-    "B5": "15–16 街角两个面"
+    "B5": "15–16 街角两个面",
+    "B6": "17+ 整个客厅（M1_J5）"
    },
    "goal": "用共同参考比较外形与关系；复杂度按对象数和关系数描述，不是实测难度",
    "operation": "observe_represent",
@@ -1451,14 +1453,16 @@
     "二(3–5)",
     "三(6–7)",
     "四(8–9)",
-    "高中起始"
+    "高中起始",
+    "17+（无学段，取自 M 族题库）"
    ],
    "band_proposed": {
     "B1": "一起玩",
     "B2": "放学以后",
     "B3": "一件意外的事",
     "B4": "同一个地方的两种感觉",
-    "B5": "距离"
+    "B5": "距离",
+    "B6": "地图上的地方（M9_J5）"
    },
    "goal": "用形象、动作、布局表达一个生活 / 想象情境或一个概念；单幅、不写故事",
    "operation": "personal_expression",
@@ -1544,14 +1548,16 @@
     "二(3–5)",
     "三(6–7)",
     "四(8–9)",
-    "高中起始"
+    "高中起始",
+    "17+（无学段，取自 M 族题库）"
    ],
    "band_proposed": {
     "B1": "一段弯线",
     "B2": "两段线条同一场景",
     "B3": "三段线条一个地方",
     "B4": "四段线条一个角色",
-    "B5": "四段线条「连接」主题"
+    "B5": "四段线条「连接」主题",
+    "B6": "七块碎片的壁画（M3 组 E）"
    },
    "goal": "从模糊图形刺激发展个人构想；片段在参考区，由孩子转抄到空白画布（不印在画布上，不是 TCT-DP 原题）",
    "operation": "personal_expression",
@@ -1637,14 +1643,16 @@
     "二(3–5)",
     "三(6–7)",
     "四(8–9)",
-    "高中起始"
+    "高中起始",
+    "17+（无学段，取自 M 族题库）"
    ],
    "band_proposed": {
     "B1": "会帮忙的杯子",
     "B2": "雨伞的新本领",
     "B3": "茶壶救援机",
     "B4": "自行车的新用途",
-    "B5": "小空间台灯"
+    "B5": "小空间台灯",
+    "B6": "鞋子变生物（M4_J3）"
    },
    "goal": "把熟悉物品的特征和一个新用途联系起来；「保留可辨认特征」写在题面里，不是隐藏要求",
    "operation": "purposeful_design",
@@ -1730,14 +1738,16 @@
     "二(3–5)",
     "三(6–7)",
     "四(8–9)",
-    "高中起始"
+    "高中起始",
+    "17+（无学段，取自 M 族题库）"
    ],
    "band_proposed": {
     "B1": "玩具箱标志",
     "B2": "图书角标志",
     "B3": "运动会吉祥物",
     "B4": "校园活动海报",
-    "B5": "校园少浪费海报"
+    "B5": "校园少浪费海报",
+    "B6": "我的画廊标志"
    },
    "goal": "让图像为一个明确用途服务；不要求文字、不要求真实校名日期",
    "operation": "purposeful_design",
@@ -17500,7 +17510,7 @@
     "title": "两片叶子",
     "instruction": "看看图里的两片叶子，把它们都画下来。让人能看出哪片宽、哪片长，再画上你看到的叶柄和叶脉。只画线条也可以。",
     "hint": "",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "sha": "f45a32dfb2ed"
    },
    "operation": "observe_represent",
@@ -17675,7 +17685,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.0.1",
+    "bank_version": "1.1.0",
     "band": "B1",
     "age_min": 6,
     "age_max": 7,
@@ -17745,7 +17755,7 @@
     "title": "一起玩",
     "instruction": "画一件你和别人一起玩的事，也可以画你想象中的游戏。让人看出谁在玩、在做什么。只画一幅，不用写故事。",
     "hint": "",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "sha": "2ba54345de30"
    },
    "operation": "personal_expression",
@@ -17890,7 +17900,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.0.1",
+    "bank_version": "1.1.0",
     "band": "B1",
     "age_min": 6,
     "age_max": 7,
@@ -17959,7 +17969,7 @@
     "title": "一条线变什么",
     "instruction": "看参考图里的那段弯线，把它画进你的画里，再添上自己的内容，让它变成你想到的东西。线可以转方向或变大变小，但要让人找得到原来的弯线。",
     "hint": "",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "sha": "07b2b4cf7eb2"
    },
    "operation": "personal_expression",
@@ -18126,7 +18136,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.0.1",
+    "bank_version": "1.1.0",
     "band": "B1",
     "age_min": 6,
     "age_max": 7,
@@ -18185,7 +18195,7 @@
     "title": "会帮忙的杯子",
     "instruction": "看看图里的杯子，把它变成一个会帮忙的新东西。画出它怎样帮忙，并保留一些杯子的特征，让人看得出它是杯子变的。",
     "hint": "",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "sha": "56e3841a0bb0"
    },
    "operation": "purposeful_design",
@@ -18339,7 +18349,7 @@
       "题面点名的对象 / 关系在图里清楚",
       "contain 完整显示下仍清楚"
      ],
-     "presentation": "插画版（从展示拼版精确裁出，原生 306×342，非 1600×1200）",
+     "presentation": "PNG 1600×1200（原样保留的旧素材）",
      "must_not": [
       "文字",
       "商标",
@@ -18350,8 +18360,8 @@
       "风格"
      ],
      "size": [
-      306,
-      342
+      1600,
+      1200
      ],
      "status": "真图（docs/Phase0_实际展示参考图_核对重打包_v3.zip，2026-10-12）",
      "provenance": "01 插画版 / 03 原样保留；02 写实版 5 张在 refs/bank/alt_photoreal/ 不混用"
@@ -18359,7 +18369,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.0.1",
+    "bank_version": "1.1.0",
     "band": "B1",
     "age_min": 6,
     "age_max": 7,
@@ -18417,7 +18427,7 @@
     }
    ],
    "status": "clear",
-   "material_check": "无法判断"
+   "material_check": "不符合"
   },
   {
    "task_id": "B1_DS_01",
@@ -18429,7 +18439,7 @@
     "title": "玩具箱标志",
     "instruction": "给放玩具的箱子画一个标志，让别人看到图就知道这里放玩具。画面由你决定，不用写字。",
     "hint": "",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "sha": "aab14c0d9b4b"
    },
    "operation": "purposeful_design",
@@ -18572,7 +18582,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.0.1",
+    "bank_version": "1.1.0",
     "band": "B1",
     "age_min": 6,
     "age_max": 7,
@@ -18652,7 +18662,7 @@
     "title": "苹果和两本书",
     "instruction": "看参考图，画出苹果和两本书，保留它们的大致位置。注意苹果挡住书的地方，让人能看出谁在前面。可以只用线条。",
     "hint": "",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "sha": "cb76ee3365be"
    },
    "operation": "observe_represent",
@@ -18807,7 +18817,7 @@
       "题面点名的对象 / 关系在图里清楚",
       "contain 完整显示下仍清楚"
      ],
-     "presentation": "插画版（从展示拼版精确裁出，原生 295×342，非 1600×1200）",
+     "presentation": "PNG 1600×1200（原样保留的旧素材）",
      "must_not": [
       "文字",
       "商标",
@@ -18818,8 +18828,8 @@
       "风格"
      ],
      "size": [
-      295,
-      342
+      1600,
+      1200
      ],
      "status": "真图（docs/Phase0_实际展示参考图_核对重打包_v3.zip，2026-10-12）",
      "provenance": "01 插画版 / 03 原样保留；02 写实版 5 张在 refs/bank/alt_photoreal/ 不混用"
@@ -18827,7 +18837,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.0.1",
+    "bank_version": "1.1.0",
     "band": "B2",
     "age_min": 8,
     "age_max": 10,
@@ -18893,7 +18903,7 @@
     }
    ],
    "status": "clear",
-   "material_check": "无法判断"
+   "material_check": "不符合"
   },
   {
    "task_id": "B2_ST_01",
@@ -18905,7 +18915,7 @@
     "title": "放学以后",
     "instruction": "用一幅画表现放学后的一件事，可以是真实经历，也可以是想象。让人看出主要人物在什么地方、正在做什么。不用画很多件事，也不用写故事。",
     "hint": "",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "sha": "c25d612d58d5"
    },
    "operation": "personal_expression",
@@ -19050,7 +19060,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.0.1",
+    "bank_version": "1.1.0",
     "band": "B2",
     "age_min": 8,
     "age_max": 10,
@@ -19127,7 +19137,7 @@
     "title": "两段线条的故事",
     "instruction": "把参考图里的两段线条都画进一幅画里，再加上自己的内容，让它们成为同一个场景的一部分。可以移动、转向或变大小，但原来的两段线条要还能找到。",
     "hint": "",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "sha": "b6c6495a5f66"
    },
    "operation": "personal_expression",
@@ -19301,7 +19311,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.0.1",
+    "bank_version": "1.1.0",
     "band": "B2",
     "age_min": 8,
     "age_max": 10,
@@ -19368,7 +19378,7 @@
     "title": "雨伞的新本领",
     "instruction": "把参考图里的雨伞改造成能在雨天多帮一个忙的新雨伞。画出新增本领怎样使用，并保留一些雨伞的特征，让人还能认出它。",
     "hint": "",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "sha": "a9e5fb3836ff"
    },
    "operation": "purposeful_design",
@@ -19522,7 +19532,7 @@
       "题面点名的对象 / 关系在图里清楚",
       "contain 完整显示下仍清楚"
      ],
-     "presentation": "插画版（从展示拼版精确裁出，原生 297×342，非 1600×1200）",
+     "presentation": "PNG 1600×1200（原样保留的旧素材）",
      "must_not": [
       "文字",
       "商标",
@@ -19533,8 +19543,8 @@
       "风格"
      ],
      "size": [
-      297,
-      342
+      1600,
+      1200
      ],
      "status": "真图（docs/Phase0_实际展示参考图_核对重打包_v3.zip，2026-10-12）",
      "provenance": "01 插画版 / 03 原样保留；02 写实版 5 张在 refs/bank/alt_photoreal/ 不混用"
@@ -19542,7 +19552,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.0.1",
+    "bank_version": "1.1.0",
     "band": "B2",
     "age_min": 8,
     "age_max": 10,
@@ -19608,7 +19618,7 @@
     }
    ],
    "status": "clear",
-   "material_check": "无法判断"
+   "material_check": "不符合"
   },
   {
    "task_id": "B2_DS_01",
@@ -19620,7 +19630,7 @@
     "title": "图书角标志",
     "instruction": "为班级图书角设计一个标志，让同学看到图形就想到这里可以阅读。图形和颜色由你决定，不必画一本书，也不用写字。",
     "hint": "",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "sha": "8b1247c950fb"
    },
    "operation": "purposeful_design",
@@ -19763,7 +19773,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.0.1",
+    "bank_version": "1.1.0",
     "band": "B2",
     "age_min": 8,
     "age_max": 10,
@@ -19851,7 +19861,7 @@
     "title": "桌上的四件物品",
     "instruction": "根据参考图画出盆栽、笔筒、橡皮和笔记本，保留它们的大致大小与位置关系。让人看出橡皮在盆栽前面、笔记本在笔筒前面。线稿或上色都可以。",
     "hint": "",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "sha": "6dd4cd58ec51"
    },
    "operation": "observe_represent",
@@ -20006,7 +20016,7 @@
       "题面点名的对象 / 关系在图里清楚",
       "contain 完整显示下仍清楚"
      ],
-     "presentation": "插画版（从展示拼版精确裁出，原生 297×342，非 1600×1200）",
+     "presentation": "PNG 1600×1200（原样保留的旧素材）",
      "must_not": [
       "文字",
       "商标",
@@ -20017,8 +20027,8 @@
       "风格"
      ],
      "size": [
-      297,
-      342
+      1600,
+      1200
      ],
      "status": "真图（docs/Phase0_实际展示参考图_核对重打包_v3.zip，2026-10-12）",
      "provenance": "01 插画版 / 03 原样保留；02 写实版 5 张在 refs/bank/alt_photoreal/ 不混用"
@@ -20026,7 +20036,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.0.1",
+    "bank_version": "1.1.0",
     "band": "B3",
     "age_min": 11,
     "age_max": 12,
@@ -20092,7 +20102,7 @@
     }
    ],
    "status": "clear",
-   "material_check": "无法判断"
+   "material_check": "不符合"
   },
   {
    "task_id": "B3_ST_01",
@@ -20104,7 +20114,7 @@
     "title": "一件意外的事",
     "instruction": "用一幅画表现一件突然发生的事。可以是真实的，也可以是想象的。让人物的动作、表情或环境变化，帮助别人看出发生了什么。",
     "hint": "",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "sha": "4d30db7522ed"
    },
    "operation": "personal_expression",
@@ -20249,7 +20259,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.0.1",
+    "bank_version": "1.1.0",
     "band": "B3",
     "age_min": 11,
     "age_max": 12,
@@ -20326,7 +20336,7 @@
     "title": "线条里的地方",
     "instruction": "把图里的三段线条都画进一幅画，发展成一个真实或想象的地方。三段线都要能找到，但位置、方向和大小可以改变。其他内容由你决定。",
     "hint": "",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "sha": "29b3c122dc12"
    },
    "operation": "personal_expression",
@@ -20500,7 +20510,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.0.1",
+    "bank_version": "1.1.0",
     "band": "B3",
     "age_min": 11,
     "age_max": 12,
@@ -20567,7 +20577,7 @@
     "title": "茶壶救援机",
     "instruction": "把图里的茶壶改造成一台救援机器，选择一种需要它帮忙的情况，并画出它怎样救援。保留一些茶壶的特征，让人还能看出它是茶壶变的，保留哪些部分由你决定。",
     "hint": "",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "sha": "b1914840b2de"
    },
    "operation": "purposeful_design",
@@ -20721,7 +20731,7 @@
       "题面点名的对象 / 关系在图里清楚",
       "contain 完整显示下仍清楚"
      ],
-     "presentation": "插画版（从展示拼版精确裁出，原生 308×342，非 1600×1200）",
+     "presentation": "PNG 1600×1200（原样保留的旧素材）",
      "must_not": [
       "文字",
       "商标",
@@ -20732,8 +20742,8 @@
       "风格"
      ],
      "size": [
-      308,
-      342
+      1600,
+      1200
      ],
      "status": "真图（docs/Phase0_实际展示参考图_核对重打包_v3.zip，2026-10-12）",
      "provenance": "01 插画版 / 03 原样保留；02 写实版 5 张在 refs/bank/alt_photoreal/ 不混用"
@@ -20741,7 +20751,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.0.1",
+    "bank_version": "1.1.0",
     "band": "B3",
     "age_min": 11,
     "age_max": 12,
@@ -20807,7 +20817,7 @@
     }
    ],
    "status": "clear",
-   "material_check": "无法判断"
+   "material_check": "不符合"
   },
   {
    "task_id": "B3_DS_01",
@@ -20819,7 +20829,7 @@
     "title": "运动会吉祥物",
     "instruction": "为学校运动会设计一个吉祥物，让它的形象、动作或一个细节表达运动会的气氛。可以是动物、人物或自创角色。名字可写可不写。",
     "hint": "",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "sha": "34e1c98ecbc4"
    },
    "operation": "purposeful_design",
@@ -20969,7 +20979,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.0.1",
+    "bank_version": "1.1.0",
     "band": "B3",
     "age_min": 11,
     "age_max": 12,
@@ -21057,7 +21067,7 @@
     "title": "窗边静物",
     "instruction": "根据参考图画出窗边的花瓶、花和书，保留它们的主要位置关系。选择你认为重要的形状和空间线索，可以省略窗外细节。线稿或上色均可。",
     "hint": "",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "sha": "de04722653fd"
    },
    "operation": "observe_represent",
@@ -21212,7 +21222,7 @@
       "题面点名的对象 / 关系在图里清楚",
       "contain 完整显示下仍清楚"
      ],
-     "presentation": "插画版（从展示拼版精确裁出，原生 365×364，非 1600×1200）",
+     "presentation": "PNG 1600×1200（原样保留的旧素材）",
      "must_not": [
       "文字",
       "商标",
@@ -21223,8 +21233,8 @@
       "风格"
      ],
      "size": [
-      365,
-      364
+      1600,
+      1200
      ],
      "status": "真图（docs/Phase0_实际展示参考图_核对重打包_v3.zip，2026-10-12）",
      "provenance": "01 插画版 / 03 原样保留；02 写实版 5 张在 refs/bank/alt_photoreal/ 不混用"
@@ -21232,7 +21242,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.0.1",
+    "bank_version": "1.1.0",
     "band": "B4",
     "age_min": 13,
     "age_max": 14,
@@ -21298,7 +21308,7 @@
     }
    ],
    "status": "clear",
-   "material_check": "无法判断"
+   "material_check": "不符合"
   },
   {
    "task_id": "B4_ST_01",
@@ -21310,7 +21320,7 @@
     "title": "同一个地方的两种感觉",
     "instruction": "在同一幅画里画一个地方，让其中一部分显得安静，另一部分显得忙碌。可以用人物、形状、线条、颜色或物品安排表现差别。不要分成两张画。",
     "hint": "",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "sha": "2aa8eb179ad6"
    },
    "operation": "personal_expression",
@@ -21455,7 +21465,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.0.1",
+    "bank_version": "1.1.0",
     "band": "B4",
     "age_min": 13,
     "age_max": 14,
@@ -21532,7 +21542,7 @@
     "title": "线条变角色",
     "instruction": "把参考图里的四段线条都融入一幅角色画，让它们成为角色或角色所处场景的一部分。你可以移动、旋转和改变大小，但四段线都应能找到。角色由你设计。",
     "hint": "",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "sha": "6afc09eef9f9"
    },
    "operation": "personal_expression",
@@ -21706,7 +21716,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.0.1",
+    "bank_version": "1.1.0",
     "band": "B4",
     "age_min": 13,
     "age_max": 14,
@@ -21773,7 +21783,7 @@
     "title": "自行车的新用途",
     "instruction": "从参考图里的自行车出发，设计一个能帮助校园生活的新用途。画出改造后的样子和使用方式，并保留一些能辨认出自行车的特征。保留哪些部分由你决定。",
     "hint": "",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "sha": "bee85d84431b"
    },
    "operation": "purposeful_design",
@@ -21927,7 +21937,7 @@
       "题面点名的对象 / 关系在图里清楚",
       "contain 完整显示下仍清楚"
      ],
-     "presentation": "插画版（从展示拼版精确裁出，原生 443×364，非 1600×1200）",
+     "presentation": "PNG 1600×1200（原样保留的旧素材）",
      "must_not": [
       "文字",
       "商标",
@@ -21938,8 +21948,8 @@
       "风格"
      ],
      "size": [
-      443,
-      364
+      1600,
+      1200
      ],
      "status": "真图（docs/Phase0_实际展示参考图_核对重打包_v3.zip，2026-10-12）",
      "provenance": "01 插画版 / 03 原样保留；02 写实版 5 张在 refs/bank/alt_photoreal/ 不混用"
@@ -21947,7 +21957,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.0.1",
+    "bank_version": "1.1.0",
     "band": "B4",
     "age_min": 13,
     "age_max": 14,
@@ -22013,7 +22023,7 @@
     }
    ],
    "status": "clear",
-   "material_check": "无法判断"
+   "material_check": "不符合"
   },
   {
    "task_id": "B4_DS_01",
@@ -22025,7 +22035,7 @@
     "title": "校园活动海报",
     "instruction": "选一项你愿意参加的校园活动，为它设计一张海报。让主要图像表达活动内容，并让人愿意了解这项活动。可以加简短标题，但不用写日期、地点或真实校名。",
     "hint": "",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "sha": "fca0886f191d"
    },
    "operation": "purposeful_design",
@@ -22175,7 +22185,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.0.1",
+    "bank_version": "1.1.0",
     "band": "B4",
     "age_min": 13,
     "age_max": 14,
@@ -22263,7 +22273,7 @@
     "title": "街角",
     "instruction": "根据参考图画出街角建筑和人行道，保留建筑两个面的关系以及道路延伸的方向。你可以简化窗户、植物和装饰，选择线稿或色彩表现。",
     "hint": "",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "sha": "a037616e8741"
    },
    "operation": "observe_represent",
@@ -22418,7 +22428,7 @@
       "题面点名的对象 / 关系在图里清楚",
       "contain 完整显示下仍清楚"
      ],
-     "presentation": "插画版（从展示拼版精确裁出，原生 342×364，非 1600×1200）",
+     "presentation": "PNG 1600×1200（原样保留的旧素材）",
      "must_not": [
       "文字",
       "商标",
@@ -22429,8 +22439,8 @@
       "风格"
      ],
      "size": [
-      342,
-      364
+      1600,
+      1200
      ],
      "status": "真图（docs/Phase0_实际展示参考图_核对重打包_v3.zip，2026-10-12）",
      "provenance": "01 插画版 / 03 原样保留；02 写实版 5 张在 refs/bank/alt_photoreal/ 不混用"
@@ -22438,7 +22448,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.0.1",
+    "bank_version": "1.1.0",
     "band": "B5",
     "age_min": 15,
     "age_max": 16,
@@ -22504,7 +22514,7 @@
     }
    ],
    "status": "clear",
-   "material_check": "无法判断"
+   "material_check": "不符合"
   },
   {
    "task_id": "B5_ST_01",
@@ -22516,7 +22526,7 @@
     "title": "距离",
     "instruction": "用一幅画表达你对“距离”的理解，可以是人与人、物体、地方或想法之间的距离。让形象、布局、线条或颜色承担表达；可以有文字，但不只用文字解释。",
     "hint": "",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "sha": "c50bbf9e3e02"
    },
    "operation": "personal_expression",
@@ -22661,7 +22671,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.0.1",
+    "bank_version": "1.1.0",
     "band": "B5",
     "age_min": 15,
     "age_max": 16,
@@ -22738,7 +22748,7 @@
     "title": "看见连接",
     "instruction": "把参考图中的四段线条融入一幅以“连接”为主题的画。可以移动、旋转和改变片段大小，但四段线都要能辨认。连接可以发生在人、自然、物品或想法之间，具体表现由你决定。",
     "hint": "",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "sha": "c7ee7181de12"
    },
    "operation": "personal_expression",
@@ -22919,7 +22929,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.0.1",
+    "bank_version": "1.1.0",
     "band": "B5",
     "age_min": 15,
     "age_max": 16,
@@ -22986,7 +22996,7 @@
     "title": "小空间台灯",
     "instruction": "参考图里的台灯，为一张空间很小的学习桌重新设计它。画出它怎样放置或使用，让桌面更方便，同时保留能辨认出台灯的特征。保留哪些部分由你决定。",
     "hint": "",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "sha": "c6755d326ca5"
    },
    "operation": "purposeful_design",
@@ -23140,7 +23150,7 @@
       "题面点名的对象 / 关系在图里清楚",
       "contain 完整显示下仍清楚"
      ],
-     "presentation": "插画版（从展示拼版精确裁出，原生 357×364，非 1600×1200）",
+     "presentation": "PNG 1600×1200（原样保留的旧素材）",
      "must_not": [
       "文字",
       "商标",
@@ -23151,8 +23161,8 @@
       "风格"
      ],
      "size": [
-      357,
-      364
+      1600,
+      1200
      ],
      "status": "真图（docs/Phase0_实际展示参考图_核对重打包_v3.zip，2026-10-12）",
      "provenance": "01 插画版 / 03 原样保留；02 写实版 5 张在 refs/bank/alt_photoreal/ 不混用"
@@ -23160,7 +23170,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.0.1",
+    "bank_version": "1.1.0",
     "band": "B5",
     "age_min": 15,
     "age_max": 16,
@@ -23226,7 +23236,7 @@
     }
    ],
    "status": "clear",
-   "material_check": "无法判断"
+   "material_check": "不符合"
   },
   {
    "task_id": "B5_DS_01",
@@ -23238,7 +23248,7 @@
     "title": "校园少浪费",
     "instruction": "为校园里的“少浪费”行动设计一张海报，选择一种具体的浪费问题，用主要图像表达可以采取的一个行动。可以加文字，但不依赖长篇说明；不需要真实校名和日期。",
     "hint": "",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "sha": "4b32f6143be5"
    },
    "operation": "purposeful_design",
@@ -23388,7 +23398,7 @@
    },
    "condition": {
     "bank": "first_visit_v1",
-    "bank_version": "1.0.1",
+    "bank_version": "1.1.0",
     "band": "B5",
     "age_min": 15,
     "age_max": 16,
@@ -23454,6 +23464,1205 @@
     },
     {
      "where": "B5_DS_01: 围绕目的形成视觉构想（PISA 只借思路，不沿用分数）",
+     "rule": "S6 来源片段支持该要求",
+     "status": "找到支持",
+     "basis": "pisa:processes · Chapter 4 · 创造性思维能力模型（图 4.2 上方）",
+     "min_fix": "",
+     "recheck": "—",
+     "judge": "rule",
+     "note": "",
+     "advisory": false
+    }
+   ],
+   "status": "clear"
+  },
+  {
+   "task_id": "B6_OB_01",
+   "family": "OB",
+   "blueprint": "BP_OB",
+   "tiers": [],
+   "anchor": false,
+   "copy": {
+    "title": "客厅",
+    "instruction": "照着参考图把整个客厅画出来，沙发、茶几、书架这些大件要在原来的位置，大小和前后关系也尽量和图里一样。小物件可以取舍，线稿或上色都可以。",
+    "hint": "",
+    "version": "1.1.0",
+    "sha": "8486bc12e9ea"
+   },
+   "operation": "observe_represent",
+   "content": [
+    "space_perspective",
+    "line"
+   ],
+   "outputs": {
+    "count": 1,
+    "form": "单幅观察画",
+    "required_by_copy": 1
+   },
+   "inputs": {
+    "reference": "单张参考 PNG（1600×1200），always，contain",
+    "canvas": "空白"
+   },
+   "fixed": [
+    "参考图常显且完整显示",
+    "题面点名的对象和关系要出现",
+    "单幅产出",
+    "允许单色",
+    "必要条件：画出客厅里的主要家具；保留它们的位置、大小和前后关系。",
+    "提示 H1：先定沙发、书架这些大块的位置，再放小东西。",
+    "提示 H2：比一比哪件在前、哪件在后，再看它们的大小。"
+   ],
+   "free": [
+    "线稿或上色",
+    "整体大小",
+    "省略细节"
+   ],
+   "bank": "first_visit_v1",
+   "band": "B6",
+   "hints": [
+    {
+     "id": "H1",
+     "text": "先定沙发、书架这些大块的位置，再放小东西。"
+    },
+    {
+     "id": "H2",
+     "text": "比一比哪件在前、哪件在后，再看它们的大小。"
+    }
+   ],
+   "requirements": "画出客厅里的主要家具；保留它们的位置、大小和前后关系。",
+   "load": {
+    "compare_schemes": 0,
+    "spatial_relations": true,
+    "read_text": false,
+    "modify_existing": false
+   },
+   "source_relations": [
+    {
+     "requirement": "观察自然 / 生活对象的形状、色彩、肌理；近大远小与透视",
+     "relation": "原文明确规定",
+     "excerpt": "kb:p49:t1-nature",
+     "purpose": ""
+    },
+    {
+     "requirement": "观察空间中的近大远小",
+     "relation": "原文明确规定",
+     "excerpt": "kb:p55:t2-perspective",
+     "purpose": ""
+    },
+    {
+     "requirement": "观察对象改为参考图而非实物",
+     "relation": "基于来源改编",
+     "excerpt": "kb:p55:t2-perspective",
+     "purpose": ""
+    },
+    {
+     "requirement": "全部任务从空白画布开始，提交一幅作品；参考图在参考区常显、不粘贴进作品",
+     "relation": "项目新增条件",
+     "excerpt": "",
+     "purpose": "first_visit_common_v1：首稿一幅、材料不混入作品"
+    },
+    {
+     "requirement": "参考 PNG 1600×1200、contain 完整显示，不裁掉叶柄 / 车轮 / 笔筒底",
+     "relation": "项目新增条件",
+     "excerpt": "",
+     "purpose": "材料条件：孩子看到的就是检查过的那张"
+    },
+    {
+     "requirement": "没有 60 秒阶段、不限时；提示固定、按需显示、记显示事件",
+     "relation": "项目新增条件",
+     "excerpt": "",
+     "purpose": "提示是过程支持，不产生新的必须条件"
+    },
+    {
+     "requirement": "允许单色、不要求写字；首访不开修改轮",
+     "relation": "项目新增条件",
+     "excerpt": "",
+     "purpose": "颜色丰富度和文字长度不是通用完成门槛"
+    },
+    {
+     "requirement": "必要条件：画出客厅里的主要家具；保留它们的位置、大小和前后关系。",
+     "relation": "项目新增条件",
+     "purpose": "与题面一致的内容条件（文档「必要条件」）"
+    },
+    {
+     "requirement": "提示 H1：先定沙发、书架这些大块的位置，再放小东西。",
+     "relation": "项目新增条件",
+     "purpose": "按需显示的过程支持，不是必要条件"
+    },
+    {
+     "requirement": "提示 H2：比一比哪件在前、哪件在后，再看它们的大小。",
+     "relation": "项目新增条件",
+     "purpose": "按需显示的过程支持，不是必要条件"
+    }
+   ],
+   "dims": [
+    {
+     "dim": "realism",
+     "relation": "primary",
+     "why": "共同参考允许比较整体结构与位置，不等于真实房间的测量。",
+     "holds_if": "见理由",
+     "bypass": false
+    },
+    {
+     "dim": "picture_organization",
+     "relation": "primary",
+     "why": "整幅场景的安排由参考图给定，可直接比较。",
+     "holds_if": "见理由",
+     "bypass": false
+    },
+    {
+     "dim": "line_combination",
+     "relation": "exploratory",
+     "why": "家具的轮廓与结构线可观察，技法不限。",
+     "holds_if": "见理由",
+     "bypass": true
+    },
+    {
+     "dim": "color_richness",
+     "relation": "exploratory",
+     "why": "单色线稿同样符合任务。",
+     "holds_if": "见理由",
+     "bypass": true
+    }
+   ],
+   "demoted": {},
+   "materials": {
+    "kind": "reference",
+    "id": "B6_OB_ref",
+    "mode": "always",
+    "spec": {
+     "id": "B6_OB_ref",
+     "kind": "reference",
+     "purpose": "正式观察参考（首访 OB）；第六段沿用本项目 M 族素材",
+     "objects": [
+      "画出客厅里的主要家具；保留它们的位置、大小和前后关系。"
+     ],
+     "relations": [
+      "题面点名的对象 / 关系在图里清楚",
+      "contain 完整显示下仍清楚"
+     ],
+     "presentation": "PNG 1600×1200（原样保留的旧素材）",
+     "must_not": [
+      "文字",
+      "商标",
+      "真人的脸",
+      "改造答案（TR）"
+     ],
+     "variable": [
+      "风格"
+     ],
+     "size": [
+      1600,
+      1200
+     ],
+     "status": "真图（docs/Phase0_实际展示参考图_核对重打包_v3.zip，2026-10-12）",
+     "provenance": "01 插画版 / 03 原样保留；02 写实版 5 张在 refs/bank/alt_photoreal/ 不混用"
+    }
+   },
+   "condition": {
+    "bank": "first_visit_v1",
+    "bank_version": "1.1.0",
+    "band": "B6",
+    "age_min": 17,
+    "age_max": 99,
+    "post_config": "first_visit_common_v1",
+    "revision_enabled": false,
+    "reference_fit": "contain",
+    "hint_ids": [
+     "H1",
+     "H2"
+    ]
+   },
+   "allowed_tools": null,
+   "time_limit_sec": null,
+   "phases": null,
+   "variation": {
+    "against": "B1_OB_01",
+    "changed": [
+     "材料",
+     "condition.age_max",
+     "condition.age_min",
+     "condition.band",
+     "题材 / 叙事"
+    ],
+    "kept": [
+     "操作",
+     "产出数量",
+     "工具"
+    ]
+   },
+   "issues": [
+    {
+     "where": "B6_OB_01: 观察自然 / 生活对象的形状、色彩、肌理；近大远小与透视",
+     "rule": "S6 来源片段支持该要求",
+     "status": "找到支持",
+     "basis": "kb:p49:t1-nature · 学习任务1：欣赏身边的美 · 内容要求",
+     "min_fix": "",
+     "recheck": "—",
+     "judge": "rule",
+     "note": "",
+     "advisory": false
+    },
+    {
+     "where": "B6_OB_01: 观察空间中的近大远小",
+     "rule": "S6 来源片段支持该要求",
+     "status": "找到支持",
+     "basis": "kb:p55:t2-perspective · 学习任务2：表达自己的想法 · 内容要求",
+     "min_fix": "",
+     "recheck": "—",
+     "judge": "rule",
+     "note": "",
+     "advisory": false
+    },
+    {
+     "where": "B6_OB_01: 观察对象改为参考图而非实物",
+     "rule": "S6 来源片段支持该要求",
+     "status": "找到支持",
+     "basis": "kb:p55:t2-perspective · 学习任务2：表达自己的想法 · 内容要求",
+     "min_fix": "",
+     "recheck": "—",
+     "judge": "rule",
+     "note": "",
+     "advisory": false
+    }
+   ],
+   "status": "clear",
+   "material_check": "不符合"
+  },
+  {
+   "task_id": "B6_ST_01",
+   "family": "ST",
+   "blueprint": "BP_ST",
+   "tiers": [],
+   "anchor": false,
+   "copy": {
+    "title": "地图上的地方",
+    "instruction": "地图上标着一个现实中不存在的地方。想象你找到了它，用一幅画画出那里的样子，并留一两个线索，让看的人猜得到这里发生过什么。只画一幅，不用写文字。",
+    "hint": "",
+    "version": "1.1.0",
+    "sha": "d6e2b2a42814"
+   },
+   "operation": "personal_expression",
+   "content": [
+    "narrative",
+    "composition"
+   ],
+   "outputs": {
+    "count": 1,
+    "form": "单幅叙事 / 表达画",
+    "required_by_copy": 1
+   },
+   "inputs": {
+    "reference": "无参考图（明确配置）",
+    "canvas": "空白"
+   },
+   "fixed": [
+    "单幅",
+    "题面要求的人物 / 动作 / 对比要出现",
+    "不要求写字",
+    "必要条件：画出一个想象中的地方；画面里有一两个可以辨认的线索。",
+    "提示 H1：先决定这是什么样的地方，再想线索。",
+    "提示 H2：线索可以是一件东西、一个痕迹，不用很多。"
+   ],
+   "free": [
+    "真实或想象",
+    "颜色、背景",
+    "人物画法"
+   ],
+   "bank": "first_visit_v1",
+   "band": "B6",
+   "hints": [
+    {
+     "id": "H1",
+     "text": "先决定这是什么样的地方，再想线索。"
+    },
+    {
+     "id": "H2",
+     "text": "线索可以是一件东西、一个痕迹，不用很多。"
+    }
+   ],
+   "requirements": "画出一个想象中的地方；画面里有一两个可以辨认的线索。",
+   "load": {
+    "compare_schemes": 0,
+    "spatial_relations": false,
+    "read_text": false,
+    "modify_existing": false
+   },
+   "source_relations": [
+    {
+     "requirement": "按自己的想法表达所见所闻所感所想",
+     "relation": "原文明确规定",
+     "excerpt": "kb:p50:t2-intro",
+     "purpose": ""
+    },
+    {
+     "requirement": "表现自己的所见所闻、所感所想，以视觉形象与人交流",
+     "relation": "原文明确规定",
+     "excerpt": "kb:p54:t2-intro",
+     "purpose": ""
+    },
+    {
+     "requirement": "创造性地表达对自然与社会的感受、思考和认识",
+     "relation": "原文明确规定",
+     "excerpt": "kb:p68:t2-intro",
+     "purpose": ""
+    },
+    {
+     "requirement": "全部任务从空白画布开始，提交一幅作品；参考图在参考区常显、不粘贴进作品",
+     "relation": "项目新增条件",
+     "excerpt": "",
+     "purpose": "first_visit_common_v1：首稿一幅、材料不混入作品"
+    },
+    {
+     "requirement": "参考 PNG 1600×1200、contain 完整显示，不裁掉叶柄 / 车轮 / 笔筒底",
+     "relation": "项目新增条件",
+     "excerpt": "",
+     "purpose": "材料条件：孩子看到的就是检查过的那张"
+    },
+    {
+     "requirement": "没有 60 秒阶段、不限时；提示固定、按需显示、记显示事件",
+     "relation": "项目新增条件",
+     "excerpt": "",
+     "purpose": "提示是过程支持，不产生新的必须条件"
+    },
+    {
+     "requirement": "允许单色、不要求写字；首访不开修改轮",
+     "relation": "项目新增条件",
+     "excerpt": "",
+     "purpose": "颜色丰富度和文字长度不是通用完成门槛"
+    },
+    {
+     "requirement": "必要条件：画出一个想象中的地方；画面里有一两个可以辨认的线索。",
+     "relation": "项目新增条件",
+     "purpose": "与题面一致的内容条件（文档「必要条件」）"
+    },
+    {
+     "requirement": "提示 H1：先决定这是什么样的地方，再想线索。",
+     "relation": "项目新增条件",
+     "purpose": "按需显示的过程支持，不是必要条件"
+    },
+    {
+     "requirement": "提示 H2：线索可以是一件东西、一个痕迹，不用很多。",
+     "relation": "项目新增条件",
+     "purpose": "按需显示的过程支持，不是必要条件"
+    }
+   ],
+   "dims": [
+    {
+     "dim": "imagination",
+     "relation": "primary",
+     "why": "地方和线索都由学生构想。",
+     "holds_if": "见理由",
+     "bypass": false
+    },
+    {
+     "dim": "picture_organization",
+     "relation": "primary",
+     "why": "线索要安排在能被看见的位置。",
+     "holds_if": "见理由",
+     "bypass": false
+    },
+    {
+     "dim": "transformation",
+     "relation": "exploratory",
+     "why": "「发生过什么」要转成可见的痕迹，但不规定方式。",
+     "holds_if": "见理由",
+     "bypass": true
+    },
+    {
+     "dim": "color_contrast",
+     "relation": "exploratory",
+     "why": "用色不是必要条件。",
+     "holds_if": "见理由",
+     "bypass": true
+    }
+   ],
+   "demoted": {},
+   "materials": {
+    "kind": "none",
+    "note": "开放题：明确不提供参考图（不是漏了字段）"
+   },
+   "condition": {
+    "bank": "first_visit_v1",
+    "bank_version": "1.1.0",
+    "band": "B6",
+    "age_min": 17,
+    "age_max": 99,
+    "post_config": "first_visit_common_v1",
+    "revision_enabled": false,
+    "reference_fit": "contain",
+    "hint_ids": [
+     "H1",
+     "H2"
+    ]
+   },
+   "allowed_tools": null,
+   "time_limit_sec": null,
+   "phases": null,
+   "variation": {
+    "against": "B1_ST_01",
+    "changed": [
+     "condition.age_max",
+     "condition.age_min",
+     "condition.band",
+     "题材 / 叙事"
+    ],
+    "kept": [
+     "操作",
+     "产出数量",
+     "工具",
+     "材料"
+    ]
+   },
+   "issues": [
+    {
+     "where": "B6_ST_01: 按自己的想法表达所见所闻所感所想",
+     "rule": "S6 来源片段支持该要求",
+     "status": "找到支持",
+     "basis": "kb:p50:t2-intro · 学习任务2：表达自己的感受 · 导语",
+     "min_fix": "",
+     "recheck": "—",
+     "judge": "rule",
+     "note": "",
+     "advisory": false
+    },
+    {
+     "where": "B6_ST_01: 表现自己的所见所闻、所感所想，以视觉形象与人交流",
+     "rule": "S6 来源片段支持该要求",
+     "status": "找到支持",
+     "basis": "kb:p54:t2-intro · 学习任务2：表达自己的想法 · 导语",
+     "min_fix": "",
+     "recheck": "—",
+     "judge": "rule",
+     "note": "",
+     "advisory": false
+    },
+    {
+     "where": "B6_ST_01: 创造性地表达对自然与社会的感受、思考和认识",
+     "rule": "S6 来源片段支持该要求",
+     "status": "找到支持",
+     "basis": "kb:p68:t2-intro · 学习任务2：表现无限创意 · 导语",
+     "min_fix": "",
+     "recheck": "—",
+     "judge": "rule",
+     "note": "",
+     "advisory": false
+    }
+   ],
+   "status": "clear"
+  },
+  {
+   "task_id": "B6_FG_01",
+   "family": "FG",
+   "blueprint": "BP_FG",
+   "tiers": [],
+   "anchor": false,
+   "copy": {
+    "title": "壁画的碎片",
+    "instruction": "参考图里的这些线条碎片来自一幅壁画。把它们都画进一幅画，接着画出这幅壁画可能讲的故事。碎片可以移动、转向或变大小，但每一块都要还能找到。",
+    "hint": "",
+    "version": "1.1.0",
+    "sha": "ee5b582805e5"
+   },
+   "operation": "personal_expression",
+   "content": [
+    "deformation_methods",
+    "composition"
+   ],
+   "outputs": {
+    "count": 1,
+    "form": "单幅画，原片段仍能被找到",
+    "required_by_copy": 1
+   },
+   "inputs": {
+    "reference": "片段参考 PNG（+ 可编辑 SVG），always，contain",
+    "canvas": "空白"
+   },
+   "fixed": [
+    "所有片段都要能找到",
+    "可移动 / 旋转 / 缩放",
+    "单幅",
+    "必要条件：使用参考图中的全部碎片；保持每块碎片可辨认，并发展成一幅完整画面。",
+    "提示 H1：先看碎片的形状像什么，再想它们在故事里是什么。",
+    "提示 H2：不必把它们全部变成同一种东西。"
+   ],
+   "free": [
+    "片段变成什么",
+    "主题",
+    "颜色"
+   ],
+   "bank": "first_visit_v1",
+   "band": "B6",
+   "hints": [
+    {
+     "id": "H1",
+     "text": "先看碎片的形状像什么，再想它们在故事里是什么。"
+    },
+    {
+     "id": "H2",
+     "text": "不必把它们全部变成同一种东西。"
+    }
+   ],
+   "requirements": "使用参考图中的全部碎片；保持每块碎片可辨认，并发展成一幅完整画面。",
+   "load": {
+    "compare_schemes": 0,
+    "spatial_relations": false,
+    "read_text": false,
+    "modify_existing": false
+   },
+   "source_relations": [
+    {
+     "requirement": "以给定的图形片段为基础完成一幅画",
+     "relation": "基于来源改编",
+     "excerpt": "urban2005:paradigm",
+     "purpose": ""
+    },
+    {
+     "requirement": "保持好奇心和想象力；添加是被承认的改变手法",
+     "relation": "原文明确规定",
+     "excerpt": "kb:p58:copy-vs-change",
+     "purpose": ""
+    },
+    {
+     "requirement": "片段原创、参考区呈现、自由手绘转抄（和 M3 印在画布上不同）",
+     "relation": "项目新增条件",
+     "excerpt": "",
+     "purpose": "不复制原测验题纸、边框、计时或评分；转抄是额外的操作负担，分析时记着"
+    },
+    {
+     "requirement": "全部任务从空白画布开始，提交一幅作品；参考图在参考区常显、不粘贴进作品",
+     "relation": "项目新增条件",
+     "excerpt": "",
+     "purpose": "first_visit_common_v1：首稿一幅、材料不混入作品"
+    },
+    {
+     "requirement": "参考 PNG 1600×1200、contain 完整显示，不裁掉叶柄 / 车轮 / 笔筒底",
+     "relation": "项目新增条件",
+     "excerpt": "",
+     "purpose": "材料条件：孩子看到的就是检查过的那张"
+    },
+    {
+     "requirement": "没有 60 秒阶段、不限时；提示固定、按需显示、记显示事件",
+     "relation": "项目新增条件",
+     "excerpt": "",
+     "purpose": "提示是过程支持，不产生新的必须条件"
+    },
+    {
+     "requirement": "允许单色、不要求写字；首访不开修改轮",
+     "relation": "项目新增条件",
+     "excerpt": "",
+     "purpose": "颜色丰富度和文字长度不是通用完成门槛"
+    },
+    {
+     "requirement": "必要条件：使用参考图中的全部碎片；保持每块碎片可辨认，并发展成一幅完整画面。",
+     "relation": "项目新增条件",
+     "purpose": "与题面一致的内容条件（文档「必要条件」）"
+    },
+    {
+     "requirement": "提示 H1：先看碎片的形状像什么，再想它们在故事里是什么。",
+     "relation": "项目新增条件",
+     "purpose": "按需显示的过程支持，不是必要条件"
+    },
+    {
+     "requirement": "提示 H2：不必把它们全部变成同一种东西。",
+     "relation": "项目新增条件",
+     "purpose": "按需显示的过程支持，不是必要条件"
+    }
+   ],
+   "dims": [
+    {
+     "dim": "imagination",
+     "relation": "primary",
+     "why": "碎片变成什么、故事是什么由学生构想。",
+     "holds_if": "见理由",
+     "bypass": false
+    },
+    {
+     "dim": "transformation",
+     "relation": "primary",
+     "why": "抽象碎片要变成有意义的形象。",
+     "holds_if": "见理由",
+     "bypass": false
+    },
+    {
+     "dim": "picture_organization",
+     "relation": "exploratory",
+     "why": "七块碎片的整合可观察。",
+     "holds_if": "见理由",
+     "bypass": true
+    },
+    {
+     "dim": "deformation",
+     "relation": "exploratory",
+     "why": "碎片可被夸张或延展，也可保留原样。",
+     "holds_if": "见理由",
+     "bypass": true
+    }
+   ],
+   "demoted": {},
+   "materials": {
+    "kind": "reference",
+    "id": "B6_FG_ref",
+    "mode": "always",
+    "spec": {
+     "id": "B6_FG_ref",
+     "kind": "reference",
+     "purpose": "片段参考（首访 FG：转抄到空白画布，不印在画布上）；第六段沿用本项目 M 族素材",
+     "objects": [
+      "使用参考图中的全部碎片；保持每块碎片可辨认，并发展成一幅完整画面。"
+     ],
+     "relations": [
+      "题面点名的对象 / 关系在图里清楚",
+      "contain 完整显示下仍清楚"
+     ],
+     "presentation": "PNG 1600×1200（原样保留的旧素材）",
+     "must_not": [
+      "文字",
+      "商标",
+      "真人的脸",
+      "改造答案（TR）"
+     ],
+     "variable": [
+      "风格"
+     ],
+     "size": [
+      1600,
+      1200
+     ],
+     "status": "真图（docs/Phase0_实际展示参考图_核对重打包_v3.zip，2026-10-12）",
+     "provenance": "01 插画版 / 03 原样保留；02 写实版 5 张在 refs/bank/alt_photoreal/ 不混用"
+    }
+   },
+   "condition": {
+    "bank": "first_visit_v1",
+    "bank_version": "1.1.0",
+    "band": "B6",
+    "age_min": 17,
+    "age_max": 99,
+    "post_config": "first_visit_common_v1",
+    "revision_enabled": false,
+    "reference_fit": "contain",
+    "hint_ids": [
+     "H1",
+     "H2"
+    ]
+   },
+   "allowed_tools": null,
+   "time_limit_sec": null,
+   "phases": null,
+   "variation": {
+    "against": "B1_FG_01",
+    "changed": [
+     "材料",
+     "condition.age_max",
+     "condition.age_min",
+     "condition.band",
+     "题材 / 叙事"
+    ],
+    "kept": [
+     "操作",
+     "产出数量",
+     "工具"
+    ]
+   },
+   "issues": [
+    {
+     "where": "B6_FG_01: 以给定的图形片段为基础完成一幅画",
+     "rule": "S6 来源片段支持该要求",
+     "status": "找到支持",
+     "basis": "urban2005:paradigm · Design and Construction",
+     "min_fix": "",
+     "recheck": "—",
+     "judge": "rule",
+     "note": "",
+     "advisory": false
+    },
+    {
+     "where": "B6_FG_01: 保持好奇心和想象力；添加是被承认的改变手法",
+     "rule": "S6 来源片段支持该要求",
+     "status": "找到支持",
+     "basis": "kb:p58:copy-vs-change · 教学提示",
+     "min_fix": "",
+     "recheck": "—",
+     "judge": "rule",
+     "note": "",
+     "advisory": false
+    }
+   ],
+   "status": "clear",
+   "material_check": "无法判断"
+  },
+  {
+   "task_id": "B6_TR_01",
+   "family": "TR",
+   "blueprint": "BP_TR",
+   "tiers": [],
+   "anchor": false,
+   "copy": {
+    "title": "鞋子变生物",
+    "instruction": "把参考图里的这只鞋变成住在大森林里的生物。画出它怎样在森林里生活，并保留一些鞋子的特征，让人还看得出它是鞋子变的。保留哪些部分由你决定。",
+    "hint": "",
+    "version": "1.1.0",
+    "sha": "5de3c673fb5b"
+   },
+   "operation": "purposeful_design",
+   "content": [
+    "deformation_methods"
+   ],
+   "outputs": {
+    "count": 1,
+    "form": "单幅改造物 + 使用方式",
+    "required_by_copy": 1
+   },
+   "inputs": {
+    "reference": "单件物品 PNG，always，contain（参考图不含改造答案）",
+    "canvas": "空白"
+   },
+   "fixed": [
+    "从参考物品出发",
+    "画出怎样使用 / 帮忙",
+    "保留可辨认特征（不指定部件）",
+    "单幅",
+    "必要条件：从参考鞋子出发；画出它在森林里的样子或活动；保留可辨认的鞋子特征。",
+    "提示 H1：先想它在森林里怎么动、吃什么。",
+    "提示 H2：鞋带、鞋底的纹路都可以变成别的东西。"
+   ],
+   "free": [
+    "用途现实或幻想",
+    "保留哪些部分",
+    "是否画场景"
+   ],
+   "bank": "first_visit_v1",
+   "band": "B6",
+   "hints": [
+    {
+     "id": "H1",
+     "text": "先想它在森林里怎么动、吃什么。"
+    },
+    {
+     "id": "H2",
+     "text": "鞋带、鞋底的纹路都可以变成别的东西。"
+    }
+   ],
+   "requirements": "从参考鞋子出发；画出它在森林里的样子或活动；保留可辨认的鞋子特征。",
+   "load": {
+    "compare_schemes": 0,
+    "spatial_relations": false,
+    "read_text": false,
+    "modify_existing": false
+   },
+   "source_relations": [
+    {
+     "requirement": "从外观和功能了解物品，提出改进",
+     "relation": "原文明确规定",
+     "excerpt": "kb:p51:t3-intro",
+     "purpose": ""
+    },
+    {
+     "requirement": "夸张、变形手法",
+     "relation": "原文明确规定",
+     "excerpt": "kb:p60:t2-methods",
+     "purpose": ""
+    },
+    {
+     "requirement": "「改进」扩展为「改造成新用途」，用途由题给定或由孩子选",
+     "relation": "基于来源改编",
+     "excerpt": "kb:p51:t3-req",
+     "purpose": ""
+    },
+    {
+     "requirement": "全部任务从空白画布开始，提交一幅作品；参考图在参考区常显、不粘贴进作品",
+     "relation": "项目新增条件",
+     "excerpt": "",
+     "purpose": "first_visit_common_v1：首稿一幅、材料不混入作品"
+    },
+    {
+     "requirement": "参考 PNG 1600×1200、contain 完整显示，不裁掉叶柄 / 车轮 / 笔筒底",
+     "relation": "项目新增条件",
+     "excerpt": "",
+     "purpose": "材料条件：孩子看到的就是检查过的那张"
+    },
+    {
+     "requirement": "没有 60 秒阶段、不限时；提示固定、按需显示、记显示事件",
+     "relation": "项目新增条件",
+     "excerpt": "",
+     "purpose": "提示是过程支持，不产生新的必须条件"
+    },
+    {
+     "requirement": "允许单色、不要求写字；首访不开修改轮",
+     "relation": "项目新增条件",
+     "excerpt": "",
+     "purpose": "颜色丰富度和文字长度不是通用完成门槛"
+    },
+    {
+     "requirement": "必要条件：从参考鞋子出发；画出它在森林里的样子或活动；保留可辨认的鞋子特征。",
+     "relation": "项目新增条件",
+     "purpose": "与题面一致的内容条件（文档「必要条件」）"
+    },
+    {
+     "requirement": "提示 H1：先想它在森林里怎么动、吃什么。",
+     "relation": "项目新增条件",
+     "purpose": "按需显示的过程支持，不是必要条件"
+    },
+    {
+     "requirement": "提示 H2：鞋带、鞋底的纹路都可以变成别的东西。",
+     "relation": "项目新增条件",
+     "purpose": "按需显示的过程支持，不是必要条件"
+    }
+   ],
+   "dims": [
+    {
+     "dim": "deformation",
+     "relation": "primary",
+     "why": "鞋子的结构要被改变成生物。",
+     "holds_if": "见理由",
+     "bypass": false
+    },
+    {
+     "dim": "transformation",
+     "relation": "primary",
+     "why": "从物品到生物是功能和身份的转化。",
+     "holds_if": "见理由",
+     "bypass": false
+    },
+    {
+     "dim": "imagination",
+     "relation": "exploratory",
+     "why": "生物的生活方式由学生构想。",
+     "holds_if": "见理由",
+     "bypass": true
+    },
+    {
+     "dim": "picture_organization",
+     "relation": "exploratory",
+     "why": "画了森林环境时可观察。",
+     "holds_if": "见理由",
+     "bypass": true
+    }
+   ],
+   "demoted": {},
+   "materials": {
+    "kind": "reference",
+    "id": "B6_TR_ref",
+    "mode": "always",
+    "spec": {
+     "id": "B6_TR_ref",
+     "kind": "reference",
+     "purpose": "供改造的物品参考（首访 TR）；第六段沿用本项目 M 族素材",
+     "objects": [
+      "从参考鞋子出发；画出它在森林里的样子或活动；保留可辨认的鞋子特征。"
+     ],
+     "relations": [
+      "题面点名的对象 / 关系在图里清楚",
+      "contain 完整显示下仍清楚"
+     ],
+     "presentation": "PNG 1600×1200（原样保留的旧素材）",
+     "must_not": [
+      "文字",
+      "商标",
+      "真人的脸",
+      "改造答案（TR）"
+     ],
+     "variable": [
+      "风格"
+     ],
+     "size": [
+      1600,
+      1200
+     ],
+     "status": "真图（docs/Phase0_实际展示参考图_核对重打包_v3.zip，2026-10-12）",
+     "provenance": "01 插画版 / 03 原样保留；02 写实版 5 张在 refs/bank/alt_photoreal/ 不混用"
+    }
+   },
+   "condition": {
+    "bank": "first_visit_v1",
+    "bank_version": "1.1.0",
+    "band": "B6",
+    "age_min": 17,
+    "age_max": 99,
+    "post_config": "first_visit_common_v1",
+    "revision_enabled": false,
+    "reference_fit": "contain",
+    "hint_ids": [
+     "H1",
+     "H2"
+    ]
+   },
+   "allowed_tools": null,
+   "time_limit_sec": null,
+   "phases": null,
+   "variation": {
+    "against": "B1_TR_01",
+    "changed": [
+     "材料",
+     "condition.age_max",
+     "condition.age_min",
+     "condition.band",
+     "题材 / 叙事"
+    ],
+    "kept": [
+     "操作",
+     "产出数量",
+     "工具"
+    ]
+   },
+   "issues": [
+    {
+     "where": "B6_TR_01: 从外观和功能了解物品，提出改进",
+     "rule": "S6 来源片段支持该要求",
+     "status": "找到支持",
+     "basis": "kb:p51:t3-intro · 学习任务3：改进生活用品 · 导语",
+     "min_fix": "",
+     "recheck": "—",
+     "judge": "rule",
+     "note": "",
+     "advisory": false
+    },
+    {
+     "where": "B6_TR_01: 夸张、变形手法",
+     "rule": "S6 来源片段支持该要求",
+     "status": "找到支持",
+     "basis": "kb:p60:t2-methods · 学习任务2：传递我们的创意 · 内容要求",
+     "min_fix": "",
+     "recheck": "—",
+     "judge": "rule",
+     "note": "",
+     "advisory": false
+    },
+    {
+     "where": "B6_TR_01: 「改进」扩展为「改造成新用途」，用途由题给定或由孩子选",
+     "rule": "S6 来源片段支持该要求",
+     "status": "找到支持",
+     "basis": "kb:p51:t3-req · 学习任务3：改进生活用品 · 内容要求",
+     "min_fix": "",
+     "recheck": "—",
+     "judge": "rule",
+     "note": "",
+     "advisory": false
+    }
+   ],
+   "status": "clear",
+   "material_check": "不符合"
+  },
+  {
+   "task_id": "B6_DS_01",
+   "family": "DS",
+   "blueprint": "BP_DS",
+   "tiers": [],
+   "anchor": false,
+   "copy": {
+    "title": "我的画廊标志",
+    "instruction": "这个 app 里有一面挂着你作品的画廊。为它设计一个标志，让看到的人知道这是你的地方。图形和颜色由你决定，可以加一个简短的名字，也可以不写字。",
+    "hint": "",
+    "version": "1.1.0",
+    "sha": "31c599b417e8"
+   },
+   "operation": "purposeful_design",
+   "content": [
+    "composition"
+   ],
+   "outputs": {
+    "count": 1,
+    "form": "单幅标志 / 吉祥物 / 海报",
+    "required_by_copy": 1
+   },
+   "inputs": {
+    "reference": "无参考图（明确配置）",
+    "canvas": "空白"
+   },
+   "fixed": [
+    "回应题面给定的用途",
+    "单幅",
+    "不要求写字",
+    "必要条件：设计一个标志；让图形能代表「你的画廊」。",
+    "提示 H1：先想一个最能代表你的东西。",
+    "提示 H2：标志缩小了也要认得出。"
+   ],
+   "free": [
+    "图形、颜色",
+    "是否加标题",
+    "角色类型"
+   ],
+   "bank": "first_visit_v1",
+   "band": "B6",
+   "hints": [
+    {
+     "id": "H1",
+     "text": "先想一个最能代表你的东西。"
+    },
+    {
+     "id": "H2",
+     "text": "标志缩小了也要认得出。"
+    }
+   ],
+   "requirements": "设计一个标志；让图形能代表「你的画廊」。",
+   "load": {
+    "compare_schemes": 0,
+    "spatial_relations": false,
+    "read_text": false,
+    "modify_existing": false
+   },
+   "source_relations": [
+    {
+     "requirement": "为班级或学校的活动设计标识、请柬、贺卡、图表、海报",
+     "relation": "原文明确规定",
+     "excerpt": "kb:p56:t3-visual-design",
+     "purpose": ""
+    },
+    {
+     "requirement": "用画笔或计算机做有明确用途的小设计",
+     "relation": "原文明确规定",
+     "excerpt": "kb:p52:t5-design",
+     "purpose": ""
+    },
+    {
+     "requirement": "根据不同活动的需要设计海报、请柬",
+     "relation": "原文明确规定",
+     "excerpt": "kb:p62:t3-improve",
+     "purpose": ""
+    },
+    {
+     "requirement": "围绕目的形成视觉构想（PISA 只借思路，不沿用分数）",
+     "relation": "基于来源改编",
+     "excerpt": "pisa:processes",
+     "purpose": ""
+    },
+    {
+     "requirement": "全部任务从空白画布开始，提交一幅作品；参考图在参考区常显、不粘贴进作品",
+     "relation": "项目新增条件",
+     "excerpt": "",
+     "purpose": "first_visit_common_v1：首稿一幅、材料不混入作品"
+    },
+    {
+     "requirement": "参考 PNG 1600×1200、contain 完整显示，不裁掉叶柄 / 车轮 / 笔筒底",
+     "relation": "项目新增条件",
+     "excerpt": "",
+     "purpose": "材料条件：孩子看到的就是检查过的那张"
+    },
+    {
+     "requirement": "没有 60 秒阶段、不限时；提示固定、按需显示、记显示事件",
+     "relation": "项目新增条件",
+     "excerpt": "",
+     "purpose": "提示是过程支持，不产生新的必须条件"
+    },
+    {
+     "requirement": "允许单色、不要求写字；首访不开修改轮",
+     "relation": "项目新增条件",
+     "excerpt": "",
+     "purpose": "颜色丰富度和文字长度不是通用完成门槛"
+    },
+    {
+     "requirement": "必要条件：设计一个标志；让图形能代表「你的画廊」。",
+     "relation": "项目新增条件",
+     "purpose": "与题面一致的内容条件（文档「必要条件」）"
+    },
+    {
+     "requirement": "提示 H1：先想一个最能代表你的东西。",
+     "relation": "项目新增条件",
+     "purpose": "按需显示的过程支持，不是必要条件"
+    },
+    {
+     "requirement": "提示 H2：标志缩小了也要认得出。",
+     "relation": "项目新增条件",
+     "purpose": "按需显示的过程支持，不是必要条件"
+    }
+   ],
+   "dims": [
+    {
+     "dim": "picture_organization",
+     "relation": "primary",
+     "why": "图形要作为一个整体服务标志的用途。",
+     "holds_if": "见理由",
+     "bypass": false
+    },
+    {
+     "dim": "imagination",
+     "relation": "exploratory",
+     "why": "个人化符号可能体现新构想，常见图形也可合理完成。",
+     "holds_if": "见理由",
+     "bypass": true
+    },
+    {
+     "dim": "color_contrast",
+     "relation": "exploratory",
+     "why": "使用颜色时可观察对比，不要求多色。",
+     "holds_if": "见理由",
+     "bypass": true
+    }
+   ],
+   "demoted": {},
+   "materials": {
+    "kind": "none",
+    "note": "开放题：明确不提供参考图（不是漏了字段）"
+   },
+   "condition": {
+    "bank": "first_visit_v1",
+    "bank_version": "1.1.0",
+    "band": "B6",
+    "age_min": 17,
+    "age_max": 99,
+    "post_config": "first_visit_common_v1",
+    "revision_enabled": false,
+    "reference_fit": "contain",
+    "hint_ids": [
+     "H1",
+     "H2"
+    ]
+   },
+   "allowed_tools": null,
+   "time_limit_sec": null,
+   "phases": null,
+   "variation": {
+    "against": "B1_DS_01",
+    "changed": [
+     "condition.age_max",
+     "condition.age_min",
+     "condition.band",
+     "题材 / 叙事"
+    ],
+    "kept": [
+     "操作",
+     "产出数量",
+     "工具",
+     "材料"
+    ]
+   },
+   "issues": [
+    {
+     "where": "B6_DS_01: 为班级或学校的活动设计标识、请柬、贺卡、图表、海报",
+     "rule": "S6 来源片段支持该要求",
+     "status": "找到支持",
+     "basis": "kb:p56:t3-visual-design · 学习任务3：装点我们的生活 · 内容要求",
+     "min_fix": "",
+     "recheck": "—",
+     "judge": "rule",
+     "note": "",
+     "advisory": false
+    },
+    {
+     "where": "B6_DS_01: 用画笔或计算机做有明确用途的小设计",
+     "rule": "S6 来源片段支持该要求",
+     "status": "找到支持",
+     "basis": "kb:p52:t5-design · 学习任务5：参与造型游戏活动 · 内容要求",
+     "min_fix": "",
+     "recheck": "—",
+     "judge": "rule",
+     "note": "",
+     "advisory": false
+    },
+    {
+     "where": "B6_DS_01: 根据不同活动的需要设计海报、请柬",
+     "rule": "S6 来源片段支持该要求",
+     "status": "找到支持",
+     "basis": "kb:p62:t3-improve · 学习任务3：营造环境 · 内容要求",
+     "min_fix": "",
+     "recheck": "—",
+     "judge": "rule",
+     "note": "",
+     "advisory": false
+    },
+    {
+     "where": "B6_DS_01: 围绕目的形成视觉构想（PISA 只借思路，不沿用分数）",
      "rule": "S6 来源片段支持该要求",
      "status": "找到支持",
      "basis": "pisa:processes · Chapter 4 · 创造性思维能力模型（图 4.2 上方）",
@@ -27949,7 +29158,7 @@
   },
   "B1_TR_ref": {
    "id": "B1_TR_ref",
-   "status": "无法判断",
+   "status": "不符合",
    "items": [
     {
      "id": "file",
@@ -27958,8 +29167,8 @@
     },
     {
      "id": "size",
-     "status": "符合",
-     "note": "306×342（规格 306×342）"
+     "status": "不符合",
+     "note": "306×342（规格 1600×1200）"
     },
     {
      "id": "placeholder",
@@ -28054,7 +29263,7 @@
      "题面点名的对象 / 关系在图里清楚",
      "contain 完整显示下仍清楚"
     ],
-    "presentation": "插画版（从展示拼版精确裁出，原生 306×342，非 1600×1200）",
+    "presentation": "PNG 1600×1200（原样保留的旧素材）",
     "must_not": [
      "文字",
      "商标",
@@ -28065,8 +29274,8 @@
      "风格"
     ],
     "size": [
-     306,
-     342
+     1600,
+     1200
     ],
     "status": "真图（docs/Phase0_实际展示参考图_核对重打包_v3.zip，2026-10-12）",
     "provenance": "01 插画版 / 03 原样保留；02 写实版 5 张在 refs/bank/alt_photoreal/ 不混用"
@@ -28083,7 +29292,7 @@
   },
   "B2_OB_ref": {
    "id": "B2_OB_ref",
-   "status": "无法判断",
+   "status": "不符合",
    "items": [
     {
      "id": "file",
@@ -28092,8 +29301,8 @@
     },
     {
      "id": "size",
-     "status": "符合",
-     "note": "295×342（规格 295×342）"
+     "status": "不符合",
+     "note": "295×342（规格 1600×1200）"
     },
     {
      "id": "placeholder",
@@ -28188,7 +29397,7 @@
      "题面点名的对象 / 关系在图里清楚",
      "contain 完整显示下仍清楚"
     ],
-    "presentation": "插画版（从展示拼版精确裁出，原生 295×342，非 1600×1200）",
+    "presentation": "PNG 1600×1200（原样保留的旧素材）",
     "must_not": [
      "文字",
      "商标",
@@ -28199,8 +29408,8 @@
      "风格"
     ],
     "size": [
-     295,
-     342
+     1600,
+     1200
     ],
     "status": "真图（docs/Phase0_实际展示参考图_核对重打包_v3.zip，2026-10-12）",
     "provenance": "01 插画版 / 03 原样保留；02 写实版 5 张在 refs/bank/alt_photoreal/ 不混用"
@@ -28351,7 +29560,7 @@
   },
   "B2_TR_ref": {
    "id": "B2_TR_ref",
-   "status": "无法判断",
+   "status": "不符合",
    "items": [
     {
      "id": "file",
@@ -28360,8 +29569,8 @@
     },
     {
      "id": "size",
-     "status": "符合",
-     "note": "297×342（规格 297×342）"
+     "status": "不符合",
+     "note": "297×342（规格 1600×1200）"
     },
     {
      "id": "placeholder",
@@ -28456,7 +29665,7 @@
      "题面点名的对象 / 关系在图里清楚",
      "contain 完整显示下仍清楚"
     ],
-    "presentation": "插画版（从展示拼版精确裁出，原生 297×342，非 1600×1200）",
+    "presentation": "PNG 1600×1200（原样保留的旧素材）",
     "must_not": [
      "文字",
      "商标",
@@ -28467,8 +29676,8 @@
      "风格"
     ],
     "size": [
-     297,
-     342
+     1600,
+     1200
     ],
     "status": "真图（docs/Phase0_实际展示参考图_核对重打包_v3.zip，2026-10-12）",
     "provenance": "01 插画版 / 03 原样保留；02 写实版 5 张在 refs/bank/alt_photoreal/ 不混用"
@@ -28485,7 +29694,7 @@
   },
   "B3_OB_ref": {
    "id": "B3_OB_ref",
-   "status": "无法判断",
+   "status": "不符合",
    "items": [
     {
      "id": "file",
@@ -28494,8 +29703,8 @@
     },
     {
      "id": "size",
-     "status": "符合",
-     "note": "297×342（规格 297×342）"
+     "status": "不符合",
+     "note": "297×342（规格 1600×1200）"
     },
     {
      "id": "placeholder",
@@ -28590,7 +29799,7 @@
      "题面点名的对象 / 关系在图里清楚",
      "contain 完整显示下仍清楚"
     ],
-    "presentation": "插画版（从展示拼版精确裁出，原生 297×342，非 1600×1200）",
+    "presentation": "PNG 1600×1200（原样保留的旧素材）",
     "must_not": [
      "文字",
      "商标",
@@ -28601,8 +29810,8 @@
      "风格"
     ],
     "size": [
-     297,
-     342
+     1600,
+     1200
     ],
     "status": "真图（docs/Phase0_实际展示参考图_核对重打包_v3.zip，2026-10-12）",
     "provenance": "01 插画版 / 03 原样保留；02 写实版 5 张在 refs/bank/alt_photoreal/ 不混用"
@@ -28753,7 +29962,7 @@
   },
   "B3_TR_ref": {
    "id": "B3_TR_ref",
-   "status": "无法判断",
+   "status": "不符合",
    "items": [
     {
      "id": "file",
@@ -28762,8 +29971,8 @@
     },
     {
      "id": "size",
-     "status": "符合",
-     "note": "308×342（规格 308×342）"
+     "status": "不符合",
+     "note": "308×342（规格 1600×1200）"
     },
     {
      "id": "placeholder",
@@ -28858,7 +30067,7 @@
      "题面点名的对象 / 关系在图里清楚",
      "contain 完整显示下仍清楚"
     ],
-    "presentation": "插画版（从展示拼版精确裁出，原生 308×342，非 1600×1200）",
+    "presentation": "PNG 1600×1200（原样保留的旧素材）",
     "must_not": [
      "文字",
      "商标",
@@ -28869,8 +30078,8 @@
      "风格"
     ],
     "size": [
-     308,
-     342
+     1600,
+     1200
     ],
     "status": "真图（docs/Phase0_实际展示参考图_核对重打包_v3.zip，2026-10-12）",
     "provenance": "01 插画版 / 03 原样保留；02 写实版 5 张在 refs/bank/alt_photoreal/ 不混用"
@@ -28887,7 +30096,7 @@
   },
   "B4_OB_ref": {
    "id": "B4_OB_ref",
-   "status": "无法判断",
+   "status": "不符合",
    "items": [
     {
      "id": "file",
@@ -28896,8 +30105,8 @@
     },
     {
      "id": "size",
-     "status": "符合",
-     "note": "365×364（规格 365×364）"
+     "status": "不符合",
+     "note": "365×364（规格 1600×1200）"
     },
     {
      "id": "placeholder",
@@ -28992,7 +30201,7 @@
      "题面点名的对象 / 关系在图里清楚",
      "contain 完整显示下仍清楚"
     ],
-    "presentation": "插画版（从展示拼版精确裁出，原生 365×364，非 1600×1200）",
+    "presentation": "PNG 1600×1200（原样保留的旧素材）",
     "must_not": [
      "文字",
      "商标",
@@ -29003,8 +30212,8 @@
      "风格"
     ],
     "size": [
-     365,
-     364
+     1600,
+     1200
     ],
     "status": "真图（docs/Phase0_实际展示参考图_核对重打包_v3.zip，2026-10-12）",
     "provenance": "01 插画版 / 03 原样保留；02 写实版 5 张在 refs/bank/alt_photoreal/ 不混用"
@@ -29155,7 +30364,7 @@
   },
   "B4_TR_ref": {
    "id": "B4_TR_ref",
-   "status": "无法判断",
+   "status": "不符合",
    "items": [
     {
      "id": "file",
@@ -29164,8 +30373,8 @@
     },
     {
      "id": "size",
-     "status": "符合",
-     "note": "443×364（规格 443×364）"
+     "status": "不符合",
+     "note": "443×364（规格 1600×1200）"
     },
     {
      "id": "placeholder",
@@ -29260,7 +30469,7 @@
      "题面点名的对象 / 关系在图里清楚",
      "contain 完整显示下仍清楚"
     ],
-    "presentation": "插画版（从展示拼版精确裁出，原生 443×364，非 1600×1200）",
+    "presentation": "PNG 1600×1200（原样保留的旧素材）",
     "must_not": [
      "文字",
      "商标",
@@ -29271,8 +30480,8 @@
      "风格"
     ],
     "size": [
-     443,
-     364
+     1600,
+     1200
     ],
     "status": "真图（docs/Phase0_实际展示参考图_核对重打包_v3.zip，2026-10-12）",
     "provenance": "01 插画版 / 03 原样保留；02 写实版 5 张在 refs/bank/alt_photoreal/ 不混用"
@@ -29289,7 +30498,7 @@
   },
   "B5_OB_ref": {
    "id": "B5_OB_ref",
-   "status": "无法判断",
+   "status": "不符合",
    "items": [
     {
      "id": "file",
@@ -29298,8 +30507,8 @@
     },
     {
      "id": "size",
-     "status": "符合",
-     "note": "342×364（规格 342×364）"
+     "status": "不符合",
+     "note": "342×364（规格 1600×1200）"
     },
     {
      "id": "placeholder",
@@ -29394,7 +30603,7 @@
      "题面点名的对象 / 关系在图里清楚",
      "contain 完整显示下仍清楚"
     ],
-    "presentation": "插画版（从展示拼版精确裁出，原生 342×364，非 1600×1200）",
+    "presentation": "PNG 1600×1200（原样保留的旧素材）",
     "must_not": [
      "文字",
      "商标",
@@ -29405,8 +30614,8 @@
      "风格"
     ],
     "size": [
-     342,
-     364
+     1600,
+     1200
     ],
     "status": "真图（docs/Phase0_实际展示参考图_核对重打包_v3.zip，2026-10-12）",
     "provenance": "01 插画版 / 03 原样保留；02 写实版 5 张在 refs/bank/alt_photoreal/ 不混用"
@@ -29557,7 +30766,7 @@
   },
   "B5_TR_ref": {
    "id": "B5_TR_ref",
-   "status": "无法判断",
+   "status": "不符合",
    "items": [
     {
      "id": "file",
@@ -29566,8 +30775,8 @@
     },
     {
      "id": "size",
-     "status": "符合",
-     "note": "357×364（规格 357×364）"
+     "status": "不符合",
+     "note": "357×364（规格 1600×1200）"
     },
     {
      "id": "placeholder",
@@ -29662,7 +30871,7 @@
      "题面点名的对象 / 关系在图里清楚",
      "contain 完整显示下仍清楚"
     ],
-    "presentation": "插画版（从展示拼版精确裁出，原生 357×364，非 1600×1200）",
+    "presentation": "PNG 1600×1200（原样保留的旧素材）",
     "must_not": [
      "文字",
      "商标",
@@ -29673,8 +30882,8 @@
      "风格"
     ],
     "size": [
-     357,
-     364
+     1600,
+     1200
     ],
     "status": "真图（docs/Phase0_实际展示参考图_核对重打包_v3.zip，2026-10-12）",
     "provenance": "01 插画版 / 03 原样保留；02 写实版 5 张在 refs/bank/alt_photoreal/ 不混用"
@@ -29687,6 +30896,408 @@
     "corners_white": 0,
     "fill_height": 1.0,
     "fill_width": 1.0
+   }
+  },
+  "B6_OB_ref": {
+   "id": "B6_OB_ref",
+   "status": "不符合",
+   "items": [
+    {
+     "id": "file",
+     "status": "符合",
+     "note": "static/refs/bank/B6_OB_ref.jpg"
+    },
+    {
+     "id": "size",
+     "status": "不符合",
+     "note": "2048×1408（规格 1600×1200）"
+    },
+    {
+     "id": "placeholder",
+     "status": "符合",
+     "note": "manifest.placeholders"
+    },
+    {
+     "id": "crop_thumb_desktop",
+     "status": "符合",
+     "note": "右栏缩略图（约 512×256 设备像素）：中心裁切保留 73%，上下各去 14%",
+     "box": [
+      0,
+      192,
+      2048,
+      1216
+     ]
+    },
+    {
+     "id": "crop_thumb_phone",
+     "status": "符合",
+     "note": "手机竖屏时的缩略图：中心裁切保留 52%，上下各去 24%",
+     "box": [
+      0,
+      338,
+      2048,
+      1069
+     ]
+    },
+    {
+     "id": "human",
+     "status": "符合",
+     "note": "人工核对（2026-10-12）：M1 客厅场景 m1_scene_a：沙发（有猫）、茶几、书架、台灯、盆栽、窗，三层纵深，和题面一致",
+     "judge": "human"
+    },
+    {
+     "id": "obj0",
+     "status": "无法判断",
+     "note": "图中是否存在「画出客厅里的主要家具；保留它们的位置、大小和前后关系。」？",
+     "requires": []
+    },
+    {
+     "id": "rec0",
+     "status": "阻塞",
+     "note": "「画出客厅里的主要家具；保留它们的位置、大小和前后关系。」是否能一眼辨识？",
+     "requires": [
+      "obj0"
+     ]
+    },
+    {
+     "id": "rel0",
+     "status": "阻塞",
+     "note": "关系是否成立：题面点名的对象 / 关系在图里清楚？",
+     "requires": [
+      "rec0"
+     ]
+    },
+    {
+     "id": "rel1",
+     "status": "阻塞",
+     "note": "关系是否成立：contain 完整显示下仍清楚？",
+     "requires": [
+      "rec0"
+     ]
+    },
+    {
+     "id": "frame_thumb_desktop",
+     "status": "阻塞",
+     "note": "在 右栏缩略图（约 512×256 设备像素） 裁切后，关键对象与关系是否仍清楚？",
+     "requires": [
+      "rel0",
+      "rel1"
+     ]
+    },
+    {
+     "id": "frame_thumb_phone",
+     "status": "阻塞",
+     "note": "在 手机竖屏时的缩略图 裁切后，关键对象与关系是否仍清楚？",
+     "requires": [
+      "rel0",
+      "rel1"
+     ]
+    }
+   ],
+   "spec": {
+    "id": "B6_OB_ref",
+    "kind": "reference",
+    "purpose": "正式观察参考（首访 OB）；第六段沿用本项目 M 族素材",
+    "objects": [
+     "画出客厅里的主要家具；保留它们的位置、大小和前后关系。"
+    ],
+    "relations": [
+     "题面点名的对象 / 关系在图里清楚",
+     "contain 完整显示下仍清楚"
+    ],
+    "presentation": "PNG 1600×1200（原样保留的旧素材）",
+    "must_not": [
+     "文字",
+     "商标",
+     "真人的脸",
+     "改造答案（TR）"
+    ],
+    "variable": [
+     "风格"
+    ],
+    "size": [
+     1600,
+     1200
+    ],
+    "status": "真图（docs/Phase0_实际展示参考图_核对重打包_v3.zip，2026-10-12）",
+    "provenance": "01 插画版 / 03 原样保留；02 写实版 5 张在 refs/bank/alt_photoreal/ 不混用"
+   },
+   "measured": {
+    "width": 2048,
+    "height": 1408,
+    "format": ".jpg",
+    "saturation": 0.451,
+    "corners_white": 0,
+    "fill_height": 1.0,
+    "fill_width": 1.0
+   }
+  },
+  "B6_FG_ref": {
+   "id": "B6_FG_ref",
+   "status": "无法判断",
+   "items": [
+    {
+     "id": "file",
+     "status": "符合",
+     "note": "static/refs/bank/B6_FG_ref.png"
+    },
+    {
+     "id": "size",
+     "status": "符合",
+     "note": "1600×1200（规格 1600×1200）"
+    },
+    {
+     "id": "placeholder",
+     "status": "符合",
+     "note": "manifest.placeholders"
+    },
+    {
+     "id": "crop_thumb_desktop",
+     "status": "符合",
+     "note": "右栏缩略图（约 512×256 设备像素）：中心裁切保留 67%，上下各去 17%",
+     "box": [
+      0,
+      200,
+      1600,
+      1000
+     ]
+    },
+    {
+     "id": "crop_thumb_phone",
+     "status": "符合",
+     "note": "手机竖屏时的缩略图：中心裁切保留 48%，上下各去 26%",
+     "box": [
+      0,
+      314,
+      1600,
+      885
+     ]
+    },
+    {
+     "id": "human",
+     "status": "符合",
+     "note": "人工核对（2026-10-12）：M3 碎片组 E 渲染成 1600×1200：七块（弧、两点、线、角、曲线、缺口矩形）",
+     "judge": "human"
+    },
+    {
+     "id": "obj0",
+     "status": "无法判断",
+     "note": "图中是否存在「使用参考图中的全部碎片；保持每块碎片可辨认，并发展成一幅完整画面。」？",
+     "requires": []
+    },
+    {
+     "id": "rec0",
+     "status": "阻塞",
+     "note": "「使用参考图中的全部碎片；保持每块碎片可辨认，并发展成一幅完整画面。」是否能一眼辨识？",
+     "requires": [
+      "obj0"
+     ]
+    },
+    {
+     "id": "rel0",
+     "status": "阻塞",
+     "note": "关系是否成立：题面点名的对象 / 关系在图里清楚？",
+     "requires": [
+      "rec0"
+     ]
+    },
+    {
+     "id": "rel1",
+     "status": "阻塞",
+     "note": "关系是否成立：contain 完整显示下仍清楚？",
+     "requires": [
+      "rec0"
+     ]
+    },
+    {
+     "id": "frame_thumb_desktop",
+     "status": "阻塞",
+     "note": "在 右栏缩略图（约 512×256 设备像素） 裁切后，关键对象与关系是否仍清楚？",
+     "requires": [
+      "rel0",
+      "rel1"
+     ]
+    },
+    {
+     "id": "frame_thumb_phone",
+     "status": "阻塞",
+     "note": "在 手机竖屏时的缩略图 裁切后，关键对象与关系是否仍清楚？",
+     "requires": [
+      "rel0",
+      "rel1"
+     ]
+    }
+   ],
+   "spec": {
+    "id": "B6_FG_ref",
+    "kind": "reference",
+    "purpose": "片段参考（首访 FG：转抄到空白画布，不印在画布上）；第六段沿用本项目 M 族素材",
+    "objects": [
+     "使用参考图中的全部碎片；保持每块碎片可辨认，并发展成一幅完整画面。"
+    ],
+    "relations": [
+     "题面点名的对象 / 关系在图里清楚",
+     "contain 完整显示下仍清楚"
+    ],
+    "presentation": "PNG 1600×1200（原样保留的旧素材）",
+    "must_not": [
+     "文字",
+     "商标",
+     "真人的脸",
+     "改造答案（TR）"
+    ],
+    "variable": [
+     "风格"
+    ],
+    "size": [
+     1600,
+     1200
+    ],
+    "status": "真图（docs/Phase0_实际展示参考图_核对重打包_v3.zip，2026-10-12）",
+    "provenance": "01 插画版 / 03 原样保留；02 写实版 5 张在 refs/bank/alt_photoreal/ 不混用"
+   },
+   "measured": {
+    "width": 1600,
+    "height": 1200,
+    "format": ".png",
+    "saturation": 0.0,
+    "corners_white": 4,
+    "fill_height": 0.573,
+    "fill_width": 0.758
+   }
+  },
+  "B6_TR_ref": {
+   "id": "B6_TR_ref",
+   "status": "不符合",
+   "items": [
+    {
+     "id": "file",
+     "status": "符合",
+     "note": "static/refs/bank/B6_TR_ref.png"
+    },
+    {
+     "id": "size",
+     "status": "不符合",
+     "note": "2048×1408（规格 1600×1200）"
+    },
+    {
+     "id": "placeholder",
+     "status": "符合",
+     "note": "manifest.placeholders"
+    },
+    {
+     "id": "crop_thumb_desktop",
+     "status": "符合",
+     "note": "右栏缩略图（约 512×256 设备像素）：中心裁切保留 73%，上下各去 14%",
+     "box": [
+      0,
+      192,
+      2048,
+      1216
+     ]
+    },
+    {
+     "id": "crop_thumb_phone",
+     "status": "符合",
+     "note": "手机竖屏时的缩略图：中心裁切保留 52%，上下各去 24%",
+     "box": [
+      0,
+      338,
+      2048,
+      1069
+     ]
+    },
+    {
+     "id": "human",
+     "status": "符合",
+     "note": "人工核对（2026-10-12）：M4 鞋子 m4_shoe：运动鞋侧视，鞋带鞋底可见",
+     "judge": "human"
+    },
+    {
+     "id": "obj0",
+     "status": "无法判断",
+     "note": "图中是否存在「从参考鞋子出发；画出它在森林里的样子或活动；保留可辨认的鞋子特征。」？",
+     "requires": []
+    },
+    {
+     "id": "rec0",
+     "status": "阻塞",
+     "note": "「从参考鞋子出发；画出它在森林里的样子或活动；保留可辨认的鞋子特征。」是否能一眼辨识？",
+     "requires": [
+      "obj0"
+     ]
+    },
+    {
+     "id": "rel0",
+     "status": "阻塞",
+     "note": "关系是否成立：题面点名的对象 / 关系在图里清楚？",
+     "requires": [
+      "rec0"
+     ]
+    },
+    {
+     "id": "rel1",
+     "status": "阻塞",
+     "note": "关系是否成立：contain 完整显示下仍清楚？",
+     "requires": [
+      "rec0"
+     ]
+    },
+    {
+     "id": "frame_thumb_desktop",
+     "status": "阻塞",
+     "note": "在 右栏缩略图（约 512×256 设备像素） 裁切后，关键对象与关系是否仍清楚？",
+     "requires": [
+      "rel0",
+      "rel1"
+     ]
+    },
+    {
+     "id": "frame_thumb_phone",
+     "status": "阻塞",
+     "note": "在 手机竖屏时的缩略图 裁切后，关键对象与关系是否仍清楚？",
+     "requires": [
+      "rel0",
+      "rel1"
+     ]
+    }
+   ],
+   "spec": {
+    "id": "B6_TR_ref",
+    "kind": "reference",
+    "purpose": "供改造的物品参考（首访 TR）；第六段沿用本项目 M 族素材",
+    "objects": [
+     "从参考鞋子出发；画出它在森林里的样子或活动；保留可辨认的鞋子特征。"
+    ],
+    "relations": [
+     "题面点名的对象 / 关系在图里清楚",
+     "contain 完整显示下仍清楚"
+    ],
+    "presentation": "PNG 1600×1200（原样保留的旧素材）",
+    "must_not": [
+     "文字",
+     "商标",
+     "真人的脸",
+     "改造答案（TR）"
+    ],
+    "variable": [
+     "风格"
+    ],
+    "size": [
+     1600,
+     1200
+    ],
+    "status": "真图（docs/Phase0_实际展示参考图_核对重打包_v3.zip，2026-10-12）",
+    "provenance": "01 插画版 / 03 原样保留；02 写实版 5 张在 refs/bank/alt_photoreal/ 不混用"
+   },
+   "measured": {
+    "width": 2048,
+    "height": 1408,
+    "format": ".png",
+    "saturation": 0.063,
+    "corners_white": 4,
+    "fill_height": 0.506,
+    "fill_width": 0.688
    }
   },
   "d2_nature_a": {
@@ -30687,9 +32298,9 @@
   }
  },
  "summary": {
-  "candidates": 105,
+  "candidates": 110,
   "status": {
-   "clear": 105,
+   "clear": 110,
    "open": 0,
    "blocked": 0
   },
@@ -30724,19 +32335,22 @@
    "m6_scene_e": "无法判断",
    "B1_OB_ref": "无法判断",
    "B1_FG_ref": "无法判断",
-   "B1_TR_ref": "无法判断",
-   "B2_OB_ref": "无法判断",
+   "B1_TR_ref": "不符合",
+   "B2_OB_ref": "不符合",
    "B2_FG_ref": "无法判断",
-   "B2_TR_ref": "无法判断",
-   "B3_OB_ref": "无法判断",
+   "B2_TR_ref": "不符合",
+   "B3_OB_ref": "不符合",
    "B3_FG_ref": "无法判断",
-   "B3_TR_ref": "无法判断",
-   "B4_OB_ref": "无法判断",
+   "B3_TR_ref": "不符合",
+   "B4_OB_ref": "不符合",
    "B4_FG_ref": "无法判断",
-   "B4_TR_ref": "无法判断",
-   "B5_OB_ref": "无法判断",
+   "B4_TR_ref": "不符合",
+   "B5_OB_ref": "不符合",
    "B5_FG_ref": "无法判断",
-   "B5_TR_ref": "无法判断",
+   "B5_TR_ref": "不符合",
+   "B6_OB_ref": "不符合",
+   "B6_FG_ref": "无法判断",
+   "B6_TR_ref": "不符合",
    "d2_nature_a": "不符合",
    "d2_nature_b": "不符合"
   }

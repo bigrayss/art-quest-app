@@ -1,6 +1,6 @@
 # 学生题面中英对照 / Learner-facing wording
 
-每个年龄段固定展示五道，选择一道完成。提示按需显示；任务属性与研究分析不显示给学生。
+每个年龄段固定展示五道（含 17 岁及以上一段），选择一道完成。提示按需显示；任务属性与研究分析不显示给学生。
 
 Five fixed choices are offered in each age band. Complete one. Hints are shown on request; research metadata is not learner-facing.
 
@@ -509,3 +509,99 @@ What single action do you want viewers to take?
 
 ---
 
+## B6_OB_01｜客厅 / Living Room
+
+照着参考图把整个客厅画出来，沙发、茶几、书架这些大件要在原来的位置，大小和前后关系也尽量和图里一样。小物件可以取舍，线稿或上色都可以。
+
+Draw the whole living room from the reference. Keep the large pieces such as the sofa, table and bookshelf in their places, and keep their sizes and front-to-back relations as close to the picture as you can. Smaller items are your choice. Use lines or colour.
+
+**可选提示 / Optional hints**
+
+- 先定沙发、书架这些大块的位置，再放小东西。 / Place the large pieces such as the sofa and bookshelf first, then the small things.
+- 比一比哪件在前、哪件在后，再看它们的大小。 / Compare which piece is in front and which is behind, then compare their sizes.
+
+**可跳过的完成后问题 / Skippable reflection**
+
+你先画了哪一件，为什么？
+
+Which piece did you draw first, and why?
+
+参考文件 / Reference file: `assets/B6_OB_ref.png`
+
+---
+## B6_ST_01｜地图上的地方 / A Place on the Map
+
+地图上标着一个现实中不存在的地方。想象你找到了它，用一幅画画出那里的样子，并留一两个线索，让看的人猜得到这里发生过什么。只画一幅，不用写文字。
+
+The map shows a place that does not exist in real life. Imagine you find it and draw what it looks like in one picture. Leave one or two clues so viewers can guess what happened here. One picture; no writing needed.
+
+**可选提示 / Optional hints**
+
+- 先决定这是什么样的地方，再想线索。 / Decide what kind of place it is first, then think of the clues.
+- 线索可以是一件东西、一个痕迹，不用很多。 / A clue can be one object or one trace; you do not need many.
+
+**可跳过的完成后问题 / Skippable reflection**
+
+你留的线索是什么，它说了什么？
+
+What clue did you leave, and what does it tell?
+
+---
+## B6_FG_01｜壁画的碎片 / Fragments of a Mural
+
+参考图里的这些线条碎片来自一幅壁画。把它们都画进一幅画，接着画出这幅壁画可能讲的故事。碎片可以移动、转向或变大小，但每一块都要还能找到。
+
+The line fragments in the reference come from a mural. Draw all of them into one picture and continue it into the story the mural might tell. You may move, rotate or resize the fragments, but each one should still be recognisable.
+
+**可选提示 / Optional hints**
+
+- 先看碎片的形状像什么，再想它们在故事里是什么。 / Look at what the shapes resemble first, then decide what they are in the story.
+- 不必把它们全部变成同一种东西。 / They do not all have to become the same kind of thing.
+
+**可跳过的完成后问题 / Skippable reflection**
+
+哪一块碎片最先让你想到这个故事？
+
+Which fragment first gave you the story?
+
+参考文件 / Reference file: `assets/B6_FG_ref.png`
+
+---
+## B6_TR_01｜鞋子变生物 / A Shoe Becomes a Creature
+
+把参考图里的这只鞋变成住在大森林里的生物。画出它怎样在森林里生活，并保留一些鞋子的特征，让人还看得出它是鞋子变的。保留哪些部分由你决定。
+
+Turn the shoe in the reference into a creature that lives in a great forest. Show how it lives there, and keep some features of the shoe so that people can still tell it came from a shoe. You decide which parts to keep.
+
+**可选提示 / Optional hints**
+
+- 先想它在森林里怎么动、吃什么。 / Decide how it moves and what it eats in the forest first.
+- 鞋带、鞋底的纹路都可以变成别的东西。 / Laces and sole patterns can become other things.
+
+**可跳过的完成后问题 / Skippable reflection**
+
+你留下了鞋子的哪一部分，它变成了什么？
+
+Which part of the shoe did you keep, and what did it become?
+
+参考文件 / Reference file: `assets/B6_TR_ref.png`
+
+---
+## B6_DS_01｜我的画廊标志 / A Sign for My Gallery
+
+这个 app 里有一面挂着你作品的画廊。为它设计一个标志，让看到的人知道这是你的地方。图形和颜色由你决定，可以加一个简短的名字，也可以不写字。
+
+This app has a gallery wall that shows your drawings. Design a sign for it so that people know this is your place. Choose the shapes and colours yourself; a short name is optional, and you do not have to write anything.
+
+**可选提示 / Optional hints**
+
+- 先想一个最能代表你的东西。 / Think of the one thing that best stands for you.
+- 标志缩小了也要认得出。 / The sign should still be recognisable when small.
+
+**可跳过的完成后问题 / Skippable reflection**
+
+别人看到这个标志会想到你的什么？
+
+What about you will people think of when they see this sign?
+
+---
