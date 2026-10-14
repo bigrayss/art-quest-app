@@ -2,7 +2,7 @@
 
     python3 tools/export_dataset.py --out export/ [--points]
 
-Writes sessions.csv, strokes.csv, events.csv, feedback.csv, questionnaire.csv —
+Writes sessions.csv, strokes.csv, events.csv, feedback.csv, questionnaire.csv, calls.csv (+ prompts/) —
 and with --points, points.csv (one row per sampled pen point; large).
 
 Nothing is aggregated beyond counts: stroke speed, hesitation and rhythm stay
@@ -10,6 +10,7 @@ where they belong, in the analysis scripts that read these files.
 """
 import argparse
 import csv
+import shutil
 import json
 import sys
 from pathlib import Path
@@ -20,7 +21,7 @@ from artquest import config  # noqa: E402
 from artquest import events as ev  # noqa: E402
 from artquest.logstore import write_json  # noqa: E402
 from artquest.storage import (dataset_manifest, session_events, session_feedback,  # noqa: E402
-                              session_labels, session_meta, session_part, session_strokes, sid_of)
+                              session_labels, session_meta, session_part, session_calls, calls_recorded, prompts_dir, session_strokes, sid_of)
 from artquest.revision import attribute  # noqa: E402
 from artquest.quests import QUESTS  # noqa: E402
 from artquest.scoring.base import DIM_KEYS  # noqa: E402
@@ -71,6 +72,7 @@ SESSION_COLS = [
     "bank", "band", "routing_age", "routing_age_source", "first_visit", "revision_enabled", "reference_fit", "post_config",
     "n_strokes", "n_points", "n_events", "n_snapshots",
     "qc_ok", "qc_failed", "app_version", "schema_version", "canvas_w", "canvas_h", "device_platform",
+    "calls_recorded", "n_calls",
 ]
 
 
@@ -159,6 +161,37 @@ def _flat_session(m: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+CALL_COLS = ["session_id", "call_id", "group_id", "operation_id", "attempt", "purpose", "stage", "dimension_id",
+             "execution_kind", "provider", "backend", "model", "prompt_version", "system_hash", "started_at",
+             "seconds", "outcome", "http_status", "error", "prompt_tokens", "completion_tokens", "n_images",
+             "image_files", "image_sha256", "input_chars", "input_text", "output_text", "finish_reason",
+             "reasoning_chars", "provider_request_id", "key_index"]
+
+
+def _flat_call(sid: str, c: Dict[str, Any]) -> Dict[str, Any]:
+    """calls.jsonl 一行 → 一行 CSV。输入文字拼起来放一列（local 记录的 input 是结构体，就整个 JSON 化）。"""
+    inp = c.get("input") or {}
+    out = c.get("output") or {}
+    usage = c.get("usage") or {}
+    texts = inp.get("text")
+    input_text = "\n".join(texts) if isinstance(texts, list) else json.dumps(inp, ensure_ascii=False)
+    images = inp.get("images") or []
+    return {
+        **{k: c.get(k) for k in ("call_id", "group_id", "operation_id", "attempt", "purpose", "stage", "dimension_id",
+                                 "execution_kind", "provider", "backend", "model", "prompt_version", "system_hash",
+                                 "started_at", "seconds", "outcome", "http_status", "error", "provider_request_id",
+                                 "key_index")},
+        "session_id": sid,
+        "prompt_tokens": usage.get("prompt_tokens"), "completion_tokens": usage.get("completion_tokens"),
+        "n_images": len(images), "image_files": "|".join(str(i.get("file") or "") for i in images),
+        "image_sha256": "|".join(str(i.get("sha256") or "") for i in images),
+        "input_chars": len(input_text), "input_text": input_text,
+        "output_text": out.get("text") if isinstance(out, dict) and "text" in out else json.dumps(out, ensure_ascii=False),
+        "finish_reason": out.get("finish_reason") if isinstance(out, dict) else None,
+        "reasoning_chars": out.get("reasoning_chars") if isinstance(out, dict) else None,
+    }
+
+
 def _write(path: Path, cols: List[str], rows: List[Dict[str, Any]]) -> int:
     with path.open("w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=cols, extrasaction="ignore")
@@ -170,7 +203,7 @@ def _write(path: Path, cols: List[str], rows: List[Dict[str, Any]]) -> int:
 def export(out: Path, with_points: bool = False) -> Dict[str, int]:
     out.mkdir(parents=True, exist_ok=True)
     sessions, strokes, events, feedback, quest, personal, ratings = [], [], [], [], [], [], []
-    annotations = []
+    annotations, calls = [], []
     points_path = out / "points.csv"
     pf = points_path.open("w", newline="", encoding="utf-8") if with_points else None
     pw = csv.writer(pf) if pf else None
@@ -184,10 +217,18 @@ def export(out: Path, with_points: bool = False) -> Dict[str, int]:
         if m.get("lifecycle") == "issued":
             continue                      # 没花掉的票不是作品：没有画、没有时间、没有任务
         sid = sid_of(m) or d.name
-        sessions.append(_flat_session(m))
+        row = _flat_session(m)
+        # 「没采集」和「零次」要分得开：schema 4 之前的 session 没有 calls.jsonl
+        cs = session_calls(d) if calls_recorded(d) else None
+        row["calls_recorded"] = cs is not None
+        row["n_calls"] = len(cs) if cs is not None else None
+        sessions.append(row)
         pz = session_part(d, "personalization")
         if pz:
             personal.append(_flat_personalization(m, pz))
+        # schema 4 起每次模型/引擎执行一条；文件不在 = 没采集（sessions.csv 的 calls_recorded 说得清），不是零次
+        if cs:
+            calls.extend(_flat_call(sid, c) for c in cs)
 
         for s in session_strokes(d):
             pts = s.get("points") or []
@@ -282,11 +323,26 @@ def export(out: Path, with_points: bool = False) -> Dict[str, int]:
                                                         "t_start_ms", "t_end_ms", "duration_ms",
                                                         "confidence", "note", "ts"], annotations),
         "personalization": _write(out / "personalization.csv", PERSONALIZATION_COLS, personal),
+        "calls": _write(out / "calls.csv", CALL_COLS, calls),
+        # calls.csv 里的 system_hash 指向这些正文：固定提示词按 hash 归档一份，跟着数据走，不靠将来还能翻仓库
+        "prompts": _copy_prompts(out / "prompts"),
         # the dataset ships its own measurement objects: without the task
         # definitions the session rows are ids nobody can resolve
         "tasks": _write(out / "tasks.csv", TASK_COLS, [_flat_task(t) for t in QUESTS]),
     }
     return counts
+
+
+def _copy_prompts(dest: Path) -> int:
+    src = prompts_dir()
+    if not src.is_dir():
+        return 0
+    dest.mkdir(parents=True, exist_ok=True)
+    n = 0
+    for f in sorted(src.glob("*.txt")):
+        shutil.copyfile(f, dest / f.name)
+        n += 1
+    return n
 
 
 def main() -> int:

@@ -27,8 +27,10 @@ Finished streams are gzipped; reads and late appends are transparent.
 import base64
 import io
 import hashlib
+import logging
 import re
 import shutil
+import threading
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -41,7 +43,13 @@ from . import config          # read through the module: the data dir is env-dri
 from . import events as ev
 from .logstore import JsonlLog, read_json, write_json
 
-SCHEMA_VERSION = 3
+# 4（2026-10-14）：多了 `calls.jsonl`——每次模型/引擎执行一条（评分一维一次尝试一条、反馈、陪伴、个性化；
+# heuristic/template 也写，execution_kind=local）。旧 session 没有这个文件表示「未采集」，不是「零调用」。
+SCHEMA_VERSION = 4
+log = logging.getLogger("artquest")
+# 每条 session 一把锁：九个评分线程同时往 calls.jsonl 追加时排队，而且追加前先看 session.json 还在不在。
+_LOCKS: Dict[str, threading.Lock] = {}
+_LOCKS_GUARD = threading.Lock()
 
 # Where a session is in its journey from the child's screen to a verified row.
 # Separate from `status` (which says where the *child* is): a finished drawing
@@ -110,10 +118,15 @@ class SessionStore:
         own file keeps appending there, so its records stay in one place.
         """
         d = self.dir(sid)
-        own = JsonlLog(d / f"{stream}.jsonl")
+        guard = lambda: self._meta_path(sid).exists()   # noqa: E731  删掉的 session 不再长出新文件
+        own = JsonlLog(d / f"{stream}.jsonl", guard=guard)
         if stream in ("feedback", "ratings", "annotations") and not own.exists():
-            return JsonlLog(d / f"{_STREAM_FILE[stream]}.jsonl")
+            return JsonlLog(d / f"{_STREAM_FILE[stream]}.jsonl", guard=guard)
         return own
+
+    def _lock(self, sid: str) -> threading.Lock:
+        with _LOCKS_GUARD:
+            return _LOCKS.setdefault(sid, threading.Lock())
 
     # -- lifecycle ---------------------------------------------------------
     def create(self, quest: Dict[str, Any], intent: Dict[str, Any], *,
@@ -324,8 +337,34 @@ class SessionStore:
             meta.setdefault("questionnaire", None)
             meta["questionnaire"] = meta["questionnaire"] or self.self_report(sid)
             meta["personalization"] = self.personalization(sid)
+            meta["calls"] = self.calls(sid)
         meta.setdefault("events", [])
         return meta
+
+    # -- 模型/引擎执行记录 ---------------------------------------------------
+    def call_sink(self, sid: str):
+        """给 llm.recording 用的落盘回调：`sink(record, system_text)`。"""
+        return lambda record, system_text=None: self.add_call(sid, record, system_text)
+
+    def add_call(self, sid: str, record: Dict[str, Any], system_text: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """一次真实执行一条，追加到 `calls.jsonl`。
+
+        锁住再写：评分的九个维度是并行线程。写之前看 session.json 还在不在——孩子刚删掉的那张画，
+        迟到的评分结果不能把目录重新建起来（返回 None，只留一行警告，不带内容）。
+        固定的 system 正文按 hash 归档一份在 data/prompts/，记录里只有 hash。
+        不碰 session.json：那是主线程在写的，这里不跟它抢。
+        """
+        with self._lock(sid):
+            if not self._meta_path(sid).exists():
+                log.warning("call record for %s dropped: session no longer exists", sid)
+                return None
+            if system_text and record.get("system_hash"):
+                archive_prompt(record["system_hash"], system_text)
+            self.log(sid, "calls").append([record])
+        return record
+
+    def calls(self, sid: str) -> List[Dict[str, Any]]:
+        return session_calls(self.dir(sid))
 
     # -- personalisation ---------------------------------------------------
     # -- the condition the child actually saw -------------------------------
@@ -514,7 +553,7 @@ class SessionStore:
             "target_region": record.get("target_region"),
             "shown_at": record.get("shown_at") or now_iso(),
             # provenance, so a later model-generated intervention is comparable
-            **{k: record[k] for k in ("trigger", "model", "prompt_version") if record.get(k)},
+            **{k: record[k] for k in ("trigger", "model", "prompt_version", "call_id", "group_id") if record.get(k)},
         }
         t_ms = record.get("t_ms", 0)
         # the event stream keeps one shape: type + payload, like every other event
@@ -868,6 +907,32 @@ def session_events(d: Path) -> List[Dict[str, Any]]:
     return JsonlLog(Path(d) / "events.jsonl").read()
 
 
+def session_calls(d: Path) -> List[Dict[str, Any]]:
+    """每次模型/引擎执行一条（schema 4 起）。文件不存在 = 这条 session 没采集过，不是零次。"""
+    return JsonlLog(Path(d) / "calls.jsonl").read()
+
+
+def calls_recorded(d: Path) -> bool:
+    return JsonlLog(Path(d) / "calls.jsonl").exists()
+
+
+def prompts_dir() -> Path:
+    return Path(config.DATA_DIR) / "prompts"
+
+
+def archive_prompt(system_hash: str, text: str) -> Path:
+    """固定的 system 正文按 sha256 存一份（`data/prompts/<hash>.txt`），记录里只有 hash。
+    已经有了就不写。导出时整个目录带走，不靠将来还能翻仓库。"""
+    d = prompts_dir()
+    d.mkdir(parents=True, exist_ok=True)
+    path = d / f"{system_hash}.txt"
+    if not path.exists():
+        tmp = path.with_suffix(".tmp")
+        tmp.write_text(text, encoding="utf-8")
+        tmp.replace(path)
+    return path
+
+
 def session_strokes(d: Path) -> List[Dict[str, Any]]:
     return [ev.canonical_stroke(r) for r in JsonlLog(Path(d) / "strokes.jsonl").read()]
 
@@ -912,7 +977,8 @@ def dataset_manifest(root: Optional[Path] = None) -> Dict[str, Any]:
     """
     root = Path(root or config.SESSIONS_DIR)
     counts = {"sessions": 0, "done": 0, "verified": 0, "withdrawn": 0,
-              "strokes": 0, "points": 0, "events": 0, "labels": 0}
+              "strokes": 0, "points": 0, "events": 0, "labels": 0,
+              "calls": 0, "sessions_with_calls": 0}
     schemas: Dict[str, int] = {}
     for d in sorted(root.iterdir()) if root.exists() else []:
         if not d.is_dir():
@@ -933,6 +999,9 @@ def dataset_manifest(root: Optional[Path] = None) -> Dict[str, Any]:
         for k in ("strokes", "points", "events"):
             counts[k] += int(c.get(k) or 0)
         counts["labels"] += len(session_labels(d))
+        if calls_recorded(d):
+            counts["sessions_with_calls"] += 1
+            counts["calls"] += len(session_calls(d))
     return {
         "dataset": "artquest",
         "schema_version": SCHEMA_VERSION,
@@ -948,9 +1017,14 @@ def dataset_manifest(root: Optional[Path] = None) -> Dict[str, Any]:
                                   "in canvas pixels, dt from the stroke's t0_ms",
             "events.jsonl[.gz]": "every non-drawing operation, feedback included",
             "labels.jsonl": "human ground truth: teacher ratings + expert process spans",
+            "calls.jsonl": "one line per model/engine execution (schema 4+): group_id > operation_id > "
+                           "call_id/attempt; purpose score|review|final|assist|personalize; remote HTTP "
+                           "attempts and local heuristic/template runs alike; inputs as text + image "
+                           "sha256 refs, outputs, outcome, usage; absent = not collected, not zero",
             "final.png": "the last submitted work",
             "checkpoints/": "frames kept on purpose (before_feedback, process_* rebuilt from the logs, and any uploaded snapshots)",
             "reference/": "the stimulus this child saw",
+            "../prompts/": "fixed system prompts archived once by sha256 (calls.jsonl carries system_hash)",
         },
         "note": "Older sessions keep the split layout they were recorded in; every "
                 "reader in artquest/storage.py folds them onto this shape.",

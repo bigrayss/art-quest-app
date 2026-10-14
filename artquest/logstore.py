@@ -25,9 +25,12 @@ _TAIL_BYTES = 65536
 class JsonlLog:
     """An append-only JSON Lines stream with idempotent, seq-ordered appends."""
 
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, guard=None):
         self.path = Path(path)                       # the plain .jsonl path
         self.gz_path = Path(str(path) + ".gz")
+        # 写之前问一句「这条 session 还在吗」。删除后迟到的一批（评分线程、离线重放）
+        # 不能在空目录里重新长出一个 jsonl——那就是被收回的同意又复活了半截。
+        self.guard = guard
 
     # -- reading -----------------------------------------------------------
     def exists(self) -> bool:
@@ -110,6 +113,8 @@ class JsonlLog:
 
     # -- writing -----------------------------------------------------------
     def _write(self, records: List[Dict[str, Any]]) -> None:
+        if self.guard is not None and not self.guard():
+            raise KeyError(f"{self.path.parent.name}: session is gone, refusing to append")
         self.thaw()                                  # a late batch reopens a finished stream
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open("a", encoding="utf-8") as fh:

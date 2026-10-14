@@ -84,12 +84,17 @@ tailscale serve --bg --https=443 http://127.0.0.1:8010
 ```
 data/dataset.json               数据集清单：schema、版本、各项计数（导出时刷新）
 data/accounts/                  账号：一个孩子一个小 JSON + 一张索引（见「账号」一节）
+data/prompts/<sha256>.txt       固定的 system 正文按 hash 归档一份（calls.jsonl 的 system_hash 指向它）
 data/sessions/<session_id>/
   session.json        一次任务里所有「小体量、非时间序列」的东西：身份、**冻结的任务定义**、
                       条件、设备、画布、时间、个性化、自评、QC
   strokes.jsonl       画本身，一行一笔（`.gz` 也认——见「压缩」一节，老数据里有）
   events.jsonl        所有非绘画操作——**反馈也在这条线上**，它本来就是过程中的一个事件
   labels.jsonl        人写下来的 ground truth：教师评分 + 专家过程标注
+  calls.jsonl         （schema 4，2026-10-14）每次模型/引擎执行一条：group（一轮，如第一次九维评分）>
+                      operation（一个逻辑操作，如评构图）> call/attempt（一次真实执行，重试各算一次）。
+                      purpose score|review|final|assist|personalize；heuristic/template 也写（execution_kind=local）；
+                      输入是文字 + 图的 sha256 引用，system 只有 hash。**没有这个文件 = 没采集，不是零次**
   final.png           最后交上来的作品
   checkpoints/        只留真的需要的关键帧：`before_feedback.png`（有修改才有）
   reference/          孩子当时看到的那张刺激图的副本（static/refs 里的会被替换）

@@ -93,7 +93,7 @@ class ResearchDataLayer(unittest.TestCase):
     def test_metadata_records_identity_task_condition_and_device(self):
         sid = self._create()
         m = self.c.get(f"/api/sessions/{sid}").json()
-        self.assertEqual(m["schema_version"], 3)
+        self.assertEqual(m["schema_version"], 4)
         self.assertEqual(m["participant"],
                          {"anon_id": "anon-abc123", "participant_id": "P007", "account_id": "",
                           "label": "", "age": None, "buddy_name": ""})

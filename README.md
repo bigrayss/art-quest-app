@@ -61,10 +61,14 @@ data/sessions/<id>/
   strokes.jsonl   画本身，一行一笔
   events.jsonl    所有非绘画操作，反馈也在这条线上
   labels.jsonl    教师评分、专家标注
+  calls.jsonl     每次模型/引擎执行一条（schema 4 起）：评分一维一次尝试一条、反馈、陪伴、个性化，
+                  heuristic/template 也写（execution_kind=local）；输入是文字 + 图的 sha256，不含图本身
   final.png       交上来的作品
+data/prompts/<sha256>.txt   固定的 system 正文按 hash 归档一份，calls.jsonl 里只有 system_hash
 ```
 
 原则：不高频、不是时间序列的进 `session.json`；能算出来的不存。
+`calls.jsonl` 不在的旧 session 是「没采集」，不是「零次调用」。
 事件词表的唯一权威是 `artquest/events.py`。研究员接口见 `DESIGN.md` 的「API」一节。
 
 ## 研究相关

@@ -4,6 +4,7 @@ import json
 import logging
 import re
 import secrets
+import time
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, FastAPI, HTTPException, Request
@@ -18,6 +19,7 @@ from . import missions_bank   # 不叫 config：下面 /api/config 那个端点�
 from . import events as ev
 from . import gallery as gallery_mod
 from . import history as history_mod
+from . import llm as llm_mod
 from . import study as study_mod
 from .accounts import AccountError, AccountStore
 from . import i18n
@@ -159,6 +161,21 @@ def _quest_for_engines(meta: Dict[str, Any]) -> Dict[str, Any]:
     是一份拷贝，引擎只读。"""
     quest = i18n.quest_for(QUESTS_BY_ID[meta["quest_id"]], meta.get("lang", "zh"))
     return {**quest, "ui": (meta.get("condition") or {}).get("ui", "simple")}
+
+
+def _sha(png: bytes) -> str:
+    return hashlib.sha256(png).hexdigest()
+
+
+def _settle_local(ctx, result: Optional[Dict[str, Any]], *, seconds: float, input: Dict[str, Any],
+                  output: Dict[str, Any], error: Optional[str] = None) -> None:
+    """引擎跑完了、组里一条远程记录都没有 → 这次是本地执行（heuristic / template / no_history），
+    补一条同形的 local 记录。远程跑过的（哪怕全失败）不补：失败本身已经一条条记着。"""
+    if ctx.count:
+        return
+    backend = (result or {}).get("backend", "") or ""
+    ctx.local(backend=backend, seconds=seconds, input=input, output=output,
+              outcome="error" if backend == "error" else "ok", error=error)
 
 
 def _session_or_404(sid: str) -> Dict[str, Any]:
@@ -879,15 +896,25 @@ def _personalize(sid: str, quest: Dict[str, Any], meta: Dict[str, Any]) -> Dict[
                                     before=meta.get("created_at") or "")
         except Exception:
             log.exception("representation build failed for %s", sid)
-    try:
-        decision = get_personalizer(mode).prepare(quest, rep)
-    except Exception as e:                      # an arm must never lose the session
-        log.exception("personalizer failed")
-        decision = {"requested_mode": mode, "backend": "error", "available": False,
-                    "note": str(e), "history_used": {}, "shown": [], "prediction": {}}
+    err = None
+    t0 = time.monotonic()
+    with llm_mod.recording(store.call_sink(sid), purpose="personalize", stage="create") as ctx:
+        try:
+            decision = get_personalizer(mode).prepare(quest, rep)
+        except Exception as e:                      # an arm must never lose the session
+            log.exception("personalizer failed")
+            err = str(e)[:300]
+            decision = {"requested_mode": mode, "backend": "error", "available": False,
+                        "note": str(e), "history_used": {}, "shown": [], "prediction": {}}
+        _settle_local(ctx, decision, seconds=time.monotonic() - t0,
+                      input={"mode": mode, "task_id": quest.get("id") or quest.get("task_id"),
+                             "cold_start": bool((rep or {}).get("cold_start", rep is None)),
+                             "n_tasks": len((rep or {}).get("tasks") or [])},
+                      output={"shown": decision.get("shown"), "prediction": decision.get("prediction")}, error=err)
     # the whole representation goes in: a decision is only reproducible next to
     # the state it was made from
     decision["representation"] = rep
+    decision["calls"] = ctx.summary()
     return store.save_personalization(sid, decision)
 
 
@@ -1047,13 +1074,27 @@ def assist(sid: str, body: AssistIn):
         raise HTTPException(400, str(e))
     _ingest(sid, body.events, [])
     quest = _quest_for_engines(meta)
-    try:
-        out = get_assist_engine().assist(png, quest, meta.get("intent") or {}, nth=max(1, body.nth))
-    except Exception as e:                      # 陪伴挂了绝不能挡住画画
-        log.exception("assist failed")
-        return {"text": i18n.say(meta.get("lang", "zh"), "我在这里，按你的节奏画。", "I'm here. Keep going."),
-                "backend": "error", "error": str(e)}
-    return {"text": out["text"], "backend": out.get("backend", "")}
+    nth = max(1, body.nth)
+    err = None
+    t0 = time.monotonic()
+    # 点击那一刻的画面还没有落盘（第二批改造再存），记录里先只有它的 hash，能和以后存的文件对上。
+    with llm_mod.recording(store.call_sink(sid), purpose="assist", stage="during", prompt_version=PROMPT_VERSION) as ctx:
+        try:
+            out = get_assist_engine().assist(png, quest, meta.get("intent") or {}, nth=nth)
+        except Exception as e:                      # 陪伴挂了绝不能挡住画画
+            log.exception("assist failed")
+            err = str(e)[:300]
+            out = {"text": i18n.say(meta.get("lang", "zh"), "我在这里，按你的节奏画。", "I'm here. Keep going."),
+                   "backend": "error", "error": str(e)}
+        _settle_local(ctx, out, seconds=time.monotonic() - t0,
+                      input={"images": [{"sha256": _sha(png), "file": None}], "nth": nth,
+                             "intent": meta.get("intent") or {}},
+                      output={"text": out.get("text", "")}, error=err)
+    resp = {"text": out["text"], "backend": out.get("backend", ""),
+            "call_id": ctx.last_call_id, "group_id": ctx.group_id}
+    if err is not None:
+        resp["error"] = out.get("error", err)
+    return resp
 
 
 @api.post("/sessions/{sid}/snapshot")
@@ -1072,14 +1113,27 @@ def _score_and_save(sid: str, phase: str, png: bytes, elapsed_ms: int) -> Dict[s
     meta = store.load(sid)
     quest, intent = _quest_for_engines(meta), meta["intent"]
     store.save_phase_image(sid, phase, png)
-    try:
-        scores = get_scorer().score(png, quest, intent)
-    except Exception as e:  # scoring must never lose the artwork
-        log.exception("scoring failed")
-        scores = {"backend": "error", "scale": [1, SCALE_MAX], "dims": {}, "summary": f"评分失败：{e}"}
+    sha = _sha(png)
+    err = None
+    t0 = time.monotonic()
+    with llm_mod.recording(store.call_sink(sid), purpose="score", stage=phase, prompt_version=PROMPT_VERSION,
+                           images={sha: f"{phase}.png"}) as ctx:
+        try:
+            scores = get_scorer().score(png, quest, intent)
+        except Exception as e:  # scoring must never lose the artwork
+            log.exception("scoring failed")
+            err = str(e)[:300]
+            scores = {"backend": "error", "scale": [1, SCALE_MAX], "dims": {}, "summary": f"评分失败：{e}"}
+        _settle_local(ctx, scores, seconds=time.monotonic() - t0,
+                      input={"images": [{"sha256": sha, "file": f"{phase}.png"}],
+                             "applicable_dims": quest.get("applicable_dims")},
+                      output={"dims": {k: (v or {}).get("score") for k, v in (scores.get("dims") or {}).items()},
+                              "summary": scores.get("summary", "")}, error=err)
     # N/A is not a low score: a dimension this task cannot elicit carries no number
     scores = apply_contract(scores, quest.get("rubric"))
-    return {"file": f"{phase}.png", "elapsed_ms": elapsed_ms, "at": now_iso(), "scores": scores}
+    # 这轮评分是哪个 group、每一维采用了哪次执行（calls.jsonl 里按 call_id 查得到输入输出）
+    return {"file": f"{phase}.png", "elapsed_ms": elapsed_ms, "at": now_iso(), "scores": scores,
+            "calls": ctx.summary()}
 
 
 def _is_blank(png: bytes) -> bool:
@@ -1140,11 +1194,20 @@ def submit(sid: str, body: Submit):
             return {"phase": "before", "scores": record["scores"], "feedback": None,
                     "feedback_source": source, "session": meta}
 
-        try:
-            fb = engine.feedback(png, quest, intent, record["scores"])
-        except Exception as e:
-            log.exception("feedback failed")
-            fb = {"backend": "error", "text": f"反馈生成失败：{e}"}
+        err = None
+        t0 = time.monotonic()
+        with llm_mod.recording(store.call_sink(sid), purpose="review", stage="before", prompt_version=PROMPT_VERSION,
+                               images={_sha(png): "before.png"}) as ctx:
+            try:
+                fb = engine.feedback(png, quest, intent, record["scores"])
+            except Exception as e:
+                log.exception("feedback failed")
+                err = str(e)[:300]
+                fb = {"backend": "error", "text": f"反馈生成失败：{e}"}
+            _settle_local(ctx, fb, seconds=time.monotonic() - t0,
+                          input={"images": [{"sha256": _sha(png), "file": "before.png"}], "intent": intent,
+                                 "scores": {k: (v or {}).get("score") for k, v in (record["scores"].get("dims") or {}).items()}},
+                          output={"text": fb.get("text", "")}, error=err)
         fb["at"] = now_iso()
         # structured record + the anchor that splits "before feedback" from "after"
         entry = store.add_feedback(sid, {
@@ -1152,7 +1215,9 @@ def submit(sid: str, body: Submit):
             "feedback_type": "formative", "backend": fb["backend"], "text": fb["text"],
             # provenance, so a later model-generated intervention is comparable
             "trigger": "submit", "model": LLM_MODEL if fb["backend"] == LLM_BACKEND else "",
-            "prompt_version": PROMPT_VERSION})
+            "prompt_version": PROMPT_VERSION,
+            # 这句话是哪次执行说的（calls.jsonl）
+            "call_id": ctx.last_call_id, "group_id": ctx.group_id})
         fb["feedback_id"] = entry["feedback_id"]
         fb["t_ms"] = body.elapsed_ms
         # `entry` *is* the FEEDBACK_SHOW event on the timeline — no second record
@@ -1170,15 +1235,25 @@ def submit(sid: str, body: Submit):
     cmp = None
     if source == "ai":
         before_png = store.read_image(sid, "before")
-        try:
-            cmp = engine.compare(before_png, png, meta["before"]["scores"], record["scores"], quest, intent)
-        except Exception as e:
-            log.exception("compare failed")
-            cmp = {"backend": "error", "text": f"对比生成失败：{e}"}
+        err = None
+        t0 = time.monotonic()
+        with llm_mod.recording(store.call_sink(sid), purpose="final", stage="after", prompt_version=PROMPT_VERSION,
+                               images={_sha(before_png): "before.png", _sha(png): "after.png"}) as ctx:
+            try:
+                cmp = engine.compare(before_png, png, meta["before"]["scores"], record["scores"], quest, intent)
+            except Exception as e:
+                log.exception("compare failed")
+                err = str(e)[:300]
+                cmp = {"backend": "error", "text": f"对比生成失败：{e}"}
+            _settle_local(ctx, cmp, seconds=time.monotonic() - t0,
+                          input={"images": [{"sha256": _sha(before_png), "file": "before.png"},
+                                            {"sha256": _sha(png), "file": "after.png"}], "intent": intent},
+                          output={"text": cmp.get("text", "")}, error=err)
         store.add_feedback(sid, {"t_ms": body.elapsed_ms, "phase": "after", "source": "ai",
                                  "feedback_type": "comparison", "backend": cmp["backend"],
                                  "text": cmp["text"], "trigger": "submit",
-                                 "prompt_version": PROMPT_VERSION})
+                                 "prompt_version": PROMPT_VERSION,
+                                 "call_id": ctx.last_call_id, "group_id": ctx.group_id})
     store.add_server_event(sid, "SESSION_END", body.elapsed_ms, {"revised": True})
     store.update(sid, after=record, comparison=cmp, revised=True, status="done")
     _buddy_invite(sid)

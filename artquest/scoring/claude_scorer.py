@@ -10,6 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, Optional
 
 from ..config import LLM_BACKEND
+from .. import llm
 from ..llm import LLMBadOutput, claude_text, image_block
 from ..prompts import SCORE_PROMPT_LANG, VERSION, score_prompt
 from .base import DIM_KEYS, SCALE_MAX, empty_result
@@ -30,19 +31,24 @@ class ClaudeScorer:
     def score(self, image_png: bytes, quest: Dict[str, Any], intent: Dict[str, Any]) -> Dict[str, Any]:
         keys = [k for k in DIM_KEYS if k in (quest.get("applicable_dims") or DIM_KEYS)]
         img = image_block(image_png)
+        # 调用记录：主线程开的那个 group 传给工作线程（线程池继承不到 ContextVar），每一维是组里一个 operation，
+        # 「没回数字再要一次」和 429 重试都算这个 operation 的下一次 attempt。
+        parent = llm.current()
 
         def one(key: str) -> Optional[int]:
             content = [img, {"type": "text", "text": score_prompt(SCORE_PROMPT_LANG, key)}]
             last = ""
-            for _ in range(2):                       # 没回数字就再要一次
-                try:
-                    last = claude_text("", content, max_tokens=32)
-                except Exception as e:               # 一维挂了（限流、超时）不拖垮整次：这一维留空
-                    log.warning("score %s: call failed: %s", key, str(e)[:160])
-                    return None
-                n = parse_score(last)
-                if n is not None:
-                    return n
+            with llm.operation(parent, dimension_id=key,
+                               validator=lambda t: None if parse_score(t) is not None else f"no digit in reply: {t[:80]!r}"):
+                for _ in range(2):                       # 没回数字就再要一次
+                    try:
+                        last = claude_text("", content, max_tokens=32)
+                    except Exception as e:               # 一维挂了（限流、超时）不拖垮整次：这一维留空
+                        log.warning("score %s: call failed: %s", key, str(e)[:160])
+                        return None
+                    n = parse_score(last)
+                    if n is not None:
+                        return n
             log.warning("score %s: no digit in reply %r", key, last[:80])
             return None
 
