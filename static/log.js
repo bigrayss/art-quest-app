@@ -161,6 +161,7 @@
     snapshot: (s) => `${API}/sessions/${s}/snapshot`,
     submit:   (s) => `${API}/sessions/${s}/submit`,
     finalize: (s) => `${API}/sessions/${s}/finalize`,
+    assist_click: (s) => `${API}/sessions/${s}/assist/click`,   // 没调模型的点击（冷却/离线）的画面与账
   };
 
   /** 还没重放的「建 session」是哪些 —— 它们的笔画得等着。 */

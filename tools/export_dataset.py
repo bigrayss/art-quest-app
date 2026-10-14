@@ -2,7 +2,7 @@
 
     python3 tools/export_dataset.py --out export/ [--points]
 
-Writes sessions.csv, strokes.csv, events.csv, feedback.csv, questionnaire.csv, calls.csv (+ prompts/) —
+Writes sessions.csv, strokes.csv, events.csv, feedback.csv, questionnaire.csv, calls.csv (+ prompts/), assist_clicks.csv —
 and with --points, points.csv (one row per sampled pen point; large).
 
 Nothing is aggregated beyond counts: stroke speed, hesitation and rhythm stay
@@ -192,6 +192,17 @@ def _flat_call(sid: str, c: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+ASSIST_CLICK_COLS = ["session_id", "click_id", "nth", "t_ms", "phase", "cached", "offline", "deferred",
+                     "n_strokes_client", "n_strokes_server", "server_count_at", "frame_file", "frame_sha256",
+                     "frame_bytes", "call_id", "group_id", "source_call_id", "backend", "text", "received_at"]
+
+
+def _flat_click(sid: str, c: Dict[str, Any]) -> Dict[str, Any]:
+    f = c.get("frame") or {}
+    return {**{k: c.get(k) for k in ASSIST_CLICK_COLS if k not in ("session_id", "frame_file", "frame_sha256", "frame_bytes")},
+            "session_id": sid, "frame_file": f.get("file"), "frame_sha256": f.get("sha256"), "frame_bytes": f.get("bytes")}
+
+
 def _write(path: Path, cols: List[str], rows: List[Dict[str, Any]]) -> int:
     with path.open("w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=cols, extrasaction="ignore")
@@ -203,7 +214,7 @@ def _write(path: Path, cols: List[str], rows: List[Dict[str, Any]]) -> int:
 def export(out: Path, with_points: bool = False) -> Dict[str, int]:
     out.mkdir(parents=True, exist_ok=True)
     sessions, strokes, events, feedback, quest, personal, ratings = [], [], [], [], [], [], []
-    annotations, calls = [], []
+    annotations, calls, clicks = [], [], []
     points_path = out / "points.csv"
     pf = points_path.open("w", newline="", encoding="utf-8") if with_points else None
     pw = csv.writer(pf) if pf else None
@@ -229,6 +240,7 @@ def export(out: Path, with_points: bool = False) -> Dict[str, int]:
         # schema 4 起每次模型/引擎执行一条；文件不在 = 没采集（sessions.csv 的 calls_recorded 说得清），不是零次
         if cs:
             calls.extend(_flat_call(sid, c) for c in cs)
+        clicks.extend(_flat_click(sid, c) for c in (m.get("assist_clicks") or []))
 
         for s in session_strokes(d):
             pts = s.get("points") or []
@@ -324,6 +336,7 @@ def export(out: Path, with_points: bool = False) -> Dict[str, int]:
                                                         "confidence", "note", "ts"], annotations),
         "personalization": _write(out / "personalization.csv", PERSONALIZATION_COLS, personal),
         "calls": _write(out / "calls.csv", CALL_COLS, calls),
+        "assist_clicks": _write(out / "assist_clicks.csv", ASSIST_CLICK_COLS, clicks),
         # calls.csv 里的 system_hash 指向这些正文：固定提示词按 hash 归档一份，跟着数据走，不靠将来还能翻仓库
         "prompts": _copy_prompts(out / "prompts"),
         # the dataset ships its own measurement objects: without the task

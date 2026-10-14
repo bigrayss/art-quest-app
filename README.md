@@ -64,6 +64,7 @@ data/sessions/<id>/
   calls.jsonl     每次模型/引擎执行一条（schema 4 起）：评分一维一次尝试一条、反馈、陪伴、个性化，
                   heuristic/template 也写（execution_kind=local）；输入是文字 + 图的 sha256，不含图本身
   final.png       交上来的作品
+  frames/         陪伴每次点击那一刻的画布，按内容 hash 命名、只追加（session.json 的 assist_clicks 和 calls.jsonl 指向它）
 data/prompts/<sha256>.txt   固定的 system 正文按 hash 归档一份，calls.jsonl 里只有 system_hash
 ```
 

@@ -661,6 +661,42 @@ class SessionStore:
         final.write_bytes(png)
         return final
 
+    def save_frame(self, sid: str, png: bytes, kind: str = "assist") -> Dict[str, Any]:
+        """点击那一刻的画布，按内容 hash 存进 `frames/`，只追加、不重写（process_* 每次 QC 都重建，
+        所以调用记录绝不能指向它们）。同一 session 里一样的图只存一份；不跨孩子去重——
+        那会让删除和归属变复杂。返回的 sha256 由这里按实际字节算，调用记录里的图就按它对。"""
+        sha = hashlib.sha256(png).hexdigest()
+        d = self.dir(sid) / "frames"
+        with self._lock(sid):
+            if not self._meta_path(sid).exists():
+                raise KeyError(sid)
+            d.mkdir(parents=True, exist_ok=True)
+            path = d / f"{kind}_{sha[:24]}.png"
+            if not path.exists():
+                tmp = path.with_suffix(".tmp")
+                tmp.write_bytes(png)
+                tmp.replace(path)
+        return {"file": f"frames/{path.name}", "sha256": sha, "bytes": len(png)}
+
+    def add_assist_click(self, sid: str, record: Dict[str, Any]) -> Dict[str, Any]:
+        """陪伴的一次点击：画面、笔画数（客户端的 + 服务器当时已入库的）、是不是冷却期内、
+        显示的是哪次执行说的话。同一个 click_id 再来（发件箱重放）原样返回，不记第二条。"""
+        meta = self.load(sid)
+        clicks = meta.setdefault("assist_clicks", [])
+        for c in clicks:
+            if c.get("click_id") and c.get("click_id") == record.get("click_id"):
+                return c
+        rec = dict(record, received_at=now_iso(),
+                   n_strokes_server=int((meta.get("counts") or {}).get("strokes") or 0),
+                   server_count_at="receipt")
+        clicks.append(rec)
+        meta.setdefault("counts", {})["assist_clicks"] = len(clicks)
+        self._write(sid, meta)
+        return rec
+
+    def assist_clicks(self, sid: str) -> List[Dict[str, Any]]:
+        return list(self.load(sid).get("assist_clicks") or [])
+
     def save_process_frames(self, sid: str, frames: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Process frames rebuilt from the logs (see reconstruct.rebuild), kept
         beside the uploaded snapshots but under their own key: a frame computed
@@ -1023,6 +1059,8 @@ def dataset_manifest(root: Optional[Path] = None) -> Dict[str, Any]:
                            "sha256 refs, outputs, outcome, usage; absent = not collected, not zero",
             "final.png": "the last submitted work",
             "checkpoints/": "frames kept on purpose (before_feedback, process_* rebuilt from the logs, and any uploaded snapshots)",
+            "frames/": "the canvas at each assist click, named by content hash, append-only "
+                       "(session.json assist_clicks + calls.jsonl point here)",
             "reference/": "the stimulus this child saw",
             "../prompts/": "fixed system prompts archived once by sha256 (calls.jsonl carries system_hash)",
         },

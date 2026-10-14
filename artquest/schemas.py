@@ -173,6 +173,28 @@ class AssistIn(BaseModel):
     elapsed_ms: int = 0
     nth: int = 1
     events: List[DrawEvent] = []
+    # 2026-10-14（agent 级数据 PR 2）：点击有自己的 id（nth 照旧）；客户端当时可见的笔画数——
+    # 笔画走另一条队列、可能还没到服务器，所以服务器那头的计数一定落后，两个都记。
+    click_id: str = ""
+    n_strokes: Optional[int] = None
+    phase: str = ""
+
+
+class AssistClick(BaseModel):
+    """没调模型的那一次点击：冷却期内再点（看到的还是上一句，`source_call_id` 指向它）、
+    或者离线点了（什么都没看到）。画面照样存——「这条建议显示时画布什么样」和
+    「生成这条建议时画布什么样」是两张不同的图，不能混。离线时走发件箱，`deferred=True`。"""
+    image: str = Field(..., description="canvas dataURL (image/png;base64)")
+    click_id: str
+    nth: int = 1
+    elapsed_ms: int = 0
+    n_strokes: Optional[int] = None
+    phase: str = ""
+    cached: bool = True
+    offline: bool = False
+    deferred: bool = False
+    source_call_id: Optional[str] = None
+    events: List[DrawEvent] = []
 
 
 class Snapshot(BaseModel):

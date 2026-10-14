@@ -693,6 +693,8 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
                 held.pop().continue_()
                 page.wait_for_function("!document.querySelector('#assist-log .wait')")
                 self.assertNotIn("/thinking/", sprite_src(), "回话了：换回来")
+                page.click("#btn-assist")       # 冷却期内再点：看到的还是同一句，但这一下和当时的画面也要交上去
+                page.wait_for_timeout(600)
             page.wait_for_timeout(3000)     # QC 的最短时长
             page.click("#btn-submit")
             page.wait_for_selector("#view-result:not(.hidden)")
@@ -710,6 +712,23 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
         self.assertTrue(states, "形象切换记进时间线")
         self.assertIn(("happy", "one_shot", "save_ok"), {(e["payload"]["role"], e["payload"]["mode"], e["payload"]["reason"]) for e in states})
         self.assertTrue(all(e["payload"].get("asset_v") for e in states), "每条都带素材版本")
+        # 点了 / 生成了 / 显示了（agent 级数据 PR 2）：ASSIST_OPEN 带 click_id，ASSIST_SHOW 带生成它的 call_id；
+        # 冷却期内那一下显示的是同一句（source_call_id），服务器上多一条 click、不多一条调用。
+        full = self._get(f"/api/sessions/{sid}")
+        opens = [e for e in full["events"] if e["type"] == "ASSIST_OPEN"]
+        shows = [e for e in full["events"] if e["type"] == "ASSIST_SHOW"]
+        if opens:
+            self.assertTrue(all(e["payload"].get("click_id") for e in opens), "每次点击有自己的 id")
+            self.assertEqual(len(shows), 2)
+            self.assertFalse(shows[0]["payload"]["cached"])
+            self.assertTrue(shows[0]["payload"]["call_id"])
+            self.assertTrue(shows[1]["payload"]["cached"])
+            self.assertEqual(shows[1]["payload"]["source_call_id"], shows[0]["payload"]["call_id"])
+            clicks = full["assist_clicks"]
+            self.assertEqual([c["cached"] for c in clicks], [False, True])
+            self.assertEqual(clicks[0]["call_id"], shows[0]["payload"]["call_id"])
+            self.assertEqual(clicks[1]["source_call_id"], clicks[0]["call_id"])
+            self.assertEqual(len([c for c in full["calls"] if c["purpose"] == "assist"]), 1, "冷却期的点击不调模型")
 
     def test_looking_at_the_reference_is_recorded_as_behaviour(self):
         """Look → draw → check → correct only exists if the reference records it."""

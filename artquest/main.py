@@ -38,7 +38,7 @@ from .revision import attribute as attribute_revision
 from .schemas import (
     Opinion,
     TeacherPoolUpdate,
-    AssistIn,Abandon, Annotation, ClaimDevice, CreateSession, Curate, DrawEvent, EarnedBadges,
+    AssistClick, AssistIn,Abandon, Annotation, ClaimDevice, CreateSession, Curate, DrawEvent, EarnedBadges,
                       FeaturedAnswer, FeedbackIn, Finalize, HARDEST_PARTS_SHOWN, IssueTickets, Login, LogBatch,
                       PROCESS_LABELS, ProfileUpdate, Questionnaire, Rating, Register, ResetPin, Snapshot, TeacherGrade, StudyAssign,
                       Stroke, Submit, TokenOnly)
@@ -1075,10 +1075,14 @@ def assist(sid: str, body: AssistIn):
     _ingest(sid, body.events, [])
     quest = _quest_for_engines(meta)
     nth = max(1, body.nth)
+    click_id = body.click_id or f"clk_{secrets.token_hex(5)}"
+    # 点击那一刻的画面先落盘（frames/，按内容 hash），调用记录里的图就指向它：
+    # 「模型看着哪张图说了这句」从此可查。
+    frame = store.save_frame(sid, png, "assist")
     err = None
     t0 = time.monotonic()
-    # 点击那一刻的画面还没有落盘（第二批改造再存），记录里先只有它的 hash，能和以后存的文件对上。
-    with llm_mod.recording(store.call_sink(sid), purpose="assist", stage="during", prompt_version=PROMPT_VERSION) as ctx:
+    with llm_mod.recording(store.call_sink(sid), purpose="assist", stage=body.phase or "during",
+                           prompt_version=PROMPT_VERSION, images={frame["sha256"]: frame["file"]}) as ctx:
         try:
             out = get_assist_engine().assist(png, quest, meta.get("intent") or {}, nth=nth)
         except Exception as e:                      # 陪伴挂了绝不能挡住画画
@@ -1087,14 +1091,48 @@ def assist(sid: str, body: AssistIn):
             out = {"text": i18n.say(meta.get("lang", "zh"), "我在这里，按你的节奏画。", "I'm here. Keep going."),
                    "backend": "error", "error": str(e)}
         _settle_local(ctx, out, seconds=time.monotonic() - t0,
-                      input={"images": [{"sha256": _sha(png), "file": None}], "nth": nth,
+                      input={"images": [{"sha256": frame["sha256"], "file": frame["file"]}], "nth": nth,
                              "intent": meta.get("intent") or {}},
                       output={"text": out.get("text", "")}, error=err)
-    resp = {"text": out["text"], "backend": out.get("backend", ""),
-            "call_id": ctx.last_call_id, "group_id": ctx.group_id}
+    click = store.add_assist_click(sid, {
+        "click_id": click_id, "nth": nth, "t_ms": body.elapsed_ms, "phase": body.phase or meta.get("status", ""),
+        "cached": False, "offline": False, "deferred": False, "n_strokes_client": body.n_strokes,
+        "frame": frame, "call_id": ctx.last_call_id, "group_id": ctx.group_id, "source_call_id": None,
+        "backend": out.get("backend", ""), "text": out.get("text", "")})
+    resp = {"text": out["text"], "backend": out.get("backend", ""), "click_id": click_id,
+            "call_id": ctx.last_call_id, "group_id": ctx.group_id, "frame_sha256": frame["sha256"],
+            "n_strokes_server": click.get("n_strokes_server")}
     if err is not None:
         resp["error"] = out.get("error", err)
     return resp
+
+
+@api.post("/sessions/{sid}/assist/click")
+def assist_click(sid: str, body: AssistClick):
+    """没调模型的一次点击：冷却期内再点（看到的还是上一句）或离线点了（什么都没看到）。
+
+    只存画面和账：这一下点在创作进行到哪、画布什么样、显示的是哪次执行说的话（`source_call_id`）。
+    不调模型，所以 calls.jsonl 里不会多一条——「显示了几次」和「生成了几次」要分得开。
+    同一个 click_id 重放（发件箱）不记第二条。
+    """
+    meta = _session_or_404(sid)
+    mode = (meta.get("condition") or {}).get("dialogue_mode", "on_demand")
+    if mode == "none":
+        raise HTTPException(403, "dialogue_mode is none for this session")
+    try:
+        png = decode_data_url(body.image)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    _ingest(sid, body.events, [])
+    frame = store.save_frame(sid, png, "assist")
+    click = store.add_assist_click(sid, {
+        "click_id": body.click_id, "nth": max(1, body.nth), "t_ms": body.elapsed_ms,
+        "phase": body.phase or meta.get("status", ""), "cached": body.cached, "offline": body.offline,
+        "deferred": body.deferred, "n_strokes_client": body.n_strokes, "frame": frame,
+        "call_id": None, "group_id": None, "source_call_id": body.source_call_id,
+        "backend": "", "text": None})
+    return {"ok": True, "click_id": click["click_id"], "frame_sha256": frame["sha256"],
+            "n_strokes_server": click.get("n_strokes_server")}
 
 
 @api.post("/sessions/{sid}/snapshot")
@@ -1131,8 +1169,10 @@ def _score_and_save(sid: str, phase: str, png: bytes, elapsed_ms: int) -> Dict[s
                               "summary": scores.get("summary", "")}, error=err)
     # N/A is not a low score: a dimension this task cannot elicit carries no number
     scores = apply_contract(scores, quest.get("rubric"))
-    # 这轮评分是哪个 group、每一维采用了哪次执行（calls.jsonl 里按 call_id 查得到输入输出）
+    # 这轮评分是哪个 group、每一维采用了哪次执行（calls.jsonl 里按 call_id 查得到输入输出）。
+    # 作品版本按内容 hash + 评分时服务器已入库的笔画数定，不按时间戳（submit 的笔画在 body 里，这时已经进了）。
     return {"file": f"{phase}.png", "elapsed_ms": elapsed_ms, "at": now_iso(), "scores": scores,
+            "sha256": sha, "n_strokes_server": int((store.load(sid).get("counts") or {}).get("strokes") or 0),
             "calls": ctx.summary()}
 
 

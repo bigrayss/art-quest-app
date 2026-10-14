@@ -97,6 +97,8 @@ data/sessions/<session_id>/
                       输入是文字 + 图的 sha256 引用，system 只有 hash。**没有这个文件 = 没采集，不是零次**
   final.png           最后交上来的作品
   checkpoints/        只留真的需要的关键帧：`before_feedback.png`（有修改才有）
+  frames/             （schema 4）陪伴每次点击那一刻的画布，按内容 hash 命名、只追加；`session.json.assist_clicks`
+                      一条点击一行（click_id / nth / 两个笔画数 / cached / source_call_id / call_id），calls.jsonl 的图指向这里
   reference/          孩子当时看到的那张刺激图的副本（static/refs 里的会被替换）
 ```
 

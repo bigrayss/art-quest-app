@@ -71,6 +71,10 @@ TIME_LIMIT_REACHED = "TIME_LIMIT_REACHED"
 # 流对得上，是「AI 什么时候被需要」的直接证据，比一段聊天记录好编码得多。
 # 连点命中冷却时也照记（带 cached=true），否则「想看」的次数会被吃掉。
 ASSIST_OPEN = "ASSIST_OPEN"
+# 那句话真的显示出来了（客户端记）：click_id、call_id（calls.jsonl 里生成它的那次执行）、
+# cached（冷却期内再点，看到的是同一句 → source_call_id 指向原来那次）。
+# 点了 ≠ 生成了 ≠ 显示了，三件事三条记录。
+ASSIST_SHOW = "ASSIST_SHOW"
 # 精灵换了形象 / 模式：role（normal/happy/thinking/explore/reading/encourage）、
 # mode（companion / companion_quiet / waiting / one_shot / static）、reason（view /
 # assist_request / assist_reply / request / save_ok）、view、asset_v（素材版本）。
@@ -109,7 +113,7 @@ VOCABULARY: Set[str] = {
     REFERENCE_SHOW, REFERENCE_OPEN, REFERENCE_CLOSE, REFERENCE_ZOOM,
     REFERENCE_PAN, REFERENCE_FOCUS, CANVAS_FOCUS, REFERENCE_COLOR_PICK, HINT_SHOW,
     PAUSE_START, PAUSE_END, TIME_LIMIT_REACHED,
-    ASSIST_OPEN, MASCOT_STATE,
+    ASSIST_OPEN, ASSIST_SHOW, MASCOT_STATE,
     FEEDBACK_SHOW, FEEDBACK_DISMISS, REVISION_START, REVISION_SKIPPED,
     HISTORY_SHOWN, RATING_ADDED, QUESTIONNAIRE_SUBMITTED, DOWNLOAD,
     FEATURED_PROPOSED, FEATURED_ACCEPTED, FEATURED_DECLINED,

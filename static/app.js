@@ -1478,7 +1478,7 @@
     PAUSE_START: "PAUSE_START", PAUSE_END: "PAUSE_END",
     TIME_LIMIT_REACHED: "TIME_LIMIT_REACHED", CANVAS_GEOMETRY: "CANVAS_GEOMETRY",
     STROKE_CANCELLED: "STROKE_CANCELLED",
-    ASSIST_OPEN: "ASSIST_OPEN", MASCOT_STATE: "MASCOT_STATE",
+    ASSIST_OPEN: "ASSIST_OPEN", ASSIST_SHOW: "ASSIST_SHOW", MASCOT_STATE: "MASCOT_STATE",
     FEEDBACK_DISMISS: "FEEDBACK_DISMISS", REVISION_START: "REVISION_START",
     TASK_SUBMIT: "TASK_SUBMIT", DOWNLOAD: "DOWNLOAD",
   };
@@ -2122,7 +2122,20 @@
   // 8–14 岁打一句话要半分钟，输入法还盖住画布；而**他什么时候点**本身
   // 就是这个研究要的信号，一次点击比一段聊天记录好编码得多。
   const ASSIST_COOLDOWN_MS = 30000;
-  let assistNth = 0, assistAt = 0, assistLast = "";
+  let assistNth = 0, assistAt = 0, assistLast = "", assistLastCall = null;
+  // 每一下点击一个 id（nth 照旧）。点了 / 生成了 / 显示了是三件事：ASSIST_OPEN 记点击，
+  // calls.jsonl（服务器）记生成，ASSIST_SHOW 记真的显示出来了、显示的是哪次生成（call_id）。
+  const newClickId = () => "clk_" + Math.random().toString(16).slice(2, 12);
+  /** 没调模型的点击（冷却期内 / 离线）也把那一刻的画面交上去：显示这句话时画布什么样，
+   *  和生成它时画布什么样，是两张图。没网或没送出去就进发件箱，等有网重放。 */
+  async function sendAssistClick(body) {
+    if (!state.sessionId) return;
+    if (navigator.onLine) {
+      try { await api(`${API}/sessions/${state.sessionId}/assist/click`, { method: "POST", body: JSON.stringify(body) }); return; }
+      catch (e) { /* 存发件箱 */ }
+    }
+    ArtLog.defer("assist_click", state.sessionId, Object.assign({}, body, { deferred: true }));
+  }
 
   // 对照组（dialogue_mode=none）整扇窗都不出现——后端也会 403，两头一致。
   const assistOn = () => (state.condition.dialogue_mode || "on_demand") !== "none";
@@ -2151,7 +2164,7 @@
     box.classList.add("veiled"); box.classList.remove("open-fb");
     $("#btn-assist").classList.remove("hidden");
     $(".assist-veil-t").textContent = `看看${buddyName()}怎么说`;
-    assistNth = 0; assistAt = 0; assistLast = "";
+    assistNth = 0; assistAt = 0; assistLast = ""; assistLastCall = null;
     // 心情那张卡去掉了，但他自己写的意图还给他：画到一半最容易忘的
     // 就是本来要画什么。蒙着的时候看不见，揭开第一眼就是这句。
     const want = ((intent && intent.text) || "").trim();
@@ -2180,19 +2193,27 @@
     // 而那正是他卡住的强度。
     const cached = Date.now() - assistAt < ASSIST_COOLDOWN_MS && !!assistLast;
     assistNth++;
-    logEvent(EV.ASSIST_OPEN, { nth: assistNth, cached, phase: state.phase, offline: !navigator.onLine });
+    const clickId = newClickId();
+    const nStrokes = visible.length;
+    logEvent(EV.ASSIST_OPEN, { nth: assistNth, cached, phase: state.phase, offline: !navigator.onLine,
+                               click_id: clickId, n_strokes: nStrokes });
     box.classList.remove("veiled");
     $(".assist-veil-t").textContent = `${buddyName()}，帮帮我`;
     if (!navigator.onLine) {
-      // 点击照样记了账（上面那行）；话只能等网回来
+      // 点击照样记了账（上面那行）；话只能等网回来。画面也交上去（进发件箱）——什么都没显示，所以没有 ASSIST_SHOW。
       assistSay(`现在没有网，${buddyName()}等连上网再陪你。`, "wait");
+      sendAssistClick({ click_id: clickId, nth: assistNth, image: canvas.toDataURL("image/png"), elapsed_ms: Math.round(elapsed()),
+                        n_strokes: nStrokes, phase: state.phase, cached: false, offline: true, source_call_id: null });
       return;
     }
     if (cached) {
       // 冷却里再点，不追加一条一模一样的（那看着像坏了）——让最后那条闪一下，
-      // 他就知道「就是刚才那句」。点击本身照样记了账，上面那行。
+      // 他就知道「就是刚才那句」。点击本身照样记了账，上面那行；显示的是上一次生成的那句（source_call_id）。
       const last = $("#assist-log").lastElementChild;
       if (last) { last.classList.remove("again"); void last.offsetWidth; last.classList.add("again"); }
+      logEvent(EV.ASSIST_SHOW, { nth: assistNth, click_id: clickId, cached: true, call_id: assistLastCall, source_call_id: assistLastCall });
+      sendAssistClick({ click_id: clickId, nth: assistNth, image: canvas.toDataURL("image/png"), elapsed_ms: Math.round(elapsed()),
+                        n_strokes: nStrokes, phase: state.phase, cached: true, offline: false, source_call_id: assistLastCall });
       return;
     }
     const wait = assistSay("……", "wait");
@@ -2203,11 +2224,14 @@
       const r = await api(`${API}/sessions/${state.sessionId}/assist`, {
         method: "POST",
         body: JSON.stringify({ image: canvas.toDataURL("image/png"),
-                               elapsed_ms: Math.round(elapsed()), nth: assistNth }),
+                               elapsed_ms: Math.round(elapsed()), nth: assistNth,
+                               click_id: clickId, n_strokes: nStrokes, phase: state.phase }),
       });
       wait.remove();
-      assistLast = r.text; assistAt = Date.now();
+      assistLast = r.text; assistAt = Date.now(); assistLastCall = r.call_id || null;
       assistSay(r.text);
+      logEvent(EV.ASSIST_SHOW, { nth: assistNth, click_id: clickId, cached: false, call_id: assistLastCall, source_call_id: null,
+                                 backend: r.backend || "" });
     } catch (e) {
       // 陪伴挂了绝不能挡住画画
       wait.remove(); assistSay("我在这里，按你的节奏画。");
