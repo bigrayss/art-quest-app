@@ -25,6 +25,7 @@ below the stored high-water mark, so an offline client can safely re-send.
 Finished streams are gzipped; reads and late appends are transparent.
 """
 import base64
+import io
 import hashlib
 import re
 import shutil
@@ -621,6 +622,31 @@ class SessionStore:
         final.write_bytes(png)
         return final
 
+    def save_process_frames(self, sid: str, frames: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Process frames rebuilt from the logs (see reconstruct.rebuild), kept
+        beside the uploaded snapshots but under their own key: a frame computed
+        from the data is not an observation and must not be counted as one.
+        Idempotent — QC may run more than once; the set is rewritten each time."""
+        d = self.dir(sid) / "checkpoints"
+        d.mkdir(parents=True, exist_ok=True)
+        meta = self.load(sid)
+        for old in meta.get("process_frames") or []:
+            try:
+                (self.dir(sid) / old["file"]).unlink()
+            except (OSError, KeyError):
+                pass
+        out = []
+        for i, f in enumerate(frames, start=1):
+            name = f"process_{i:02d}_{int(f['elapsed_ms']) // 1000}s.png"
+            buf = io.BytesIO()
+            f["image"].save(buf, "PNG")
+            (d / name).write_bytes(buf.getvalue())
+            out.append({"file": f"checkpoints/{name}", "elapsed_ms": int(f["elapsed_ms"]),
+                        "n_strokes": int(f["n_strokes"]), "source": "reconstructed", "at": now_iso()})
+        meta["process_frames"] = out
+        self._write(sid, meta)
+        return out
+
     def save_checkpoint(self, sid: str, name: str) -> Optional[Path]:
         """Freeze the current `final.png` as a named experimental landmark."""
         final = self.dir(sid) / "final.png"
@@ -923,7 +949,7 @@ def dataset_manifest(root: Optional[Path] = None) -> Dict[str, Any]:
             "events.jsonl[.gz]": "every non-drawing operation, feedback included",
             "labels.jsonl": "human ground truth: teacher ratings + expert process spans",
             "final.png": "the last submitted work",
-            "checkpoints/": "frames kept on purpose (before_feedback, and any snapshots)",
+            "checkpoints/": "frames kept on purpose (before_feedback, process_* rebuilt from the logs, and any uploaded snapshots)",
             "reference/": "the stimulus this child saw",
         },
         "note": "Older sessions keep the split layout they were recorded in; every "

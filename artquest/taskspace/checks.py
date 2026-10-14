@@ -185,15 +185,30 @@ def semantic_checks(c: Dict[str, Any], judge: Optional[Callable[[Dict[str, Any]]
         if d["relation"] == "secondary" and d.get("bypass"):
             out.append(_issue(tid, "S5 secondary 关联可被合理绕开", INSUFFICIENT, basis=f"{d['dim']}：{d['why']}",
                               min_fix="分析时把它当 exploratory 看；不为保标签强迫学生", recheck="—", judge=mode, advisory=True))
-    # S6 来源关系的结论：原文明确规定 / 改编 的条目，片段在且非空 → 找到支持；否则依据不足
+    # S6 来源关系的结论。2026-10-12 之前这里只查「片段在且非空」就记找到支持——那是存在性检查，
+    # 「附有引用 ≠ 引用支持」。现在分两半：片段在不在（规则），片段是不是真的说了这件事（人判，写在 support 字段）。
+    #   support=支持 → 找到支持；部分 / 间接 → 依据不足，但只作提醒（advisory），不拦状态；片段缺 → 依据不足，拦。
     for sr in c["source_relations"]:
         if sr["relation"] == PROJECT:
             continue
         ex = EXCERPTS.get(sr.get("excerpt", ""))
-        st = SUPPORTED if (ex and ex.get("text")) else INSUFFICIENT
+        sup = sr.get("support") or "支持"
+        if not (ex and ex.get("text")):
+            st, advisory, fix = INSUFFICIENT, False, "录入片段后由人核一遍是否真的支持"
+        elif sup == "支持":
+            st, advisory, fix = SUPPORTED, False, ""
+        else:
+            st, advisory, fix = INSUFFICIENT, True, f"人判为「{sup}」：分析时别把它当成课标对这项活动的规定"
         out.append(_issue(f"{tid}: {sr['requirement']}", "S6 来源片段支持该要求", st,
-                          basis=(sr.get("excerpt") or "") + (f" · {ex['heading']}" if ex else ""),
-                          min_fix="" if st == SUPPORTED else "录入片段后由人核一遍是否真的支持", recheck="—", judge="rule"))
+                          basis=(sr.get("excerpt") or "") + (f" · {ex['heading']}" if ex else "") + f" · 判定={sup}",
+                          min_fix=fix, recheck="—", judge="human" if (ex and ex.get("text")) else "rule", advisory=advisory))
+    # S7 每道题至少一条「本题专属」且判为「支持」的来源关系——家族共用的那几句不算这道题自己的依据
+    own = [sr for sr in c["source_relations"] if sr.get("scope") == "task" and sr["relation"] != PROJECT]
+    if c.get("draft"):
+        return out          # 草案没进库、没有 task_id 级的来源表；它们按蓝图层检查
+    if not any((sr.get("support") or "支持") == "支持" and EXCERPTS.get(sr.get("excerpt", ""), {}).get("text") for sr in own):
+        out.append(_issue(tid, "S7 本题有自己的来源依据（不只家族共用）", INSUFFICIENT,
+                          basis="task_sources.py 里没有这道题判为「支持」的条目", min_fix="按题面补一条，只引核对过的片段", recheck="—", judge="rule"))
     return out
 
 

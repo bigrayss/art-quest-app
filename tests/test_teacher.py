@@ -47,6 +47,61 @@ class TeacherSide(unittest.TestCase):
             self.c.post(f"/api/sessions/{sid}/finalize", json={"elapsed_ms": 61000})
         return sid
 
+    def _drawn_session(self, name, n_strokes):
+        """一个没传过任何快照、只有笔画日志的 session（现在的客户端就是这样）。"""
+        r = self.c.post("/api/accounts/register", json={"name": name, "pin": "1111", "age": 10, "anon_id": "dev-" + name})
+        if r.status_code == 409:
+            r = self.c.post("/api/accounts/login", json={"name": name, "pin": "1111", "anon_id": "dev-" + name})
+        tok, acc = r.json()["token"], r.json()["account"]
+        r = self.c.post("/api/sessions", headers={"Authorization": f"Bearer {tok}"}, json={
+            "quest_id": "imagine_animal", "intent": {"emotion": "开心", "text": "一只飞鱼"},
+            "participant": {"anon_id": "dev-" + name, "account_id": acc["account_id"]}})
+        sid = r.json()["session_id"]
+        strokes, events = [], []
+        for i in range(1, n_strokes + 1):
+            t0 = i * 1000
+            pts = [[100.0 + j * 30, 100.0 + i * 40, j * 20, None, None, None] for j in range(8)]
+            strokes.append({"seq": i, "stroke_id": f"s{i:05d}", "phase": "before", "t_start_ms": t0, "t_end_ms": t0 + 140,
+                            "tool": "pencil", "color": "#222222", "size": 4, "opacity": 1.0, "points": pts})
+            events.append({"seq": 2 * i - 1, "t_ms": t0, "type": "STROKE_START", "payload": {"stroke_id": f"s{i:05d}"}})
+            events.append({"seq": 2 * i, "t_ms": t0 + 140, "type": "STROKE_END", "payload": {"stroke_id": f"s{i:05d}", "n": 8}})
+        self.c.post(f"/api/sessions/{sid}/log", json={"events": events, "strokes": strokes, "pending": 0})
+        self.c.post(f"/api/sessions/{sid}/submit", json={"image": _png(), "elapsed_ms": 60000, "phase": "before"})
+        self.c.post(f"/api/sessions/{sid}/finalize", json={"elapsed_ms": 61000})
+        return sid
+
+    def test_process_images_are_rebuilt_from_the_strokes_when_nothing_was_uploaded(self):
+        """客户端不再定时上传快照（主线程编码整张画布让画画卡顿，2026-10-12）。
+        老师看的三张过程图改由服务器在 QC 时从笔画日志重建：1/4、1/2、3/4 处各一张，
+        界面上和上传的快照长一样（kind=snapshot，有 elapsed_ms），但**不算进 n_snapshots**——那是上传过的观测，这是算出来的。"""
+        from artquest.main import store
+        sid = self._drawn_session("小画家F", 12)
+        t = {"Authorization": f"Bearer {self._teacher('周老师').json()['token']}"}
+        detail = self.c.get(f"/api/teacher/sessions/{sid}", headers=t).json()
+        self.assertEqual([i["kind"] for i in detail["images"]], ["snapshot", "snapshot", "snapshot", "final"])
+        procs = [i for i in detail["images"] if i["kind"] == "snapshot"]
+        # 12 笔：第 3、6、9 笔画完的那一刻；elapsed_ms 是那一笔抬笔的时间
+        self.assertEqual([i["elapsed_ms"] for i in procs], [3140, 6140, 9140])
+        for i in procs:
+            self.assertTrue((store.dir(sid) / i["key"]).exists(), i["key"])
+            self.assertEqual(self.c.get(i["url"]).status_code, 200)
+        meta = store.load(sid)
+        self.assertEqual([f["n_strokes"] for f in meta["process_frames"]], [3, 6, 9])
+        self.assertTrue(all(f["source"] == "reconstructed" for f in meta["process_frames"]))
+        self.assertEqual(meta.get("snapshots") or [], [], "没有上传过的快照")
+        row = next(r for r in self.c.get("/api/teacher/sessions", headers=t).json()["sessions"] if r["session_id"] == sid)
+        self.assertEqual(row["n_snapshots"], 0, "重建的帧不算观测")
+        # 过程短评照样能写在重建的帧上
+        r = self.c.post(f"/api/teacher/sessions/{sid}/grade", headers=t,
+                        json={"comment": "整体不错", "image_notes": {procs[0]["key"]: "先定了位置"}})
+        self.assertEqual(r.status_code, 200, r.text)
+
+    def test_a_one_stroke_drawing_has_no_process_image(self):
+        sid = self._drawn_session("小画家G", 1)
+        t = {"Authorization": f"Bearer {self._teacher('吴老师').json()['token']}"}
+        detail = self.c.get(f"/api/teacher/sessions/{sid}", headers=t).json()
+        self.assertEqual([i["kind"] for i in detail["images"]], ["final"], "一笔的画没有中间状态可看")
+
     def _teacher(self, name="王老师", code="code-777"):
         r = self.c.post("/api/accounts/register", json={"name": name, "pin": "2222", "role": "teacher", "teacher_code": code})
         if r.status_code == 409:      # 数据目录跨进程复用时（ARTQUEST_DATA_DIR 指定了）名字会撞：登录就行

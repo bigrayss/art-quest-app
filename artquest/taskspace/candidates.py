@@ -17,6 +17,7 @@ from ..missions import FAMILIES, TASK_VERSION, build_library
 from .blueprints import BLUEPRINTS
 from .materials import MATERIALS, NONE
 from .sources import PROJECT
+from .task_sources import TASK_RELATIONS
 
 # family → 维度 → (理由, 成立条件, 可被合理绕开？)
 # 「可绕开」= 学生可以合理完成任务却完全不产生这项表现，而且任务目标也不依赖它
@@ -208,7 +209,10 @@ def build_candidates(include_legacy: bool = False) -> List[Dict[str, Any]]:
             free=list(bp["free"]),
             bank=r.get("bank", ""), band=r.get("band", ""), hints=list(r.get("hints") or []), requirements=r.get("requirements", ""),
             load=dict(bp["load"]),
-            source_relations=list(bp["source_relations"]) + added,
+            # 三层：家族共同（蓝图）→ 本题专属（task_sources，按题面写）→ 题面自己的新增条件
+            source_relations=[dict(x, scope="family") for x in bp["source_relations"]]
+                             + [dict(x, scope="task") for x in TASK_RELATIONS.get(r["task_id"], [])]
+                             + [dict(x, scope="task") for x in added],
             dims=dims, demoted=demoted,
             materials=_materials_of(r),
             condition=dict(r.get("condition", {})),

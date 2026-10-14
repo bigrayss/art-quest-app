@@ -19,7 +19,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from artquest import events as ev  # noqa: E402
 from artquest.main import app  # noqa: E402
-from artquest.reconstruct import boundaries, read_jsonl, render  # noqa: E402
+from artquest.reconstruct import boundaries, process_cuts, read_jsonl, render, render_with_frames  # noqa: E402
 from tools.export_dataset import export  # noqa: E402
 from tools.replay import replay_session  # noqa: E402
 from tools.withdraw import withdraw  # noqa: E402
@@ -74,6 +74,28 @@ class EventVocabulary(unittest.TestCase):
         names = {p.split(":")[1].strip().strip('",') for p in block.split(",") if ":" in p}
         self.assertTrue(names)
         self.assertEqual(sorted(n for n in names if not ev.is_known(n)), [])
+
+
+class ProcessFrames(unittest.TestCase):
+    """The teacher's process images are copies taken during one replay, so a
+    frame after k strokes must be the same picture as a replay cut at k."""
+
+    def test_frames_taken_mid_replay_equal_a_replay_cut_there(self):
+        strokes = [_stroke(i, t_start=i * 1000) for i in range(1, 9)]
+        strokes[2].update(tool="marker", opacity=0.35, color="#f79433", size=18)   # translucent, composited
+        strokes[5].update(tool="eraser", erase=True, color="#ffffff", size=20)      # erases back to the base
+        final, frames = render_with_frames(strokes, (300, 500), (2, 4, 6))
+        self.assertEqual(sorted(frames), [2, 4, 6])
+        for k, img in frames.items():
+            self.assertEqual(img.tobytes(), render(strokes, (300, 500), upto=k).tobytes(), f"frame {k}")
+        self.assertEqual(final.tobytes(), render(strokes, (300, 500)).tobytes())
+
+    def test_cut_points_never_fall_on_blank_or_final(self):
+        self.assertEqual(process_cuts(0), [])
+        self.assertEqual(process_cuts(1), [])
+        self.assertEqual(process_cuts(2), [1])
+        self.assertEqual(process_cuts(8), [2, 4, 6])
+        self.assertEqual(process_cuts(100), [25, 50, 75])
 
 
 class HonestSignals(unittest.TestCase):

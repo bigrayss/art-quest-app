@@ -26,6 +26,11 @@
   const seqs = { events: 0, strokes: 0 };
   const listeners = [];
   const memq = [];          // fallback when IndexedDB is unavailable (private mode)
+  // 顶栏「正在保存 N」用的两个数，**在内存里记账**：写进去加一、发走减一。
+  // 原来每写一条记录就用游标把整个队列从头数一遍（再 getAll 一次发件箱）——一笔画 = 3 条记录 = 3 次全扫，
+  // 每 1000 行约 10 ms；网络一慢、队列涨到几千行，每一笔开始都要卡几十毫秒，而且越画越卡（2026-10-12）。
+  // 真正要准的那个数（交卷时报给服务器的 pending，进 QC）仍然走 count() 实数，见 ArtLog.pending。
+  let pendingN = 0, outboxN = 0, counted = false;
 
   function openDB() {
     return new Promise((res) => {
@@ -53,10 +58,11 @@
   const all = (name) => db ? req1(store(name, "readonly").getAll()).then(x => x || []) : Promise.resolve([]);
 
   function put(rec) {
-    if (!db) { memq.push(Object.assign({ k: ++memKey }, rec)); return Promise.resolve(); }
+    if (!db) { memq.push(Object.assign({ k: ++memKey }, rec)); pendingN++; return Promise.resolve(); }
     return new Promise((res) => {
       const r = tx("readwrite").add(rec);
-      r.onsuccess = r.onerror = () => res();
+      r.onsuccess = () => { pendingN++; res(); };
+      r.onerror = () => res();
     });
   }
   // Drains every session in the queue, not just the current one: records left
@@ -75,6 +81,7 @@
     });
   }
   function drop(keys) {
+    pendingN = Math.max(0, pendingN - keys.length);
     if (!db) { keys.forEach(k => { const i = memq.findIndex(r => r.k === k); if (i >= 0) memq.splice(i, 1); }); return Promise.resolve(); }
     return new Promise((res) => {
       const st = tx("readwrite");
@@ -101,10 +108,27 @@
     });
   }
 
-  async function notify() {
-    const n = await count() + (db ? (await all(OUTBOX)).filter(r => !r.bad).length : 0);
-    listeners.forEach(fn => { try { fn({ pending: n, online: navigator.onLine, quarantined }); } catch (e) { /* ignore */ } });
-    return n;
+  /** 用实数校准内存里的两个计数。只在打开库时和队列基本清空时做（那时很便宜），别的时候信账本。 */
+  async function recount() {
+    pendingN = await count();
+    outboxN = db ? (await all(OUTBOX)).filter(r => !r.bad).length : 0;
+    counted = true;
+  }
+  // 顶栏的那行字每条记录都改一次会让布局不停失效（下一笔的 getBoundingClientRect 就得强制重排），
+  // 所以合并着发：250 ms 内多次变化只通知一次，而且数字没变就不通知。
+  const NOTIFY_MS = 250;
+  let notifyTimer = null, lastTold = "";
+  function tell() {
+    notifyTimer = null;
+    const st = { pending: pendingN + outboxN, online: navigator.onLine, quarantined };
+    const key = `${st.pending}|${st.online}|${st.quarantined}`;
+    if (key === lastTold) return;
+    lastTold = key;
+    listeners.forEach(fn => { try { fn(st); } catch (e) { /* ignore */ } });
+  }
+  function notify() {
+    if (!notifyTimer) notifyTimer = setTimeout(tell, NOTIFY_MS);
+    return Promise.resolve(pendingN + outboxN);
   }
 
   async function post(sessionId, body) {
@@ -159,6 +183,7 @@
       } catch (e) { return; }                       // 还是没网，原样留着
       if (res.ok || res.status === 409) {
         await req1(store(OUTBOX, "readwrite").delete(r.k));
+        outboxN = Math.max(0, outboxN - 1);
         continue;
       }
       if (res.status >= 500 || res.status === 429 || res.status === 408) return;   // 服务器的问题，等下一轮
@@ -167,7 +192,7 @@
       // 让「这台设备上还有没送出去的东西」这件事始终是可见的。
       await req1(store(OUTBOX, "readwrite").put(Object.assign({}, r, { bad: true, status: res.status })));
       await req1(store(OUTBOX, "readwrite").delete(r.k));
-      quarantined += 1;
+      outboxN = Math.max(0, outboxN - 1); quarantined += 1;
       console.warn(`outbox ${r.kind} 被服务器拒绝（HTTP ${res.status}）`);
       return;
     }
@@ -213,6 +238,9 @@
     } finally {
       flushing = false;
     }
+    // 账本和实数偶尔会差一两条（写失败、别的标签页也在写）：队列小的时候顺手对一遍账，
+    // 队列大的时候不对——那正是全扫会卡的时候，而且下一轮清空后自然会对上。
+    if (!counted || pendingN <= MAX_BATCH) await recount();
     return notify();
   }
 
@@ -234,7 +262,10 @@
   /** 票和发件箱在**没有 session 的时候**也要能用——离线开工时 `start()` 还没跑过，
    *  `db` 还是 null。以前这些函数直接读 `db`，于是「有 3 张票」被读成「一张都没有」，
    *  孩子看到的是「这台设备上没有备用的创作名额了」。 */
-  async function ensure() { if (db === null) db = await openDB(); return !!db; }
+  async function ensure() {
+    if (db === null) { db = await openDB(); if (db) await recount(); }
+    return !!db;
+  }
 
   async function saveTickets(list) {
     await ensure();
@@ -260,18 +291,20 @@
     await ensure();
     if (!db) return false;
     await req1(store(OUTBOX, "readwrite").add({ kind, sid: sessionId, body, at: Date.now() }));
+    outboxN++;
     await notify();
     return true;
   }
   async function outboxCount() { await ensure(); return (await all(OUTBOX)).filter(r => !r.bad).length; }
 
+  let onlineHooked = false;
   const ArtLog = {
     async start(sessionId) {
-      if (db === null) db = await openDB();
+      await ensure();
       sid = sessionId;
       seqs.events = seqs.strokes = 0;
       if (!timer) timer = setInterval(flush, FLUSH_MS);
-      window.addEventListener("online", flush);
+      if (!onlineHooked) { window.addEventListener("online", flush); onlineHooked = true; }
       flush();   // drain anything a previous session left behind
       return notify();
     },

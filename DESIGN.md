@@ -66,7 +66,7 @@ tailscale serve --bg --https=443 http://127.0.0.1:8010
 |---|---|---|
 | 1 | PC 画布 + 3–4 种基础工具 | 铅笔 / 笔刷（支持数位板压感）/ 马克笔（半透明）/ 橡皮，调色盘 + 自定义颜色，粗细，Undo / Redo（Ctrl+Z / Ctrl+Y），清空，**缩放 / 平移**（滚轮、`+` `-` `0`、空格或中键拖动、✋ 移动） |
 | 2 | 保存最终作品 | 服务器保存 `before.png` / `after.png`；也可下载到本机 |
-| 3 | 记录创作过程 | **笔触级 stroke log（含 pressure / tilt）+ 统一 event log 为主数据**；每 45 s（`ARTQUEST_SNAPSHOT_INTERVAL`）一张画布快照作辅助 |
+| 3 | 记录创作过程 | **笔触级 stroke log（含 pressure / tilt）+ 统一 event log 为主数据**；过程图（1/4、1/2、3/4 处）在 QC 时从日志重建，客户端不再定时上传快照（2026-10-12） |
 | 4 | 3–5 个 Creative Quest | 5 个：情绪表达、想象、Transformation、Color/Composition、Story（`artquest/quests.py`） |
 | 5 | Intent 输入 | 画前情绪（chips）+ 一句话意图 |
 | 6 | KidsArtBench 9 维评分 | 可插拔接口 `artquest/scoring/`：`claude`（结构化 JSON 输出）/ `heuristic`（离线） |
@@ -151,8 +151,9 @@ $$t_{point} = \text{started\_at} + t0_{stroke} + dt$$
 
 $$Artwork(t) = Replay(Strokes_{0:t},\ Events_{0:t})$$
 
-所以默认**只存 `final.png`**。定时截图默认关掉（`ARTQUEST_SNAPSHOT_INTERVAL=0`）——
-它只是日志已经包含的东西的一份副本。唯一另外留的是 `checkpoints/before_feedback.png`，
+所以默认**只存 `final.png`**。客户端不再定时截图（2026-10-12 起不读 `ARTQUEST_SNAPSHOT_INTERVAL`）——
+它只是日志已经包含的东西的一份副本，而且在主线程编码整张画布会让孩子正在画的那一笔卡一下。
+老师端要看的三张过程图（`checkpoints/process_*.png`，session.json 的 `process_frames`）由 `reconstruct.rebuild` 在 QC 时重建，不算进 `counts.snapshots`。唯一另外留的是 `checkpoints/before_feedback.png`，
 而且只有真的走了修改关才写：那一帧是**实验节点**，replay 看不出它特殊在哪。
 （合并前，一个没修改过的 session 会把同一张 PNG 存三份。）
 

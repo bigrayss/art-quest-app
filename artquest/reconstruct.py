@@ -309,19 +309,43 @@ def _translucent_alpha(stroke: Dict[str, Any], pts: List[List[Any]],
 def render(strokes: List[Dict[str, Any]], size: Tuple[int, int], upto: int = -1,
            stimulus: Optional[Dict[str, Any]] = None) -> Image.Image:
     """Paint the given strokes onto the task's initial canvas."""
+    n = len(strokes) if upto < 0 else max(0, min(upto, len(strokes)))
+    final, _ = render_with_frames(strokes[:n], size, (), stimulus)
+    return final
+
+
+def render_with_frames(strokes: List[Dict[str, Any]], size: Tuple[int, int],
+                       cuts: Tuple[int, ...] = (), stimulus: Optional[Dict[str, Any]] = None
+                       ) -> Tuple[Image.Image, Dict[int, Image.Image]]:
+    """One pass over the strokes; a copy of the canvas is kept after stroke
+    number `cut` for every cut asked for (cut = how many strokes are down).
+
+    This is how the process frames the teacher sees are made: the client used
+    to upload a PNG snapshot every minute — a main-thread encode of the whole
+    canvas, right while the child was drawing — and the log already contains
+    everything a frame holds. Rendering once and copying at the cut points
+    costs the same as the final replay that QC does anyway.
+    """
     # The starting canvas, kept: the eraser lifts the child's marks back to it
     # rather than to white, mirroring static/app.js — otherwise a session that
     # erased over a printed fragment would replay with the fragment gone.
     base = Image.new("RGBA", size, (255, 255, 255, 255))
     draw_stimulus(base, stimulus)
     img = base.copy()
-    n = len(strokes) if upto < 0 else max(0, min(upto, len(strokes)))
-    for s in strokes[:n]:
+    want = set(int(c) for c in cuts)
+    frames: Dict[int, Image.Image] = {}
+    if 0 in want:
+        frames[0] = img.convert("RGB")
+    for i, s in enumerate(strokes, start=1):
         pts = s.get("points") or []
         if not pts:
+            if i in want:
+                frames[i] = img.convert("RGB")
             continue
         if s.get("op") == "erase" or s.get("erase"):
             img.paste(base, (0, 0), _translucent_alpha(s, pts, size, 1.0))
+            if i in want:
+                frames[i] = img.convert("RGB")
             continue
         color = s.get("color") or "#222222"
         alpha = float(s.get("opacity") or 1.0)
@@ -333,7 +357,9 @@ def render(strokes: List[Dict[str, Any]], size: Tuple[int, int], upto: int = -1,
             layer = Image.new("RGBA", size, ImageColor.getrgb(color) + (0,))
             layer.putalpha(_translucent_alpha(s, pts, size, alpha))
             img = Image.alpha_composite(img, layer)
-    return img.convert("RGB")
+        if i in want:
+            frames[i] = img.convert("RGB")
+    return img.convert("RGB"), frames
 
 
 def ink_ratio(img: Image.Image) -> float:
@@ -418,6 +444,18 @@ def boundaries(events: List[Dict[str, Any]],
     return out
 
 
+PROCESS_FRACTIONS = (0.25, 0.5, 0.75)
+
+
+def process_cuts(n_strokes: int, fractions: Tuple[float, ...] = PROCESS_FRACTIONS) -> List[int]:
+    """How many strokes are down at each process frame: a quarter, half and
+    three quarters of the way through. Never 0 (blank) and never n (that is
+    the final work), so a two-stroke drawing has one frame and a one-stroke
+    drawing has none."""
+    cuts = sorted({max(1, round(n_strokes * f)) for f in fractions})
+    return [c for c in cuts if 0 < c < n_strokes]
+
+
 def rebuild(session_dir: Path) -> Dict[str, Any]:
     """Reconstruct one session directory from its logs alone."""
     d = Path(session_dir)
@@ -428,9 +466,14 @@ def rebuild(session_dir: Path) -> Dict[str, Any]:
     size = canvas_size(meta)
     # the frozen condition is what says whether the canvas started blank
     stimulus = (session_task(d) or {}).get("stimulus") or None
+    cuts = process_cuts(len(vis))
+    image, frames = render_with_frames(vis, size, tuple(cuts), stimulus)
+    # each frame says when in the session it was reached: the end of the last stroke in it
+    process = [{"n_strokes": c, "elapsed_ms": int(round(ev.stroke_end_ms(vis[c - 1]))), "image": frames[c]}
+               for c in cuts if c in frames]
     return {"meta": meta, "size": size, "strokes": vis, "stimulus": stimulus,
             "boundaries": boundaries(events, vis),
-            "image": render(vis, size, stimulus=stimulus),
+            "image": image, "process": process,
             "audit": audit_streams(events, strokes),
             "logged": len(strokes), "visible": len(vis),
             "points": sum(len(s.get("points") or []) for s in vis)}

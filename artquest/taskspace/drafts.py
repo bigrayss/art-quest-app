@@ -41,7 +41,7 @@ DRAFT_BLUEPRINTS: Dict[str, Dict[str, Any]] = {
         load=dict(compare_schemes=0, spatial_relations=False, read_text=False, modify_existing=False),
         source_relations=[
             _req("观赏自然环境中的山水、树木、花草、动物，感知其形状美、色彩美和肌理美", VERBATIM, "kb:p49:t1-nature"),
-            _req("临摹是被承认的模仿手法", VERBATIM, "kb:p58:copy-vs-change"),
+            _req("课标承认「临摹」是模仿与改变原作的手法之一（教学提示谈的是与抄袭的区别）", ADAPTED, "kb:p58:copy-vs-change", support="间接"),
             _req("观察对象改为一张特写参考图而不是实物", ADAPTED, "kb:p49:t1-nature"),
             _req("一张图只放一个对象、无背景干扰", PROJECT, purpose="把观察集中在形状 / 颜色 / 纹理，不混入空间关系（那是 M2 的事）"),
         ]),

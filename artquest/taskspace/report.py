@@ -50,8 +50,10 @@ def _blueprints_md(ts: Dict[str, Any]) -> str:
             ["负担组成", "；".join(f"{k}={v}" for k, v in bp["load"].items())],
         ]))
         parts.append("\n来源关系：\n")
-        parts.append(_md_table(["设计要求", "关系", "片段", "用途（新增条件）"],
-                               [[r["requirement"], r["relation"], r.get("excerpt", "") or "—", r.get("purpose", "") or "—"] for r in bp["source_relations"]]))
+        parts.append(_md_table(["设计要求", "关系", "片段", "判定", "用途 / 说明"],
+                               [[r["requirement"], r["relation"], r.get("excerpt", "") or "—",
+                                 ("—" if r["relation"] == "项目新增条件" else (r.get("support") or "支持") + ("（改编跨度大）" if r.get("span") == "大" else "")),
+                                 r.get("purpose", "") or "—"] for r in bp["source_relations"]]))
         parts.append("")
     # 覆盖：学段 × 操作
     parts.append("### 2.x 覆盖与缺口\n")

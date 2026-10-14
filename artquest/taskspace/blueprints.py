@@ -40,9 +40,15 @@ CAPABILITIES: Dict[str, bool] = {
 SIMPLE, FULL = "simple", "full"
 
 
-def _req(text: str, relation: str, source: str = "", purpose: str = "") -> Dict[str, str]:
-    """一条设计要求 + 它的来源关系。项目新增条件必须说用途（purpose），否则检查会拦。"""
-    return {"requirement": text, "relation": relation, "excerpt": source, "purpose": purpose}
+def _req(text: str, relation: str, source: str = "", purpose: str = "",
+         support: str = "支持", span: str = "") -> Dict[str, str]:
+    """一条设计要求 + 它的来源关系。项目新增条件必须说用途（purpose），否则检查会拦。
+
+    `support` 是人判的（2026-10-12 来源核查后加的）：支持 = 片段明确说了这件事；部分 = 只说了一部分；
+    间接 = 相关但不是对这项活动的规定。检查 S6 只对「支持」记「找到支持」，别的记成未决的提醒。
+    `span`="大" 标「改编」离原文很远（课标说「改进生活用品」，题目是「茶壶变救援机」）。"""
+    return {"requirement": text, "relation": relation, "excerpt": source, "purpose": purpose,
+            "support": support, "span": span}
 
 
 BLUEPRINTS: Dict[str, Dict[str, Any]] = {
@@ -59,7 +65,7 @@ BLUEPRINTS: Dict[str, Dict[str, Any]] = {
         source_relations=[
             _req("观察物体在空间中近大远小、了解透视", VERBATIM, "kb:p55:t2-perspective"),
             _req("采用写实手法表现", VERBATIM, "kb:p55:t2-methods"),
-            _req("临摹是被承认的模仿与改变原作的手法", VERBATIM, "kb:p58:copy-vs-change"),
+            _req("课标承认「临摹」是模仿与改变原作的手法之一（教学提示谈的是与抄袭的区别，不是对这项活动的规定）", ADAPTED, "kb:p58:copy-vs-change", support="间接"),
             _req("观察对象从真实空间改成一张给定的场景图（数字画布 + 参考图常显）", ADAPTED, "kb:p55:t2-perspective"),
             _req("「博物馆要重画这幅画」的叙事框架", PROJECT, purpose="给整幅复原一个理由；不改变观察与表现这个操作"),
             _req("每张场景图 6–8 个物体、三层纵深、无文字无商标", PROJECT, purpose="五张平行卷负荷对齐；合规（无商标）"),
@@ -71,7 +77,7 @@ BLUEPRINTS: Dict[str, Dict[str, Any]] = {
         operation="observe_represent", content=["space_perspective"],
         inputs=dict(reference="桌面静物：正好 4 个物体、正好 2 处遮挡、有大小差、有纵深, mode=always", canvas="空白"),
         outputs=dict(count=1, form="单幅观察记录"),
-        invariants=["参考图常显", "4 物体 · 2 遮挡 · 大小差 · 纵深 的规格一个字不能差", "单幅产出"],
+        invariants=["参考图常显", "保留四对象、两处遮挡、大小差与纵深的项目材料规格", "单幅产出。"],
         free=["是否上色", "背景是否画", "线条风格"],
         load=dict(compare_schemes=0, spatial_relations=True, read_text=False, modify_existing=False),
         source_relations=[
@@ -88,19 +94,20 @@ BLUEPRINTS: Dict[str, Dict[str, Any]] = {
         operation="personal_expression", content=["deformation_methods", "composition"],
         inputs=dict(reference="无参考图（明确配置）", canvas="初始画布印有 7 块矢量碎片（弧、点、线、角、曲线、缺口矩形）"),
         outputs=dict(count=1, form="单幅完整画面，碎片保留在画布上"),
-        invariants=["碎片印在初始画布上、擦不掉", "七块元件种类相同只是摆法不同（A–E 五组平行）", "单幅产出"],
+        invariants=["碎片位于初始画布且不能擦除", "七类元件按A–E布局变化", "单幅产出。属于结构变式，未验证为心理测量平行卷。"],
         free=["用几块碎片", "碎片变成什么", "主题、颜色"],
         load=dict(compare_schemes=0, spatial_relations=False, read_text=False, modify_existing=True),
         source_relations=[
             _req("参考 Urban（2005）第 273 页的图形片段续画范式；本项目自行设计刺激材料和任务实例", ADAPTED, "urban2005:paradigm"),
-            _req("保持好奇心和想象力；添加是被承认的改变原作手法", VERBATIM, "kb:p58:copy-vs-change"),
+            _req("美术学习始终要保持好奇心和想象力", VERBATIM, "kb:p53:t2-teach"),
+            _req("课标承认「添加」是改变原作的手法之一（教学提示谈的是与抄袭的区别）", ADAPTED, "kb:p58:copy-vs-change", support="间接"),
             _req("碎片改为画布空间的矢量图元（客户端与回放同一实现）", PROJECT, purpose="replay = 初始画布 + 笔画；两端逐像素一致"),
             _req("梦 / 符号 / 壁画等叙事", PROJECT, purpose="给碎片一个来历；不规定碎片要变成什么"),
         ]),
     "BP_M4": dict(
         family="M4", title="把一件普通物品改造成另一种用途的东西",
         band_source=["一(1–2)", "三(6–7)"], band_proposed={SIMPLE: "小学（改进生活用品 → 改造，用途由题给）", FULL: "初中（夸张、变形手法；改造要满足功能条件）"},
-        goal="保留一件物品的部分结构，把它转化为给定环境里的另一种功能物（变形 + 转化）",
+        goal="从一件物品的特征发展新形象或用途，关注原物、形态变化与用途之间的联系；不预设部件对应。",
         operation="purposeful_design", content=["deformation_methods"],
         inputs=dict(reference="单件物品图，纯白底, mode=on_demand（默认收起）", canvas="空白"),
         outputs=dict(count=1, form="单幅改造后的物品"),
@@ -110,7 +117,8 @@ BLUEPRINTS: Dict[str, Dict[str, Any]] = {
         source_relations=[
             _req("从外观和功能了解物品，提出改进", VERBATIM, "kb:p51:t3-intro"),
             _req("夸张、变形手法", VERBATIM, "kb:p60:t2-methods"),
-            _req("「改进」扩展为「改造成另一种功能物」，用途由题指定", ADAPTED, "kb:p51:t3-req"),
+            _req("「改进」扩展为「改造成另一种功能物」，用途由题指定", ADAPTED, "kb:p51:t3-req", support="部分", span="大",
+                 purpose="课标原文是「提出改进意见，进行装饰和美化」；把雨伞改成潜水艇离它很远，这里只是借了「从功能了解物品并改动它」这个入口"),
             _req("基础物 × 环境 × 功能 三张卡组合", PROJECT, purpose="平行卷：改变题材、保持操作"),
             _req("「还要看得出原物」（base_form_preservation）", PROJECT, purpose="区分转化与另起炉灶；**只有 M4_J3 的文案写明了它**，其余题只在提示里暗示——见检查结果"),
         ]),
@@ -136,7 +144,7 @@ BLUEPRINTS: Dict[str, Dict[str, Any]] = {
         operation="personal_expression", content=["color"],
         inputs=dict(reference="情绪中性、低饱和的场景图, mode=always", canvas="空白（孩子在参考图旁重画并改色）"),
         outputs=dict(count=1, form="单幅改色后的场景"),
-        invariants=["参考图常显", "目标气氛由题给定（mood 记进 condition）", "只改颜色和明暗、不加新东西", "单幅产出"],
+        invariants=["参考图常显", "目标气氛写入condition", "用颜色与明暗表达。新增对象限制以各题“不加／尽量不加”的实际措辞为准", "单幅产出。"],
         free=["具体用哪些颜色", "明暗怎么分布", "画得多细"],
         load=dict(compare_schemes=0, spatial_relations=False, read_text=False, modify_existing=False),
         source_relations=[
@@ -165,7 +173,7 @@ BLUEPRINTS: Dict[str, Dict[str, Any]] = {
     "BP_M8": dict(
         family="M8", title="按给定的两三条世界规则，画出这个世界里的生活",
         band_source=["三(6–7)", "四(8–9)"], band_proposed={SIMPLE: "拟适用小学：规则两条、用词具体（人比虫子小）", FULL: "初中：固定开头 + 两条 + 一条可选挑战"},
-        goal="在给定约束下进行接近真实创作的想象与组织（规则必须在画里成立）",
+        goal="在给定世界规则下进行想象和场景组织；按题面区分必须规则与可选规则。",
         operation="personal_expression", content=["constraint_rules", "composition"],
         inputs=dict(reference="无参考图（明确配置）", canvas="空白"),
         outputs=dict(count=1, form="单幅世界场景"),
@@ -174,14 +182,14 @@ BLUEPRINTS: Dict[str, Dict[str, Any]] = {
         load=dict(compare_schemes=0, spatial_relations=False, read_text=True, modify_existing=False),
         source_relations=[
             _req("想象、联想、重组", VERBATIM, "kb:p68:t2-req"),
-            _req("「科学幻想」是课标列出的情境素材举例", VERBATIM, "kb:p66:contexts"),
+            _req("「科学幻想」是课标列出的情境素材举例（教学提示里的举例，不是内容要求）", VERBATIM, "kb:p66:contexts", support="间接"),
             _req("世界规则生成器（两三条规则）", PROJECT, purpose="用可记录的约束替代自由命题，让 rule_coverage 可比"),
             _req("初中版可选第三条", PROJECT, purpose="给负担留一个可选台阶；可选项不进必要产出"),
         ]),
     "BP_M9": dict(
         family="M9", title="给一个故事开头，画出接下来发生的事",
         band_source=["一(1–2)", "二(3–5)", "三(6–7)"], band_proposed={SIMPLE: "小学", FULL: "初中"},
-        goal="生态效度基线：受控任务里看到的行为模式，在接近真实的创作里还在吗",
+        goal="以开放故事起点观察叙事与场景组织；用于探索其他任务中的表现是否在不同情境出现。",
         operation="personal_expression", content=["narrative", "composition"],
         inputs=dict(reference="无参考图（明确配置）", canvas="空白"),
         outputs=dict(count=1, form="单幅叙事画面"),
@@ -190,13 +198,13 @@ BLUEPRINTS: Dict[str, Dict[str, Any]] = {
         load=dict(compare_schemes=0, spatial_relations=False, read_text=False, modify_existing=False),
         source_relations=[
             _req("表达所见所闻、所感所想", VERBATIM, "kb:p54:t2-intro"),
-            _req("「校园中的故事」是课标列出的情境素材举例", VERBATIM, "kb:p66:contexts"),
+            _req("「校园中的故事」是课标列出的情境素材举例（教学提示里的举例，不是内容要求）", VERBATIM, "kb:p66:contexts", support="间接"),
             _req("故事开头由项目给定", PROJECT, purpose="让不同孩子的画可比，同时保持开放"),
         ]),
     "BP_M0": dict(
         family="M0", title="自由创作（v1 基线，legacy）",
         band_source=[], band_proposed={SIMPLE: "—", FULL: "—"},
-        goal="开放创作基线：每个研究字段取宽松值", operation="personal_expression", content=[],
+        goal="较开放的命题创作参照：保留主题起点，观察学生如何自主组织内容与表达。", operation="personal_expression", content=[],
         inputs=dict(reference="无", canvas="空白"), outputs=dict(count=1, form="单幅"),
         invariants=["旧 id 不改"], free=["一切"],
         load=dict(compare_schemes=0, spatial_relations=False, read_text=False, modify_existing=False),
@@ -210,7 +218,7 @@ _BANK_COMMON = [
     _req("全部任务从空白画布开始，提交一幅作品；参考图在参考区常显、不粘贴进作品", PROJECT, purpose="first_visit_common_v1：首稿一幅、材料不混入作品"),
     _req("参考 PNG 1600×1200、contain 完整显示，不裁掉叶柄 / 车轮 / 笔筒底", PROJECT, purpose="材料条件：孩子看到的就是检查过的那张"),
     _req("没有 60 秒阶段、不限时；提示固定、按需显示、记显示事件", PROJECT, purpose="提示是过程支持，不产生新的必须条件"),
-    _req("允许单色、不要求写字；首访不开修改轮", PROJECT, purpose="颜色丰富度和文字长度不是通用完成门槛"),
+    _req("允许单色、不要求写字；修改轮和 M 族一样都有（2026-10-12 用户定：refine 不能有时有有时没有）", PROJECT, purpose="颜色丰富度和文字长度不是通用完成门槛"),
 ]
 BLUEPRINTS.update({
     "BP_OB": dict(family="OB", title="首访 · 观察与表现：看着参考图画出对象及其关系", bank=True,
@@ -222,7 +230,7 @@ BLUEPRINTS.update({
                   invariants=["参考图常显且完整显示", "题面点名的对象和关系要出现", "单幅产出", "允许单色"],
                   free=["线稿或上色", "整体大小", "省略细节"],
                   load=dict(compare_schemes=0, spatial_relations=True, read_text=False, modify_existing=False),
-                  source_relations=[_req("观察自然 / 生活对象的形状、色彩、肌理；近大远小与透视", VERBATIM, "kb:p49:t1-nature"),
+                  source_relations=[_req("观赏自然对象，感知其形状美、色彩美和肌理美", VERBATIM, "kb:p49:t1-nature"),
                                     _req("观察空间中的近大远小", VERBATIM, "kb:p55:t2-perspective"),
                                     _req("观察对象改为参考图而非实物", ADAPTED, "kb:p55:t2-perspective")] + _BANK_COMMON),
     "BP_ST": dict(family="ST", title="首访 · 个人表达与叙事：一幅画表现一件事或一种理解", bank=True,
@@ -243,11 +251,12 @@ BLUEPRINTS.update({
                   operation="personal_expression", content=["deformation_methods", "composition"],
                   inputs=dict(reference="片段参考 PNG（+ 可编辑 SVG），always，contain", canvas="空白"),
                   outputs=dict(count=1, form="单幅画，原片段仍能被找到"),
-                  invariants=["所有片段都要能找到", "可移动 / 旋转 / 缩放", "单幅"],
+                  invariants=["所有片段须可辨认", "转抄时可调整位置、方向和大小", "单幅产出。不表示需要可移动对象工具。"],
                   free=["片段变成什么", "主题", "颜色"],
                   load=dict(compare_schemes=0, spatial_relations=False, read_text=False, modify_existing=False),
                   source_relations=[_req("以给定的图形片段为基础完成一幅画", ADAPTED, "urban2005:paradigm"),
-                                    _req("保持好奇心和想象力；添加是被承认的改变手法", VERBATIM, "kb:p58:copy-vs-change"),
+                                    _req("美术学习始终要保持好奇心和想象力", VERBATIM, "kb:p53:t2-teach"),
+                                    _req("课标承认「添加」是改变原作的手法之一（教学提示谈的是与抄袭的区别）", ADAPTED, "kb:p58:copy-vs-change", support="间接"),
                                     _req("片段原创、参考区呈现、自由手绘转抄（和 M3 印在画布上不同）", PROJECT, purpose="不复制原测验题纸、边框、计时或评分；转抄是额外的操作负担，分析时记着")] + _BANK_COMMON),
     "BP_TR": dict(family="TR", title="首访 · 物品创意改造：把参考物品变成有新用途的东西并保留可辨认特征", bank=True,
                   band_source=["一(1–2)", "二(3–5)", "三(6–7)", "四(8–9)", "高中起始", "17+（无学段，取自 M 族题库）"], band_proposed={"B1": "会帮忙的杯子", "B2": "雨伞的新本领", "B3": "茶壶救援机", "B4": "自行车的新用途", "B5": "小空间台灯", "B6": "鞋子变生物（M4_J3）"},
@@ -260,7 +269,8 @@ BLUEPRINTS.update({
                   load=dict(compare_schemes=0, spatial_relations=False, read_text=False, modify_existing=False),
                   source_relations=[_req("从外观和功能了解物品，提出改进", VERBATIM, "kb:p51:t3-intro"),
                                     _req("夸张、变形手法", VERBATIM, "kb:p60:t2-methods"),
-                                    _req("「改进」扩展为「改造成新用途」，用途由题给定或由孩子选", ADAPTED, "kb:p51:t3-req")] + _BANK_COMMON),
+                                    _req("「改进」扩展为「改造成新用途」，用途由题给定或由孩子选", ADAPTED, "kb:p51:t3-req", support="部分", span="大",
+                                         purpose="课标原文是「提出改进意见，进行装饰和美化」；B2 雨伞、B4 自行车、B5 台灯是真的改进，B1 杯子、B3 茶壶、B6 鞋子离原文远")] + _BANK_COMMON),
     "BP_DS": dict(family="DS", title="首访 · 视觉传达设计：为一个明确用途做标志 / 吉祥物 / 海报", bank=True,
                   band_source=["一(1–2)", "二(3–5)", "三(6–7)", "四(8–9)", "高中起始", "17+（无学段，取自 M 族题库）"], band_proposed={"B1": "玩具箱标志", "B2": "图书角标志", "B3": "运动会吉祥物", "B4": "校园活动海报", "B5": "校园少浪费海报", "B6": "我的画廊标志"},
                   goal="让图像为一个明确用途服务；不要求文字、不要求真实校名日期",
@@ -272,8 +282,7 @@ BLUEPRINTS.update({
                   load=dict(compare_schemes=0, spatial_relations=False, read_text=False, modify_existing=False),
                   source_relations=[_req("为班级或学校的活动设计标识、请柬、贺卡、图表、海报", VERBATIM, "kb:p56:t3-visual-design"),
                                     _req("用画笔或计算机做有明确用途的小设计", VERBATIM, "kb:p52:t5-design"),
-                                    _req("根据不同活动的需要设计海报、请柬", VERBATIM, "kb:p62:t3-improve"),
-                                    _req("围绕目的形成视觉构想（PISA 只借思路，不沿用分数）", ADAPTED, "pisa:processes")] + _BANK_COMMON),
+                                    _req("根据不同活动的需要设计海报、请柬", VERBATIM, "kb:p62:t3-improve")] + _BANK_COMMON),
 })
 
 # 课标里有、本库还没有蓝图的操作 / 情境——保留缺口比用相似题填满更有用（Step 1.5）
@@ -290,4 +299,14 @@ GAPS: List[Dict[str, Any]] = [
     dict(operation="observe_represent", excerpts=["kb:p49:t1-nature"],
          why_missing="观察自然对象的形状 / 色彩 / 肌理（第一学段）没有蓝图；M1/M2 的对象都是室内外人造场景或静物",
          needs=[], note="需要新的参考图材料规格"),
+]
+
+
+# 流程层的来源（2026-10-12）：这两份文献支撑的不是某道题，是流程和评分，所以不挂在任何题上。
+#   PISA 的三个侧面里「评价与改进」对应画完一轮、看完反馈再改的进化关；「产生创意构想」对应一次只交一幅。
+#   KidsArtBench 只支撑九维评分量表，不支撑题目。
+FLOW_SOURCES: List[Dict[str, str]] = [
+    dict(where="进化关（画完 → 反馈 → 修改）", excerpt="pisa:processes", note="evaluate and improve ideas"),
+    dict(where="一次只交一幅", excerpt="pisa:processes", note="generate creative ideas（不要求多方案）"),
+    dict(where="九维评分", excerpt="kab:table1", note="量表来源；评作品，不评任务"),
 ]

@@ -43,7 +43,7 @@
   };
 
   const state = { cfg: null, quests: [], families: [], allSessions: [], rarity: null, quest: null, emotion: null, sessionId: null, phase: "before", feedback: null,
-    startedAt: null, dirtySinceSnapshot: false, timers: [], before: null, color: "#f79433", buddyTick: 0,
+    startedAt: null, timers: [], before: null, color: "#f79433", buddyTick: 0,
     anonId: "", condition: {}, study: null, seqIdx: 0, lastActivity: 0, idle: false, timeUp: false, pendingFinal: null,
     entered: false, worldColor: "", buddyName: "", account: null, unclaimed: 0,
     mode: "simple" };      // 2026-10-12：只剩简单版，这个字段只是给 deviceInfo 记一笔
@@ -1492,7 +1492,9 @@
     eraser: { size: 6, alpha: 1, cap: "round", pressure: 0, color: "#ffffff" },
   };
   let tool = "pencil", color = "#222222", size = 4, opacity = 1, drawing = false, last = null, strokeCount = 0, curStroke = null;
-  const undoStack = [], redoStack = [], MAX_UNDO = 40;
+  // 每一步撤销是整张画布的 ImageData（1024×704×4 ≈ 2.9 MB）。40 步 + 40 步重做最多 230 MB，
+  // iPad 上这么大的内存来回申请释放会带来 GC 停顿；20 步已经远超孩子实际会连撤的步数（2026-10-12）。
+  const undoStack = [], redoStack = [], MAX_UNDO = 20;
   // The document behind the pixels: which strokes are currently on the canvas.
   // `undoDoc` / `redoDoc` stay index-aligned with the pixel stacks, so every
   // undo/redo/clear can say *which strokes* it took off and put back — without
@@ -1747,7 +1749,7 @@
       ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke(); last = p;
       if (curStroke) curStroke.points.push(samplePoint(ev, curStroke.t0));
     });
-    state.dirtySinceSnapshot = true; markActive();
+    markActive();
   });
   const endStroke = (e) => {
     if (dropping) { if (!e || e.type !== "pointerleave") commitDrop(); return; }
@@ -1936,14 +1938,14 @@
     redoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height)); redoDoc.push(visible.slice());
     ctx.putImageData(undoStack.pop(), 0, 0);
     const prev = visible; visible = undoDoc.pop() || [];
-    logEvent(EV.UNDO, docDiff(prev, visible)); state.dirtySinceSnapshot = true;
+    logEvent(EV.UNDO, docDiff(prev, visible));
   }
   function redo() {
     if (!redoStack.length) return;
     undoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height)); undoDoc.push(visible.slice());
     ctx.putImageData(redoStack.pop(), 0, 0);
     const prev = visible; visible = redoDoc.pop() || [];
-    logEvent(EV.REDO, docDiff(prev, visible)); state.dirtySinceSnapshot = true;
+    logEvent(EV.REDO, docDiff(prev, visible));
   }
   $("#btn-undo").onclick = undo; $("#btn-redo").onclick = redo;
   const clearModal = $("#clear-modal");
@@ -1959,7 +1961,7 @@
     clearModal.classList.add("hidden");
     pushUndo(); ctx.globalAlpha = 1; ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
     const prev = visible; visible = [];
-    logEvent(EV.CLEAR, docDiff(prev, visible)); state.dirtySinceSnapshot = true;
+    logEvent(EV.CLEAR, docDiff(prev, visible));
   };
   document.addEventListener("keydown", (e) => {
     if (!drawViewOpen()) return;
@@ -2388,18 +2390,12 @@
     try { await ArtLog.flush(); await ArtLog.flush(); } catch (e) { /* keep the queue */ }
     return await ArtLog.pending();
   }
-  async function snapshot() {
-    if (!state.sessionId || !state.dirtySinceSnapshot) return;
-    state.dirtySinceSnapshot = false;
-    try {
-      await api(`${API}/sessions/${state.sessionId}/snapshot`, { method: "POST", body: JSON.stringify({ image: canvas.toDataURL("image/png"), elapsed_ms: elapsed() }) });
-    } catch (e) { console.warn("snapshot failed", e); }
-  }
   function startTimers() {
     stopTimers();
-    // 0 = 不拍：任何时刻的画面都能从 stroke/event 日志重建，定时截图只是它的副本
-    if (state.cfg.snapshot_interval_sec > 0)
-      state.timers.push(setInterval(snapshot, state.cfg.snapshot_interval_sec * 1000));
+    // 不再定时拍画布快照（2026-10-12）：`toDataURL` 把整张画布在主线程上编成 PNG，
+    // 而且只在画过之后才拍，所以那几十毫秒必然落在孩子正在画的时候——线上每分钟卡一下就是它。
+    // 任何时刻的画面都能从 stroke/event 日志重建；老师看的三张过程图现在由服务器在 QC 时重建
+    // （reconstruct.rebuild → process_frames）。服务端的 snapshot_interval_sec 配置项留着，这里不读它。
     state.timers.push(setInterval(checkIdle, 1000));
     state.timers.push(setInterval(tickTimeLimit, 1000));
   }
@@ -3463,7 +3459,7 @@
     state.feedback = null; state.offlineSession = !!ticket;
     renderHistory(r.personalization);
     state.condition = { ...state.condition, ...(r.session.condition || {}) };  // the server froze it; mirror it back
-    resetCanvas(); state.startedAt = Date.now(); state.dirtySinceSnapshot = false;
+    resetCanvas(); state.startedAt = Date.now();
     strokeCount = 0; state.lastActivity = 0; state.idle = false;
     applyTool("pencil");                 // 上一张用橡皮收的尾，不该带进下一张
     // 起手色：不是黑。每个任务按 id 定一个（同一任务永远同一色，任务之间不同），孩子随时能换。

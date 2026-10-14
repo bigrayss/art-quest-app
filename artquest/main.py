@@ -30,7 +30,7 @@ from .personalize import MODES as HISTORY_MODES, get_personalizer
 from .qc import check as qc_check
 from .quests import (EMOTIONS, QUESTS, QUESTS_BY_ID, condition_snapshot,
                      families as task_families)
-from .reconstruct import check_final
+from .reconstruct import check_final, rebuild
 from .rubric import apply_contract, check_rating
 from .revision import attribute as attribute_revision
 from .schemas import (
@@ -189,10 +189,19 @@ def _run_qc(sid: str, pending: int = 0) -> Dict[str, Any]:
     meta = store.load(sid)
     try:
         # rebuild the artwork from the logs and hold it against what was saved
-        replay = check_final(store.dir(sid))
+        built = rebuild(store.dir(sid))
+        replay = check_final(store.dir(sid), built)
     except Exception:
         log.exception("reconstruction failed for %s", sid)
-        replay = None
+        built, replay = None, None
+    # The process frames the teacher looks at come out of the same replay:
+    # the client no longer uploads periodic snapshots (encoding the canvas on
+    # the main thread stuttered the drawing), and the log holds every moment.
+    if built is not None:
+        try:
+            store.save_process_frames(sid, built["process"])
+        except Exception:
+            log.exception("process frames failed for %s", sid)
     result = qc_check(
         meta,
         strokes=store._strokes_summary(sid),
@@ -601,9 +610,10 @@ def _session_images(meta: Dict[str, Any]) -> List[Dict[str, Any]]:
     过程图只要一句短评；最终图要九维 + 评语。"""
     sid = sid_of(meta)
     out = []
-    # 快照每分钟一张，一张画十几张，老师看不过来也不必看：只抽三张——开头、中间、快结束。
-    # 全部快照照存在服务器上，研究分析时都在；这只是老师界面上的抽样。
-    snaps = list(meta.get("snapshots") or [])
+    # 过程图从笔画日志重建（session 结束时 QC 顺手算的，1/4、1/2、3/4 处各一张）。
+    # 客户端不再定时上传快照（主线程编码整张画布会让画画卡一下）；真传过的旧 session 仍用上传的那几张，
+    # 多的话只抽三张——开头、中间、快结束。全部都存在服务器上，研究分析时都在；这只是老师界面上的抽样。
+    snaps = list(meta.get("snapshots") or []) or list(meta.get("process_frames") or [])
     if len(snaps) > 3:
         snaps = [snaps[0], snaps[len(snaps) // 2], snaps[-1]]
     for s in snaps:
