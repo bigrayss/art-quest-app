@@ -233,12 +233,14 @@ def pool_for(decision: Dict[str, Any]) -> List[str]:
 
 
 def apply_policy(decision: Dict[str, Any], policy: str, ranker=None, *, rep: Optional[Dict[str, Any]] = None,
-                 authority: str = "server", allow_model: bool = True) -> Dict[str, Any]:
+                 authority: str = "server", allow_model: bool = True, agent_ok: bool = False) -> Dict[str, Any]:
     """在唯一的选题位置上执行分到的策略。分配的臂（selection_policy）和实际执行的臂（executed_policy）分开记，
     回退不改分配：分到 llm、超时回退 rules 的那条 session 仍然属于 llm 臂。
 
-    回退的理由（fallback_reason）：policy_unavailable（agent 还没接）/ authority_client（权威还在浏览器，排了也没人用）/
-    cold_start（没有历史）/ not_precomputed（地图加载路径上不等模型）/ no_free_slots / bad_output / error。
+    回退的理由（fallback_reason）：agent_unavailable（模型后端没确认支持工具协议，ARTQUEST_LLM_TOOLS 没开）/
+    authority_client（权威还在浏览器，排了也没人用）/ cold_start（没有历史）/ not_precomputed（地图加载路径上不等模型）/
+    no_free_slots / bad_output / timeout / budget_exhausted / error。agent 臂的 ranker 是 selection_agent.run_agent，
+    它自己抛 AgentFailed(reason)，理由原样进 fallback_reason。
     """
     policy = policy if policy in POLICIES else "rules"
     decision["selection_policy"] = policy
@@ -251,8 +253,8 @@ def apply_policy(decision: Dict[str, Any], policy: str, ranker=None, *, rep: Opt
     if policy == "rules":
         return decision
     reason = None
-    if policy == "agent":
-        reason = "policy_unavailable"
+    if policy == "agent" and not agent_ok:
+        reason = "agent_unavailable"
     elif authority != "server":
         reason = "authority_client"
     elif not (decision.get("history") or {}).get("n_done"):
@@ -268,10 +270,12 @@ def apply_policy(decision: Dict[str, Any], policy: str, ranker=None, *, rep: Opt
     n = len(free)
     try:
         out = ranker(decision, pool, n, rep) if ranker else None
-    except Exception as e:                      # 超时、HTTP 错、形状不对：都回退规则，理由记下
+    except Exception as e:                      # 超时、HTTP 错、形状不对、预算耗尽：都回退规则，理由记下
         name = type(e).__name__
-        decision["fallback_reason"] = "timeout" if "Timeout" in name else ("bad_output" if "BadOutput" in name else "error")
-        decision["ranking"] = {"pool": pool, "ranked": None, "error": f"{name}: {e}"[:300]}
+        decision["fallback_reason"] = getattr(e, "reason", None) or (
+            "timeout" if "Timeout" in name else ("bad_output" if "BadOutput" in name else "error"))
+        decision["ranking"] = {"pool": pool, "ranked": None, "error": f"{name}: {e}"[:300],
+                               "agent": getattr(e, "agent", None)}
         return decision
     ranked = [t for t in ((out or {}).get("ranked") or [])]
     seen: List[str] = []
@@ -292,7 +296,8 @@ def apply_policy(decision: Dict[str, Any], policy: str, ranker=None, *, rep: Opt
             o["picked"] = o.get("family") == seen[0]
             o["ranked_by"] = policy
     decision["executed_policy"] = policy
-    decision["ranking"] = {"pool": pool, "ranked": seen[:max(n, 1) * 2], "why": (out or {}).get("why", "")}
+    decision["ranking"] = {"pool": pool, "ranked": seen[:max(n, 1) * 2], "why": (out or {}).get("why", ""),
+                           "evidence": list((out or {}).get("evidence") or []), "agent": (out or {}).get("agent")}
     return decision
 
 

@@ -208,7 +208,8 @@ DECISION_COLS = ["session_id", "decision_id", "offer_id", "authority", "decision
                  "rule", "identity_key", "history_revision", "n_done", "done_task_ids", "age", "age_source", "band",
                  "n_candidates", "n_offered", "offered", "client_offered", "same_set", "same_order", "prepared_at",
                  "consumed_by", "ticket", "selection_policy", "executed_policy", "fallback_reason", "rules_fill",
-                 "ranked", "select_call_id"]
+                 "ranked", "select_call_id", "evidence", "agent_rounds", "agent_tool_calls", "agent_retrieves",
+                 "agent_validates", "agent_stopped", "agent_seconds"]
 
 
 def _flat_decision(sid: str, dec: Dict[str, Any], selection: Dict[str, Any], ticket_meta: Optional[Dict[str, Any]]) -> Dict[str, Any]:
@@ -241,6 +242,11 @@ def _flat_decision(sid: str, dec: Dict[str, Any], selection: Dict[str, Any], tic
         "fallback_reason": dec.get("fallback_reason"), "rules_fill": "|".join(dec.get("rules_fill") or []),
         "ranked": "|".join(((dec.get("ranking") or {}).get("ranked") or [])),
         "select_call_id": ((dec.get("ranking") or {}).get("calls") or {}).get("call_id"),
+        "evidence": "|".join(((dec.get("ranking") or {}).get("evidence") or [])),
+        **{f"agent_{col}": (((dec.get("ranking") or {}).get("agent") or {}).get("counts") or {}).get(k)
+           for col, k in (("rounds", "rounds"), ("tool_calls", "tool_calls"), ("retrieves", "retrieve"), ("validates", "validate"))},
+        "agent_stopped": ((dec.get("ranking") or {}).get("agent") or {}).get("stopped"),
+        "agent_seconds": ((dec.get("ranking") or {}).get("agent") or {}).get("seconds"),
     }
 
 

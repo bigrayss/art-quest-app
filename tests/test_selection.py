@@ -396,9 +396,8 @@ class ServerAuthority(unittest.TestCase):
         self.assertEqual(self.store.offers_of(a["decision_id"])[0]["picks"], {})
 
 
-class PolicyArms(unittest.TestCase):
-    """PR 5：selection_policy=llm 时，自由位由模型在冻结候选里排；分到的臂和执行的臂分开记；回退不改分配。
-    模型是假的（httpx.post 换掉），预算同步跑。"""
+class _ArmBase(unittest.TestCase):
+    """策略臂测试的共同底座：权威切到服务端、预算同步跑、模型是假的（httpx.post 换掉）。本身没有用例。"""
 
     def setUp(self):
         import artquest.config as cfg_mod
@@ -459,6 +458,9 @@ class PolicyArms(unittest.TestCase):
         r = self.c.post("/api/task-options", json=body)
         self.assertEqual(r.status_code, 200, r.text)
         return r.json()
+
+class PolicyArms(_ArmBase):
+    """PR 5：selection_policy=llm 时，自由位由模型在冻结候选里排；分到的臂和执行的臂分开记；回退不改分配。"""
 
     def test_cold_start_and_the_map_path_never_wait_for_the_model(self):
         a = self._options()
@@ -543,11 +545,109 @@ class PolicyArms(unittest.TestCase):
         first = sel.offered_keys(sel.compute("map", self.who, [], age=9))
         self._finish(first[0])
         a = self._options()
-        self.assertEqual((a["selection_policy"], a["executed_policy"], a["fallback_reason"]), ("agent", "rules", "policy_unavailable"))
+        self.assertEqual((a["selection_policy"], a["executed_policy"], a["fallback_reason"]), ("agent", "rules", "agent_unavailable"))
         self.study.save_study({"condition": {"selection_policy": "rules"}})
         self._finish(first[1])
         b = self._options()
         self.assertEqual((b["selection_policy"], b["executed_policy"], b["fallback_reason"]), ("rules", "rules", None))
+        self.assertEqual(self.requests, [])
+
+
+class AgentArm(_ArmBase):
+    """第三阶段第三步：agent 臂接进预算路径。done 落盘后后台跑循环，地图只读结果；
+    ARTQUEST_LLM_TOOLS 没开就是 agent_unavailable，绝不静默跑普通模型。"""
+
+    def setUp(self):
+        super().setUp()
+        self.cfg.LLM_TOOLS = True
+        self.study.save_study({"condition": {"selection_policy": "agent"}})
+
+    def tearDown(self):
+        self.cfg.LLM_TOOLS = False
+        super().tearDown()
+
+    @staticmethod
+    def _tool(name, args):
+        import json as _json
+        return _json.dumps({"id": "chatcmpl-tool", "usage": {"prompt_tokens": 1, "completion_tokens": 1},
+                            "choices": [{"finish_reason": "tool_calls", "message": {"role": "assistant", "content": "",
+                                         "tool_calls": [{"id": "tc_1", "type": "function",
+                                                         "function": {"name": name, "arguments": _json.dumps(args)}}]}}]})
+
+    def test_the_agent_retrieves_real_history_fixes_an_error_and_its_choice_reaches_the_map(self):
+        import json as _json
+        first = sel.offered_keys(sel.compute("map", self.who, [], age=9))
+        base = sel.compute("map", self.who, [first[0]], age=9)
+        pool = sel.pool_for(base)
+        choice = pool[-1]
+        # 剧本：查 M 族历史（这孩子只画过一张首访题，返回空）→ 提交一个重复的 → 收到错误 → 改好提交
+        self.replies = [self._tool("retrieve_history", {"family": "M9"}),
+                        self._tool("submit_offer", {"ranked": [choice, choice], "why": "x"}),
+                        self._tool("submit_offer", {"ranked": [choice], "why": "换个家族", "evidence": []})]
+        # PolicyArms 的假 post 回 _FakeResp(text)；这里的 text 是整段 JSON 回复体，让 json() 原样吐出来
+        sid1 = self._finish(first[0])
+        self.assertEqual(len(self.requests), 3, "done 落盘后循环跑了三轮")
+        a = self._options(client_offered=first[1:] + [pool[0]])
+        self.assertEqual((a["selection_policy"], a["executed_policy"], a["fallback_reason"]), ("agent", "agent", None))
+        self.assertEqual(a["offered"][4], choice)
+        dec = self.store.find_decision(a["decision_id"])
+        ag = dec["ranking"]["agent"]
+        self.assertEqual(ag["stopped"], "submitted")
+        self.assertEqual(ag["counts"], {"rounds": 3, "tool_calls": 3, "retrieve": 1, "validate": 0, "submit": 2, "runtime_validate": 2})
+        self.assertEqual([(t["kind"], t.get("tool_name"), t.get("requested_by")) for t in ag["trace"]],
+                         [("model", None, None), ("tool", "retrieve_history", "model"), ("model", None, None),
+                          ("tool", "validate_offer", "runtime"), ("model", None, None), ("tool", "validate_offer", "runtime")])
+        self.assertEqual(ag["trace"][3]["errors"], ["DUPLICATE_TASK"])        # 去重后刚好 1 道，数量没错
+        self.assertEqual(dec["history"]["before"], dec["history"]["before"])
+        # 决策票的 calls.jsonl：3 条远程（purpose select，各自 operation）+ 3 条工具 local
+        calls = self.store.calls(sel.ticket_of(a["decision_id"]))
+        remote = [c for c in calls if c["execution_kind"] == "remote"]
+        local = [c for c in calls if c["execution_kind"] == "local"]
+        self.assertEqual(len(remote), 3)
+        self.assertTrue(all(c["purpose"] == "select" and c["prompt_version"] == "agent/v1" for c in remote))
+        self.assertEqual([(c["tool_name"], c["requested_by"]) for c in local],
+                         [("retrieve_history", "model"), ("validate_offer", "runtime"), ("validate_offer", "runtime")])
+        self.assertEqual(local[0]["output"]["source"]["before"], dec["history"]["before"])
+        self.assertEqual(local[0]["output"]["n_matched"], 0, "这孩子还没画过 M 族：如实返回空，不编")
+        # 第二次请求里有真实的工具返回
+        second = [m for m in self.requests[1]["messages"] if m["role"] == "tool"][-1]["content"]
+        self.assertIn('"n_matched": 0', second)
+        # 孩子点了 agent 排的那道：票成为 session，臂冻进 condition，轨迹跟着走
+        r = self.c.post("/api/sessions", json={"quest_id": choice, "intent": {"emotion": "", "text": ""}, "participant": self.who,
+                                               "routing": self._routing(choice),
+                                               "selection": {"entrypoint": "map", "choice_source": "child_click", "authority": "server",
+                                                             "decision_id": a["decision_id"], "offer_id": a["offer_id"]}})
+        sid = r.json()["session_id"]
+        m = self.store.load(sid)
+        self.assertEqual((m["condition"]["selection_policy"], m["selection"]["executed_policy"]), ("agent", "agent"))
+        self.assertEqual(m["selection"]["decision"]["ranking"]["agent"]["counts"]["tool_calls"], 3)
+        self.assertEqual([c["purpose"] for c in self.store.calls(sid)][:6], ["select"] * 6)
+
+    def test_without_the_tools_switch_the_agent_arm_is_unavailable_and_runs_no_model(self):
+        self.cfg.LLM_TOOLS = False
+        first = sel.offered_keys(sel.compute("map", self.who, [], age=9))
+        self.replies = [self._tool("submit_offer", {"ranked": ["x"], "why": ""})]
+        self._finish(first[0])
+        a = self._options()
+        self.assertEqual((a["selection_policy"], a["executed_policy"], a["fallback_reason"]), ("agent", "rules", "agent_unavailable"))
+        self.assertEqual(self.requests, [])
+
+    def test_a_failed_run_keeps_its_trace_and_falls_back_to_rules(self):
+        first = sel.offered_keys(sel.compute("map", self.who, [], age=9))
+        bad = self._tool("submit_offer", {"ranked": ["nope"], "why": ""})
+        self.replies = [bad, bad, bad, bad, bad]
+        self._finish(first[0])
+        a = self._options()
+        rules = sel.offered_keys(sel.compute("map", self.who, [first[0]], age=9))
+        self.assertEqual((a["executed_policy"], a["fallback_reason"], a["offered"]), ("rules", "budget_exhausted", rules))
+        dec = self.store.find_decision(a["decision_id"])
+        self.assertEqual(dec["ranking"]["agent"]["stopped"], "budget_exhausted")
+        self.assertEqual(dec["ranking"]["agent"]["counts"]["runtime_validate"], 4)
+        self.assertEqual(len(self.requests), 4)
+
+    def test_no_history_is_cold_start_before_any_agent_round(self):
+        a = self._options()
+        self.assertEqual((a["selection_policy"], a["executed_policy"], a["fallback_reason"]), ("agent", "rules", "cold_start"))
         self.assertEqual(self.requests, [])
 
 
@@ -558,6 +658,9 @@ class _FakeResp:
         self.headers = {}
 
     def json(self):
+        # 整段回复体（agent 剧本里的 tool_calls）原样吐；否则当成正文
+        if isinstance(self.text, str) and self.text.startswith('{"id": "chatcmpl-tool"'):
+            return __import__("json").loads(self.text)
         return {"id": "chatcmpl-fake", "usage": {"prompt_tokens": 1, "completion_tokens": 1},
                 "choices": [{"finish_reason": "stop", "message": {"role": "assistant", "content": self.text}}]}
 

@@ -230,10 +230,11 @@ TOOLS: List[Dict[str, Any]] = [
 class AgentFailed(Exception):
     """循环没拿到合法结果。reason 直接成为 fallback_reason。"""
 
-    def __init__(self, reason: str, detail: str = ""):
+    def __init__(self, reason: str, detail: str = "", agent: Optional[Dict[str, Any]] = None):
         super().__init__(f"{reason}: {detail}" if detail else reason)
         self.reason = reason
         self.detail = detail
+        self.agent = agent          # 失败也留轨迹：到底做了什么、停在哪
 
 
 SYSTEM = (
@@ -285,6 +286,10 @@ def run_agent(ctx: AgentContext, rep: Optional[Dict[str, Any]], *, parent: Optio
     def attempts() -> int:
         return parent.count_remote() if parent is not None else counts["rounds"]
 
+    def fail(reason: str, detail: str = ""):
+        return AgentFailed(reason, detail, agent={"trace": trace, "counts": counts, "stopped": reason,
+                                                   "seconds": round(clock() - t0, 2), "budget": budget})
+
     def record_tool(name: str, args: Dict[str, Any], result: Dict[str, Any], requested_by: str, model_call_id: Optional[str], secs: float):
         step_no = len(trace) + 1
         rec_id = None
@@ -300,9 +305,9 @@ def run_agent(ctx: AgentContext, rep: Optional[Dict[str, Any]], *, parent: Optio
 
     while True:
         if clock() - t0 > budget["seconds"]:
-            raise AgentFailed("timeout", f"decision deadline {budget['seconds']}s")
+            raise fail("timeout", f"decision deadline {budget['seconds']}s")
         if attempts() >= budget["model_attempts"]:
-            raise AgentFailed("budget_exhausted", f"{attempts()} model attempts")
+            raise fail("budget_exhausted", f"{attempts()} model attempts")
         counts["rounds"] += 1
         step += 1
         model_call_id = None
@@ -311,8 +316,8 @@ def run_agent(ctx: AgentContext, rep: Optional[Dict[str, Any]], *, parent: Optio
                 reply = llm.claude_tools(SYSTEM, messages, TOOLS, max_tokens=800)
             except Exception as e:
                 name = type(e).__name__
-                raise AgentFailed("timeout" if "Timeout" in name else ("bad_output" if "BadOutput" in name else "error"),
-                                  f"{name}: {e}"[:300])
+                raise fail("timeout" if "Timeout" in name else ("bad_output" if "BadOutput" in name else "error"),
+                           f"{name}: {e}"[:300])
             model_call_id = op.last_call_id if op is not None else None
         trace.append({"step": len(trace) + 1, "kind": "model", "call_id": model_call_id, "round": counts["rounds"],
                       "tool_calls": [c["name"] for c in reply["tool_calls"]], "text": _cap(reply.get("text"))})
@@ -326,7 +331,7 @@ def run_agent(ctx: AgentContext, rep: Optional[Dict[str, Any]], *, parent: Optio
                                         "arguments": {"ranked": obj.get("ranked"), "why": obj.get("why", ""), "evidence": obj.get("evidence")}}]
             except Exception:
                 if nudged:
-                    raise AgentFailed("bad_output", "no tool call and no JSON after a reminder")
+                    raise fail("bad_output", "no tool call and no JSON after a reminder")
                 nudged = True
                 messages.append({"role": "user", "content": "请通过工具行动：需要信息就调用 retrieve_history，准备好了就调用 submit_offer 提交。"})
                 continue

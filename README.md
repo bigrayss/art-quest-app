@@ -39,6 +39,7 @@ cp .env.example .env     # 可选：填模型 key（ecnu-plus 或 Anthropic）�
 | `ARTQUEST_DATA_DIR` | `./data` | 数据目录，已 gitignore，儿童作品不进仓库 |
 | `ARTQUEST_SNAPSHOT_INTERVAL` | `0` | 过程截图间隔（秒）。**现在的客户端不读它**：定时截图在主线程编码整张画布会让画画卡顿；老师看的过程图由服务器从笔画日志重建（`checkpoints/process_*.png`） |
 | `ARTQUEST_ADMIN_TOKEN` | 空 | 研究员令牌；不设则全量列表、打分、策展等接口一律 401 |
+| `ARTQUEST_LLM_TOOLS` | `off` | 模型后端是否支持工具协议（OpenAI tool_calls / Anthropic tool_use）。agent 选题臂要它；没确认过的后端不假装支持：off 时 agent 臂记 `agent_unavailable` 回退规则，绝不静默跑普通模型再记成 agent |
 | `ARTQUEST_SELECTION_AUTHORITY` | `client` | 选题权威：`client` 浏览器按规则摆地图、服务端影子对照并记录；`server` 服务端算好排位（含随机抽签）发给浏览器摆，决策票直接成为那条 session。切回 `client` 即回滚 |
 | `ARTQUEST_TEACHER_CODE` | 空 | 老师注册的邀请码 |
 | `ARTQUEST_CORS_ORIGINS` | iOS 壳的源 | 跨源来源 |
@@ -77,6 +78,10 @@ data/prompts/<sha256>.txt   固定的 system 正文按 hash 归档一份，calls
 llm 臂在上一张画完/放弃落盘后由服务端预算，模型只在冻结候选里给**自由位**排序（`artquest/selection_llm.py`），
 地图加载路径上从不等模型；越界/超时/没历史一律回退 rules 并记 `fallback_reason`，分到的臂（selection_policy）和实际执行的臂（executed_policy）分开记。
 只在 `ARTQUEST_SELECTION_AUTHORITY=server` 下生效。
+agent 臂（`artquest/selection_agent.py`）是一个**受限的执行循环**，不是另一版提示词：两个真正执行的工具
+`retrieve_history`（只读这个孩子允许范围内、截止到决策时刻的真实记录，缺的标 missing）和 `validate_offer`（确定性校验，错误码到位置），
+模型每轮只能检索、校验或 `submit_offer`；最终提交永远由后端再校验一次（requested_by=runtime）。预算：4 次模型请求、2 次检索、2 次主动校验、总期限 150 秒；
+失败回退 rules 并保留轨迹。每轮模型请求一个 operation，每次工具执行一条 local 记录（tool_name / requested_by / step），都在决策票的 calls.jsonl。
 事件词表的唯一权威是 `artquest/events.py`。研究员接口见 `DESIGN.md` 的「API」一节。
 
 ## 研究相关

@@ -22,6 +22,7 @@ from . import history as history_mod
 from . import llm as llm_mod
 from . import selection as sel
 from . import selection_llm
+from . import selection_agent
 from . import study as study_mod
 from .accounts import AccountError, AccountStore
 from . import i18n
@@ -960,11 +961,11 @@ def _decide_lock(key: str):
         return _DECIDE_LOCKS.setdefault(key or "-", __import__("threading").Lock())
 
 
-def _rep_for(who: Dict[str, Any]) -> Dict[str, Any]:
-    """选题用的 representation：和个性化那一臂同一个 builder、同一条归属规则；截止到此刻（history_revision）。"""
+def _rep_for(who: Dict[str, Any], before: str = "") -> Dict[str, Any]:
+    """选题用的 representation：和个性化那一臂同一个 builder、同一条归属规则；截止到 before（history_revision）。"""
     sc = _scope(who.get("account_id", ""))
     return history_mod.build(who.get("participant_id", ""), who.get("anon_id", ""),
-                             account_id=sc["account_id"], windows=sc["device_windows"], before=now_iso())
+                             account_id=sc["account_id"], windows=sc["device_windows"], before=before or now_iso())
 
 
 def _decide(who: Dict[str, Any], st: Dict[str, Any], entrypoint: str, *, age: Optional[int], age_source: str = "",
@@ -993,6 +994,8 @@ def _decide_once(who: Dict[str, Any], st: Dict[str, Any], entrypoint: str, *, ag
     decision = sel.compute(entrypoint, who, done, age=age, age_source=age_source, first_visit=first_visit,
                            sequence=sequence, seq_index=seq_index, dim=dim)
     decision["selection_policy"] = policy
+    before = now_iso()                                   # history_revision：representation 和 agent 的检索都截止到这一刻
+    decision["history"]["before"] = before
     tsid = store.ensure_prepared_ticket(decision["identity_key"], who=who, study=st, condition=condition)
     cur = store.current_decision(tsid)
     if cur and cur.get("history_key") == sel.history_key(decision):
@@ -1000,13 +1003,25 @@ def _decide_once(who: Dict[str, Any], st: Dict[str, Any], entrypoint: str, *, ag
     rep = None
     if policy != "rules" and cfg.SELECTION_AUTHORITY == "server" and allow_model and (decision.get("history") or {}).get("n_done"):
         try:
-            rep = _rep_for(who)
+            rep = _rep_for(who, before)
         except Exception:
             log.exception("representation for selection failed")
-    # 模型那一次调用记进决策票的 calls.jsonl（票变成 session 时一起带走）
+    # 模型那几次调用记进决策票的 calls.jsonl（票变成 session 时一起带走）。agent 臂：每轮一个 operation，工具执行是 local 记录
+    if policy == "agent":
+        def ranker(d, pool, n, rep_):
+            free = sel.free_slots(d)
+            fixed = [o.get("task_id") for i, o in enumerate(d.get("offered") or []) if i not in free and o.get("task_id")]
+            actx = selection_agent.AgentContext(store=store, decision=d, who=who, before=before,
+                                                account_scope=_scope(who.get("account_id", "")), pool=pool, n_free=n, fixed=fixed)
+            actx.rep_sessions = {t.get("session_id") for t in ((rep_ or {}).get("tasks") or []) if t.get("session_id")}
+            return selection_agent.run_agent(actx, rep_, parent=llm_mod.current())
+        prompt_version = selection_agent.PROMPT_VERSION
+    else:
+        ranker, prompt_version = selection_llm.rank, selection_llm.PROMPT_VERSION
     with llm_mod.recording(store.call_sink(tsid), purpose="select", stage=decision.get("rule", ""),
-                           prompt_version=selection_llm.PROMPT_VERSION) as ctx:
-        sel.apply_policy(decision, policy, selection_llm.rank, rep=rep, authority=cfg.SELECTION_AUTHORITY, allow_model=allow_model)
+                           prompt_version=prompt_version) as ctx:
+        sel.apply_policy(decision, policy, ranker, rep=rep, authority=cfg.SELECTION_AUTHORITY, allow_model=allow_model,
+                         agent_ok=bool(cfg.LLM_TOOLS))
         if decision.get("ranking") is not None:
             decision["ranking"]["calls"] = ctx.summary()
             decision["ranking"]["representation_built_at"] = (rep or {}).get("built_at")
@@ -1020,6 +1035,11 @@ def _prepare_next(meta: Dict[str, Any]) -> None:
     if not sel.identity_key(who):
         return
     st = dict(meta.get("study") or {})
+    # 规则臂没有什么要预算的（地图打开时当场按规则算，一样快、一样确定），不在单进程里多开线程扫目录；
+    # 只有要问模型的臂（llm / agent）才需要在孩子回地图之前把答案算好
+    policy = (study_mod.resolve_condition(None, st.get("group", "")) or {}).get("selection_policy") or "rules"
+    if policy == "rules":
+        return
     age = (meta.get("routing") or {}).get("age")
     if age is None and who.get("account_id"):
         acc = accounts.load(who["account_id"])
