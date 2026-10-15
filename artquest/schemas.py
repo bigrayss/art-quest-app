@@ -55,6 +55,24 @@ class StudyContext(BaseModel):
     sequence_id: str = ""
 
 
+class TaskOptions(BaseModel):
+    """地图渲染完报一次：我是谁、从哪个入口、我摆了哪几道。服务端按同一套规则再算一遍（影子），
+    记下候选 / 排位 / 对照，返回 decision_id + offer_id，建 session 时带回来。不改孩子看到的任何东西。"""
+    participant: Participant = Participant()
+    study: StudyContext = StudyContext()
+    entrypoint: str = "map"                 # map | protocol | growth
+    age: Optional[int] = None
+    age_source: str = ""
+    first_visit: bool = True
+    dim: str = ""                           # growth 入口：练哪一维
+    sequence: List[str] = []                # protocol 入口：客户端手里的那条序列
+    seq_index: int = 0
+    client_offered: List[str] = []          # 客户端实际摆出来的卡的 key，按顺序（题 id 或家族 id）
+    client_done: List[str] = []             # 客户端以为做完了的（对照用，不当权威）
+    client_new: List[str] = []              # 打了 NEW 的（seen_tasks 只在浏览器里，只能客户端报）
+    app_version: str = ""
+
+
 class IssueTickets(BaseModel):
     """联网时一次领几张票，留着离线用。
 
@@ -83,6 +101,10 @@ class CreateSession(BaseModel):
     # 首访任务库（2026-10-12）：这道题是怎么被路由到的——age / age_source(account|asked) / band / first_visit / bank。
     # 年龄是入口路由不是能力分数；记下来是为了分析时分得开「按年龄段」和「按任务」。M 族的 session 这里是空的。
     routing: Dict[str, Any] = {}
+    # 选题是怎么来的（2026-10-14，agent 级数据 PR 3）：entrypoint（map/protocol/growth）、choice_source（child_click /
+    # protocol / recommend_for）、decision_id + offer_id（服务端影子决策，有就带）、client_offered（客户端实际摆了哪些）、offline。
+    # 影子阶段客户端仍是权威；服务端只核对、记录，不改题。
+    selection: Dict[str, Any] = {}
 
     def task(self) -> str:
         return self.quest_id or self.task_id

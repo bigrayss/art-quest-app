@@ -729,6 +729,14 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
             self.assertEqual(clicks[0]["call_id"], shows[0]["payload"]["call_id"])
             self.assertEqual(clicks[1]["source_call_id"], clicks[0]["call_id"])
             self.assertEqual(len([c for c in full["calls"] if c["purpose"] == "assist"]), 1, "冷却期的点击不调模型")
+        # 选题的服务端影子（PR 3）：地图渲染完客户端报了它摆的卡，建 session 时带回 decision_id；
+        # 服务端按同一套规则算出来的家族集合应当和客户端摆的一样；孩子点的那个在排位里
+        selx = full.get("selection") or {}
+        self.assertEqual(selx.get("decision_status"), "attached", selx)
+        self.assertEqual((selx.get("entrypoint"), selx.get("choice_source")), ("map", "child_click"))
+        self.assertTrue(selx.get("in_offered"))
+        self.assertTrue(selx["offers"][-1]["match"]["same_set"], selx["offers"][-1]["match"])
+        self.assertEqual(selx["decision"]["rule"], "family_random")
 
     def test_looking_at_the_reference_is_recorded_as_behaviour(self):
         """Look → draw → check → correct only exists if the reference records it."""

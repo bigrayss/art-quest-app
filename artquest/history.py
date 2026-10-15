@@ -53,7 +53,8 @@ def iter_sessions(root=None) -> Iterable[Dict[str, Any]]:
         if not d.is_dir():
             continue
         meta = session_meta(d)
-        if meta:
+        # 没开始画的票（issued / prepared）不是作品，也不是历史
+        if meta and meta.get("lifecycle") not in ("issued", "prepared"):
             yield meta
 
 

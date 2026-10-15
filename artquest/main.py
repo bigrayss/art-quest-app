@@ -20,6 +20,7 @@ from . import events as ev
 from . import gallery as gallery_mod
 from . import history as history_mod
 from . import llm as llm_mod
+from . import selection as sel
 from . import study as study_mod
 from .accounts import AccountError, AccountStore
 from . import i18n
@@ -39,7 +40,7 @@ from .schemas import (
     Opinion,
     TeacherPoolUpdate,
     AssistClick, AssistIn,Abandon, Annotation, ClaimDevice, CreateSession, Curate, DrawEvent, EarnedBadges,
-                      FeaturedAnswer, FeedbackIn, Finalize, HARDEST_PARTS_SHOWN, IssueTickets, Login, LogBatch,
+                      FeaturedAnswer, FeedbackIn, Finalize, HARDEST_PARTS_SHOWN, IssueTickets, TaskOptions, Login, LogBatch,
                       PROCESS_LABELS, ProfileUpdate, Questionnaire, Rating, Register, ResetPin, Snapshot, TeacherGrade, StudyAssign,
                       Stroke, Submit, TokenOnly)
 from .scoring import DIMENSIONS, SCALE_MAX, get_scorer
@@ -936,6 +937,80 @@ def _reap_old_tickets() -> None:
         log.exception("ticket reap failed")
 
 
+def _done_ids_for(who: Dict[str, Any]) -> List[str]:
+    """这个身份在服务端做完了哪些题——和孩子那边 `mySessions()` 走同一条归属规则（storage.belongs_to）。"""
+    sc = _scope(who.get("account_id", ""))
+    rows = store.list(participant_id=who.get("participant_id", ""), anon_id=who.get("anon_id", ""),
+                      account_id=sc["account_id"], device_windows=sc["device_windows"])
+    return sorted({r.get("task_id") or r.get("quest_id") or "" for r in rows if r.get("status") == "done"} - {""})
+
+
+@api.post("/task-options")
+def task_options(body: TaskOptions, request: Request):
+    """选题的服务端影子（agent 级数据 PR 3）。
+
+    客户端照旧自己算地图，渲染完把摆了什么报上来；这里按同一套规则（selection.py）用服务端保存的
+    完成记录再算一遍，冻进一张 prepared 票：候选、排位、依据的历史、对照结果。返回 decision_id 和
+    这次展示的 offer_id，建 session 时带回来。**不返回题目、不改排位**——影子阶段客户端是权威。
+    """
+    who = body.participant.model_dump()
+    _check_owner(request, who.get("account_id", ""))
+    if not sel.identity_key(who):
+        raise HTTPException(400, "no identity to decide for")
+    st = body.study.model_dump()
+    done = _done_ids_for(who)
+    decision = sel.compute(body.entrypoint, who, done, age=body.age, age_source=body.age_source,
+                           first_visit=body.first_visit, sequence=body.sequence or None, seq_index=body.seq_index,
+                           dim=body.dim)
+    condition = study_mod.resolve_condition(None, st.get("group", ""))
+    rec = store.prepare_decision(decision, who=who, study=st, condition=condition)
+    match = sel.compare(rec, body.client_offered)
+    # 客户端以为做完的和服务端记的不一样，也是要看的（离线没同步、认领窗口……）
+    match["same_done"] = sorted(set(body.client_done)) == list(rec.get("history", {}).get("done_task_ids") or [])
+    offer = store.add_offer(rec["decision_id"], {
+        "client_offered": list(body.client_offered), "client_new": list(body.client_new),
+        "client_done": sorted(set(body.client_done)), "app_version": body.app_version, "match": match})
+    return {"decision_id": rec["decision_id"], "offer_id": offer["offer_id"], "authority": rec["authority"],
+            "rules_version": rec["rules_version"], "rule": rec["rule"], "match": match,
+            "offered": sel.offered_keys(rec)}
+
+
+def _selection_record(body: CreateSession, quest: Dict[str, Any], who: Dict[str, Any]) -> Dict[str, Any]:
+    """建 session 时把「这道题怎么来的」记下来：客户端报的入口和来源 + 服务端影子决策（有就核对并拷进来）。
+
+    核对三件事，结果写 decision_status，不拦任何请求（影子阶段）：
+    身份变了（identity_changed）→ 决策不给新身份用；已经被别的 session 消费（already_consumed）；
+    选的题在不在当时的排位里（in_offered）。
+    """
+    client = dict(body.selection or {})
+    rec: Dict[str, Any] = {
+        "entrypoint": client.get("entrypoint", ""), "choice_source": client.get("choice_source", ""),
+        "authority": "client", "chosen_task_id": quest["id"], "decision_id": client.get("decision_id") or None,
+        "offer_id": client.get("offer_id") or None, "client_offered": list(client.get("client_offered") or []),
+        "offline": bool(client.get("offline")), "source": "client_offline" if client.get("offline") else "client",
+        "decision_status": "none", "in_offered": None, "decision": None,
+    }
+    if not rec["decision_id"]:
+        return rec
+    dec = store.find_decision(rec["decision_id"])
+    if dec is None:
+        rec["decision_status"] = "missing"
+        return rec
+    if dec.get("identity_key") != sel.identity_key(who):
+        rec["decision_status"] = "identity_changed"      # 共用 iPad：上一个孩子的决策不归下一个
+        return rec
+    if dec.get("consumed_by") and dec.get("consumed_by") != "pending":
+        rec["decision_status"] = "already_consumed"
+        rec["consumed_by"] = dec["consumed_by"]
+        return rec
+    keys = sel.offered_keys(dec)
+    rec["in_offered"] = quest["id"] in keys or quest.get("family", "") in keys
+    rec["decision_status"] = "attached"
+    rec["decision"] = {k: v for k, v in dec.items() if k not in ("superseded",)}
+    rec["offers"] = store.offers_of(rec["decision_id"])
+    return rec
+
+
 @api.post("/tickets", status_code=201)
 def issue_tickets(body: IssueTickets, request: Request):
     """预发几张票，留着离线用。
@@ -1008,6 +1083,11 @@ def create_session(body: CreateSession, request: Request):
     if meta.get("lifecycle") != "recording" or meta.get("times", {}).get("started_at"):
         return {"session_id": sid_of(meta), "session": store.load(sid_of(meta)),
                 "personalization": {}, "replayed": True}
+    # 这道题怎么来的（PR 3 影子）：客户端报的 + 服务端决策核对；决策拷进 session，票上记 consumed_by
+    selection = _selection_record(body, quest, who)
+    if selection["decision_status"] == "attached":
+        store.consume_decision(selection["decision_id"], sid_of(meta))
+    meta = store.update(sid_of(meta), selection=selection)
     condition = meta.get("condition") or condition      # 票上冻的那份才算数
     store.mark_started(sid_of(meta))
     # what this child actually saw, frozen before anything else happens

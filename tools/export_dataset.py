@@ -14,7 +14,7 @@ import shutil
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from artquest import config  # noqa: E402
@@ -203,6 +203,42 @@ def _flat_click(sid: str, c: Dict[str, Any]) -> Dict[str, Any]:
             "session_id": sid, "frame_file": f.get("file"), "frame_sha256": f.get("sha256"), "frame_bytes": f.get("bytes")}
 
 
+DECISION_COLS = ["session_id", "decision_id", "offer_id", "authority", "decision_status", "entrypoint", "choice_source",
+                 "source", "offline", "chosen_task_id", "in_offered", "rules_version", "task_version", "bank_version",
+                 "rule", "identity_key", "history_revision", "n_done", "done_task_ids", "age", "age_source", "band",
+                 "n_candidates", "n_offered", "offered", "client_offered", "same_set", "same_order", "prepared_at",
+                 "consumed_by", "ticket"]
+
+
+def _flat_decision(sid: str, dec: Dict[str, Any], selection: Dict[str, Any], ticket_meta: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    h, r = dec.get("history") or {}, dec.get("routing") or {}
+    offered = [o.get("task_id") or o.get("family") or "" for o in (dec.get("offered") or [])]
+    # 对照结果在 offer 上：session 里拷了 offers；未消费的票上直接有 offers
+    offers = selection.get("offers") if selection else None
+    if offers is None and ticket_meta is not None:
+        offers = [o for o in (ticket_meta.get("offers") or []) if o.get("decision_id") == dec.get("decision_id")]
+    want = (selection or {}).get("offer_id")
+    offer = next((o for o in (offers or []) if o.get("offer_id") == want), (offers or [None])[-1] if offers else None) or {}
+    match = offer.get("match") or {}
+    return {
+        "session_id": sid, "decision_id": dec.get("decision_id") or (selection or {}).get("decision_id"),
+        "offer_id": (selection or {}).get("offer_id") or offer.get("offer_id"),
+        "authority": (selection or {}).get("authority") or dec.get("authority"),
+        "decision_status": (selection or {}).get("decision_status"), "entrypoint": (selection or {}).get("entrypoint") or dec.get("entrypoint"),
+        "choice_source": (selection or {}).get("choice_source"), "source": (selection or {}).get("source"),
+        "offline": (selection or {}).get("offline"), "chosen_task_id": (selection or {}).get("chosen_task_id"),
+        "in_offered": (selection or {}).get("in_offered"), "rules_version": dec.get("rules_version"),
+        "task_version": dec.get("task_version"), "bank_version": dec.get("bank_version"), "rule": dec.get("rule"),
+        "identity_key": dec.get("identity_key"), "history_revision": dec.get("prepared_at"),
+        "n_done": h.get("n_done"), "done_task_ids": "|".join(h.get("done_task_ids") or []),
+        "age": r.get("age"), "age_source": r.get("age_source"), "band": r.get("band"),
+        "n_candidates": len(dec.get("candidates") or []), "n_offered": len(offered), "offered": "|".join(offered),
+        "client_offered": "|".join((selection or {}).get("client_offered") or offer.get("client_offered") or []),
+        "same_set": match.get("same_set"), "same_order": match.get("same_order"),
+        "prepared_at": dec.get("prepared_at"), "consumed_by": dec.get("consumed_by"), "ticket": dec.get("ticket"),
+    }
+
+
 def _write(path: Path, cols: List[str], rows: List[Dict[str, Any]]) -> int:
     with path.open("w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=cols, extrasaction="ignore")
@@ -214,7 +250,7 @@ def _write(path: Path, cols: List[str], rows: List[Dict[str, Any]]) -> int:
 def export(out: Path, with_points: bool = False) -> Dict[str, int]:
     out.mkdir(parents=True, exist_ok=True)
     sessions, strokes, events, feedback, quest, personal, ratings = [], [], [], [], [], [], []
-    annotations, calls, clicks = [], [], []
+    annotations, calls, clicks, decisions, unconsumed = [], [], [], [], []
     points_path = out / "points.csv"
     pf = points_path.open("w", newline="", encoding="utf-8") if with_points else None
     pw = csv.writer(pf) if pf else None
@@ -225,8 +261,14 @@ def export(out: Path, with_points: bool = False) -> Dict[str, int]:
         m = session_meta(d)
         if not m:
             continue
-        if m.get("lifecycle") == "issued":
-            continue                      # 没花掉的票不是作品：没有画、没有时间、没有任务
+        if m.get("lifecycle") in ("issued", "prepared"):
+            # 没花掉的票不是作品：没有画、没有时间、没有任务。prepared 是服务端的决策票：
+            # 没被消费的决策另出一张表（decisions_unconsumed.csv），不混进作品样本
+            if m.get("lifecycle") == "prepared":
+                for dec in [m.get("decision")] + list(m.get("superseded") or []):
+                    if dec and not dec.get("consumed_by"):
+                        unconsumed.append(_flat_decision("", dec, {"decision_status": "unconsumed"}, m))
+            continue
         sid = sid_of(m) or d.name
         row = _flat_session(m)
         # 「没采集」和「零次」要分得开：schema 4 之前的 session 没有 calls.jsonl
@@ -241,6 +283,8 @@ def export(out: Path, with_points: bool = False) -> Dict[str, int]:
         if cs:
             calls.extend(_flat_call(sid, c) for c in cs)
         clicks.extend(_flat_click(sid, c) for c in (m.get("assist_clicks") or []))
+        if m.get("selection"):
+            decisions.append(_flat_decision(sid, (m["selection"].get("decision") or {}), m["selection"], None))
 
         for s in session_strokes(d):
             pts = s.get("points") or []
@@ -337,6 +381,10 @@ def export(out: Path, with_points: bool = False) -> Dict[str, int]:
         "personalization": _write(out / "personalization.csv", PERSONALIZATION_COLS, personal),
         "calls": _write(out / "calls.csv", CALL_COLS, calls),
         "assist_clicks": _write(out / "assist_clicks.csv", ASSIST_CLICK_COLS, clicks),
+        # 一次任务安排三层：冻结候选 / 实际展示 / 实际选择。每条 session 一行（它选的那次），
+        # 没被消费的服务端决策单独一张表——它们不是作品，不能混进样本
+        "decisions": _write(out / "decisions.csv", DECISION_COLS, decisions),
+        "decisions_unconsumed": _write(out / "decisions_unconsumed.csv", DECISION_COLS, unconsumed),
         # calls.csv 里的 system_hash 指向这些正文：固定提示词按 hash 归档一份，跟着数据走，不靠将来还能翻仓库
         "prompts": _copy_prompts(out / "prompts"),
         # the dataset ships its own measurement objects: without the task

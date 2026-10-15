@@ -70,6 +70,8 @@ data/prompts/<sha256>.txt   固定的 system 正文按 hash 归档一份，calls
 
 原则：不高频、不是时间序列的进 `session.json`；能算出来的不存。
 `calls.jsonl` 不在的旧 session 是「没采集」，不是「零次调用」。
+`session.json` 的 `selection` 记这道题怎么来的（入口、孩子点的还是协议定的、服务端影子决策的候选与排位、对照结果）；
+服务端影子选题的规则在 `artquest/selection.py`，和 app.js 的地图规则是同一套，规则一变就升 `RULES_VERSION`。
 事件词表的唯一权威是 `artquest/events.py`。研究员接口见 `DESIGN.md` 的「API」一节。
 
 ## 研究相关

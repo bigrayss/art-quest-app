@@ -50,6 +50,8 @@ log = logging.getLogger("artquest")
 # 每条 session 一把锁：九个评分线程同时往 calls.jsonl 追加时排队，而且追加前先看 session.json 还在不在。
 _LOCKS: Dict[str, threading.Lock] = {}
 _LOCKS_GUARD = threading.Lock()
+# 身份 → 当前那张 prepared 决策票（进程内缓存；重启后丢了就多开一张，30 天 reap 收走）
+_PREPARED: Dict[str, str] = {}
 
 # Where a session is in its journey from the child's screen to a verified row.
 # Separate from `status` (which says where the *child* is): a finished drawing
@@ -58,7 +60,12 @@ _LOCKS_GUARD = threading.Lock()
 # 它排在 recording 前面，所以「只进不退」那条规则原样成立（比的是序号）。
 # 票据存在的理由见 DESIGN.md「离线创作」：设备离线时不能自己编一个 session_id，
 # 更不能自己编一条实验臂——那两样都是后面每张表的地基。
-LIFECYCLE = ("issued", "recording", "completed_local", "pending_upload", "uploaded", "server_verified")
+# `prepared`（2026-10-14，agent 级数据 PR 3）：服务端算好的一次选题决策住在这张票里（候选 / 排位 / 依据的历史），
+# 孩子还没选。它**不发给客户端**（客户端手里的 issued 票不动，离线花票那条路不受影响），只是把
+# 「决策早于 session」这件事装进既有的权限和删除边界里。孩子真选了题，决策拷进那条 session，票记 consumed_by。
+LIFECYCLE = ("issued", "prepared", "recording", "completed_local", "pending_upload", "uploaded", "server_verified")
+# 没开始画的票：issued（客户端拿着备用）和 prepared（服务端的决策容器）。列表、导出、历史都跳过它们。
+UNSTARTED = ("issued", "prepared")
 _DATAURL_RE = re.compile(r"^data:image/(png|jpeg);base64,(.+)$", re.DOTALL)
 # Logical streams a caller asks for -> the physical file they live in. Feedback
 # is an event; a rating and an expert span are both human labels.
@@ -456,8 +463,8 @@ class SessionStore:
             if not m:
                 continue
             # 没花掉的票不是作品：它没有画、没有时间、没有任务，
-            # 出现在画廊里就是一个空壳
-            if m.get("lifecycle") == "issued":
+            # 出现在画廊里就是一个空壳（prepared 的决策票同理）
+            if m.get("lifecycle") in UNSTARTED:
                 continue
             if participant_id or anon_id or account_id:
                 if not belongs_to(m, participant_id=participant_id, anon_id=anon_id,
@@ -491,7 +498,7 @@ class SessionStore:
             if not d.is_dir():
                 continue
             m = read_json(d / "session.json") or read_json(d / "metadata.json")
-            if not m or m.get("lifecycle") == "issued":
+            if not m or m.get("lifecycle") in UNSTARTED:
                 continue
             p = m.get("participant")
             p = p if isinstance(p, dict) else {}
@@ -774,7 +781,110 @@ class SessionStore:
             if m.get("lifecycle") == "issued" and (m.get("issued_at") or "") < cutoff:
                 self.delete(sid_of(m) or d.name)
                 n += 1
+            elif m.get("lifecycle") == "prepared":
+                # 决策票：已经被消费的（决策拷进了 session）可以走；没人消费、放了 30 天的也走。
+                # 不补造什么——删掉的只是「准备了但没用上」。
+                dec = m.get("decision") or {}
+                if dec.get("consumed_by") or (m.get("issued_at") or "") < cutoff:
+                    self.delete(sid_of(m) or d.name)
+                    _PREPARED.pop(dec.get("identity_key", ""), None)
+                    n += 1
         return n
+
+    # -- 选题决策（PR 3 影子）---------------------------------------------
+    def prepare_decision(self, decision: Dict[str, Any], *, who: Dict[str, Any], study: Optional[Dict[str, Any]] = None,
+                         condition: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """把一次服务端算出的选题决策冻进一张 `prepared` 票。
+
+        同一个身份、同样的历史和入口（selection.history_key）→ 还是上一张票里的那个决策（幂等），
+        不每次进地图都开一张。历史变了 → 旧决策进 `superseded`，原票上换新的；旧快照一个字不改。
+        新发一张票而不是改客户端手里的 issued 票：那些票客户端可能已经离线花掉了，改它们会把
+        一局真画了的东西判成「票已用过」。
+        """
+        from . import selection as sel
+        key = decision.get("identity_key", "")
+        hk = sel.history_key(decision)
+        sid = _PREPARED.get(key, "")
+        meta = None
+        if sid:
+            try:
+                meta = self.load(sid)
+            except KeyError:
+                meta = None
+            if meta is None or meta.get("lifecycle") != "prepared" or (meta.get("decision") or {}).get("consumed_by"):
+                meta, sid = None, ""
+        if meta is None:
+            t = self.issue(condition=condition, participant=who, study=study)
+            sid = sid_of(t)
+            meta = self.load(sid)
+            meta["lifecycle"] = "prepared"
+            meta.setdefault("lifecycle_at", {})["prepared"] = now_iso()
+            meta["decision"] = None
+            meta["superseded"] = []
+            meta["offers"] = []
+        cur = meta.get("decision")
+        if cur and cur.get("history_key") == hk:
+            return cur                                  # 同样的输入 → 同一个决策
+        if cur:
+            meta.setdefault("superseded", []).append(dict(cur, superseded_at=now_iso()))
+        rec = dict(decision, decision_id=sel.new_decision_id(sid), ticket=sid, history_key=hk,
+                   prepared_at=now_iso(), consumed_by=None)
+        meta["decision"] = rec
+        self._write(sid, meta)
+        if key:
+            _PREPARED[key] = sid
+        return rec
+
+    def find_decision(self, decision_id: str) -> Optional[Dict[str, Any]]:
+        from . import selection as sel
+        sid = sel.ticket_of(decision_id)
+        if not sid:
+            return None
+        try:
+            meta = self.load(sid)
+        except KeyError:
+            return None
+        for cand in [meta.get("decision")] + list(meta.get("superseded") or []):
+            if cand and cand.get("decision_id") == decision_id:
+                return cand
+        return None
+
+    def add_offer(self, decision_id: str, offer: Dict[str, Any]) -> Dict[str, Any]:
+        """地图每实际展示一次记一条 offer（客户端报的 client_offered + 对照结果），挂在决策票上。"""
+        from . import selection as sel
+        sid = sel.ticket_of(decision_id)
+        meta = self.load(sid)
+        rec = dict(offer, offer_id=f"off_{uuid.uuid4().hex[:8]}", decision_id=decision_id, at=now_iso())
+        meta.setdefault("offers", []).append(rec)
+        self._write(sid, meta)
+        return rec
+
+    def consume_decision(self, decision_id: str, session_id: str) -> Optional[Dict[str, Any]]:
+        from . import selection as sel
+        sid = sel.ticket_of(decision_id)
+        try:
+            meta = self.load(sid)
+        except KeyError:
+            return None
+        dec = meta.get("decision") or {}
+        if dec.get("decision_id") != decision_id:
+            return None
+        if not dec.get("consumed_by"):
+            dec["consumed_by"] = session_id
+            dec["consumed_at"] = now_iso()
+            meta["decision"] = dec
+            self._write(sid, meta)
+            _PREPARED.pop(dec.get("identity_key", ""), None)
+        return dec
+
+    def offers_of(self, decision_id: str) -> List[Dict[str, Any]]:
+        from . import selection as sel
+        sid = sel.ticket_of(decision_id)
+        try:
+            meta = self.load(sid)
+        except KeyError:
+            return []
+        return [o for o in (meta.get("offers") or []) if o.get("decision_id") == decision_id]
 
     def propose_featured(self, sid: str, *, by: str = "", note: str = "") -> Dict[str, Any]:
         """A teacher picked this one. Nothing is shown yet — the child is asked."""

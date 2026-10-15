@@ -2541,13 +2541,18 @@
       // 每一项底下不报数（「再画 3 幅长一格」把成长变回进度条），也不说评估层的事
       // （「等模型来评」是后台的话；没有就空着）。给的是一个**去处**：哪块地练这一项。
       const rec = recommendFor(key);
-      const go = rec ? `<button class="ggo" data-fam="${rec.id}">去${rec.name}练习</button>` : "";
+      const go = rec ? `<button class="ggo" data-fam="${rec.id}" data-dim="${key}">去${rec.name}练习</button>` : "";
       return `<div class="gdim" style="--gc:${fam.color}">
         <div class="gtop"><span class="gname">${dimName(d)}</span>${go}</div>
         <div class="gpips">${pips}</div></div>`;
     }).join("");
     $("#growth-dims").querySelectorAll(".ggo").forEach(b => {
-      b.onclick = () => { const q = randomForm(b.dataset.fam); if (q) chooseQuest(q); };
+      b.onclick = () => {
+        const q = randomForm(b.dataset.fam);
+        if (!q) return;
+        shadowTaskOptions({ entrypoint: "growth", dim: b.dataset.dim || "", client_offered: [b.dataset.fam] });
+        chooseQuest(q, { entrypoint: "growth", choice_source: "recommend_for" });
+      };
     });
   }
   /** 哪个家族主要练这一维：按任务的 rubric 主考维度找，没去过的优先。 */
@@ -2944,6 +2949,27 @@
     grid.classList.toggle("has-bg", !!bg);
     grid.style.backgroundImage = bg ? `url("${bg}")` : "";
   }
+  // ===== 选题的服务端影子（agent 级数据 PR 3，2026-10-14）=====
+  // 地图照旧在这里算、在这里摆；渲染完把「我摆了哪几道」报给服务端，它按同一套规则再算一遍、记下候选和对照，
+  // 回一个 decision_id + offer_id，建 session 时带回去。**不等它、不用它的结果改任何一张卡。**
+  state.decision = null;
+  state.choice = null;
+  function shadowTaskOptions(payload) {
+    state.decision = null;
+    if (!navigator.onLine || !state.quests.length) return;
+    const body = Object.assign({
+      participant: { anon_id: state.anonId, participant_id: savedPid(), account_id: accountId() },
+      study: state.study ? { active: !!state.study.active, study_id: state.study.study_id, group: state.study.group || "" } : {},
+      client_done: [...new Set((state.allSessions || []).filter(r => r.status === "done").map(r => r.task_id || r.quest_id))],
+      app_version: (state.cfg || {}).version || "",
+    }, payload);
+    const mine = ++shadowSeq;
+    api(`${API}/task-options`, { method: "POST", body: JSON.stringify(body) })
+      .then(r => { if (mine === shadowSeq) state.decision = { decision_id: r.decision_id, offer_id: r.offer_id, entrypoint: body.entrypoint, client_offered: body.client_offered }; })
+      .catch(() => { /* 影子记录失败不影响任何事 */ });
+  }
+  let shadowSeq = 0;
+
   function renderQuests() {
     paintMapBackground();
     state.rolls = {};                 // 重新进地图，每个主题重新抽一道
@@ -2965,7 +2991,11 @@
       const note = $("#age-gate-note");
       if (note) note.classList.toggle("hidden", !(fv && who.age != null && !band));
     }
-    if (fv && who.age == null) { paintToday(null, 0, 0); $("#map-lead-text").textContent = ""; return; }
+    if (fv && who.age == null) {
+      paintToday(null, 0, 0); $("#map-lead-text").textContent = "";
+      shadowTaskOptions({ entrypoint: "map", first_visit: true, age: null, age_source: "", client_offered: [] });
+      return;
+    }
     state.bank = fv && band ? { band: band.id, age: who.age, age_source: who.source } : null;
     // 待办只有 PENDING_SLOTS 个位置（2026-10-12 用户：一个号同时就该只有四五个没完成的）。本段的五道先占着；
     // 做完一个，序列里的下一个地方才进来；一个地方的题全画完了它也算完成。完成的折在下面。
@@ -3091,6 +3121,15 @@
     });
     paintToday(nextCard, nDone, cards.length);
     paintMapPath();
+    // 影子上报：摆了哪几道（protocol 是整条序列；老地图是家族卡；首访是五个待办位，不含锁卡和已完成）
+    const offeredKeys = seq ? cards.map(c => c.key)
+      : state.bank ? pendingCards.map(c => c.key)
+      : cards.map(c => c.key);
+    shadowTaskOptions({
+      entrypoint: seq ? "protocol" : "map", first_visit: !!fv, age: who.age, age_source: who.source || "",
+      sequence: seq || [], seq_index: state.seqIdx || 0, client_offered: offeredKeys,
+      client_new: listMode ? pendingCards.filter(c => !seen.has(c.key)).map(c => c.key) : [],
+    });
   }
 
   /** 十个地方之间那条小路。
@@ -3364,8 +3403,12 @@
     else { await renderWorld(); show("world"); checkFeatured(); }
     document.body.classList.remove("booting");
   }
-  function chooseQuest(q) {
+  function chooseQuest(q, via) {
     state.quest = q;
+    // 这道题怎么来的（PR 3）：默认是孩子在地图上点的；成长面板「去 X 练习」和研究协议另记
+    const seqMode = !!(state.study && state.study.sequence);
+    state.choice = Object.assign({ entrypoint: seqMode ? "protocol" : "map",
+                                   choice_source: seqMode ? "protocol" : "child_click" }, via || {});
     // 简单版：不问心情、不写心愿，选了就画
     if (isSimple()) { state.emotion = ""; $("#intent-text").value = ""; return startDrawing(); }
     // 任务自带参考图、而且是「一直可见」那种的，心愿屏的任务卡里就先给他看：
@@ -3461,6 +3504,10 @@
       condition: state.condition, device: deviceInfo(), canvas: canvasGeom(),
       // 首访任务库：这道题是按年龄路由到的——年龄、年龄从哪来、年龄段；M 族这里是空的
       routing: isBank(state.quest) ? { ...(state.bank || {}), first_visit: true, bank: state.quest.bank } : {},
+      // 这道题怎么来的 + 服务端影子决策的 id（有就带；没网就标 offline，服务端记成 client_offline）
+      selection: Object.assign({}, state.choice || {}, state.decision && state.decision.entrypoint === ((state.choice || {}).entrypoint || "map")
+        ? { decision_id: state.decision.decision_id, offer_id: state.decision.offer_id, client_offered: state.decision.client_offered } : {},
+        { offline: !navigator.onLine }),
       study: state.study ? { active: !!state.study.active, study_id: state.study.study_id, group: state.study.group || "",
         order_index: state.seqIdx, sequence_id: (state.study.sequence || []).join(">") } : {},
     };
