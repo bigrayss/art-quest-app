@@ -224,3 +224,150 @@ TOOLS: List[Dict[str, Any]] = [
          "why": {"type": "string", "description": "给研究员的一句话，不给孩子看"}},
          "required": ["ranked", "why"], "additionalProperties": False}},
 ]
+
+
+# ---- 循环 -----------------------------------------------------------------------------
+class AgentFailed(Exception):
+    """循环没拿到合法结果。reason 直接成为 fallback_reason。"""
+
+    def __init__(self, reason: str, detail: str = ""):
+        super().__init__(f"{reason}: {detail}" if detail else reason)
+        self.reason = reason
+        self.detail = detail
+
+
+SYSTEM = (
+    "你是一个儿童美术练习的任务编排助手，这次要给一个孩子的地图排**自由位**。\n"
+    "你拿到：孩子最近创作的摘要（representation）、冻结的候选任务（只能从这里选）、固定位（不能动）、"
+    "规则臂原本会给的顺序（仅供参考）。\n"
+    "你能做的只有三件事，每轮选一件：\n"
+    "- retrieve_history：摘要不够用时，查这个孩子允许范围内的真实记录（评分、实际展示过的反馈和陪伴、是否修改）。身份和截止时间已固定。\n"
+    "- validate_offer：提交前先检查一份排序合不合法（可选）。\n"
+    "- submit_offer：提交最终排序和一句给研究员的理由。后端会再做一次硬校验，不通过会把错误交回给你。\n"
+    "原则：信息够了就直接提交，不要为了显得认真而检索；引用只写你真的查到的 session_id；不要编造任务 id。\n"
+    "只通过工具调用行动，不要在正文里写排序。"
+)
+
+
+def _initial_prompt(ctx: AgentContext, rep: Optional[Dict[str, Any]], budget: Dict[str, Any]) -> str:
+    from .selection_llm import describe, digest
+    d = ctx.decision
+    return (
+        f"需要排出 {ctx.n_free} 道（自由位数量）。固定位不动：{json.dumps(ctx.fixed, ensure_ascii=False)}。\n"
+        f"规则臂原本会给：{json.dumps(d.get('rules_fill') or [], ensure_ascii=False)}。\n"
+        f"预算：最多检索 {budget['retrieve']} 次、主动校验 {budget['validate']} 次；总共最多 {budget['model_attempts']} 次模型请求。\n"
+        f"允许读的历史：截止 {ctx.before} 之前、共 {len(ctx.allowed_sessions())} 条 session。\n\n"
+        f"孩子的过往摘要：\n{json.dumps(digest(rep), ensure_ascii=False, indent=1)}\n\n"
+        f"候选任务：\n{json.dumps([describe(t) for t in ctx.pool], ensure_ascii=False, indent=1)}"
+    )
+
+
+def _compact(result: Any, cap: int = 4000) -> str:
+    text = json.dumps(result, ensure_ascii=False)
+    return text if len(text) <= cap else text[:cap] + "…"
+
+
+def run_agent(ctx: AgentContext, rep: Optional[Dict[str, Any]], *, parent: Optional["llm.CallContext"],
+              budget: Optional[Dict[str, Any]] = None, clock=time.monotonic) -> Dict[str, Any]:
+    """受限的执行循环。返回 {"ranked", "why", "evidence", "agent": {...轨迹与计数...}}；拿不到合法结果抛 AgentFailed。
+
+    parent 是这次选题的记录上下文（purpose=select 的 group）：每一轮模型请求是组里一个 operation（tags.step / role），
+    每次工具执行一条 local 记录（tool_name / requested_by）。没有 parent 也能跑，只是不落盘。
+    """
+    budget = {**BUDGET, **(budget or {})}
+    t0 = clock()
+    messages: List[Dict[str, Any]] = [{"role": "user", "content": _initial_prompt(ctx, rep, budget)}]
+    trace: List[Dict[str, Any]] = []
+    counts = {"rounds": 0, "tool_calls": 0, "retrieve": 0, "validate": 0, "submit": 0, "runtime_validate": 0}
+    nudged = False
+    step = 0
+
+    def attempts() -> int:
+        return parent.count_remote() if parent is not None else counts["rounds"]
+
+    def record_tool(name: str, args: Dict[str, Any], result: Dict[str, Any], requested_by: str, model_call_id: Optional[str], secs: float):
+        step_no = len(trace) + 1
+        rec_id = None
+        if parent is not None:
+            rec = parent.local(backend="runtime", input={"tool": name, "arguments": args}, output=result,
+                               outcome="ok" if result.get("ok", True) else "error", seconds=secs,
+                               tags={"tool_name": name, "requested_by": requested_by, "step": step_no, "model_call_id": model_call_id})
+            rec_id = rec["call_id"]
+        trace.append({"step": step_no, "kind": "tool", "tool_name": name, "requested_by": requested_by,
+                      "call_id": rec_id, "model_call_id": model_call_id, "ok": bool(result.get("ok", True)),
+                      "errors": [e.get("code") for e in (result.get("errors") or [])]})
+        return rec_id
+
+    while True:
+        if clock() - t0 > budget["seconds"]:
+            raise AgentFailed("timeout", f"decision deadline {budget['seconds']}s")
+        if attempts() >= budget["model_attempts"]:
+            raise AgentFailed("budget_exhausted", f"{attempts()} model attempts")
+        counts["rounds"] += 1
+        step += 1
+        model_call_id = None
+        with llm.operation(parent, tags={"step": len(trace) + 1, "role": "model_round", "round": counts["rounds"]}) as op:
+            try:
+                reply = llm.claude_tools(SYSTEM, messages, TOOLS, max_tokens=800)
+            except Exception as e:
+                name = type(e).__name__
+                raise AgentFailed("timeout" if "Timeout" in name else ("bad_output" if "BadOutput" in name else "error"),
+                                  f"{name}: {e}"[:300])
+            model_call_id = op.last_call_id if op is not None else None
+        trace.append({"step": len(trace) + 1, "kind": "model", "call_id": model_call_id, "round": counts["rounds"],
+                      "tool_calls": [c["name"] for c in reply["tool_calls"]], "text": _cap(reply.get("text"))})
+        messages.append({"role": "assistant", "content": reply.get("text") or "", "tool_calls": reply["tool_calls"]})
+
+        if not reply["tool_calls"]:
+            # 正文里写了 JSON 就当提交；否则提醒一次，再不行就是形状不对
+            try:
+                obj = llm.parse_json_reply(reply.get("text") or "")
+                reply["tool_calls"] = [{"id": "tc_text", "name": "submit_offer",
+                                        "arguments": {"ranked": obj.get("ranked"), "why": obj.get("why", ""), "evidence": obj.get("evidence")}}]
+            except Exception:
+                if nudged:
+                    raise AgentFailed("bad_output", "no tool call and no JSON after a reminder")
+                nudged = True
+                messages.append({"role": "user", "content": "请通过工具行动：需要信息就调用 retrieve_history，准备好了就调用 submit_offer 提交。"})
+                continue
+
+        for call in reply["tool_calls"]:
+            name, args = call.get("name", ""), call.get("arguments") or {}
+            t1 = clock()
+            counts["tool_calls"] += 1
+            if name == "retrieve_history":
+                if counts["retrieve"] >= budget["retrieve"]:
+                    result = {"ok": False, "errors": [{"code": "BUDGET_EXCEEDED", "detail": f"retrieve_history allowed {budget['retrieve']} times"}]}
+                else:
+                    counts["retrieve"] += 1
+                    kw = {k: args.get(k) for k in ("family", "dimension", "feedback_type") if args.get(k)}
+                    result = retrieve_history(ctx, limit=args.get("limit", 2), **kw)
+                record_tool(name, args, result, "model", model_call_id, clock() - t1)
+                messages.append({"role": "tool", "tool_call_id": call["id"], "name": name, "content": _compact(result)})
+            elif name == "validate_offer":
+                if counts["validate"] >= budget["validate"]:
+                    result = {"ok": False, "errors": [{"code": "BUDGET_EXCEEDED", "detail": f"validate_offer allowed {budget['validate']} times"}]}
+                else:
+                    counts["validate"] += 1
+                    result = validate_offer(ctx, args.get("ranked"), args.get("evidence"))
+                record_tool(name, args, result, "model", model_call_id, clock() - t1)
+                messages.append({"role": "tool", "tool_call_id": call["id"], "name": name, "content": _compact(result)})
+            elif name == "submit_offer":
+                counts["submit"] += 1
+                counts["runtime_validate"] += 1
+                # 最终提交永远由后端再做一次共同的硬校验：模型可以不做 validate_offer，不能绕过这里
+                result = validate_offer(ctx, args.get("ranked"), args.get("evidence"))
+                record_tool("validate_offer", {"ranked": args.get("ranked"), "evidence": args.get("evidence"), "via": "submit_offer"},
+                            result, "runtime", model_call_id, clock() - t1)
+                if result["ok"]:
+                    return {"ranked": list(args.get("ranked") or []), "why": str(args.get("why") or ""),
+                            "evidence": list(args.get("evidence") or []),
+                            "agent": {"trace": trace, "counts": counts, "stopped": "submitted",
+                                      "seconds": round(clock() - t0, 2), "budget": budget}}
+                messages.append({"role": "tool", "tool_call_id": call["id"], "name": name,
+                                 "content": _compact({"accepted": False, "errors": result["errors"], "hint": "修正后再提交"})})
+                break      # 这一轮后面的工具调用不再执行：先改错
+            else:
+                result = {"ok": False, "errors": [{"code": "UNKNOWN_TOOL", "detail": name}]}
+                record_tool(name or "?", args, result, "model", model_call_id, clock() - t1)
+                messages.append({"role": "tool", "tool_call_id": call.get("id") or "tc_?", "name": name, "content": _compact(result)})

@@ -184,3 +184,188 @@ class Tools(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ---------------------------------------------------------------------------
+# 第二步：循环、预算、执行关联（假模型：httpx.post 换成按剧本回 tool_calls）
+# ---------------------------------------------------------------------------
+import json  # noqa: E402
+from unittest import mock  # noqa: E402
+
+
+class _ToolResp:
+    """OpenAI 兼容的一条回复：tool_calls 或正文。"""
+
+    def __init__(self, calls=None, text=""):
+        self.status_code = 200
+        self.headers = {}
+        self.calls = calls or []
+        self.text_ = text
+        self.text = text
+
+    def json(self):
+        msg = {"role": "assistant", "content": self.text_}
+        if self.calls:
+            msg["tool_calls"] = [{"id": f"tc_{i}", "type": "function",
+                                  "function": {"name": n, "arguments": json.dumps(a, ensure_ascii=False)}}
+                                 for i, (n, a) in enumerate(self.calls)]
+        return {"id": "chatcmpl-tool", "usage": {"prompt_tokens": 1, "completion_tokens": 1},
+                "choices": [{"finish_reason": "tool_calls" if self.calls else "stop", "message": msg}]}
+
+
+class Loop(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        Tools.setUpClass()
+        for k in ("c", "store", "who", "other", "m6", "m9", "s_m6", "s_m9", "before", "s_late", "s_other"):
+            setattr(cls, k, getattr(Tools, k))
+
+    def setUp(self):
+        self.llm = agent.llm
+        self.saved = (self.llm.LLM_PROVIDER, self.llm.LLM_BASE_URL, self.llm.LLM_MODEL, list(self.llm._POOL.keys))
+        self.llm.LLM_PROVIDER, self.llm.LLM_BASE_URL, self.llm.LLM_MODEL = "openai", "https://fake/v1", "fake-model"
+        self.llm._POOL.keys = ["sk-fake"]
+        self.script, self.requests, self.records = [], [], []
+        def post(url, json=None, **k):
+            self.requests.append(json)
+            if not self.script:
+                raise TimeoutError("read timed out")
+            r = self.script.pop(0)
+            if isinstance(r, Exception):
+                raise r
+            return r
+        self.p1 = mock.patch("httpx.post", post); self.p1.start()
+        self.p2 = mock.patch("time.sleep", lambda *_: None); self.p2.start()
+
+    def tearDown(self):
+        self.p1.stop(); self.p2.stop()
+        self.llm.LLM_PROVIDER, self.llm.LLM_BASE_URL, self.llm.LLM_MODEL, self.llm._POOL.keys = self.saved
+
+    def _ctx(self, n_free=1):
+        decision = sel.compute("map", self.who, [self.m6, self.m9], age=9)
+        decision["rules_fill"] = sel.pool_for(decision)[:n_free]
+        fixed = [o["task_id"] for o in decision["offered"] if QUESTS_BY_ID[o["task_id"]].get("bank")]
+        return agent.AgentContext(store=self.store, decision=decision, who=self.who, before=self.before,
+                                  pool=sel.pool_for(decision), n_free=n_free, fixed=fixed)
+
+    def _run(self, ctx, **budget):
+        sink = lambda rec, system=None: self.records.append(rec)
+        with self.llm.recording(sink, purpose="select", stage="bank_rotation", prompt_version=agent.PROMPT_VERSION) as parent:
+            try:
+                out = agent.run_agent(ctx, rep={"n_tasks": 2, "tasks": []}, parent=parent, budget=budget or None)
+            except agent.AgentFailed as e:
+                out = e
+        return out, parent
+
+    def test_retrieve_then_fix_a_duplicate_then_submit(self):
+        ctx = self._ctx(n_free=2)
+        pool = ctx.pool
+        self.script = [
+            _ToolResp([("retrieve_history", {"family": "M6", "limit": 1})]),
+            _ToolResp([("validate_offer", {"ranked": [pool[0], pool[0]], "evidence": [self.s_m6]})]),
+            _ToolResp([("submit_offer", {"ranked": [pool[0], pool[1]], "evidence": [self.s_m6], "why": "最近 M6 改过、颜色在涨"})]),
+        ]
+        out, parent = self._run(ctx)
+        self.assertNotIsInstance(out, Exception, out)
+        self.assertEqual(out["ranked"], [pool[0], pool[1]])
+        self.assertEqual(out["evidence"], [self.s_m6])
+        a = out["agent"]
+        self.assertEqual(a["stopped"], "submitted")
+        self.assertEqual(a["counts"], {"rounds": 3, "tool_calls": 3, "retrieve": 1, "validate": 1, "submit": 1, "runtime_validate": 1})
+        kinds = [(t["kind"], t.get("tool_name"), t.get("requested_by")) for t in a["trace"]]
+        self.assertEqual(kinds, [("model", None, None), ("tool", "retrieve_history", "model"),
+                                 ("model", None, None), ("tool", "validate_offer", "model"),
+                                 ("model", None, None), ("tool", "validate_offer", "runtime")])
+        self.assertEqual(a["trace"][3]["errors"], ["DUPLICATE_TASK", "WRONG_COUNT"])
+        # 真实返回进了下一轮输入：第二次请求里有查到的 session id，第三次里有错误码
+        self.assertEqual(len(self.requests), 3)
+        tool_msgs = [m for m in self.requests[1]["messages"] if m["role"] == "tool"]
+        self.assertIn(self.s_m6, tool_msgs[-1]["content"])
+        self.assertNotIn(self.s_late, tool_msgs[-1]["content"])
+        self.assertIn("DUPLICATE_TASK", [m for m in self.requests[2]["messages"] if m["role"] == "tool"][-1]["content"])
+        self.assertEqual([t["type"] for t in self.requests[0]["tools"]], ["function"] * 3)
+        # 记录：3 条远程（各自 operation、tags.step/role）+ 3 条工具 local（tool_name / requested_by / 关联的模型 call_id）
+        remote = [r for r in self.records if r["execution_kind"] == "remote"]
+        local = [r for r in self.records if r["execution_kind"] == "local"]
+        self.assertEqual(len(remote), 3)
+        self.assertEqual(len({r["operation_id"] for r in remote}), 3)
+        self.assertEqual([r["round"] for r in remote], [1, 2, 3])
+        self.assertTrue(all(r["role"] == "model_round" and r["purpose"] == "select" for r in remote))
+        self.assertEqual([(r["tool_name"], r["requested_by"]) for r in local],
+                         [("retrieve_history", "model"), ("validate_offer", "model"), ("validate_offer", "runtime")])
+        self.assertEqual([r["model_call_id"] for r in local], [r["call_id"] for r in remote])
+        self.assertEqual(local[0]["backend"], "runtime")
+        self.assertEqual(local[0]["output"]["sessions"][0]["session_id"], self.s_m6)
+        self.assertEqual(len({r["group_id"] for r in self.records}), 1)
+        self.assertEqual(parent.count_remote(), 3)
+
+    def test_information_enough_means_submit_straight_away(self):
+        ctx = self._ctx()
+        self.script = [_ToolResp([("submit_offer", {"ranked": [ctx.pool[2]], "why": "够了"})])]
+        out, _ = self._run(ctx)
+        self.assertEqual(out["ranked"], [ctx.pool[2]])
+        self.assertEqual(out["agent"]["counts"]["tool_calls"], 1)
+        self.assertEqual(out["agent"]["counts"]["retrieve"], 0)
+        self.assertEqual([t["kind"] for t in out["agent"]["trace"]], ["model", "tool"])
+        self.assertEqual(out["agent"]["trace"][1]["requested_by"], "runtime", "没主动校验也要过最终那道")
+
+    def test_json_in_plain_text_counts_as_a_submission(self):
+        ctx = self._ctx()
+        self.script = [_ToolResp(text='{"ranked": ["%s"], "why": "直接给"}' % ctx.pool[1])]
+        out, _ = self._run(ctx)
+        self.assertEqual(out["ranked"], [ctx.pool[1]])
+
+    def test_no_tool_and_no_json_gets_one_reminder_then_fails(self):
+        ctx = self._ctx()
+        self.script = [_ToolResp(text="我觉得给他画画吧"), _ToolResp(text="随便哪道都行")]
+        out, _ = self._run(ctx)
+        self.assertIsInstance(out, agent.AgentFailed)
+        self.assertEqual(out.reason, "bad_output")
+        self.assertIn("submit_offer", self.requests[1]["messages"][-1]["content"])
+
+    def test_invalid_submissions_exhaust_the_model_budget_and_fall_back(self):
+        ctx = self._ctx()
+        bad = _ToolResp([("submit_offer", {"ranked": ["nope"], "why": ""})])
+        self.script = [bad, bad, bad, bad, bad]
+        out, parent = self._run(ctx)
+        self.assertIsInstance(out, agent.AgentFailed)
+        self.assertEqual(out.reason, "budget_exhausted")
+        self.assertEqual(len(self.requests), 4)                      # 最多 4 次模型请求
+        runtime = [r for r in self.records if r["execution_kind"] == "local" and r["requested_by"] == "runtime"]
+        self.assertEqual(len(runtime), 4)
+        self.assertTrue(all(r["outcome"] == "error" for r in runtime))
+
+    def test_retrieve_budget_is_enforced_by_the_runtime(self):
+        ctx = self._ctx()
+        r = _ToolResp([("retrieve_history", {"limit": 2})])
+        self.script = [r, r, r, _ToolResp([("submit_offer", {"ranked": [ctx.pool[0]], "why": "x"})])]
+        out, _ = self._run(ctx)
+        self.assertEqual(out["ranked"], [ctx.pool[0]])
+        self.assertEqual(out["agent"]["counts"]["retrieve"], 2)
+        third = [m for m in self.requests[3]["messages"] if m["role"] == "tool"][-1]["content"]
+        self.assertIn("BUDGET_EXCEEDED", third)
+
+    def test_http_timeout_and_decision_deadline(self):
+        ctx = self._ctx()
+        self.script = []                                               # 假模型直接超时
+        out, _ = self._run(ctx)
+        self.assertIsInstance(out, agent.AgentFailed)
+        self.assertEqual(out.reason, "timeout")
+        remote = [r for r in self.records if r["execution_kind"] == "remote"]
+        self.assertEqual([r["outcome"] for r in remote], ["exception"])
+        # 总期限：时钟假装一下子过了
+        ticks = iter([0.0, 1000.0, 1000.0, 1000.0])
+        self.script = [_ToolResp([("retrieve_history", {})]), _ToolResp([("submit_offer", {"ranked": [ctx.pool[0]], "why": ""})])]
+        sink = lambda rec, system=None: None
+        with self.llm.recording(sink, purpose="select") as parent:
+            with self.assertRaises(agent.AgentFailed) as cm:
+                agent.run_agent(self._ctx(), rep=None, parent=parent, budget={"seconds": 10.0}, clock=lambda: next(ticks))
+        self.assertEqual(cm.exception.reason, "timeout")
+
+    def test_evidence_must_be_real_history(self):
+        ctx = self._ctx()
+        self.script = [_ToolResp([("submit_offer", {"ranked": [ctx.pool[0]], "evidence": [self.s_other], "why": ""})]),
+                       _ToolResp([("submit_offer", {"ranked": [ctx.pool[0]], "evidence": [self.s_m9], "why": ""})])]
+        out, _ = self._run(ctx)
+        self.assertEqual(out["evidence"], [self.s_m9])
+        self.assertEqual(out["agent"]["trace"][1]["errors"], ["INVALID_EVIDENCE_REF"])

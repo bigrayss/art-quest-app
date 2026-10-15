@@ -128,8 +128,10 @@ class CallContext:
     def __init__(self, sink, *, purpose: str, stage: str = "", group_id: Optional[str] = None,
                  operation_id: Optional[str] = None, dimension_id: str = "", prompt_version: str = "",
                  images: Optional[Dict[str, str]] = None, parent: "Optional[CallContext]" = None,
-                 validator=None):
+                 validator=None, tags: Optional[Dict[str, Any]] = None):
         self.sink = sink
+        # 附在这个 operation 每条记录上的小标签（agent 循环用：step / role / tool_name / requested_by）
+        self.tags: Dict[str, Any] = dict(tags or {})
         # 引擎层的「答了但不是要的东西」（比如评分没回数字）：文本层看不出来，所以由引擎给一个
         # validator(text) -> 错误说明或 None，settle("ok") 前过一遍，不合格就记 bad_output。
         self.validator = validator
@@ -141,6 +143,7 @@ class CallContext:
         self.parent = parent
         self.attempt = 0
         self.count = 0                  # 落盘的记录数（含子操作的）
+        self.remote_count = 0           # 其中真发了 HTTP 的（含重试）
         self.pending = None             # HTTP 回来了、还没定性的那条 (rec, system)
         self.last_call_id: Optional[str] = None   # 最后一条 outcome=ok 的 call_id = 被采用的那次
         self.adopted: Dict[str, str] = {}
@@ -169,7 +172,7 @@ class CallContext:
                "dimension_id": self.dimension_id, "execution_kind": "remote", "provider": provider,
                "backend": backend, "model": model, "prompt_version": self.prompt_version,
                "system_hash": sha256_hex(system.encode("utf-8")) if system else "",
-               "started_at": _now_iso(), "input": self._describe(content, max_tokens), **extra}
+               "started_at": _now_iso(), "input": self._describe(content, max_tokens), **self.tags, **extra}
         return rec, system
 
     def emit(self, rec: Dict[str, Any], system: Optional[str], *, outcome: str, **fields: Any) -> None:
@@ -181,6 +184,8 @@ class CallContext:
         if outcome == "ok":
             self.last_call_id = rec["call_id"]
         self.count += 1
+        if rec.get("execution_kind") == "remote":
+            self.remote_count += 1
         try:
             self.sink(rec, system)
         except Exception:               # 记录失败不能挡住孩子的流程
@@ -208,15 +213,21 @@ class CallContext:
 
     # -- 本地（heuristic / template / no_history）--
     def local(self, *, backend: str, input: Dict[str, Any], output: Dict[str, Any], outcome: str = "ok",
-              seconds: float = 0.0, error: Optional[str] = None, model: str = "") -> Dict[str, Any]:
-        """没走模型的那次执行也写同形的一条：execution_kind=local，不计 HTTP，没有 token 用量。"""
+              seconds: float = 0.0, error: Optional[str] = None, model: str = "",
+              tags: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """没走模型的那次执行也写同形的一条：execution_kind=local，不计 HTTP，没有 token 用量。
+        工具执行（agent 臂）也走这里：tags 带 tool_name / requested_by / step。"""
         rec = {"call_id": _new_id("call"), "group_id": self.group_id, "operation_id": self.operation_id,
                "attempt": 1, "purpose": self.purpose, "stage": self.stage, "dimension_id": self.dimension_id,
                "execution_kind": "local", "provider": "", "backend": backend, "model": model,
                "prompt_version": self.prompt_version, "system_hash": "", "started_at": _now_iso(),
-               "input": input, "output": output, "usage": None, "seconds": round(seconds, 3)}
+               "input": input, "output": output, "usage": None, "seconds": round(seconds, 3), **self.tags, **(tags or {})}
         self.emit(rec, None, outcome=outcome, error=error)
         return rec
+
+    def count_remote(self) -> int:
+        """这个 group 里真发了几次 HTTP（含子操作、含重试）。agent 循环按它算预算。"""
+        return self.remote_count
 
     def summary(self) -> Dict[str, Any]:
         """挂在业务记录上的那一小块：这轮是哪个 group、采用了哪几次执行、真发了几次。"""
@@ -249,8 +260,9 @@ def operation(parent: Optional[CallContext] = None, **fields: Any):
     if parent is None:
         yield None
         return
+    tags = {**parent.tags, **(fields.pop("tags", None) or {})}
     child = CallContext(parent.sink, purpose=parent.purpose, stage=parent.stage, group_id=parent.group_id,
-                        prompt_version=parent.prompt_version, images=parent.images, parent=parent, **fields)
+                        prompt_version=parent.prompt_version, images=parent.images, parent=parent, tags=tags, **fields)
     token = _CTX.set(child)
     try:
         yield child
@@ -259,6 +271,7 @@ def operation(parent: Optional[CallContext] = None, **fields: Any):
             child.settle("unsettled")
         with parent._lock:
             parent.count += child.count
+            parent.remote_count += child.remote_count
             if child.last_call_id:
                 parent.adopted[child.dimension_id or child.operation_id] = child.last_call_id
         _CTX.reset(token)
@@ -280,7 +293,8 @@ def client():
     return _client
 
 
-def _anthropic_create(system: str, content: List[Dict[str, Any]], max_tokens: int, **extra: Any):
+def _anthropic_create(system: str, content: List[Dict[str, Any]], max_tokens: int,
+                      messages: Optional[List[Dict[str, Any]]] = None, **extra: Any):
     ctx = _CTX.get()
     rec = sysx = None
     if ctx is not None:
@@ -291,7 +305,7 @@ def _anthropic_create(system: str, content: List[Dict[str, Any]], max_tokens: in
         resp = client().beta.messages.create(
             model=LLM_MODEL,
             max_tokens=max_tokens,
-            messages=[{"role": "user", "content": content}],
+            messages=messages if messages is not None else [{"role": "user", "content": content}],
             **({"system": system} if system else {}),
             betas=["server-side-fallback-2026-07-01"],
             fallbacks="default",
@@ -553,6 +567,111 @@ def _openai_json(system: str, content: List[Dict[str, Any]], schema: Dict[str, A
             _settle("bad_output", error=str(e)[:300])
             log.warning("llm json attempt %d rejected: %s", attempt + 1, e)
     raise last
+
+
+# ---- 多轮带工具（agent 臂）-------------------------------------------------------------------
+#
+# 内部消息格式（两条通路各自翻译）：
+#   {"role": "user", "content": "…"}
+#   {"role": "assistant", "content": "…", "tool_calls": [{"id", "name", "arguments": {…}}]}
+#   {"role": "tool", "tool_call_id": "…", "name": "…", "content": "…(JSON 字符串)"}
+# 工具说明：[{"name", "description", "parameters": <JSON Schema>}]
+# 返回：{"text", "tool_calls": [{"id", "name", "arguments": dict, "raw": str|None}], "finish_reason"}
+# 每轮一次 HTTP（含重试）一条记录，调用方把每轮放进自己的 operation（llm.operation）。
+
+def _last_text(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """给调用记录看的「这一轮的动态输入」：最后一条用户/工具消息的正文。"""
+    for m in reversed(messages):
+        if m.get("role") in ("user", "tool"):
+            return [{"type": "text", "text": str(m.get("content") or "")}]
+    return []
+
+
+def _parse_args(raw: Any) -> Dict[str, Any]:
+    if isinstance(raw, dict):
+        return raw
+    try:
+        obj = json.loads(raw or "{}")
+        return obj if isinstance(obj, dict) else {}
+    except (TypeError, json.JSONDecodeError):
+        return {}
+
+
+def _openai_tools(system: str, messages: List[Dict[str, Any]], tools: List[Dict[str, Any]], max_tokens: int) -> Dict[str, Any]:
+    conv: List[Dict[str, Any]] = [{"role": "system", "content": system}] if system else []
+    for m in messages:
+        if m["role"] == "assistant":
+            row: Dict[str, Any] = {"role": "assistant", "content": m.get("content") or None}
+            if m.get("tool_calls"):
+                row["tool_calls"] = [{"id": c["id"], "type": "function",
+                                      "function": {"name": c["name"], "arguments": json.dumps(c.get("arguments") or {}, ensure_ascii=False)}}
+                                     for c in m["tool_calls"]]
+            conv.append(row)
+        elif m["role"] == "tool":
+            conv.append({"role": "tool", "tool_call_id": m["tool_call_id"], "content": str(m.get("content") or "")})
+        else:
+            conv.append({"role": "user", "content": str(m.get("content") or "")})
+    body = openai_request(system, [], max_tokens)
+    body["messages"] = conv
+    body["tools"] = [{"type": "function", "function": {"name": t["name"], "description": t.get("description", ""),
+                                                       "parameters": t.get("parameters") or {"type": "object"}}} for t in tools]
+    body["tool_choice"] = "auto"
+    data = _openai_post(body, system, _last_text(messages), max_tokens)
+    try:
+        msg = data["choices"][0]["message"]
+    except (KeyError, IndexError, TypeError):
+        _settle("bad_output", error="unexpected response shape")
+        raise LLMBadOutput(f"unexpected response shape: {json.dumps(data)[:300]}")
+    calls = []
+    for c in msg.get("tool_calls") or []:
+        fn = c.get("function") or {}
+        calls.append({"id": c.get("id") or _new_id("tc"), "name": fn.get("name", ""),
+                      "arguments": _parse_args(fn.get("arguments")), "raw": fn.get("arguments")})
+    text = msg.get("content") or ""
+    if isinstance(text, list):
+        text = "".join(p.get("text", "") for p in text if isinstance(p, dict))
+    text = re.sub(r"<think>.*?</think>", "", str(text), flags=re.S).strip()
+    _settle("ok", tool_calls=[c["name"] for c in calls])
+    return {"text": text, "tool_calls": calls, "finish_reason": (data["choices"][0].get("finish_reason"))}
+
+
+def _anthropic_tools(system: str, messages: List[Dict[str, Any]], tools: List[Dict[str, Any]], max_tokens: int) -> Dict[str, Any]:
+    conv: List[Dict[str, Any]] = []
+    for m in messages:
+        if m["role"] == "assistant":
+            blocks: List[Dict[str, Any]] = []
+            if m.get("content"):
+                blocks.append({"type": "text", "text": m["content"]})
+            for c in m.get("tool_calls") or []:
+                blocks.append({"type": "tool_use", "id": c["id"], "name": c["name"], "input": c.get("arguments") or {}})
+            conv.append({"role": "assistant", "content": blocks or [{"type": "text", "text": ""}]})
+        elif m["role"] == "tool":
+            block = {"type": "tool_result", "tool_use_id": m["tool_call_id"], "content": str(m.get("content") or "")}
+            if conv and conv[-1]["role"] == "user" and isinstance(conv[-1]["content"], list) and \
+                    all(b.get("type") == "tool_result" for b in conv[-1]["content"]):
+                conv[-1]["content"].append(block)      # 同一轮的几个工具结果并成一条 user 消息
+            else:
+                conv.append({"role": "user", "content": [block]})
+        else:
+            conv.append({"role": "user", "content": [{"type": "text", "text": str(m.get("content") or "")}]})
+    resp = _anthropic_create(system, _last_text(messages), max_tokens, messages=conv,
+                             tools=[{"name": t["name"], "description": t.get("description", ""),
+                                     "input_schema": t.get("parameters") or {"type": "object"}} for t in tools],
+                             output_config={"effort": LLM_EFFORT})
+    text, calls = "", []
+    for b in resp.content:
+        if getattr(b, "type", "") == "text":
+            text += b.text
+        elif getattr(b, "type", "") == "tool_use":
+            calls.append({"id": b.id, "name": b.name, "arguments": dict(b.input or {}), "raw": None})
+    _settle("ok", tool_calls=[c["name"] for c in calls])
+    return {"text": text.strip(), "tool_calls": calls, "finish_reason": resp.stop_reason}
+
+
+def claude_tools(system: str, messages: List[Dict[str, Any]], tools: List[Dict[str, Any]], max_tokens: int = 800) -> Dict[str, Any]:
+    if LLM_PROVIDER == "openai":
+        return _openai_tools(system, messages, tools, max_tokens)
+    return _anthropic_tools(system, messages, tools, max_tokens)
 
 
 # ---- 对外 ----------------------------------------------------------------------------
