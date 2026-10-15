@@ -154,7 +154,8 @@ class ShadowEndpoint(unittest.TestCase):
         server = sel.compute("map", self.who, [], age=9)
         keys = sel.offered_keys(server)
         a = self._options(client_offered=keys, client_new=keys[:2])
-        self.assertEqual(a["authority"], "shadow")
+        self.assertEqual(a["authority"], "client")            # 默认权威在浏览器；决策块自己标 shadow
+        self.assertEqual(self.store.find_decision(a["decision_id"])["authority"], "shadow")
         self.assertEqual(a["offered"], keys)
         self.assertEqual(a["match"]["same_order"], True)
         tid = sel.ticket_of(a["decision_id"])
@@ -274,6 +275,123 @@ class ShadowEndpoint(unittest.TestCase):
         m = self.store.load(tid2); m["issued_at"] = "2020-01-01T00:00:00.000+00:00"; self.store._write(tid2, m)
         self.assertGreaterEqual(self.store.reap_tickets(days=30), 1)   # 放了 30 天没人用：走
         self.assertFalse(self.store.dir(tid2).exists())
+
+
+class ServerAuthority(unittest.TestCase):
+    """PR 4：权威切到服务端（ARTQUEST_SELECTION_AUTHORITY=server）。默认仍是 client，这里当场切、用完切回。"""
+
+    def setUp(self):
+        import artquest.config as cfg_mod
+        self.cfg = cfg_mod
+        self.old = cfg_mod.SELECTION_AUTHORITY
+        cfg_mod.SELECTION_AUTHORITY = "server"
+        self.c = TestClient(app)
+        self.store = SessionStore()
+        self.who = {"anon_id": "anon-srv-" + __import__("uuid").uuid4().hex[:6]}
+
+    def tearDown(self):
+        self.cfg.SELECTION_AUTHORITY = self.old
+
+    def _options(self, **over):
+        body = {"participant": self.who, "entrypoint": "map", "first_visit": True, "age": 9}
+        body.update(over)
+        r = self.c.post("/api/task-options", json=body)
+        self.assertEqual(r.status_code, 200, r.text)
+        return r.json()
+
+    def test_config_says_so_and_the_server_hands_back_cards_and_draws_the_random_picks(self):
+        self.assertEqual(self.c.get("/api/config").json()["selection"], {"authority": "server", "rules_version": sel.RULES_VERSION})
+        a = self._options(first_visit=False, client_offered=sel.families())
+        self.assertEqual(a["authority"], "server")
+        cards = a["cards"]
+        self.assertEqual(cards["rule"], "family_random")
+        self.assertEqual([c["key"] for c in cards["offered"]], sel.families())
+        pools = {o["family"]: o["pool"] for o in self.store.find_decision(a["decision_id"])["offered"]}
+        for fam, tid in cards["picks"].items():
+            self.assertIn(tid, pools[fam])                                 # 抽的在池子里
+        self.assertEqual(len(cards["picks"]), len(sel.families()))
+        for c in cards["offered"]:
+            self.assertEqual(c["task_id"], cards["picks"][c["family"]])
+        b = self._options(first_visit=False, client_offered=sel.families())
+        self.assertEqual(b["decision_id"], a["decision_id"])             # 同一个决策
+        self.assertNotEqual(b["offer_id"], a["offer_id"])                # 每次展示一条 offer，各有各的抽签
+        offers = self.store.offers_of(a["decision_id"])
+        self.assertEqual([o["authority"] for o in offers], ["server", "server"])
+        self.assertTrue(all(o["picks"] for o in offers))
+        # 首访：发回的就是那五个待办位
+        f = self._options(client_offered=[])
+        self.assertEqual([c["key"] for c in f["cards"]["offered"]], f["offered"])
+        self.assertEqual(f["cards"]["locked_more"], True)
+        self.assertEqual(f["cards"]["picks"], {})
+
+    def test_the_decision_ticket_becomes_the_session(self):
+        keys = sel.offered_keys(sel.compute("map", self.who, [], age=9))
+        a = self._options(client_offered=keys)
+        tid = sel.ticket_of(a["decision_id"])
+        r = self.c.post("/api/sessions", json={
+            "quest_id": keys[1], "intent": {"emotion": "", "text": ""}, "participant": self.who,
+            "condition": {"ui": "quiet"},
+            "selection": {"entrypoint": "map", "choice_source": "child_click", "authority": "server",
+                          "decision_id": a["decision_id"], "offer_id": a["offer_id"], "client_offered": keys}})
+        self.assertEqual(r.status_code, 201, r.text)
+        sid = r.json()["session_id"]
+        self.assertEqual(sid, tid, "决策票就是这条 session")
+        m = self.store.load(sid)
+        self.assertEqual(m["lifecycle"], "recording")
+        self.assertEqual(m["quest_id"], keys[1])
+        self.assertEqual(m["condition"]["ui"], "quiet", "条件按建 session 时传的算，不沿用票上预算的")
+        self.assertNotIn("decision", m)                                  # 顶层不留票的字段
+        self.assertNotIn("offers", m)
+        s = m["selection"]
+        self.assertEqual((s["decision_status"], s["authority"], s["in_offered"], s["ticket_became_session"]), ("attached", "server", True, True))
+        self.assertEqual(s["decision"]["consumed_by"], sid)
+        self.assertEqual(s["offers"][0]["offer_id"], a["offer_id"])
+        self.assertEqual(s["superseded"], [])
+        self.assertIn(sid, {row["session_id"] for row in self.store.list()})   # 研究员全量视图里是正式 session 了（孩子视图按空局过滤）
+        # 身份的缓存清了：下一次再问是一张新票
+        b = self._options(client_offered=keys)
+        self.assertNotEqual(sel.ticket_of(b["decision_id"]), tid)
+
+    def test_a_pick_outside_the_offered_set_is_recorded_not_blocked_and_the_ticket_stays(self):
+        keys = sel.offered_keys(sel.compute("map", self.who, [], age=9))
+        a = self._options(client_offered=keys)
+        r = self.c.post("/api/sessions", json={
+            "quest_id": "imagine_animal", "intent": {"emotion": "", "text": ""}, "participant": self.who,
+            "selection": {"entrypoint": "map", "choice_source": "child_click", "authority": "server",
+                          "decision_id": a["decision_id"], "offer_id": a["offer_id"]}})
+        self.assertEqual(r.status_code, 201)
+        sid = r.json()["session_id"]
+        self.assertNotEqual(sid, sel.ticket_of(a["decision_id"]))
+        s = self.store.load(sid)["selection"]
+        self.assertEqual((s["decision_status"], s["in_offered"]), ("not_in_offered", False))
+        self.assertIsNone(s["decision"])
+        t = self.store.load(sel.ticket_of(a["decision_id"]))
+        self.assertEqual(t["lifecycle"], "prepared")
+        self.assertIsNone(t["decision"]["consumed_by"])
+
+    def test_offline_replay_with_an_issued_ticket_copies_the_decision_instead(self):
+        keys = sel.offered_keys(sel.compute("map", self.who, [], age=9))
+        a = self._options(client_offered=keys)
+        t = self.c.post("/api/tickets", json={"n": 1, "participant": self.who}).json()["tickets"][0]
+        r = self.c.post("/api/sessions", json={
+            "quest_id": keys[0], "session_id": t["session_id"], "intent": {"emotion": "", "text": ""}, "participant": self.who,
+            "selection": {"entrypoint": "map", "choice_source": "child_click", "authority": "server_cached",
+                          "decision_id": a["decision_id"], "offer_id": a["offer_id"], "offline": True}})
+        self.assertEqual(r.status_code, 201, r.text)
+        sid = r.json()["session_id"]
+        self.assertEqual(sid, t["session_id"])                           # 离线票是这条 session
+        s = self.store.load(sid)["selection"]
+        self.assertEqual((s["decision_status"], s["authority"], s["source"]), ("attached", "server_cached", "client_offline"))
+        self.assertNotIn("ticket_became_session", s)
+        self.assertEqual(self.store.load(sel.ticket_of(a["decision_id"]))["decision"]["consumed_by"], sid)
+        self.assertEqual(self.store.load(sel.ticket_of(a["decision_id"]))["lifecycle"], "prepared")
+
+    def test_client_mode_never_sends_cards(self):
+        self.cfg.SELECTION_AUTHORITY = "client"
+        a = self._options(first_visit=False, client_offered=sel.families())
+        self.assertEqual(a["authority"], "client")
+        self.assertNotIn("cards", a)
+        self.assertEqual(self.store.offers_of(a["decision_id"])[0]["picks"], {})
 
 
 class Export(unittest.TestCase):

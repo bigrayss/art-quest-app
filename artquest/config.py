@@ -99,3 +99,8 @@ def resolve_backend(setting: str, ai_name: str, fallback_name: str) -> str:
 # 首访任务库（2026-10-12）：第一次来的孩子按年龄看到固定五道（docs/Task_Library_zh_CN.md）。
 # off = 回到原来的十个家族地图。
 FIRST_VISIT_BANK = os.environ.get("ARTQUEST_FIRST_VISIT", "on").strip().lower() not in ("off", "0", "false", "no")
+# 选题权威（agent 级数据 PR 4，2026-10-15）：client = 浏览器自己算地图、服务端只做影子对照（默认，和改造前一样）；
+# server = 服务端算好排位发给浏览器摆，决策票直接成为那条 session。切回 client 就是回滚。
+SELECTION_AUTHORITY = os.environ.get("ARTQUEST_SELECTION_AUTHORITY", "client").strip().lower()
+if SELECTION_AUTHORITY not in ("client", "server"):
+    SELECTION_AUTHORITY = "client"

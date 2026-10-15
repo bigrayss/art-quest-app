@@ -2547,11 +2547,18 @@
         <div class="gpips">${pips}</div></div>`;
     }).join("");
     $("#growth-dims").querySelectorAll(".ggo").forEach(b => {
-      b.onclick = () => {
-        const q = randomForm(b.dataset.fam);
-        if (!q) return;
-        shadowTaskOptions({ entrypoint: "growth", dim: b.dataset.dim || "", client_offered: [b.dataset.fam] });
-        chooseQuest(q, { entrypoint: "growth", choice_source: "recommend_for" });
+      b.onclick = async () => {
+        const fam = b.dataset.fam;
+        const req = shadowTaskOptions({ entrypoint: "growth", dim: b.dataset.dim || "", client_offered: [fam] });
+        let q = null;
+        if (selectionAuthority() === "server") {
+          // 权威在服务端：等它抽（最多 1.5 秒），拿不到就本机抽
+          const r = await Promise.race([req, new Promise(res => setTimeout(() => res(null), 1500))]);
+          const pick = r && r.cards && r.cards.picks ? r.cards.picks[fam] : null;
+          q = pick ? state.quests.find(x => x.id === pick) : null;
+        }
+        q = q || randomForm(fam);
+        if (q) chooseQuest(q, { entrypoint: "growth", choice_source: "recommend_for" });
       };
     });
   }
@@ -2897,6 +2904,12 @@
     if (!forms.length) return null;
     state.rolls = state.rolls || {};
     if (state.rolls[familyId]) return state.rolls[familyId];
+    // 权威在服务端：这一下随机是服务端抽的（挂在这次展示上），本机不再掷
+    const picks = selectionAuthority() === "server" && state.serverOffer && state.serverOffer.cards ? (state.serverOffer.cards.picks || {}) : {};
+    if (picks[familyId]) {
+      const sq = forms.find(q => q.id === picks[familyId]);
+      if (sq) { state.rolls[familyId] = sq; return sq; }
+    }
     const done = new Set((state.allSessions || []).filter(r => r.status === "done").map(r => r.task_id || r.quest_id));
     const left = forms.filter(q => !done.has(q.id));
     const pool = left.length ? left : forms;
@@ -2954,25 +2967,63 @@
   // 回一个 decision_id + offer_id，建 session 时带回去。**不等它、不用它的结果改任何一张卡。**
   state.decision = null;
   state.choice = null;
-  function shadowTaskOptions(payload) {
+  state.serverOffer = null;
+  // 选题权威（PR 4）：client = 浏览器算、服务端影子（默认）；server = 服务端算好发来摆。服务端一个环境变量开关，切回去就是回滚。
+  const selectionAuthority = () => (((state.cfg || {}).selection || {}).authority) || "client";
+  const clientDone = () => [...new Set((state.allSessions || []).filter(r => r.status === "done").map(r => r.task_id || r.quest_id))].sort();
+  const OFFER_KEY = "artquest.offer";
+  const myIdentityKey = () => savedPid() ? `pid:${savedPid()}` : accountId() ? `acc:${accountId()}` : state.anonId ? `anon:${state.anonId}` : "";
+  /** 离线时用的那份：最近一次服务端排位（只认同一个身份、同样的完成集合、同一个入口）。 */
+  function cachedOffer(entrypoint) {
+    try {
+      const o = JSON.parse(localStorage.getItem(OFFER_KEY) || "null");
+      if (o && o.identity_key === myIdentityKey() && o.done_key === clientDone().join(",") && o.entrypoint === entrypoint && o.cards) return o;
+    } catch (e) { /* 无所谓 */ }
+    return null;
+  }
+  function shadowTaskOptions(payload, opts) {
     state.decision = null;
-    if (!navigator.onLine || !state.quests.length) return;
+    if (!navigator.onLine || !state.quests.length) return Promise.resolve(null);
     const body = Object.assign({
       participant: { anon_id: state.anonId, participant_id: savedPid(), account_id: accountId() },
       study: state.study ? { active: !!state.study.active, study_id: state.study.study_id, group: state.study.group || "" } : {},
-      client_done: [...new Set((state.allSessions || []).filter(r => r.status === "done").map(r => r.task_id || r.quest_id))],
+      client_done: clientDone(),
       app_version: (state.cfg || {}).version || "",
     }, payload);
     const mine = ++shadowSeq;
-    api(`${API}/task-options`, { method: "POST", body: JSON.stringify(body) })
-      .then(r => { if (mine === shadowSeq) state.decision = { decision_id: r.decision_id, offer_id: r.offer_id, entrypoint: body.entrypoint, client_offered: body.client_offered }; })
-      .catch(() => { /* 影子记录失败不影响任何事 */ });
+    return api(`${API}/task-options`, { method: "POST", body: JSON.stringify(body) })
+      .then(r => {
+        if (mine !== shadowSeq) return null;
+        const server = r.authority === "server" && !!r.cards;
+        state.decision = { decision_id: r.decision_id, offer_id: r.offer_id, entrypoint: body.entrypoint,
+                           client_offered: body.client_offered, authority: server ? "server" : "client" };
+        if (server) {
+          state.serverOffer = { entrypoint: body.entrypoint, decision_id: r.decision_id, offer_id: r.offer_id, cards: r.cards,
+                                identity_key: r.identity_key, done_key: (r.done_task_ids || []).join(","), at: Date.now() };
+          try { localStorage.setItem(OFFER_KEY, JSON.stringify(state.serverOffer)); } catch (e) { /* 无所谓 */ }
+          // 服务端摆的和屏幕上的不一样（只有首访的五个待办位会不一样）：按服务端的重摆
+          if (body.entrypoint === "map" && r.cards.rule === "bank_rotation" && (opts || {}).displayed &&
+              r.cards.offered.map(c => c.key).join("|") !== (opts.displayed || []).join("|")) renderQuests({ fromServer: true });
+        }
+        return r;
+      })
+      .catch(() => null);   /* 记录失败不影响任何事 */
   }
   let shadowSeq = 0;
 
-  function renderQuests() {
+  function renderQuests(opts) {
+    opts = opts || {};
     paintMapBackground();
     state.rolls = {};                 // 重新进地图，每个主题重新抽一道
+    // 权威在服务端：联网时等服务端那份回来再按它重摆（先按本机规则摆一版，两边一样就什么都不动）；
+    // 没网就用缓存里最近那份（同一身份、同样的完成集合），没有缓存才回到本机算、并标 client_offline。
+    const serverMode = selectionAuthority() === "server";
+    let fromServer = null;
+    if (serverMode && opts.fromServer && state.serverOffer && state.serverOffer.entrypoint === "map") fromServer = state.serverOffer;
+    if (serverMode && !navigator.onLine && !fromServer) {
+      const c = cachedOffer("map");
+      if (c) { fromServer = c; state.serverOffer = c; state.decision = { decision_id: c.decision_id, offer_id: c.offer_id, entrypoint: "map", authority: "server_cached", client_offered: c.cards.offered.map(x => x.key) }; }
+    }
     const grid = $("#quest-grid"); if (!grid) return;
     grid.querySelectorAll(".quest-card, .map-col").forEach(el => el.remove());
     const seq = state.study && state.study.sequence ? state.study.sequence : null;
@@ -3009,7 +3060,12 @@
     const taskCard = (q, finished) => ({ key: q.id, icon: q.icon, color: q.color, kind: q.type, title: q.title,
                                          locked: false, task: q, blurb: q.card || FAMILY_BLURB[q.family] || "", finished });
     let sequence = [];
-    if (state.bank) {
+    if (state.bank && fromServer && fromServer.cards.rule === "bank_rotation") {
+      // 服务端算好的排位：待办位 + 已完成 + 后面还有没有
+      sequence = fromServer.cards.offered.map(c => byId[c.task_id]).filter(Boolean).map(q => taskCard(q, false))
+        .concat(fromServer.cards.finished.map(id => byId[id]).filter(Boolean).map(q => taskCard(q, true)));
+      if (fromServer.cards.locked_more) sequence.push({ key: "locked:more" });
+    } else if (state.bank) {
       sequence = bankForms(band).map(q => taskCard(q, doneIds.has(q.id)));
       // 每家族的题按库里的顺序排成几轮（含画过的，画过的直接进已完成）：这样画完 M9 的第一道，下一道补进来的是 M6 的，不是 M9 的第二道
       const perFam = Object.fromEntries(UNLOCK_ORDER.map(f => [f, tierForms(f)]));
@@ -3019,6 +3075,7 @@
     const seen = seenTasks();
     let rest = 0;
     sequence.forEach(c => {
+      if (c.key === "locked:more") { rest += 1; return; }      // 服务端那份只说「后面还有」，不说有多少
       if (c.finished) finishedCards.push(c);
       else if (pendingCards.length < PENDING_SLOTS) pendingCards.push(c);
       else rest += 1;
@@ -3121,15 +3178,21 @@
     });
     paintToday(nextCard, nDone, cards.length);
     paintMapPath();
-    // 影子上报：摆了哪几道（protocol 是整条序列；老地图是家族卡；首访是五个待办位，不含锁卡和已完成）
+    // 上报：摆了哪几道（protocol 是整条序列；老地图是家族卡；首访是五个待办位，不含锁卡和已完成）。
+    // client 权威下这是影子对照；server 权威下回来的那份就是要摆的（不一样就重摆一次）。按服务端那份重摆时不再上报。
     const offeredKeys = seq ? cards.map(c => c.key)
       : state.bank ? pendingCards.map(c => c.key)
       : cards.map(c => c.key);
+    if (fromServer) {
+      if (!state.decision || state.decision.authority !== "server_cached")
+        state.decision = { decision_id: fromServer.decision_id, offer_id: fromServer.offer_id, entrypoint: "map", authority: "server", client_offered: offeredKeys };
+      return;
+    }
     shadowTaskOptions({
       entrypoint: seq ? "protocol" : "map", first_visit: !!fv, age: who.age, age_source: who.source || "",
       sequence: seq || [], seq_index: state.seqIdx || 0, client_offered: offeredKeys,
       client_new: listMode ? pendingCards.filter(c => !seen.has(c.key)).map(c => c.key) : [],
-    });
+    }, { displayed: offeredKeys });
   }
 
   /** 十个地方之间那条小路。
@@ -3506,7 +3569,8 @@
       routing: isBank(state.quest) ? { ...(state.bank || {}), first_visit: true, bank: state.quest.bank } : {},
       // 这道题怎么来的 + 服务端影子决策的 id（有就带；没网就标 offline，服务端记成 client_offline）
       selection: Object.assign({}, state.choice || {}, state.decision && state.decision.entrypoint === ((state.choice || {}).entrypoint || "map")
-        ? { decision_id: state.decision.decision_id, offer_id: state.decision.offer_id, client_offered: state.decision.client_offered } : {},
+        ? { decision_id: state.decision.decision_id, offer_id: state.decision.offer_id, client_offered: state.decision.client_offered,
+            authority: state.decision.authority || "client" } : { authority: "client" },
         { offline: !navigator.onLine }),
       study: state.study ? { active: !!state.study.active, study_id: state.study.study_id, group: state.study.group || "",
         order_index: state.seqIdx, sequence_id: (state.study.sequence || []).join(">") } : {},

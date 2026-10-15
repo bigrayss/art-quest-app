@@ -375,6 +375,8 @@ def config():
         # 首访任务库：开关 + 年龄段表；题本身在 /quests 里（bank 字段）
         "first_visit": {"enabled": cfg.FIRST_VISIT_BANK, "bank": missions_bank.BANK, "version": missions_bank.BANK_VERSION,
                         "bands": missions_bank.BANDS, "order": missions_bank.ORDER, "post_config": missions_bank.POST_CONFIG},
+        # 选题权威：client（浏览器算，服务端影子）/ server（服务端算好发给浏览器摆）。PR 4，默认 client。
+        "selection": {"authority": cfg.SELECTION_AUTHORITY, "rules_version": sel.RULES_VERSION},
     }
 
 
@@ -967,12 +969,20 @@ def task_options(body: TaskOptions, request: Request):
     match = sel.compare(rec, body.client_offered)
     # 客户端以为做完的和服务端记的不一样，也是要看的（离线没同步、认领窗口……）
     match["same_done"] = sorted(set(body.client_done)) == list(rec.get("history", {}).get("done_task_ids") or [])
+    authority = cfg.SELECTION_AUTHORITY
+    # 权威在服务端：有池子的位置（老地图的家族、成长面板）这一下随机也在这里抽，一次展示抽一次
+    picks = sel.draw_picks(rec) if authority == "server" else {}
     offer = store.add_offer(rec["decision_id"], {
         "client_offered": list(body.client_offered), "client_new": list(body.client_new),
-        "client_done": sorted(set(body.client_done)), "app_version": body.app_version, "match": match})
-    return {"decision_id": rec["decision_id"], "offer_id": offer["offer_id"], "authority": rec["authority"],
-            "rules_version": rec["rules_version"], "rule": rec["rule"], "match": match,
-            "offered": sel.offered_keys(rec)}
+        "client_done": sorted(set(body.client_done)), "app_version": body.app_version, "match": match,
+        "authority": authority, "picks": picks})
+    out = {"decision_id": rec["decision_id"], "offer_id": offer["offer_id"], "authority": authority,
+           "rules_version": rec["rules_version"], "rule": rec["rule"], "match": match,
+           "offered": sel.offered_keys(rec), "identity_key": rec["identity_key"],
+           "done_task_ids": list((rec.get("history") or {}).get("done_task_ids") or [])}
+    if authority == "server":
+        out["cards"] = sel.cards_for_client(rec, picks)      # 浏览器照这份摆；client 模式不发，免得它拿去用
+    return out
 
 
 def _selection_record(body: CreateSession, quest: Dict[str, Any], who: Dict[str, Any]) -> Dict[str, Any]:
@@ -1004,10 +1014,19 @@ def _selection_record(body: CreateSession, quest: Dict[str, Any], who: Dict[str,
         rec["consumed_by"] = dec["consumed_by"]
         return rec
     keys = sel.offered_keys(dec)
-    rec["in_offered"] = quest["id"] in keys or quest.get("family", "") in keys
+    offers = store.offers_of(rec["decision_id"])
+    offer = next((o for o in offers if o.get("offer_id") == rec.get("offer_id")), None)
+    picked = (offer or {}).get("picks") or {}
+    rec["in_offered"] = quest["id"] in keys or quest.get("family", "") in keys or quest["id"] in picked.values()
+    rec["offer_known"] = offer is not None
+    if cfg.SELECTION_AUTHORITY == "server" and not rec["in_offered"] and not rec["offline"]:
+        # 权威在服务端时，点的题必须在实际展示过的那几道里。不拦（孩子正要画），但不认这个决策、也不消费它。
+        rec["decision_status"] = "not_in_offered"
+        log.warning("selection: %s picked %s outside offered %s", rec.get("decision_id"), quest["id"], keys)
+        return rec
     rec["decision_status"] = "attached"
     rec["decision"] = {k: v for k, v in dec.items() if k not in ("superseded",)}
-    rec["offers"] = store.offers_of(rec["decision_id"])
+    rec["offers"] = offers
     return rec
 
 
@@ -1068,12 +1087,28 @@ def create_session(body: CreateSession, request: Request):
     # 界面语言此刻冻进 session：之后评分、反馈、陪伴都按它，task 快照记的也是孩子看到的那一版
     lang = i18n.pick_lang(request)
     quest = i18n.quest_for(quest, lang)
+    # 权威在服务端（PR 4）：联网建 session 时，决策票直接成为这条 session（prepared → recording 是向前走）。
+    # 决策早于 session 的那段时间里，它一直住在既有的权限和删除边界内；现在只是把门牌换成正式的。
+    # 离线重放（带着客户端的 issued 票）仍走拷贝那条路：两张票不能合成一张。
+    selection = _selection_record(body, quest, who)
+    use_sid = body.session_id or None
+    folded: Dict[str, Any] = {}
+    if (cfg.SELECTION_AUTHORITY == "server" and not use_sid and selection["decision_status"] == "attached"
+            and (selection.get("decision") or {}).get("ticket")):
+        tsid = selection["decision"]["ticket"]
+        try:
+            tmeta = store.load(tsid)
+        except KeyError:
+            tmeta = None
+        if tmeta and tmeta.get("lifecycle") == "prepared":
+            use_sid = tsid
+            folded = {"superseded": list(tmeta.get("superseded") or []), "offers": list(tmeta.get("offers") or [])}
     try:
         meta = store.create(
             quest, body.intent.model_dump(),
             participant=body.participant_dict(), condition=condition,
             device=body.device.model_dump(), study=st, canvas=body.canvas.model_dump(),
-            sid=body.session_id or None, lang=lang, routing=dict(body.routing or {}),
+            sid=use_sid, lang=lang, routing=dict(body.routing or {}),
         )
     except KeyError:
         # 带了一个从没发出去过的票号。不当场给它建一个——那正是「客户端自己发 id」
@@ -1083,10 +1118,19 @@ def create_session(body: CreateSession, request: Request):
     if meta.get("lifecycle") != "recording" or meta.get("times", {}).get("started_at"):
         return {"session_id": sid_of(meta), "session": store.load(sid_of(meta)),
                 "personalization": {}, "replayed": True}
-    # 这道题怎么来的（PR 3 影子）：客户端报的 + 服务端决策核对；决策拷进 session，票上记 consumed_by
-    selection = _selection_record(body, quest, who)
+    # 这道题怎么来的：客户端报的 + 服务端决策核对；决策拷进 session，票上记 consumed_by。
+    # 决策票就是这条 session 的时候（server 权威），票上的 offers / superseded 一起折进 selection。
     if selection["decision_status"] == "attached":
-        store.consume_decision(selection["decision_id"], sid_of(meta))
+        if folded:
+            selection["decision"] = dict(selection["decision"], consumed_by=sid_of(meta), consumed_at=now_iso())
+            selection["offers"] = folded["offers"]
+            selection["superseded"] = folded["superseded"]
+            selection["ticket_became_session"] = True
+            from .storage import _PREPARED
+            _PREPARED.pop(selection["decision"].get("identity_key", ""), None)
+        else:
+            store.consume_decision(selection["decision_id"], sid_of(meta))
+    selection["authority"] = (body.selection or {}).get("authority") or "client"
     meta = store.update(sid_of(meta), selection=selection)
     condition = meta.get("condition") or condition      # 票上冻的那份才算数
     store.mark_started(sid_of(meta))

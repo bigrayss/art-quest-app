@@ -158,16 +158,16 @@ class SessionStore:
         ticket = None
         if sid:
             prev = self.load(sid)                    # 没发过这张票就 KeyError，不认
-            if prev.get("lifecycle") != "issued":
+            if prev.get("lifecycle") not in UNSTARTED:
                 return prev                          # 用过了：幂等，绝不覆盖
-            ticket = prev
+            ticket = prev                            # issued（客户端离线花的）或 prepared（服务端决策票，PR 4 直接当 session）
             d = self.root / sid
         else:
             sid = uuid.uuid4().hex[:12]
             d = self.root / sid
             d.mkdir(parents=True)
-        if ticket and ticket.get("condition"):
-            condition = ticket["condition"]
+        if ticket and ticket.get("condition") and ticket.get("lifecycle") == "issued":
+            condition = ticket["condition"]      # 离线票：条件以票上的为准（见上）。prepared 决策票是联网当场花的，条件按此刻传来的算
         p = dict(participant or {})
         meta = {
             "schema_version": SCHEMA_VERSION,

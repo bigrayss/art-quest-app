@@ -738,6 +738,38 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
         self.assertTrue(selx["offers"][-1]["match"]["same_set"], selx["offers"][-1]["match"])
         self.assertEqual(selx["decision"]["rule"], "family_random")
 
+    def test_with_the_server_as_selection_authority_the_map_shows_what_the_server_drew(self):
+        """PR 4：ARTQUEST_SELECTION_AUTHORITY=server 时，老地图上每个家族那一道是服务端抽的，
+        建的 session 就是那张决策票，selection.authority 记 server。孩子的操作一步不变。"""
+        if type(self) is not ZoomKeepsStrokesInCanvasSpace:
+            self.skipTest("基类跑一次就够")
+        import artquest.config as cfg_mod
+        from artquest import selection as sel
+        old = cfg_mod.SELECTION_AUTHORITY
+        cfg_mod.SELECTION_AUTHORITY = "server"
+        before = self._ids()
+        try:
+            with sync_playwright() as pw:
+                browser = pw.chromium.launch(channel="chrome")
+                page = browser.new_page(viewport={"width": 1194, "height": 834})
+                errors = []
+                page.on("pageerror", lambda e: errors.append(str(e)))
+                self._start(page, "服务端", family="故事挑战")
+                page.wait_for_timeout(500)
+                browser.close()
+            self.assertEqual(errors, [], "JS errors on the page")
+        finally:
+            cfg_mod.SELECTION_AUTHORITY = old
+        sid = (self._ids() - before).pop()
+        m = self._get(f"/api/sessions/{sid}")
+        selx = m.get("selection") or {}
+        self.assertEqual((selx.get("decision_status"), selx.get("authority"), selx.get("ticket_became_session")), ("attached", "server", True), selx)
+        self.assertEqual(selx["decision"]["ticket"], sid, "决策票就是这条 session")
+        self.assertEqual(selx["decision"]["rule"], "family_random")
+        offer = next(o for o in selx["offers"] if o["offer_id"] == selx["offer_id"])
+        self.assertEqual(m["quest_id"], offer["picks"]["M9"], "摆的是服务端抽的那一道")
+        self.assertEqual(m["task"]["family"] if m.get("task") else "M9", "M9")
+
     def test_looking_at_the_reference_is_recorded_as_behaviour(self):
         """Look → draw → check → correct only exists if the reference records it."""
         errors, before = [], self._ids()

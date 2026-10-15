@@ -18,6 +18,7 @@
     protocol   研究协议定的整条序列（study.py 已经在服务端算好了），只是记下来
     growth     成长面板「去 X 练习」：按主考维度找家族，没去过的优先，M0 兜底
 """
+import random
 import uuid
 from typing import Any, Dict, Iterable, List, Optional, Set
 
@@ -192,3 +193,25 @@ def history_key(decision: Dict[str, Any]) -> str:
                      decision.get("entrypoint", ""), decision.get("rule", ""), str(r.get("age")), r.get("band", "") or "",
                      r.get("dim", "") or "", ",".join(h.get("done_task_ids") or []),
                      ",".join(o.get("task_id") or o.get("family") or "" for o in decision.get("offered") or [])])
+
+
+def draw_picks(decision: Dict[str, Any], rng: Optional[random.Random] = None) -> Dict[str, str]:
+    """权威在服务端时，老地图 / 成长面板那一下「随机抽一道」也在这里抽：每个有池子的位置抽一道。
+    一次展示抽一次（挂在 offer 上，不挂在决策上）——「每次进地图重新抽」这条用户要的行为不变。"""
+    rng = rng or random
+    picks: Dict[str, str] = {}
+    for o in decision.get("offered") or []:
+        pool = o.get("pool") or []
+        if pool and not o.get("task_id"):
+            picks[o.get("family", "")] = rng.choice(pool)
+    return picks
+
+
+def cards_for_client(decision: Dict[str, Any], picks: Dict[str, str]) -> Dict[str, Any]:
+    """发给浏览器摆的那份：它只负责画出来和收点击。形状贴着 renderQuests 里的 card。"""
+    return {"rule": decision.get("rule"), "gate": decision.get("gate", ""), "locked_more": bool(decision.get("locked_more")),
+            "finished": list(decision.get("finished") or []),
+            "offered": [{"key": o.get("task_id") or o.get("family") or "", "task_id": o.get("task_id") or picks.get(o.get("family", "")),
+                         "family": o.get("family", ""), "locked": bool(o.get("locked")), "finished": bool(o.get("finished")),
+                         "picked": bool(o.get("picked"))} for o in decision.get("offered") or []],
+            "picks": dict(picks)}
