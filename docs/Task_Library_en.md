@@ -6,7 +6,7 @@ This is a complete textual task specification, not an infographic. Each task inc
 
 ## 1. Entry rules and scope
 
-Age is a routing input, not an ability score or known school grade. The non-overlapping boundaries—6–7, 8–10, 11–12, 13–14 and 15–16—are project choices. Curriculum references are stored separately. Missing or out-of-range ages must not be silently routed. Candidates and their order are fixed within a band; refresh does not regenerate them. Language changes wording, not materials or requirements.
+Age is a routing input, not an ability score or known school grade. The non-overlapping boundaries—3–7, 8–10, 11–12, 13–14, 15–16 and 17+—are project choices. Curriculum references are stored separately. Missing or out-of-range ages must not be silently routed. Candidates and their order are fixed within a band; refresh does not regenerate them. Language changes wording, not materials or requirements.
 
 These are 25 replacement first-visit tasks, not a reconstruction of every legacy M1–M9 item or a complete art curriculum. The five families are observation, expression, figural fragments, object redesign and visual communication. No task requires multiple canvases, movable starter objects or timed phases. Diverse alternatives and improvement of an existing design remain separate extensions; fragments and redesign are not presented as equivalent substitutes. All tasks are research adaptations, not original textbook or PISA test items. [ECD04; PISA23; URBAN05]
 
@@ -16,7 +16,7 @@ These are 25 replacement first-visit tasks, not a reconstruction of every legacy
 
 | Age band | Curriculum reference | Five fixed choices |
 |---|---|---|
-| Ages 6–7 | Compulsory education, Grades 1–2 | B1_OB_01 Two Leaves; B1_ST_01 Playing Together; B1_FG_01 What Can This Line Become?; B1_TR_01 A Helpful Cup; B1_DS_01 A Toy-Box Sign |
+| Ages 7 and under (3–7) | Compulsory education, Grades 1–2 | B1_OB_01 Two Leaves; B1_ST_01 Playing Together; B1_FG_01 What Can This Line Become?; B1_TR_01 A Helpful Cup; B1_DS_01 A Toy-Box Sign |
 | Ages 8–10 | Compulsory education, Grades 3–5 | B2_OB_01 A Cup, an Apple and a Book; B2_ST_01 After School; B2_FG_01 A Story from Two Fragments; B2_TR_01 An Umbrella with a New Job; B2_DS_01 A Reading-Corner Sign |
 | Ages 11–12 | Compulsory education, Grades 6–7 | B3_OB_01 Four Things on a Table; B3_ST_01 An Unexpected Moment; B3_FG_01 A Place from Fragments; B3_TR_01 Teapot Rescue Machine; B3_DS_01 A Sports-Day Mascot |
 | Ages 13–14 | Compulsory education, Grades 8–9 | B4_OB_01 Still Life by a Window; B4_ST_01 Two Moods in One Place; B4_FG_01 From Fragments to a Character; B4_TR_01 A Bicycle with a New Purpose; B4_DS_01 A School Activity Poster |
@@ -40,7 +40,7 @@ These are 25 replacement first-visit tasks, not a reconstruction of every legacy
 
 ### B1_OB_01 · Two Leaves
 
-**Age and family**: Ages 6–7 / Observation and representation
+**Age and family**: Ages 7 and under (3–7) / Observation and representation
 
 **Card summary**: Notice how the two leaves differ.
 
@@ -81,7 +81,7 @@ These are 25 replacement first-visit tasks, not a reconstruction of every legacy
 
 ### B1_ST_01 · Playing Together
 
-**Age and family**: Ages 6–7 / Personal expression and narrative
+**Age and family**: Ages 7 and under (3–7) / Personal expression and narrative
 
 **Card summary**: Draw a moment of playing together.
 
@@ -122,7 +122,7 @@ These are 25 replacement first-visit tasks, not a reconstruction of every legacy
 
 ### B1_FG_01 · What Can This Line Become?
 
-**Age and family**: Ages 6–7 / Creation from figural fragments
+**Age and family**: Ages 7 and under (3–7) / Creation from figural fragments
 
 **Card summary**: Start with a curve and make it your own.
 
@@ -162,7 +162,7 @@ These are 25 replacement first-visit tasks, not a reconstruction of every legacy
 
 ### B1_TR_01 · A Helpful Cup
 
-**Age and family**: Ages 6–7 / Reimagining an object
+**Age and family**: Ages 7 and under (3–7) / Reimagining an object
 
 **Card summary**: Give an ordinary cup a helpful new ability.
 
@@ -203,7 +203,7 @@ These are 25 replacement first-visit tasks, not a reconstruction of every legacy
 
 ### B1_DS_01 · A Toy-Box Sign
 
-**Age and family**: Ages 6–7 / Visual communication design
+**Age and family**: Ages 7 and under (3–7) / Visual communication design
 
 **Card summary**: Use a picture to show where toys belong.
 

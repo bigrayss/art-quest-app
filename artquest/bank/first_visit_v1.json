@@ -10,7 +10,7 @@
  "bands": [
   {
    "id": "B1",
-   "age_min": 6,
+   "age_min": 3,
    "age_max": 7
   },
   {
@@ -51,7 +51,7 @@
   {
    "task_id": "B1_DS_01",
    "band": "B1",
-   "age_min": 6,
+   "age_min": 3,
    "age_max": 7,
    "family": "DS",
    "family_slug": "design",
@@ -85,7 +85,7 @@
    ],
    "zh": {
     "title": "玩具箱标志",
-    "age_family": "6—7岁 / 视觉设计",
+    "age_family": "7岁及以下（3—7岁） / 视觉设计",
     "card": "用一个图告诉大家玩具放在哪。",
     "prompt": "给放玩具的箱子画一个标志，让别人看到图就知道这里放玩具。画面由你决定。",
     "requirements": "画一个用于玩具箱的标志；通过图形表达玩具收纳的用途。",
@@ -112,7 +112,7 @@
    },
    "en": {
     "title": "A Toy-Box Sign",
-    "age_family": "Ages 6–7 / Visual communication design",
+    "age_family": "Ages 7 and under (3–7) / Visual communication design",
     "card": "Use a picture to show where toys belong.",
     "prompt": "Draw a sign for a toy box so that people can tell from the picture that it holds toys. Choose your own image.",
     "requirements": "Make one sign for a toy box. Use the image to communicate toy storage.",
@@ -141,7 +141,7 @@
   {
    "task_id": "B1_FG_01",
    "band": "B1",
-   "age_min": 6,
+   "age_min": 3,
    "age_max": 7,
    "family": "FG",
    "family_slug": "fragments",
@@ -175,7 +175,7 @@
    ],
    "zh": {
     "title": "一条线变什么",
-    "age_family": "6—7岁 / 图形片段创作",
+    "age_family": "7岁及以下（3—7岁） / 图形片段创作",
     "card": "从一段弯线开始，画出自己的想法。",
     "prompt": "看参考图里的那段弯线，把它画进你的画里，再添上自己的内容，让它变成你想到的东西。线可以转方向或变大变小，但要让人找得到原来的弯线。",
     "requirements": "使用参考图中的一段弯线发展一幅画；让原来的弯线仍能被找到。",
@@ -202,7 +202,7 @@
    },
    "en": {
     "title": "What Can This Line Become?",
-    "age_family": "Ages 6–7 / Creation from figural fragments",
+    "age_family": "Ages 7 and under (3–7) / Creation from figural fragments",
     "card": "Start with a curve and make it your own.",
     "prompt": "Look at the curved fragment in the reference. Draw it into your picture and add your own ideas to make it become something. You may turn or resize it, but the original curve should still be recognisable.",
     "requirements": "Develop one drawing using the curved fragment. Keep the original curve recognisable.",
@@ -231,7 +231,7 @@
   {
    "task_id": "B1_OB_01",
    "band": "B1",
-   "age_min": 6,
+   "age_min": 3,
    "age_max": 7,
    "family": "OB",
    "family_slug": "observe",
@@ -270,7 +270,7 @@
    ],
    "zh": {
     "title": "两片叶子",
-    "age_family": "6—7岁 / 观察与表现",
+    "age_family": "7岁及以下（3—7岁） / 观察与表现",
     "card": "看看两片叶子有什么不同。",
     "prompt": "看看图里的两片叶子，把它们都画下来。让人能看出哪片宽、哪片长，再画上你看到的叶柄和叶脉。只画线条也可以。",
     "requirements": "画出参考图中的两片叶子；表现外形差别，并加入看到的叶柄和叶脉。",
@@ -297,7 +297,7 @@
    },
    "en": {
     "title": "Two Leaves",
-    "age_family": "Ages 6–7 / Observation and representation",
+    "age_family": "Ages 7 and under (3–7) / Observation and representation",
     "card": "Notice how the two leaves differ.",
     "prompt": "Look at the two leaves in the reference and draw both. Show which one is broad and which one is long, and add the stems and veins you can see. A line drawing is fine.",
     "requirements": "Draw both leaves from the reference. Show their different outlines and include visible stems and veins.",
@@ -326,7 +326,7 @@
   {
    "task_id": "B1_ST_01",
    "band": "B1",
-   "age_min": 6,
+   "age_min": 3,
    "age_max": 7,
    "family": "ST",
    "family_slug": "express",
@@ -365,7 +365,7 @@
    ],
    "zh": {
     "title": "一起玩",
-    "age_family": "6—7岁 / 个人表达与叙事",
+    "age_family": "7岁及以下（3—7岁） / 个人表达与叙事",
     "card": "画你喜欢的一起玩的时刻。",
     "prompt": "画一件你和别人一起玩的事，也可以画你想象中的游戏。让人看出谁在玩、在做什么。",
     "requirements": "用一幅画表现一起玩的活动；让人物和主要动作在画面中出现。",
@@ -392,7 +392,7 @@
    },
    "en": {
     "title": "Playing Together",
-    "age_family": "Ages 6–7 / Personal expression and narrative",
+    "age_family": "Ages 7 and under (3–7) / Personal expression and narrative",
     "card": "Draw a moment of playing together.",
     "prompt": "Draw something you play with someone else, or invent a game. Show who is playing and what they are doing.",
     "requirements": "Show a shared play activity in one picture. Include the participants and the main action.",
@@ -421,7 +421,7 @@
   {
    "task_id": "B1_TR_01",
    "band": "B1",
-   "age_min": 6,
+   "age_min": 3,
    "age_max": 7,
    "family": "TR",
    "family_slug": "redesign",
@@ -460,7 +460,7 @@
    ],
    "zh": {
     "title": "会帮忙的杯子",
-    "age_family": "6—7岁 / 物品创意改造",
+    "age_family": "7岁及以下（3—7岁） / 物品创意改造",
     "card": "让普通杯子多一种本领。",
     "prompt": "看看图里的杯子，把它变成一个会帮忙的新东西。画出它怎样帮忙，并保留一些杯子的特征，让人看得出它是杯子变的。",
     "requirements": "从参考杯子出发，画出一种帮助用途；保留能辨认出杯子来源的特征。",
@@ -487,7 +487,7 @@
    },
    "en": {
     "title": "A Helpful Cup",
-    "age_family": "Ages 6–7 / Reimagining an object",
+    "age_family": "Ages 7 and under (3–7) / Reimagining an object",
     "card": "Give an ordinary cup a helpful new ability.",
     "prompt": "Look at the cup in the reference and turn it into something helpful. Show how it helps, and keep some features of the cup so that people can recognise what it came from.",
     "requirements": "Begin with the reference cup and show one helpful use. Retain recognisable features of the original cup.",

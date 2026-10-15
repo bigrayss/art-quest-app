@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """首访任务库 v1.0.0（用户 2026-10-12 给的 docs/Task_Library_zh_CN.md / Task_Library_en.md / Student_Tasks_CN_EN.md）。
 
-25 道、按年龄五段（6–7 / 8–10 / 11–12 / 13–14 / 15–16）路由，每段固定五道（观察 / 表达 / 图形片段 / 物品改造 / 视觉设计），
+30 道、按年龄六段（3–7 / 8–10 / 11–12 / 13–14 / 15–16 / 17+）路由，每段固定五道（观察 / 表达 / 图形片段 / 物品改造 / 视觉设计），
 一次只做一道。它替换的是**第一次来**看到的那一屏，不是对 M1–M9 的重建；M 族照旧留在库里。
 
 数据在 `artquest/bank/first_visit_v1.json`（由 `tools/import_bank.py` 从两份 md 生成，不手改）。这里只把它变成和 M 族同形的行：
@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 BANK = "first_visit_v1"
-BANK_VERSION = "1.1.1"          # 1.1.1 题面去掉「只画一幅 / 不用写字」； 1.0.0 冻结 2026-10-12；1.0.1 B2/B3/B4 按图改对象名；1.1.0 加第六段（17 岁及以上，题面取自 M 族）。改题面 → 改 docs → 重跑 import_bank → 升这里
+BANK_VERSION = "1.1.2"          # 1.1.2 第一段改为 3–7 岁（6 岁以下不再回老地图，用户 2026-10-15）； 1.1.1 题面去掉「只画一幅 / 不用写字」； 1.0.0 冻结 2026-10-12；1.0.1 B2/B3/B4 按图改对象名；1.1.0 加第六段（17 岁及以上，题面取自 M 族）。改题面 → 改 docs → 重跑 import_bank → 升这里
 POST_CONFIG = "first_visit_common_v1"
 DATA = Path(__file__).resolve().parent / "bank" / "first_visit_v1.json"
 

@@ -71,7 +71,7 @@ class Rules(unittest.TestCase):
     def test_no_age_is_a_gate_and_out_of_range_falls_back_to_the_family_map(self):
         d = sel.compute("map", self.WHO, [], age=None)
         self.assertEqual((d["rule"], d["gate"], d["offered"]), ("bank_rotation", "age", []))
-        d = sel.compute("map", self.WHO, [], age=3)
+        d = sel.compute("map", self.WHO, [], age=2)      # 2 岁：年龄输入本来就不收，这里只守「范围外不静默分配」
         self.assertEqual(d["rule"], "family_random")
         self.assertEqual([o["family"] for o in d["offered"]], sel.families())
         self.assertTrue(all(o["task_id"] is None and o["pool"] for o in d["offered"]))

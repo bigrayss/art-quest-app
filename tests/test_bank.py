@@ -108,6 +108,7 @@ class Library(unittest.TestCase):
 
 class Routing(unittest.TestCase):
     def test_age_routes_to_a_band_and_out_of_range_is_not_silently_assigned(self):
+        self.assertEqual(band_of(3)["id"], "B1")        # 账号年龄下限 3 岁起就有段：6 岁以下不再回老地图（用户 2026-10-15）
         self.assertEqual(band_of(6)["id"], "B1")
         self.assertEqual(band_of(10)["id"], "B2")
         self.assertEqual(band_of(11)["id"], "B3")
@@ -115,7 +116,7 @@ class Routing(unittest.TestCase):
         self.assertEqual(band_of(16)["id"], "B5")
         self.assertEqual(band_of(17)["id"], "B6")     # 17 岁及以上：成年初学者也用这个 app
         self.assertEqual(band_of(45)["id"], "B6")
-        for bad in (5, 100, None, "", "x"):
+        for bad in (2, 100, None, "", "x"):
             self.assertEqual(band_of(bad), {}, bad)
 
     def test_config_exposes_the_bands_and_quests_expose_the_bank(self):

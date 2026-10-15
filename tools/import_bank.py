@@ -15,7 +15,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "artquest" / "bank" / "first_visit_v1.json"
 
-BANDS = {"B1": (6, 7), "B2": (8, 10), "B3": (11, 12), "B4": (13, 14), "B5": (15, 16), "B6": (17, 99)}   # B6：17 岁及以上（成年初学者也用这个 app）
+BANDS = {"B1": (3, 7), "B2": (8, 10), "B3": (11, 12), "B4": (13, 14), "B5": (15, 16), "B6": (17, 99)}   # B1 从 3 岁起（账号年龄下限）：用户 2026-10-15「6 岁以下也统一五道」，用第一段的题；B6：17 岁及以上（成年初学者也用这个 app）
 FAMILY_OF = {"OB": "observe", "ST": "express", "FG": "fragments", "TR": "redesign", "DS": "design"}
 ZH_KEYS = {
     "年龄与类型": "age_family", "选题卡摘要": "card", "学生题面（常显）": "prompt", "必要条件（与题面一致）": "requirements",
