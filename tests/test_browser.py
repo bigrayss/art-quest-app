@@ -770,6 +770,79 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
         self.assertEqual(m["quest_id"], offer["picks"]["M9"], "摆的是服务端抽的那一道")
         self.assertEqual(m["task"]["family"] if m.get("task") else "M9", "M9")
 
+    def test_the_first_visit_map_matches_the_server_s_rules_before_and_after_a_drawing(self):
+        """首访地图（年龄段五道 + 画完一张补一道 M 族）：浏览器摆的和服务端按同一套规则算的逐位一致。
+        这是切权威前要的那份对照——没有真孩子的数据，就用真浏览器跑一遍。"""
+        if type(self) is not ZoomKeepsStrokesInCanvasSpace:
+            self.skipTest("基类跑一次就够")
+        import artquest.config as cfg_mod
+        from artquest import selection as sel
+        old = cfg_mod.FIRST_VISIT_BANK
+        cfg_mod.FIRST_VISIT_BANK = True
+        before = self._ids()
+        try:
+            with sync_playwright() as pw:
+                browser = pw.chromium.launch(channel="chrome")
+                page = browser.new_page(viewport={"width": 1194, "height": 834})
+                errors = []
+                page.on("pageerror", lambda e: errors.append(str(e)))
+                page.set_default_timeout(15000)
+                page.add_init_script("localStorage.setItem('artquest.tour/2','1'); localStorage.setItem('artquest.acct_prompted','1')")
+                page.goto(self.base)
+                try:
+                    page.wait_for_selector("#view-world:not(.hidden)", timeout=8000)
+                    page.click("#btn-enter-world")
+                except PWTimeout:
+                    pass
+                page.wait_for_selector("#age-gate:not(.hidden)")
+                page.fill("#age-gate-input", "9")
+                page.click("#btn-age-gate")
+                page.wait_for_selector("#quest-grid.list .map-col.todo .quest-card")
+                page.wait_for_timeout(600)
+                first = page.eval_on_selector_all("#quest-grid .map-col.todo .quest-card:not(.locked)", "e=>e.map(x=>x.dataset.key)")
+                self.assertEqual(len(first), 5)
+                for _ in range(2):
+                    page.click("#quest-grid .map-col.todo .quest-card")
+                    page.click("#btn-today")
+                    page.wait_for_selector("#view-draw:not(.hidden)")
+                    _, _, stroke_from = self._canvas_tools(page)
+                    stroke_from(200, 200, 160, 40)
+                    page.wait_for_timeout(3000)
+                    page.click("#btn-submit")
+                    page.wait_for_selector("#view-result:not(.hidden)")
+                    page.click("#btn-skip-revise")
+                    # 首访题交卷后有三题问卷（可跳过），再到结算页
+                    page.wait_for_selector("#view-survey:not(.hidden), #view-final:not(.hidden)", timeout=20000)
+                    if page.is_visible("#view-survey"):
+                        page.click("#btn-survey-skip")
+                    page.wait_for_selector("#view-final:not(.hidden)", timeout=20000)
+                    page.click("#btn-again")
+                    page.wait_for_selector("#quest-grid.list .map-col.todo .quest-card")
+                    page.wait_for_timeout(600)
+                second = page.eval_on_selector_all("#quest-grid .map-col.todo .quest-card:not(.locked)", "e=>e.map(x=>x.dataset.key)")
+                browser.close()
+            self.assertEqual(errors, [], "JS errors on the page")
+        finally:
+            cfg_mod.FIRST_VISIT_BANK = old
+        sids = sorted(self._ids() - before)
+        self.assertEqual(len(sids), 2)
+        rows = [self._get(f"/api/sessions/{s}") for s in sids]
+        rows.sort(key=lambda m: m["created_at"])
+        for i, m in enumerate(rows):
+            selx = m.get("selection") or {}
+            self.assertEqual(selx.get("decision_status"), "attached", selx)
+            self.assertEqual(selx["decision"]["rule"], "bank_rotation")
+            self.assertEqual(selx["decision"]["routing"]["band"], "B2")
+            self.assertEqual(selx["decision"]["history"]["n_done"], i)
+            offer = next(o for o in selx["offers"] if o["offer_id"] == selx["offer_id"])
+            self.assertTrue(offer["match"]["same_order"], (i, offer["match"]))
+            self.assertTrue(selx["in_offered"])
+            self.assertEqual(m["routing"]["first_visit"], True)
+        # 画完两张之后的地图：五个待办位 = 服务端规则算的（本段剩三道 + M9、M6 各一道）
+        expect = sel.offered_keys(sel.compute("map", {"anon_id": "x"}, [r["quest_id"] for r in rows], age=9))
+        self.assertEqual(second, expect)
+        self.assertEqual([sel.QUESTS_BY_ID[t]["family"] for t in second[3:]], ["M9", "M6"])
+
     def test_looking_at_the_reference_is_recorded_as_behaviour(self):
         """Look → draw → check → correct only exists if the reference records it."""
         errors, before = [], self._ids()

@@ -21,6 +21,7 @@ from . import gallery as gallery_mod
 from . import history as history_mod
 from . import llm as llm_mod
 from . import selection as sel
+from . import selection_llm
 from . import study as study_mod
 from .accounts import AccountError, AccountStore
 from . import i18n
@@ -947,6 +948,102 @@ def _done_ids_for(who: Dict[str, Any]) -> List[str]:
     return sorted({r.get("task_id") or r.get("quest_id") or "" for r in rows if r.get("status") == "done"} - {""})
 
 
+# 上一张画完 / 放弃之后在后台预算下一次决策（模型臂在这里跑，地图加载路径上从不等模型）。测试里关掉异步。
+PRECOMPUTE_ASYNC = True
+# 同一个身份一次只算一个决策：后台预算和地图打开撞上时排队，不会两个线程各开一张票
+_DECIDE_LOCKS: Dict[str, Any] = {}
+_DECIDE_GUARD = __import__("threading").Lock()
+
+
+def _decide_lock(key: str):
+    with _DECIDE_GUARD:
+        return _DECIDE_LOCKS.setdefault(key or "-", __import__("threading").Lock())
+
+
+def _rep_for(who: Dict[str, Any]) -> Dict[str, Any]:
+    """选题用的 representation：和个性化那一臂同一个 builder、同一条归属规则；截止到此刻（history_revision）。"""
+    sc = _scope(who.get("account_id", ""))
+    return history_mod.build(who.get("participant_id", ""), who.get("anon_id", ""),
+                             account_id=sc["account_id"], windows=sc["device_windows"], before=now_iso())
+
+
+def _decide(who: Dict[str, Any], st: Dict[str, Any], entrypoint: str, *, age: Optional[int], age_source: str = "",
+            first_visit: bool = True, sequence: Optional[List[str]] = None, seq_index: int = 0, dim: str = "",
+            allow_model: bool) -> Dict[str, Any]:
+    """唯一的选题位置：规则算候选和排位 → 分到的策略在自由位上执行 → 冻进这个身份的决策票。
+    同样的输入（含策略）→ 同一个决策，不重算、不重问模型。"""
+    with _decide_lock(sel.identity_key(who)):
+        for attempt in range(2):
+            try:
+                return _decide_once(who, st, entrypoint, age=age, age_source=age_source, first_visit=first_visit,
+                                    sequence=sequence, seq_index=seq_index, dim=dim, allow_model=allow_model)
+            except KeyError:
+                # 票在算的时候被收走了（刚被消费 + reap）：缓存已经没它，再来一次就是新票
+                if attempt:
+                    raise
+    raise RuntimeError("unreachable")
+
+
+def _decide_once(who: Dict[str, Any], st: Dict[str, Any], entrypoint: str, *, age: Optional[int], age_source: str = "",
+                 first_visit: bool = True, sequence: Optional[List[str]] = None, seq_index: int = 0, dim: str = "",
+                 allow_model: bool) -> Dict[str, Any]:
+    done = _done_ids_for(who)
+    condition = study_mod.resolve_condition(None, st.get("group", ""))
+    policy = condition.get("selection_policy") or "rules"
+    decision = sel.compute(entrypoint, who, done, age=age, age_source=age_source, first_visit=first_visit,
+                           sequence=sequence, seq_index=seq_index, dim=dim)
+    decision["selection_policy"] = policy
+    tsid = store.ensure_prepared_ticket(decision["identity_key"], who=who, study=st, condition=condition)
+    cur = store.current_decision(tsid)
+    if cur and cur.get("history_key") == sel.history_key(decision):
+        return cur
+    rep = None
+    if policy != "rules" and cfg.SELECTION_AUTHORITY == "server" and allow_model and (decision.get("history") or {}).get("n_done"):
+        try:
+            rep = _rep_for(who)
+        except Exception:
+            log.exception("representation for selection failed")
+    # 模型那一次调用记进决策票的 calls.jsonl（票变成 session 时一起带走）
+    with llm_mod.recording(store.call_sink(tsid), purpose="select", stage=decision.get("rule", ""),
+                           prompt_version=selection_llm.PROMPT_VERSION) as ctx:
+        sel.apply_policy(decision, policy, selection_llm.rank, rep=rep, authority=cfg.SELECTION_AUTHORITY, allow_model=allow_model)
+        if decision.get("ranking") is not None:
+            decision["ranking"]["calls"] = ctx.summary()
+            decision["ranking"]["representation_built_at"] = (rep or {}).get("built_at")
+    return store.set_decision(tsid, decision)
+
+
+def _prepare_next(meta: Dict[str, Any]) -> None:
+    """一张画完（done）或放弃（abandoned）落盘之后：把这个身份下一次进地图的决策先算好。
+    年龄来自这条 session 的路由记录或账号；都没有就按年龄门（规则会给空排位）。失败只留日志，不影响任何流程。"""
+    who = dict(meta.get("participant") or {})
+    if not sel.identity_key(who):
+        return
+    st = dict(meta.get("study") or {})
+    age = (meta.get("routing") or {}).get("age")
+    if age is None and who.get("account_id"):
+        acc = accounts.load(who["account_id"])
+        age = (acc or {}).get("age")
+
+    routing = meta.get("routing") or {}
+    # 下一次地图是不是首访模式，看刚画完这条是从哪张地图来的（客户端在首访地图上建的每条 session 都带 routing），
+    # 不看服务器开关：`?bank=0` 或研究模式的孩子，下一张地图也不是首访模式
+    first_visit = bool(routing.get("first_visit") or routing.get("bank"))
+
+    def run():
+        try:
+            _decide(who, st, "map", age=age, age_source=routing.get("age_source", ""),
+                    first_visit=first_visit, allow_model=True)
+        except Exception:
+            log.exception("precompute of the next decision failed")
+
+    if PRECOMPUTE_ASYNC:
+        import threading
+        threading.Thread(target=run, daemon=True).start()
+    else:
+        run()
+
+
 @api.post("/task-options")
 def task_options(body: TaskOptions, request: Request):
     """选题的服务端影子（agent 级数据 PR 3）。
@@ -960,12 +1057,9 @@ def task_options(body: TaskOptions, request: Request):
     if not sel.identity_key(who):
         raise HTTPException(400, "no identity to decide for")
     st = body.study.model_dump()
-    done = _done_ids_for(who)
-    decision = sel.compute(body.entrypoint, who, done, age=body.age, age_source=body.age_source,
-                           first_visit=body.first_visit, sequence=body.sequence or None, seq_index=body.seq_index,
-                           dim=body.dim)
-    condition = study_mod.resolve_condition(None, st.get("group", ""))
-    rec = store.prepare_decision(decision, who=who, study=st, condition=condition)
+    # 地图加载路径：有预算好的就用它；没有就按规则当场算（模型臂记 not_precomputed），从不在这里等模型
+    rec = _decide(who, st, body.entrypoint, age=body.age, age_source=body.age_source, first_visit=body.first_visit,
+                  sequence=body.sequence or None, seq_index=body.seq_index, dim=body.dim, allow_model=False)
     match = sel.compare(rec, body.client_offered)
     # 客户端以为做完的和服务端记的不一样，也是要看的（离线没同步、认领窗口……）
     match["same_done"] = sorted(set(body.client_done)) == list(rec.get("history", {}).get("done_task_ids") or [])
@@ -979,7 +1073,9 @@ def task_options(body: TaskOptions, request: Request):
     out = {"decision_id": rec["decision_id"], "offer_id": offer["offer_id"], "authority": authority,
            "rules_version": rec["rules_version"], "rule": rec["rule"], "match": match,
            "offered": sel.offered_keys(rec), "identity_key": rec["identity_key"],
-           "done_task_ids": list((rec.get("history") or {}).get("done_task_ids") or [])}
+           "done_task_ids": list((rec.get("history") or {}).get("done_task_ids") or []),
+           "selection_policy": rec.get("selection_policy", "rules"), "executed_policy": rec.get("executed_policy", "rules"),
+           "fallback_reason": rec.get("fallback_reason")}
     if authority == "server":
         out["cards"] = sel.cards_for_client(rec, picks)      # 浏览器照这份摆；client 模式不发，免得它拿去用
     return out
@@ -1027,6 +1123,9 @@ def _selection_record(body: CreateSession, quest: Dict[str, Any], who: Dict[str,
     rec["decision_status"] = "attached"
     rec["decision"] = {k: v for k, v in dec.items() if k not in ("superseded",)}
     rec["offers"] = offers
+    rec["selection_policy"] = dec.get("selection_policy", "rules")
+    rec["executed_policy"] = dec.get("executed_policy", "rules")
+    rec["fallback_reason"] = dec.get("fallback_reason")
     return rec
 
 
@@ -1091,6 +1190,9 @@ def create_session(body: CreateSession, request: Request):
     # 决策早于 session 的那段时间里，它一直住在既有的权限和删除边界内；现在只是把门牌换成正式的。
     # 离线重放（带着客户端的 issued 票）仍走拷贝那条路：两张票不能合成一张。
     selection = _selection_record(body, quest, who)
+    if selection["decision_status"] == "attached":
+        # 分到的臂在决策生成之前就定了，冻进 condition；实际执行的臂在 selection.executed_policy
+        condition["selection_policy"] = selection["selection_policy"]
     use_sid = body.session_id or None
     folded: Dict[str, Any] = {}
     if (cfg.SELECTION_AUTHORITY == "server" and not use_sid and selection["decision_status"] == "attached"
@@ -1344,6 +1446,7 @@ def submit(sid: str, body: Submit):
             if not body.pending:
                 store.set_lifecycle(sid, "uploaded")
             qc = _run_qc(sid, body.pending)
+            _prepare_next(store.load(sid))
             return {"phase": "before", "deferred": True, "scores": record["scores"], "feedback": None,
                     "session": store.load_full(sid), "qc": qc}
 
@@ -1426,6 +1529,7 @@ def submit(sid: str, body: Submit):
     if not body.pending:
         store.set_lifecycle(sid, "uploaded")
     qc = _run_qc(sid, body.pending)
+    _prepare_next(store.load(sid))
     return {"phase": "after", "scores": record["scores"], "comparison": cmp,
             "session": store.load_full(sid), "qc": qc}
 
@@ -1455,6 +1559,7 @@ def finalize(sid: str, body: Finalize):
     if not body.pending:
         store.set_lifecycle(sid, "uploaded")
     qc = _run_qc(sid, body.pending)
+    _prepare_next(store.load(sid))
     return {"session": store.load_full(sid), "qc": qc}
 
 
@@ -1480,6 +1585,7 @@ def abandon(sid: str, body: Abandon):
                            {"reason": body.reason, "strokes": (meta.get("counts") or {}).get("strokes", 0)})
     store.update(sid, status="abandoned", abandoned_reason=body.reason)
     store.mark_ended(sid, body.elapsed_ms)
+    _prepare_next(store.load(sid))        # 放弃也触发预算（用户 2026-10-14 定的）；状态已经落盘
     return {"ok": True, "session_id": sid, "status": "abandoned"}
 
 

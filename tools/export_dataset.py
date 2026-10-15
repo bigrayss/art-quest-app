@@ -207,7 +207,8 @@ DECISION_COLS = ["session_id", "decision_id", "offer_id", "authority", "decision
                  "source", "offline", "chosen_task_id", "in_offered", "rules_version", "task_version", "bank_version",
                  "rule", "identity_key", "history_revision", "n_done", "done_task_ids", "age", "age_source", "band",
                  "n_candidates", "n_offered", "offered", "client_offered", "same_set", "same_order", "prepared_at",
-                 "consumed_by", "ticket"]
+                 "consumed_by", "ticket", "selection_policy", "executed_policy", "fallback_reason", "rules_fill",
+                 "ranked", "select_call_id"]
 
 
 def _flat_decision(sid: str, dec: Dict[str, Any], selection: Dict[str, Any], ticket_meta: Optional[Dict[str, Any]]) -> Dict[str, Any]:
@@ -236,6 +237,10 @@ def _flat_decision(sid: str, dec: Dict[str, Any], selection: Dict[str, Any], tic
         "client_offered": "|".join((selection or {}).get("client_offered") or offer.get("client_offered") or []),
         "same_set": match.get("same_set"), "same_order": match.get("same_order"),
         "prepared_at": dec.get("prepared_at"), "consumed_by": dec.get("consumed_by"), "ticket": dec.get("ticket"),
+        "selection_policy": dec.get("selection_policy"), "executed_policy": dec.get("executed_policy"),
+        "fallback_reason": dec.get("fallback_reason"), "rules_fill": "|".join(dec.get("rules_fill") or []),
+        "ranked": "|".join(((dec.get("ranking") or {}).get("ranked") or [])),
+        "select_call_id": ((dec.get("ranking") or {}).get("calls") or {}).get("call_id"),
     }
 
 

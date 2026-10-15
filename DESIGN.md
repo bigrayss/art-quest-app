@@ -98,7 +98,9 @@ data/sessions/<session_id>/
   final.png           最后交上来的作品
   checkpoints/        只留真的需要的关键帧：`before_feedback.png`（有修改才有）
   （lifecycle=prepared 的目录是**服务端选题决策票**：decision = 冻结候选 / 排位 / 依据的历史，offers[] = 每次展示的对照；
-   不发给客户端；孩子选了题决策拷进那条 session 的 `selection`，票记 consumed_by，reap 时收走。列表/导出/历史都跳过它。）
+   不发给客户端；孩子选了题决策拷进那条 session 的 `selection`，票记 consumed_by，reap 时收走。列表/导出/历史都跳过它。
+   server 权威下票直接成为 session。decision 里另有 selection_policy / executed_policy / fallback_reason / ranking（PR 5 模型排序臂），
+   模型那一次调用在票的 calls.jsonl 里，purpose=select。）
   frames/             （schema 4）陪伴每次点击那一刻的画布，按内容 hash 命名、只追加；`session.json.assist_clicks`
                       一条点击一行（click_id / nth / 两个笔画数 / cached / source_call_id / call_id），calls.jsonl 的图指向这里
   reference/          孩子当时看到的那张刺激图的副本（static/refs 里的会被替换）

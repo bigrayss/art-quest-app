@@ -141,8 +141,10 @@ class ShadowEndpoint(unittest.TestCase):
         return r.json()
 
     def _finish(self, task_id, sid=None):
-        """画完一张（before → finalize），让服务端记下 done。"""
-        body = {"quest_id": task_id, "intent": {"emotion": "", "text": ""}, "participant": self.who}
+        """画完一张（before → finalize），让服务端记下 done。路由记录照客户端在首访地图上的样子带。"""
+        body = {"quest_id": task_id, "intent": {"emotion": "", "text": ""}, "participant": self.who,
+                "routing": {"age": 9, "age_source": "asked", "band": "B2", "first_visit": True,
+                            "bank": (QUESTS_BY_ID.get(task_id) or {}).get("bank") or ""}}
         r = self.c.post("/api/sessions", json=body)
         sid = r.json()["session_id"]
         self.c.post(f"/api/sessions/{sid}/submit", json={"image": _png(), "elapsed_ms": 1000, "phase": "before", "strokes": [_stroke(1)]})
@@ -392,6 +394,172 @@ class ServerAuthority(unittest.TestCase):
         self.assertEqual(a["authority"], "client")
         self.assertNotIn("cards", a)
         self.assertEqual(self.store.offers_of(a["decision_id"])[0]["picks"], {})
+
+
+class PolicyArms(unittest.TestCase):
+    """PR 5：selection_policy=llm 时，自由位由模型在冻结候选里排；分到的臂和执行的臂分开记；回退不改分配。
+    模型是假的（httpx.post 换掉），预算同步跑。"""
+
+    def setUp(self):
+        import artquest.config as cfg_mod
+        import artquest.main as main_mod
+        from artquest import study as study_mod
+        from artquest import selection_llm
+        from unittest import mock
+        self.cfg, self.main, self.study = cfg_mod, main_mod, study_mod
+        self.llm = selection_llm.llm
+        self.saved = (cfg_mod.SELECTION_AUTHORITY, main_mod.PRECOMPUTE_ASYNC, self.llm.LLM_PROVIDER, self.llm.LLM_BASE_URL,
+                      self.llm.LLM_MODEL, list(self.llm._POOL.keys), dict(study_mod.load_study()["condition"]))
+        cfg_mod.SELECTION_AUTHORITY = "server"
+        main_mod.PRECOMPUTE_ASYNC = False
+        self.llm.LLM_PROVIDER, self.llm.LLM_BASE_URL, self.llm.LLM_MODEL = "openai", "https://fake/v1", "fake-model"
+        self.llm._POOL.keys = ["sk-fake"]
+        study_mod.save_study({"condition": {"selection_policy": "llm"}})
+        self.c = TestClient(app)
+        self.store = SessionStore()
+        self.who = {"anon_id": "anon-arm-" + __import__("uuid").uuid4().hex[:6]}
+        self.replies = []            # 假模型按顺序回这些（字符串 = 回复正文）
+        self.requests = []
+        def post(url, json=None, **k):
+            self.requests.append(json)
+            if not self.replies:
+                raise TimeoutError("read timed out")
+            r = self.replies.pop(0)
+            if isinstance(r, Exception):
+                raise r
+            return _FakeResp(r)
+        self.patch = mock.patch("httpx.post", post); self.patch.start()
+        self.sleep = mock.patch("time.sleep", lambda *_: None); self.sleep.start()
+
+    def tearDown(self):
+        self.patch.stop(); self.sleep.stop()
+        (self.cfg.SELECTION_AUTHORITY, self.main.PRECOMPUTE_ASYNC, self.llm.LLM_PROVIDER, self.llm.LLM_BASE_URL,
+         self.llm.LLM_MODEL, keys, cond) = self.saved
+        self.llm._POOL.keys = keys
+        self.study.save_study({"condition": cond})
+
+    def _routing(self, task_id):
+        return {"age": 9, "age_source": "asked", "band": "B2", "first_visit": True, "bank": (QUESTS_BY_ID.get(task_id) or {}).get("bank") or ""}
+
+    def _finish(self, task_id, abandon=False):
+        r = self.c.post("/api/sessions", json={"quest_id": task_id, "intent": {"emotion": "", "text": ""}, "participant": self.who,
+                                               "routing": self._routing(task_id)})
+        sid = r.json()["session_id"]
+        self.c.post(f"/api/sessions/{sid}/log", json={"events": [], "strokes": [_stroke(1)]})
+        if abandon:
+            self.c.post(f"/api/sessions/{sid}/abandon", json={"elapsed_ms": 900, "reason": "test"})
+        else:
+            self.c.post(f"/api/sessions/{sid}/submit", json={"image": _png(), "elapsed_ms": 1000, "phase": "before", "strokes": [_stroke(2)]})
+            self.c.post(f"/api/sessions/{sid}/finalize", json={"elapsed_ms": 2000})
+        return sid
+
+    def _options(self, **over):
+        body = {"participant": self.who, "entrypoint": "map", "first_visit": True, "age": 9, "age_source": "asked"}
+        body.update(over)
+        r = self.c.post("/api/task-options", json=body)
+        self.assertEqual(r.status_code, 200, r.text)
+        return r.json()
+
+    def test_cold_start_and_the_map_path_never_wait_for_the_model(self):
+        a = self._options()
+        self.assertEqual((a["selection_policy"], a["executed_policy"], a["fallback_reason"]), ("llm", "rules", "cold_start"))
+        self.assertEqual(self.requests, [])                                 # 一次模型都没问
+        rules = sel.offered_keys(sel.compute("map", self.who, [], age=9))
+        self.assertEqual(a["offered"], rules)
+
+    def test_after_a_finished_drawing_the_model_fills_the_free_slot_in_the_background(self):
+        first = sel.offered_keys(sel.compute("map", self.who, [], age=9))
+        base = sel.compute("map", self.who, [first[0]], age=9)
+        pool = sel.pool_for(base)
+        self.assertTrue(pool and sel.free_slots(base) == [4])               # 画完一道：第五位是自由位
+        choice = pool[-1]                                                   # 规则会给 pool[0]（M9 第一道）；模型偏要最后一个
+        self.replies = ['{"ranked": ["%s", "%s"], "why": "练练别的"}' % (choice, pool[0])]
+        sid1 = self._finish(first[0])
+        self.assertEqual(len(self.requests), 1, "done 落盘后预算了一次，问了模型一次")
+        self.assertIn(choice, __import__("json").dumps(self.requests[0], ensure_ascii=False))   # 整个池子都给了模型
+        a = self._options(client_offered=first[1:] + [pool[0]])
+        self.assertEqual((a["selection_policy"], a["executed_policy"], a["fallback_reason"]), ("llm", "llm", None))
+        self.assertEqual(a["offered"], first[1:] + [choice])                 # 固定位照旧，自由位是模型排的
+        self.assertEqual(a["match"]["same_order"], False)                    # 客户端按规则摆的，自然对不上
+        self.assertEqual(a["cards"]["offered"][4]["task_id"], choice)
+        dec = self.store.find_decision(a["decision_id"])
+        self.assertEqual(dec["ranking"]["ranked"][0], choice)
+        self.assertEqual(dec["ranking"]["why"], "练练别的")
+        self.assertEqual(dec["rules_fill"], [pool[0]])
+        self.assertTrue(dec["ranking"]["calls"]["call_id"].startswith("call_"))
+        calls = self.store.calls(sel.ticket_of(a["decision_id"]))
+        self.assertEqual([c["purpose"] for c in calls], ["select"])
+        self.assertEqual((calls[0]["execution_kind"], calls[0]["outcome"], calls[0]["stage"]), ("remote", "ok", "bank_rotation"))
+        self.assertEqual(len(self.requests), 1, "地图打开只读结果，没有再问")
+        # 孩子点了模型排的那道：票成为 session，臂冻进 condition，调用记录跟着走
+        r = self.c.post("/api/sessions", json={"quest_id": choice, "intent": {"emotion": "", "text": ""}, "participant": self.who,
+                                               "routing": self._routing(choice),
+                                               "selection": {"entrypoint": "map", "choice_source": "child_click", "authority": "server",
+                                                             "decision_id": a["decision_id"], "offer_id": a["offer_id"]}})
+        sid = r.json()["session_id"]
+        self.assertEqual(sid, sel.ticket_of(a["decision_id"]))
+        m = self.store.load(sid)
+        self.assertEqual(m["condition"]["selection_policy"], "llm")
+        self.assertEqual((m["selection"]["selection_policy"], m["selection"]["executed_policy"], m["selection"]["in_offered"]), ("llm", "llm", True))
+        self.assertEqual([c["purpose"] for c in self.store.calls(sid)], ["select", "personalize"])
+
+    def test_bad_output_falls_back_to_rules_but_keeps_the_arm(self):
+        first = sel.offered_keys(sel.compute("map", self.who, [], age=9))
+        self.replies = ['{"ranked": ["nope_1", "nope_2"], "why": "x"}', '{"ranked": [], "why": "y"}']
+        self._finish(first[0])
+        a = self._options()
+        rules = sel.offered_keys(sel.compute("map", self.who, [first[0]], age=9))
+        self.assertEqual((a["selection_policy"], a["executed_policy"], a["fallback_reason"]), ("llm", "rules", "bad_output"))
+        self.assertEqual(a["offered"], rules)
+        dec = self.store.find_decision(a["decision_id"])
+        self.assertIn("need 1 valid ids", dec["ranking"]["error"])
+        self.assertEqual(len(self.requests), 1)
+
+    def test_a_model_timeout_falls_back_and_is_recorded(self):
+        first = sel.offered_keys(sel.compute("map", self.who, [], age=9))
+        self.replies = []                                                   # 假模型直接超时
+        self._finish(first[0])
+        a = self._options()
+        self.assertEqual((a["executed_policy"], a["fallback_reason"]), ("rules", "timeout"))
+        calls = self.store.calls(sel.ticket_of(a["decision_id"]))
+        self.assertEqual([c["outcome"] for c in calls], ["exception"])
+
+    def test_abandon_also_precomputes_and_client_authority_never_runs_the_model(self):
+        first = sel.offered_keys(sel.compute("map", self.who, [], age=9))
+        self.replies = ['{"ranked": [], "why": ""}']
+        self._finish(first[0])                                              # 画完一张 → 有历史
+        n = len(self.requests)
+        self._finish(first[1], abandon=True)                                # 放弃也预算（历史没变但 done 没变 → 同一决策，不重问）
+        self.assertEqual(len(self.requests), n)
+        self.cfg.SELECTION_AUTHORITY = "client"
+        self.replies = ['{"ranked": [], "why": ""}']
+        self._finish(first[1])
+        a = self._options()
+        self.assertEqual((a["selection_policy"], a["executed_policy"], a["fallback_reason"]), ("llm", "rules", "authority_client"))
+        self.assertEqual(len(self.requests), n)
+
+    def test_agent_is_reserved_and_rules_is_plain(self):
+        self.study.save_study({"condition": {"selection_policy": "agent"}})
+        first = sel.offered_keys(sel.compute("map", self.who, [], age=9))
+        self._finish(first[0])
+        a = self._options()
+        self.assertEqual((a["selection_policy"], a["executed_policy"], a["fallback_reason"]), ("agent", "rules", "policy_unavailable"))
+        self.study.save_study({"condition": {"selection_policy": "rules"}})
+        self._finish(first[1])
+        b = self._options()
+        self.assertEqual((b["selection_policy"], b["executed_policy"], b["fallback_reason"]), ("rules", "rules", None))
+        self.assertEqual(self.requests, [])
+
+
+class _FakeResp:
+    def __init__(self, text, status=200):
+        self.status_code = status
+        self.text = text
+        self.headers = {}
+
+    def json(self):
+        return {"id": "chatcmpl-fake", "usage": {"prompt_tokens": 1, "completion_tokens": 1},
+                "choices": [{"finish_reason": "stop", "message": {"role": "assistant", "content": self.text}}]}
 
 
 class Export(unittest.TestCase):

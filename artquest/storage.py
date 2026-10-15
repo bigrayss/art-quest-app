@@ -438,7 +438,14 @@ class SessionStore:
         return rec
 
     def _write(self, sid: str, meta: Dict[str, Any]) -> None:
-        write_json(self._meta_path(sid), meta)
+        # 目录已经没了（删除 / reap 和一个后台线程撞上）就不写：write_json 会 mkdir，等于把删掉的 session 重新长出来
+        path = self._meta_path(sid)
+        if not path.parent.is_dir():
+            raise KeyError(sid)
+        try:
+            write_json(path, meta)
+        except FileNotFoundError:                 # 写的那一瞬间目录被 rmtree 了
+            raise KeyError(sid)
 
     def list(self, *, participant_id: str = "", anon_id: str = "", account_id: str = "",
              device_windows: Optional[Dict[str, str]] = None) -> List[Dict[str, Any]]:
@@ -792,48 +799,62 @@ class SessionStore:
         return n
 
     # -- 选题决策（PR 3 影子）---------------------------------------------
-    def prepare_decision(self, decision: Dict[str, Any], *, who: Dict[str, Any], study: Optional[Dict[str, Any]] = None,
-                         condition: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """把一次服务端算出的选题决策冻进一张 `prepared` 票。
+    def ensure_prepared_ticket(self, identity_key: str, *, who: Dict[str, Any], study: Optional[Dict[str, Any]] = None,
+                               condition: Optional[Dict[str, Any]] = None) -> str:
+        """这个身份当前那张 `prepared` 决策票（没有就新发一张）。
 
-        同一个身份、同样的历史和入口（selection.history_key）→ 还是上一张票里的那个决策（幂等），
-        不每次进地图都开一张。历史变了 → 旧决策进 `superseded`，原票上换新的；旧快照一个字不改。
         新发一张票而不是改客户端手里的 issued 票：那些票客户端可能已经离线花掉了，改它们会把
-        一局真画了的东西判成「票已用过」。
+        一局真画了的东西判成「票已用过」。票上没有决策时 decision 是 None。
         """
-        from . import selection as sel
-        key = decision.get("identity_key", "")
-        hk = sel.history_key(decision)
-        sid = _PREPARED.get(key, "")
-        meta = None
+        sid = _PREPARED.get(identity_key, "") if identity_key else ""
         if sid:
             try:
                 meta = self.load(sid)
             except KeyError:
                 meta = None
-            if meta is None or meta.get("lifecycle") != "prepared" or (meta.get("decision") or {}).get("consumed_by"):
-                meta, sid = None, ""
-        if meta is None:
-            t = self.issue(condition=condition, participant=who, study=study)
-            sid = sid_of(t)
-            meta = self.load(sid)
-            meta["lifecycle"] = "prepared"
-            meta.setdefault("lifecycle_at", {})["prepared"] = now_iso()
-            meta["decision"] = None
-            meta["superseded"] = []
-            meta["offers"] = []
-        cur = meta.get("decision")
-        if cur and cur.get("history_key") == hk:
-            return cur                                  # 同样的输入 → 同一个决策
-        if cur:
-            meta.setdefault("superseded", []).append(dict(cur, superseded_at=now_iso()))
-        rec = dict(decision, decision_id=sel.new_decision_id(sid), ticket=sid, history_key=hk,
-                   prepared_at=now_iso(), consumed_by=None)
-        meta["decision"] = rec
+            if meta is not None and meta.get("lifecycle") == "prepared" and not (meta.get("decision") or {}).get("consumed_by"):
+                return sid
+        t = self.issue(condition=condition, participant=who, study=study)
+        sid = sid_of(t)
+        meta = self.load(sid)
+        meta["lifecycle"] = "prepared"
+        meta.setdefault("lifecycle_at", {})["prepared"] = now_iso()
+        meta["decision"] = None
+        meta["superseded"] = []
+        meta["offers"] = []
         self._write(sid, meta)
-        if key:
-            _PREPARED[key] = sid
+        if identity_key:
+            _PREPARED[identity_key] = sid
+        return sid
+
+    def current_decision(self, sid: str) -> Optional[Dict[str, Any]]:
+        try:
+            return self.load(sid).get("decision")
+        except KeyError:
+            return None
+
+    def set_decision(self, sid: str, decision: Dict[str, Any]) -> Dict[str, Any]:
+        """把一次算好的决策冻进票里。历史没变（history_key 相同）→ 还是原来那个；变了 → 旧的进 superseded，一个字不改。"""
+        from . import selection as sel
+        with self._lock(sid):
+            meta = self.load(sid)
+            hk = sel.history_key(decision)
+            cur = meta.get("decision")
+            if cur and cur.get("history_key") == hk:
+                return cur
+            if cur:
+                meta.setdefault("superseded", []).append(dict(cur, superseded_at=now_iso()))
+            rec = dict(decision, decision_id=sel.new_decision_id(sid), ticket=sid, history_key=hk,
+                       prepared_at=now_iso(), consumed_by=None)
+            meta["decision"] = rec
+            self._write(sid, meta)
         return rec
+
+    def prepare_decision(self, decision: Dict[str, Any], *, who: Dict[str, Any], study: Optional[Dict[str, Any]] = None,
+                         condition: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """ensure_prepared_ticket + set_decision（同一个身份、同样的输入 → 同一个决策，幂等）。"""
+        sid = self.ensure_prepared_ticket(decision.get("identity_key", ""), who=who, study=study, condition=condition)
+        return self.set_decision(sid, decision)
 
     def find_decision(self, decision_id: str) -> Optional[Dict[str, Any]]:
         from . import selection as sel
@@ -853,28 +874,30 @@ class SessionStore:
         """地图每实际展示一次记一条 offer（客户端报的 client_offered + 对照结果），挂在决策票上。"""
         from . import selection as sel
         sid = sel.ticket_of(decision_id)
-        meta = self.load(sid)
-        rec = dict(offer, offer_id=f"off_{uuid.uuid4().hex[:8]}", decision_id=decision_id, at=now_iso())
-        meta.setdefault("offers", []).append(rec)
-        self._write(sid, meta)
+        with self._lock(sid):
+            meta = self.load(sid)
+            rec = dict(offer, offer_id=f"off_{uuid.uuid4().hex[:8]}", decision_id=decision_id, at=now_iso())
+            meta.setdefault("offers", []).append(rec)
+            self._write(sid, meta)
         return rec
 
     def consume_decision(self, decision_id: str, session_id: str) -> Optional[Dict[str, Any]]:
         from . import selection as sel
         sid = sel.ticket_of(decision_id)
-        try:
-            meta = self.load(sid)
-        except KeyError:
-            return None
-        dec = meta.get("decision") or {}
-        if dec.get("decision_id") != decision_id:
-            return None
-        if not dec.get("consumed_by"):
-            dec["consumed_by"] = session_id
-            dec["consumed_at"] = now_iso()
-            meta["decision"] = dec
-            self._write(sid, meta)
-            _PREPARED.pop(dec.get("identity_key", ""), None)
+        with self._lock(sid):
+            try:
+                meta = self.load(sid)
+            except KeyError:
+                return None
+            dec = meta.get("decision") or {}
+            if dec.get("decision_id") != decision_id:
+                return None
+            if not dec.get("consumed_by"):
+                dec["consumed_by"] = session_id
+                dec["consumed_at"] = now_iso()
+                meta["decision"] = dec
+                self._write(sid, meta)
+                _PREPARED.pop(dec.get("identity_key", ""), None)
         return dec
 
     def offers_of(self, decision_id: str) -> List[Dict[str, Any]]:

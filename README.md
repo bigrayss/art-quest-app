@@ -73,6 +73,10 @@ data/prompts/<sha256>.txt   固定的 system 正文按 hash 归档一份，calls
 `calls.jsonl` 不在的旧 session 是「没采集」，不是「零次调用」。
 `session.json` 的 `selection` 记这道题怎么来的（入口、孩子点的还是协议定的、服务端影子决策的候选与排位、对照结果）；
 服务端影子选题的规则在 `artquest/selection.py`，和 app.js 的地图规则是同一套，规则一变就升 `RULES_VERSION`。
+选题策略臂 `condition.selection_policy = rules | llm | agent`（study.json 的 condition 或 groups 里分配；默认 rules）：
+llm 臂在上一张画完/放弃落盘后由服务端预算，模型只在冻结候选里给**自由位**排序（`artquest/selection_llm.py`），
+地图加载路径上从不等模型；越界/超时/没历史一律回退 rules 并记 `fallback_reason`，分到的臂（selection_policy）和实际执行的臂（executed_policy）分开记。
+只在 `ARTQUEST_SELECTION_AUTHORITY=server` 下生效。
 事件词表的唯一权威是 `artquest/events.py`。研究员接口见 `DESIGN.md` 的「API」一节。
 
 ## 研究相关

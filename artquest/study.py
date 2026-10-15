@@ -53,6 +53,10 @@ DEFAULT_CONDITION: Dict[str, Any] = {
     # inferred: it mirrors the consent form, frozen per session.
     "share_consent": False,
     "time_limit_sec": None,    # overrides the task's own limit when set
+    # 选题策略（agent 级数据 PR 5，2026-10-15）：地图上的自由位由谁来排。rules = 固定顺序（改造前的行为）；
+    # llm = 模型在冻结候选里排序；agent = 预留（同一契约，现在回退 rules 并记 policy_unavailable）。
+    # 在决策生成之前由协议分配、冻进 session；实际执行的臂另记在 selection.executed_policy。
+    "selection_policy": "rules",   # rules | llm | agent
 }
 
 # A protocol says which *families* a child must cover, which parallel form they

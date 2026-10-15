@@ -186,13 +186,114 @@ def ticket_of(decision_id: str) -> str:
 
 
 def history_key(decision: Dict[str, Any]) -> str:
-    """同一个身份、同样的历史、同样的入口和路由 → 同一个决策（幂等），不每次进地图就开一张新票。"""
+    """同一个身份、同样的历史、同样的入口和路由、同一个策略 → 同一个决策（幂等），不每次进地图就开一张新票。
+    只看**输入**，不看排出来的结果：模型排序把排位换了，决策还是同一个。"""
     h = decision.get("history") or {}
     r = decision.get("routing") or {}
     return "|".join([decision.get("rules_version", ""), decision.get("task_version", ""), decision.get("bank_version", ""),
                      decision.get("entrypoint", ""), decision.get("rule", ""), str(r.get("age")), r.get("band", "") or "",
                      r.get("dim", "") or "", ",".join(h.get("done_task_ids") or []),
-                     ",".join(o.get("task_id") or o.get("family") or "" for o in decision.get("offered") or [])])
+                     decision.get("selection_policy") or "rules", ",".join(sequence_keys(decision))])
+
+
+def sequence_keys(decision: Dict[str, Any]) -> List[str]:
+    """协议序列是输入的一部分（别的入口是空）。"""
+    if decision.get("rule") != "protocol":
+        return []
+    return [o.get("task_id") or "" for o in decision.get("offered") or []]
+
+
+# ---- 三臂共用的契约（PR 5）---------------------------------------------------------------
+POLICIES = ("rules", "llm", "agent")
+
+
+def free_slots(decision: Dict[str, Any]) -> List[int]:
+    """哪些位置是策略能动的。首访地图：本段五道是固定的（锚定位），画完之后补进来的 M 族位是自由位；
+    成长面板：挑哪个家族；协议 / 老地图：没有自由位（老地图的随机抽签在 offer 上，不在这里）。"""
+    rule = decision.get("rule")
+    offered = decision.get("offered") or []
+    if rule == "bank_rotation":
+        return [i for i, o in enumerate(offered) if o.get("task_id") and not (QUESTS_BY_ID.get(o["task_id"]) or {}).get("bank")]
+    if rule == "recommend_for":
+        return list(range(len(offered)))
+    return []
+
+
+def pool_for(decision: Dict[str, Any]) -> List[str]:
+    """策略能从哪里选：首访地图 = 所有没做过的 M 族题（不含已经摆在固定位上的）；成长面板 = 候选家族。"""
+    rule = decision.get("rule")
+    if rule == "bank_rotation":
+        fixed = {o.get("task_id") for o in decision.get("offered") or []} - {
+            (decision.get("offered") or [])[i].get("task_id") for i in free_slots(decision)}
+        return [c["task_id"] for c in decision.get("candidates") or []
+                if not c.get("done") and not c.get("bank") and c["task_id"] not in fixed]
+    if rule == "recommend_for":
+        return [o.get("family") for o in decision.get("offered") or []]
+    return []
+
+
+def apply_policy(decision: Dict[str, Any], policy: str, ranker=None, *, rep: Optional[Dict[str, Any]] = None,
+                 authority: str = "server", allow_model: bool = True) -> Dict[str, Any]:
+    """在唯一的选题位置上执行分到的策略。分配的臂（selection_policy）和实际执行的臂（executed_policy）分开记，
+    回退不改分配：分到 llm、超时回退 rules 的那条 session 仍然属于 llm 臂。
+
+    回退的理由（fallback_reason）：policy_unavailable（agent 还没接）/ authority_client（权威还在浏览器，排了也没人用）/
+    cold_start（没有历史）/ not_precomputed（地图加载路径上不等模型）/ no_free_slots / bad_output / error。
+    """
+    policy = policy if policy in POLICIES else "rules"
+    decision["selection_policy"] = policy
+    decision["executed_policy"] = "rules"
+    decision["fallback_reason"] = None
+    decision["ranking"] = None
+    free = free_slots(decision)
+    offered = decision.get("offered") or []
+    decision["rules_fill"] = [offered[i].get("task_id") or offered[i].get("family") for i in free]
+    if policy == "rules":
+        return decision
+    reason = None
+    if policy == "agent":
+        reason = "policy_unavailable"
+    elif authority != "server":
+        reason = "authority_client"
+    elif not (decision.get("history") or {}).get("n_done"):
+        reason = "cold_start"
+    elif not allow_model:
+        reason = "not_precomputed"
+    elif not free:
+        reason = "no_free_slots"
+    if reason:
+        decision["fallback_reason"] = reason
+        return decision
+    pool = pool_for(decision)
+    n = len(free)
+    try:
+        out = ranker(decision, pool, n, rep) if ranker else None
+    except Exception as e:                      # 超时、HTTP 错、形状不对：都回退规则，理由记下
+        name = type(e).__name__
+        decision["fallback_reason"] = "timeout" if "Timeout" in name else ("bad_output" if "BadOutput" in name else "error")
+        decision["ranking"] = {"pool": pool, "ranked": None, "error": f"{name}: {e}"[:300]}
+        return decision
+    ranked = [t for t in ((out or {}).get("ranked") or [])]
+    seen: List[str] = []
+    for t in ranked:
+        if t in pool and t not in seen:
+            seen.append(t)
+    if len(seen) < n:                            # 越界、重复、数量不够：整个不认，不拼一半
+        decision["fallback_reason"] = "bad_output"
+        decision["ranking"] = {"pool": pool, "ranked": ranked, "why": (out or {}).get("why", ""),
+                               "error": f"need {n} valid ids from the pool, got {len(seen)}"}
+        return decision
+    if decision.get("rule") == "bank_rotation":
+        for i, pos in enumerate(free):
+            q = QUESTS_BY_ID.get(seen[i]) or {}
+            offered[pos] = dict(offered[pos], task_id=seen[i], family=q.get("family", ""), ranked_by=policy)
+    elif decision.get("rule") == "recommend_for":
+        for o in offered:
+            o["picked"] = o.get("family") == seen[0]
+            o["ranked_by"] = policy
+    decision["executed_policy"] = policy
+    decision["ranking"] = {"pool": pool, "ranked": seen[:max(n, 1) * 2], "why": (out or {}).get("why", "")}
+    return decision
 
 
 def draw_picks(decision: Dict[str, Any], rng: Optional[random.Random] = None) -> Dict[str, str]:

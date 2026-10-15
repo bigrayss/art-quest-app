@@ -3565,8 +3565,9 @@
       participant: { anon_id: state.anonId, participant_id: savedPid(), account_id: accountId(),
                      label: "", buddy_name: state.buddyName, age: (state.account || {}).age ?? null },
       condition: state.condition, device: deviceInfo(), canvas: canvasGeom(),
-      // 首访任务库：这道题是按年龄路由到的——年龄、年龄从哪来、年龄段；M 族这里是空的
-      routing: isBank(state.quest) ? { ...(state.bank || {}), first_visit: true, bank: state.quest.bank } : {},
+      // 首访任务库：这张地图是按年龄路由的——年龄、年龄从哪来、年龄段；从首访地图上进来的 M 族题也带（bank 为空），
+      // 服务端预算下一次决策时靠它知道下一张地图还是首访模式。老地图 / 研究模式这里是空的。
+      routing: state.bank ? { ...(state.bank || {}), first_visit: true, bank: isBank(state.quest) ? state.quest.bank : "" } : {},
       // 这道题怎么来的 + 服务端影子决策的 id（有就带；没网就标 offline，服务端记成 client_offline）
       selection: Object.assign({}, state.choice || {}, state.decision && state.decision.entrypoint === ((state.choice || {}).entrypoint || "map")
         ? { decision_id: state.decision.decision_id, offer_id: state.decision.offer_id, client_offered: state.decision.client_offered,
