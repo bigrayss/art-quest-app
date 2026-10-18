@@ -39,7 +39,7 @@ cp .env.example .env     # 可选：填模型 key（ecnu-plus 或 Anthropic）�
 | `ARTQUEST_DATA_DIR` | `./data` | 数据目录，已 gitignore，儿童作品不进仓库 |
 | `ARTQUEST_SNAPSHOT_INTERVAL` | `0` | 过程截图间隔（秒）。**现在的客户端不读它**：定时截图在主线程编码整张画布会让画画卡顿；老师看的过程图由服务器从笔画日志重建（`checkpoints/process_*.png`） |
 | `ARTQUEST_ADMIN_TOKEN` | 空 | 研究员令牌；不设则全量列表、打分、策展等接口一律 401 |
-| `ARTQUEST_LLM_TOOLS` | `off` | 模型后端是否支持工具协议（OpenAI tool_calls / Anthropic tool_use）。agent 选题臂要它；没确认过的后端不假装支持：off 时 agent 臂记 `agent_unavailable` 回退规则，绝不静默跑普通模型再记成 agent |
+| `ARTQUEST_LLM_TOOLS` | `off` | 模型后端是否支持工具协议（OpenAI tool_calls / Anthropic tool_use）。agent 选题臂要它；off 时 agent 臂记 `agent_unavailable` 回退规则，绝不静默跑普通模型再记成 agent。`native`（= on）：2026-10-18 用 `tools/probe_tools.py` 探过，ecnu 网关放行 tools、回标准 tool_calls |
 | `ARTQUEST_SELECTION_AUTHORITY` | `client` | 选题权威：`client` 浏览器按规则摆地图、服务端影子对照并记录；`server` 服务端算好排位（含随机抽签）发给浏览器摆，决策票直接成为那条 session。切回 `client` 即回滚 |
 | `ARTQUEST_TEACHER_CODE` | 空 | 老师注册的邀请码 |
 | `ARTQUEST_CORS_ORIGINS` | iOS 壳的源 | 跨源来源 |

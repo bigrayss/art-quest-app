@@ -104,6 +104,7 @@ FIRST_VISIT_BANK = os.environ.get("ARTQUEST_FIRST_VISIT", "on").strip().lower() 
 SELECTION_AUTHORITY = os.environ.get("ARTQUEST_SELECTION_AUTHORITY", "client").strip().lower()
 # 模型后端支持工具协议（OpenAI tool_calls / Anthropic tool_use）吗？agent 臂要它。默认 off：没实测过的后端不假装支持，
 # agent 臂返回 agent_unavailable 回退 rules，绝不静默跑普通模型再记成 agent。确认后端支持后在服务器上设 on。
-LLM_TOOLS = os.environ.get("ARTQUEST_LLM_TOOLS", "off").strip().lower() in ("1", "true", "yes", "on")
+# 2026-10-18 用 tools/probe_tools.py 在服务器上探过：ecnu 网关放行 tools、模型回标准 tool_calls → 设 native（= on）即可，不用模拟。
+LLM_TOOLS = os.environ.get("ARTQUEST_LLM_TOOLS", "off").strip().lower() in ("1", "true", "yes", "on", "native")
 if SELECTION_AUTHORITY not in ("client", "server"):
     SELECTION_AUTHORITY = "client"
