@@ -171,14 +171,53 @@ def _sha(png: bytes) -> str:
 
 
 def _settle_local(ctx, result: Optional[Dict[str, Any]], *, seconds: float, input: Dict[str, Any],
-                  output: Dict[str, Any], error: Optional[str] = None) -> None:
+                  output: Dict[str, Any], error: Optional[str] = None, force: bool = False) -> None:
     """引擎跑完了、组里一条远程记录都没有 → 这次是本地执行（heuristic / template / no_history），
-    补一条同形的 local 记录。远程跑过的（哪怕全失败）不补：失败本身已经一条条记着。"""
-    if ctx.count:
+    补一条同形的 local 记录。远程跑过的（哪怕全失败）不补：失败本身已经一条条记着——
+    除了 force（模型挂了退回本地引擎：远程的失败记录之后，再记一条真正答了的本地执行）。"""
+    if ctx.count and not force:
         return
     backend = (result or {}).get("backend", "") or ""
+    tags = {}
+    if (result or {}).get("fallback_from"):
+        tags = {"fallback_from": result["fallback_from"], "fallback_error": (result.get("fallback_error") or "")[:300]}
     ctx.local(backend=backend, seconds=seconds, input=input, output=output,
-              outcome="error" if backend == "error" else "ok", error=error)
+              outcome="error" if backend == "error" else "ok", error=error, tags=tags)
+
+
+def _offline_engine(kind: str):
+    """模型挂了时顶上的本地引擎。孩子那一屏不能是错误文字（2026-10-18，ecnu key 失效那几天的教训）。"""
+    if kind == "scorer":
+        from .scoring.heuristic_scorer import HeuristicScorer
+        return HeuristicScorer()
+    if kind == "feedback":
+        from .feedback.template_feedback import TemplateFeedback
+        return TemplateFeedback()
+    from .assist.template_assist import TemplateAssist
+    return TemplateAssist()
+
+
+def _with_fallback(sid: str, purpose: str, kind: str, primary, fallback, elapsed_ms: int = 0):
+    """先试配置的引擎；挂了就用本地引擎再答一次，结果上标 fallback_from / fallback_error，时间线上记 MODEL_FALLBACK。
+    本地引擎也挂了才回 (None, error)。返回 (result, error_of_primary)。"""
+    try:
+        return primary(), None
+    except Exception as e:
+        log.exception("%s failed, falling back", purpose)
+        err = f"{type(e).__name__}: {e}"[:300]
+    try:
+        out = fallback(_offline_engine(kind))
+    except Exception as e2:                      # 本地引擎也挂了：只能照旧报错
+        log.exception("%s fallback failed too", purpose)
+        return None, err
+    primary_name = LLM_BACKEND
+    out = dict(out, fallback_from=primary_name, fallback_error=err)
+    try:
+        store.add_server_event(sid, ev.MODEL_FALLBACK, elapsed_ms,
+                               {"purpose": purpose, "from": primary_name, "to": out.get("backend", ""), "error": err})
+    except Exception:
+        log.exception("could not record MODEL_FALLBACK")
+    return out, err
 
 
 def _session_or_404(sid: str) -> Dict[str, Any]:
@@ -1329,26 +1368,25 @@ def assist(sid: str, body: AssistIn):
     t0 = time.monotonic()
     with llm_mod.recording(store.call_sink(sid), purpose="assist", stage=body.phase or "during",
                            prompt_version=PROMPT_VERSION, images={frame["sha256"]: frame["file"]}) as ctx:
-        try:
-            out = get_assist_engine().assist(png, quest, meta.get("intent") or {}, nth=nth)
-        except Exception as e:                      # 陪伴挂了绝不能挡住画画
-            log.exception("assist failed")
-            err = str(e)[:300]
+        out, err = _with_fallback(sid, "assist", "assist",
+                                  lambda: get_assist_engine().assist(png, quest, meta.get("intent") or {}, nth=nth),
+                                  lambda eng: eng.assist(png, quest, meta.get("intent") or {}, nth=nth), body.elapsed_ms)
+        if out is None:                             # 陪伴挂了绝不能挡住画画
             out = {"text": i18n.say(meta.get("lang", "zh"), "我在这里，按你的节奏画。", "I'm here. Keep going."),
-                   "backend": "error", "error": str(e)}
-        _settle_local(ctx, out, seconds=time.monotonic() - t0,
+                   "backend": "error", "error": err}
+        _settle_local(ctx, out, seconds=time.monotonic() - t0, force=bool(out.get("fallback_from")),
                       input={"images": [{"sha256": frame["sha256"], "file": frame["file"]}], "nth": nth,
                              "intent": meta.get("intent") or {}},
-                      output={"text": out.get("text", "")}, error=err)
+                      output={"text": out.get("text", "")}, error=err if out.get("backend") == "error" else None)
     click = store.add_assist_click(sid, {
         "click_id": click_id, "nth": nth, "t_ms": body.elapsed_ms, "phase": body.phase or meta.get("status", ""),
         "cached": False, "offline": False, "deferred": False, "n_strokes_client": body.n_strokes,
         "frame": frame, "call_id": ctx.last_call_id, "group_id": ctx.group_id, "source_call_id": None,
-        "backend": out.get("backend", ""), "text": out.get("text", "")})
+        "backend": out.get("backend", ""), "text": out.get("text", ""), "fallback_from": out.get("fallback_from")})
     resp = {"text": out["text"], "backend": out.get("backend", ""), "click_id": click_id,
             "call_id": ctx.last_call_id, "group_id": ctx.group_id, "frame_sha256": frame["sha256"],
             "n_strokes_server": click.get("n_strokes_server")}
-    if err is not None:
+    if out.get("backend") == "error":
         resp["error"] = out.get("error", err)
     return resp
 
@@ -1402,17 +1440,16 @@ def _score_and_save(sid: str, phase: str, png: bytes, elapsed_ms: int) -> Dict[s
     t0 = time.monotonic()
     with llm_mod.recording(store.call_sink(sid), purpose="score", stage=phase, prompt_version=PROMPT_VERSION,
                            images={sha: f"{phase}.png"}) as ctx:
-        try:
-            scores = get_scorer().score(png, quest, intent)
-        except Exception as e:  # scoring must never lose the artwork
-            log.exception("scoring failed")
-            err = str(e)[:300]
-            scores = {"backend": "error", "scale": [1, SCALE_MAX], "dims": {}, "summary": f"评分失败：{e}"}
-        _settle_local(ctx, scores, seconds=time.monotonic() - t0,
+        scores, err = _with_fallback(sid, "score", "scorer",
+                                     lambda: get_scorer().score(png, quest, intent),
+                                     lambda eng: eng.score(png, quest, intent), elapsed_ms)
+        if scores is None:  # scoring must never lose the artwork
+            scores = {"backend": "error", "scale": [1, SCALE_MAX], "dims": {}, "summary": f"评分失败：{err}"}
+        _settle_local(ctx, scores, seconds=time.monotonic() - t0, force=bool(scores.get("fallback_from")),
                       input={"images": [{"sha256": sha, "file": f"{phase}.png"}],
                              "applicable_dims": quest.get("applicable_dims")},
                       output={"dims": {k: (v or {}).get("score") for k, v in (scores.get("dims") or {}).items()},
-                              "summary": scores.get("summary", "")}, error=err)
+                              "summary": scores.get("summary", "")}, error=err if scores.get("backend") == "error" else None)
     # N/A is not a low score: a dimension this task cannot elicit carries no number
     scores = apply_contract(scores, quest.get("rubric"))
     # 这轮评分是哪个 group、每一维采用了哪次执行（calls.jsonl 里按 call_id 查得到输入输出）。
@@ -1485,16 +1522,15 @@ def submit(sid: str, body: Submit):
         t0 = time.monotonic()
         with llm_mod.recording(store.call_sink(sid), purpose="review", stage="before", prompt_version=PROMPT_VERSION,
                                images={_sha(png): "before.png"}) as ctx:
-            try:
-                fb = engine.feedback(png, quest, intent, record["scores"])
-            except Exception as e:
-                log.exception("feedback failed")
-                err = str(e)[:300]
-                fb = {"backend": "error", "text": f"反馈生成失败：{e}"}
-            _settle_local(ctx, fb, seconds=time.monotonic() - t0,
+            fb, err = _with_fallback(sid, "review", "feedback",
+                                     lambda: engine.feedback(png, quest, intent, record["scores"]),
+                                     lambda eng: eng.feedback(png, quest, intent, record["scores"]), body.elapsed_ms)
+            if fb is None:
+                fb = {"backend": "error", "text": f"反馈生成失败：{err}"}
+            _settle_local(ctx, fb, seconds=time.monotonic() - t0, force=bool(fb.get("fallback_from")),
                           input={"images": [{"sha256": _sha(png), "file": "before.png"}], "intent": intent,
                                  "scores": {k: (v or {}).get("score") for k, v in (record["scores"].get("dims") or {}).items()}},
-                          output={"text": fb.get("text", "")}, error=err)
+                          output={"text": fb.get("text", "")}, error=err if fb.get("backend") == "error" else None)
         fb["at"] = now_iso()
         # structured record + the anchor that splits "before feedback" from "after"
         entry = store.add_feedback(sid, {
@@ -1503,8 +1539,8 @@ def submit(sid: str, body: Submit):
             # provenance, so a later model-generated intervention is comparable
             "trigger": "submit", "model": LLM_MODEL if fb["backend"] == LLM_BACKEND else "",
             "prompt_version": PROMPT_VERSION,
-            # 这句话是哪次执行说的（calls.jsonl）
-            "call_id": ctx.last_call_id, "group_id": ctx.group_id})
+            # 这句话是哪次执行说的（calls.jsonl）；模型挂了退回模板的话，fallback_from 记本来该答的那个
+            "call_id": ctx.last_call_id, "group_id": ctx.group_id, "fallback_from": fb.get("fallback_from")})
         fb["feedback_id"] = entry["feedback_id"]
         fb["t_ms"] = body.elapsed_ms
         # `entry` *is* the FEEDBACK_SHOW event on the timeline — no second record
@@ -1526,21 +1562,21 @@ def submit(sid: str, body: Submit):
         t0 = time.monotonic()
         with llm_mod.recording(store.call_sink(sid), purpose="final", stage="after", prompt_version=PROMPT_VERSION,
                                images={_sha(before_png): "before.png", _sha(png): "after.png"}) as ctx:
-            try:
-                cmp = engine.compare(before_png, png, meta["before"]["scores"], record["scores"], quest, intent)
-            except Exception as e:
-                log.exception("compare failed")
-                err = str(e)[:300]
-                cmp = {"backend": "error", "text": f"对比生成失败：{e}"}
-            _settle_local(ctx, cmp, seconds=time.monotonic() - t0,
+            cmp, err = _with_fallback(sid, "final", "feedback",
+                                      lambda: engine.compare(before_png, png, meta["before"]["scores"], record["scores"], quest, intent),
+                                      lambda eng: eng.compare(before_png, png, meta["before"]["scores"], record["scores"], quest, intent),
+                                      body.elapsed_ms)
+            if cmp is None:
+                cmp = {"backend": "error", "text": f"对比生成失败：{err}"}
+            _settle_local(ctx, cmp, seconds=time.monotonic() - t0, force=bool(cmp.get("fallback_from")),
                           input={"images": [{"sha256": _sha(before_png), "file": "before.png"},
                                             {"sha256": _sha(png), "file": "after.png"}], "intent": intent},
-                          output={"text": cmp.get("text", "")}, error=err)
+                          output={"text": cmp.get("text", "")}, error=err if cmp.get("backend") == "error" else None)
         store.add_feedback(sid, {"t_ms": body.elapsed_ms, "phase": "after", "source": "ai",
                                  "feedback_type": "comparison", "backend": cmp["backend"],
                                  "text": cmp["text"], "trigger": "submit",
                                  "prompt_version": PROMPT_VERSION,
-                                 "call_id": ctx.last_call_id, "group_id": ctx.group_id})
+                                 "call_id": ctx.last_call_id, "group_id": ctx.group_id, "fallback_from": cmp.get("fallback_from")})
     store.add_server_event(sid, "SESSION_END", body.elapsed_ms, {"revised": True})
     store.update(sid, after=record, comparison=cmp, revised=True, status="done")
     _buddy_invite(sid)

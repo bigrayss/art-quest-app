@@ -114,7 +114,9 @@ class TheWindowDuringDrawing(unittest.TestCase):
             r = self.c.post(f"/api/sessions/{sid}/assist", json={"image": self.img, "nth": 1})
             self.assertEqual(r.status_code, 200, r.text)
             self.assertTrue(r.json()["text"].strip())
-            self.assertEqual(r.json()["backend"], "error")
+            # 2026-10-18：模型挂了退回模板，孩子看到的是模板那句，不是错误文字
+            self.assertEqual(r.json()["backend"], "template")
+            self.assertNotIn("error", r.json())
         finally:
             m.get_assist_engine = orig
 

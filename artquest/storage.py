@@ -567,7 +567,7 @@ class SessionStore:
             "target_region": record.get("target_region"),
             "shown_at": record.get("shown_at") or now_iso(),
             # provenance, so a later model-generated intervention is comparable
-            **{k: record[k] for k in ("trigger", "model", "prompt_version", "call_id", "group_id") if record.get(k)},
+            **{k: record[k] for k in ("trigger", "model", "prompt_version", "call_id", "group_id", "fallback_from") if record.get(k)},
         }
         t_ms = record.get("t_ms", 0)
         # the event stream keeps one shape: type + payload, like every other event

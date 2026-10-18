@@ -260,11 +260,16 @@ class LocalEnginesThroughTheApi(unittest.TestCase):
         finally:
             m.get_assist_engine = orig
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(r.json()["backend"], "error")
-        self.assertIsNone(r.json()["call_id"])
+        # 2026-10-18：配置的引擎挂了 → 模板顶上；记录里一条 local（backend=template）带 fallback_from / fallback_error
+        self.assertEqual(r.json()["backend"], "template")
+        self.assertTrue(r.json()["call_id"])
         last = self.store.calls(sid)[-1]
-        self.assertEqual((last["purpose"], last["outcome"], last["backend"]), ("assist", "error", "error"))
-        self.assertIn("boom", last["error"])
+        self.assertEqual((last["purpose"], last["outcome"], last["backend"]), ("assist", "ok", "template"))
+        self.assertIn("boom", last["fallback_error"])
+        self.assertTrue(last["fallback_from"])
+        events = [e for e in self.store.log(sid, "events").read() if e["type"] == "MODEL_FALLBACK"]
+        self.assertEqual(len(events), 1)
+        self.assertEqual((events[0]["payload"]["purpose"], events[0]["payload"]["to"]), ("assist", "template"))
 
 
 # ---------------------------------------------------------------------------
