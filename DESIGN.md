@@ -1057,6 +1057,8 @@ Apple Pencil 的 `tiltX/tiltY` 与 `altitudeAngle`、主屏模式下的 IndexedD
 | `feedback_source` | `ai` / `teacher` / `none` | 反馈来源 |
 | `time_limit_sec` | int / null | 时限，到点自动提交并记 `TIME_LIMIT_REACHED` |
 | `sync_marks` | bool | 看得见的同步标记（整屏白闪 + 编号 + 研究员「同步」钮），给外部相机对帧。默认 false：对孩子那一闪是干扰 |
+| `intent_mode` | `ask` / `none` | 开始画之前问不问心情和心愿。`ask` 和以前一样（simple 界面本来就不问，quiet 对照组问）；`none` 一律不问，选了就画。成人研究用 `none` |
+| `map_display` | `always` / `none` | 任务页上摆不摆地图。`none` 只留「今天这一张」任务卡。地图上能回去重画走过的题（protocol 记成偏离），所以它是条件，不跟着 quiet 走 |
 | `medium` | `ipad` / `paper` | 在哪儿画。`paper`：屏上不放画布，app 记时间线、收作品照片，见「纸面 session」。老 session 没有这一条，按 `ipad` 读 |
 
 **顺序随机化**：藏宝图上的关卡顺序就是 task sequence——按被试编号用**平衡拉丁方**排（每个任务在每个位置
@@ -1176,7 +1178,6 @@ recording → completed_local → pending_upload → uploaded → server_verifie
 **还没做**：
 - 上传不能离线；
 - 问卷的措辞是给孩子的；
-- quiet 下心愿页的心情表情和画廊 tab 还在；
 - 结束以后再放弃，会覆盖结束时间。
 
 ## 反馈 → 修改：不只记下反馈，还要能回答"他改了吗、改在哪"

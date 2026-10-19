@@ -1227,10 +1227,13 @@ def _selection_record(body: CreateSession, quest: Dict[str, Any], who: Dict[str,
     return rec
 
 
-def _check_medium(condition: Dict[str, Any]) -> None:
-    """在哪儿画决定了后面走哪条收作品、哪组 QC 的路；拼错一个字就会悄悄走回 iPad 那条，所以当场拒。"""
-    if condition.get("medium", "ipad") not in study_mod.MEDIA:
-        raise HTTPException(422, f"unknown medium {condition.get('medium')!r}; expected one of {study_mod.MEDIA}")
+def _check_enums(condition: Dict[str, Any]) -> None:
+    """在哪儿画决定了后面走哪条收作品、哪组 QC 的路，问不问心愿决定了 intent 那一栏是「没问」还是「没答」，
+    摆不摆地图决定了能不能偏离序列；拼错一个字就会悄悄走回默认那条，所以当场拒。"""
+    for key, allowed in (("medium", study_mod.MEDIA), ("intent_mode", study_mod.INTENT_MODES),
+                         ("map_display", study_mod.MAP_DISPLAYS)):
+        if condition.get(key, allowed[0]) not in allowed:
+            raise HTTPException(422, f"unknown {key} {condition.get(key)!r}; expected one of {allowed}")
 
 
 @api.post("/tickets", status_code=201)
@@ -1257,7 +1260,7 @@ def issue_tickets(body: IssueTickets, request: Request):
         if qid and quest is None:
             raise HTTPException(400, f"unknown quest {qid}")
         condition = study_mod.resolve_condition(None, st.get("group", ""))
-        _check_medium(condition)
+        _check_enums(condition)
         if quest and quest.get("time_limit_sec") and not condition.get("time_limit_sec"):
             condition["time_limit_sec"] = quest["time_limit_sec"]
         t = store.issue(condition=condition, participant=body.participant.model_dump(),
@@ -1286,7 +1289,7 @@ def create_session(body: CreateSession, request: Request):
             _check_owner(request, who["account_id"])
     st = body.study.model_dump()
     condition = study_mod.resolve_condition(body.condition, st.get("group", ""))
-    _check_medium(condition)
+    _check_enums(condition)
     if quest.get("time_limit_sec") and not condition.get("time_limit_sec"):
         condition["time_limit_sec"] = quest["time_limit_sec"]
     # 界面语言此刻冻进 session：之后评分、反馈、陪伴都按它，task 快照记的也是孩子看到的那一版

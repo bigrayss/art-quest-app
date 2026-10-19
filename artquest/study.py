@@ -65,8 +65,17 @@ DEFAULT_CONDITION: Dict[str, Any] = {
     # app 只发任务、记时间线和同步标记、收作品照片（POST /sessions/{id}/end、/artifacts），QC 换一组项。
     # 旧 session 没有这一条，一律按 ipad 读。
     "medium": "ipad",          # ipad | paper
+    # 开始画之前问不问心情和心愿（2026-10-19）：ask = 和以前一样（simple 界面本来就不问，quiet 对照组问）；
+    # none = 一律不问，选了就画——那一屏是给孩子的，成人研究写 none。旧 session 没有这一条，按 ask 读。
+    "intent_mode": "ask",      # ask | none
+    # 任务页上摆不摆地图（2026-10-19）：always = 和以前一样；none = 只留「今天这一张」任务卡。
+    # 照着研究序列走时，地图上还能回去重画走过的题（protocol 里记成偏离），所以这不是纯装饰：
+    # 孩子的对照组不动它，成人研究写 none。旧 session 没有这一条，按 always 读。
+    "map_display": "always",   # always | none
 }
 MEDIA = ("ipad", "paper")
+INTENT_MODES = ("ask", "none")
+MAP_DISPLAYS = ("always", "none")
 
 # A protocol says which *families* a child must cover, which parallel form they
 # get, and what is held out — so that one library of 75 forms turns into a short,

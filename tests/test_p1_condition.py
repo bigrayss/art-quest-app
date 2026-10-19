@@ -1,14 +1,17 @@
 """成人纸面任务与研究条件（2026-10-19，给成人研究 P1 用）。
 
 P1 的任务文字和量表不进这个公开仓：任务从 `$ARTQUEST_DATA_DIR/tasks.json` 注入，
-这里用的全是占位的 fixture。要守的是四件事：
+这里用的全是占位的 fixture。要守的是五件事：
 
 1. tasks.json 能说「参考物是实物，不在屏上」（写生，`stimulus.kind = physical`）
    和「参考图打印给被试」（临摹，`stimulus.kind = printed`，带 `stimulus_id`）——
    两者都冻进 session，屏上都不出现参考图；
 2. P1 条件下被试界面没有游戏化元素（彩点、徽章、奖杯），没有任何引擎生成的文字；
 3. 不把作品图发给任何外部模型：calls.jsonl 的 execution_kind 全部是 local；
-4. 年龄门和首访题库不拦 study 链接进来的成年被试。
+4. 年龄门和首访题库不拦 study 链接进来的成年被试；
+5. 被试界面上也没有给孩子的那层壳：不问心情和心愿（`intent_mode = none`），任务页上不摆
+   闯关地图（`map_display = none`），也没有品牌名和画廊 tab（quiet）。孩子那边的 quiet 对照组
+   照旧问心愿、照旧有地图——地图上能回去重画走过的题，它的数据不能跟着变。
 
 Run:  python3 -m unittest tests.test_p1_condition -v
 """
@@ -50,7 +53,7 @@ except ImportError:  # pragma: no cover
 # P1 的固定条件。growth_display=none 是现有条件：不加它，结算页会摆出这张画的九维评分图和评语。
 P1 = {"ui": "quiet", "feedback_source": "none", "dialogue_mode": "none", "history_mode": "none",
       "gallery_display": "none", "growth_display": "none", "sync_marks": True, "questionnaire": True,
-      "medium": "paper"}
+      "medium": "paper", "intent_mode": "none", "map_display": "none"}
 
 # 占位任务：形状和 P1 的一样，字是假的
 FIXTURE_TASKS = [
@@ -211,6 +214,33 @@ class NoRemoteModel(unittest.TestCase):
         self.assertIn("score", {c["purpose"] for c in calls})
 
 
+class IntentAndMapConditions(unittest.TestCase):
+    """`intent_mode`：开始画之前问不问心情和心愿，默认 ask；`map_display`：任务页上摆不摆地图，默认 always。
+    都和以前一样，成人研究写 none。"""
+
+    def _create(self, condition):
+        return TestClient(app, headers=ADMIN).post("/api/sessions", json={
+            "quest_id": "imagine_animal", "intent": {"emotion": "", "text": ""},
+            "participant": {"anon_id": "anon-intent"}, "condition": condition, "canvas": {}})
+
+    def test_both_default_to_the_old_behaviour_and_are_frozen_and_exported(self):
+        ask = self._create({}).json()["session_id"]
+        none = self._create(dict(P1)).json()["session_id"]
+        self.assertEqual([store.load(ask)["condition"][k] for k in ("intent_mode", "map_display")], ["ask", "always"])
+        self.assertEqual([store.load(none)["condition"][k] for k in ("intent_mode", "map_display")], ["none", "none"])
+        with tempfile.TemporaryDirectory() as out:
+            export(Path(out))
+            with open(Path(out) / "sessions.csv", encoding="utf-8") as fh:
+                rows = {r["session_id"]: r for r in csv.DictReader(fh)}
+        self.assertEqual([rows[ask][k] for k in ("cond_intent_mode", "cond_map_display")], ["ask", "always"])
+        self.assertEqual([rows[none][k] for k in ("cond_intent_mode", "cond_map_display")], ["none", "none"])
+
+    def test_an_unknown_value_is_refused_not_frozen(self):
+        for bad in ({"intent_mode": "sometimes"}, {"map_display": "hidden"}):
+            r = self._create(bad)
+            self.assertEqual(r.status_code, 422, (bad, r.text))
+
+
 def _visible_report(page):
     """这一屏上看得见的游戏化元素和引擎文字。看不见（自己或祖先 display:none）的不算。"""
     return page.evaluate("""() => {
@@ -220,7 +250,9 @@ def _visible_report(page):
       return {
         view: [...document.querySelectorAll('section.view')].filter(v => !v.classList.contains('hidden')).map(v => v.id),
         mascot: pick('.sprite, #btn-world, .rail-brand .mark').map(e => e.id || e.className.baseVal || e.className),
-        badges: pick('#badges-card, .badge, [data-tab="buddy"]').length,
+        badges: pick('#badges-card, .badge, [data-tab="buddy"], .stile[data-go="buddy"]').length,
+        // 「我的」上的数字卡是门：看得见的门不能通向一个藏起来的 tab（点进去是空的一屏）
+        dead_doors: pick('.stile.jump').map(b => b.dataset.go).filter(go => !pick(`[data-tab="${go}"]`).length),
         trophy: pick('#view-final > h1 .ico').length,
         scores: pick('#final-scores, #scores, #score-summary, .rose-wrap').length,
         // 结算页那一句在没有反馈的条件下是写死的系统话（app.js showFinal），不是引擎生成的；别的一律不该出现
@@ -228,6 +260,10 @@ def _visible_report(page):
                        .map(e => e.innerText.trim()).filter(t => t && t !== '画好了，作品已保存。'),
         age_gate: pick('#age-gate').length,
         buddy_word: document.body.innerText.includes('彩点'),
+        // 给孩子的那层壳：品牌名「彩绘冒险」、画廊 tab、闯关地图（带锁的下一关）、心情和心愿
+        shell: [...pick('.rail-brand b').map(() => 'brand'), ...pick('[data-tab="dex"]').map(() => 'gallery_tab'),
+                ...pick('#quest-grid .quest-card').map(() => 'map'),
+                ...pick('#emotion-chips button, #intent-text').map(() => 'intent')],
       };
     }""")
 
@@ -237,6 +273,8 @@ def _assert_clean(test, rep):
     test.assertEqual((rep["badges"], rep["trophy"], rep["scores"], rep["age_gate"]), (0, 0, 0, 0), rep)
     test.assertFalse(rep["buddy_word"], rep)
     test.assertEqual(rep["engine_text"], [], rep)
+    test.assertEqual(rep["shell"], [], rep)
+    test.assertEqual(rep["dead_doors"], [], rep)
 
 
 def _events(base, sid):
@@ -279,8 +317,8 @@ class TheParticipantScreens(unittest.TestCase):
         req = urllib.request.Request(self.base + "/api/sessions", headers=ADMIN)
         return {r["session_id"] for r in json.load(urllib.request.urlopen(req))}
 
-    def _walk(self, condition, pid, draw):
-        """study 链接 → 任务 → 心愿 → 画（或纸面）→ 问卷 → 结束页。每一屏都量一次。"""
+    def _walk(self, condition, pid, draw, visit_me=False):
+        """study 链接 → 任务 →（心愿，问的话）→ 画（或纸面）→ 问卷 → 结束页。每一屏都量一次。"""
         reports = []
         with tasks_json(FIXTURE_TASKS), study_json({"active": True, "study_id": "p1fx", "order": "fixed",
                                                     "tasks": ["fx_observe", "fx_copy"], "condition": condition}):
@@ -295,9 +333,10 @@ class TheParticipantScreens(unittest.TestCase):
                     reports.append(_visible_report(page))
                     before = self._ids()
                     page.click("#btn-today")
-                    page.wait_for_selector("#view-intent:not(.hidden)")
-                    reports.append(_visible_report(page))
-                    page.click("#btn-start-draw")
+                    page.wait_for_selector("#view-intent:not(.hidden), #view-paper:not(.hidden), #view-draw:not(.hidden)")
+                    if page.is_visible("#view-intent"):
+                        reports.append(_visible_report(page))
+                        page.click("#btn-start-draw")
                     draw(page)
                     page.wait_for_selector("#view-survey:not(.hidden)")
                     reports.append(_visible_report(page))
@@ -306,6 +345,13 @@ class TheParticipantScreens(unittest.TestCase):
                     page.wait_for_timeout(800)
                     reports.append(_visible_report(page))
                     (sid,) = self._ids() - before
+                    if visit_me:                 # 回到任务页，再点「我的」
+                        page.click("#btn-paper-next" if page.is_visible("#btn-paper-next") else "#btn-again")
+                        page.wait_for_selector("#view-quest:not(.hidden)")
+                        page.click('[data-tab="me"]')
+                        page.wait_for_selector("#view-sessions:not(.hidden)")
+                        page.wait_for_selector("#story .stile")
+                        reports.append(_visible_report(page))
                 finally:
                     browser.close()
         return sid, reports
@@ -344,17 +390,38 @@ class TheParticipantScreens(unittest.TestCase):
             _assert_clean(self, rep)
         self.assertEqual(reports[0]["view"], ["view-quest"], "年龄门和首访题库没拦路，直接到任务")
         self.assertEqual(reports[-1]["view"], ["view-paper"])
+        self.assertNotIn(["view-intent"], [r["view"] for r in reports], "不问心情和心愿，选了就画")
         evs = _events(self.base, sid)
         self.assertEqual([e for e in evs if e["type"] == "MASCOT_STATE"], [], "没出现的精灵不记曝光")
 
     def test_the_same_conditions_on_the_ipad_are_just_as_quiet(self):
         self.reports_mid = []
-        sid, reports = self._walk(dict(P1, medium="ipad"), "P312", self._ipad)
+        sid, reports = self._walk(dict(P1, medium="ipad"), "P312", self._ipad, visit_me=True)
         reports[2:2] = self.reports_mid
         for rep in reports:
             _assert_clean(self, rep)
-        self.assertEqual(reports[-1]["view"], ["view-final"])
+        self.assertEqual([r["view"] for r in reports[-2:]], [["view-final"], ["view-sessions"]])
+        self.assertNotIn(["view-intent"], [r["view"] for r in reports])
         self.assertEqual([e for e in _events(self.base, sid) if e["type"] == "MASCOT_STATE"], [])
+
+    def test_guard_the_childrens_quiet_arm_still_picks_on_the_map_and_states_an_intent(self):
+        """护栏：孩子的 quiet 对照组（intent_mode、map_display 不写）照旧有地图、照旧问心愿。"""
+        cfg.FIRST_VISIT_BANK = False
+        with study_json({"active": True, "study_id": "kids-quiet", "condition": {"ui": "quiet"}}):
+            with sync_playwright() as pw:
+                browser = pw.chromium.launch(channel="chrome")
+                try:
+                    page = browser.new_page(viewport={"width": 1180, "height": 820})
+                    page.set_default_timeout(15000)
+                    page.goto(f"{self.base}/?study=1&pid=K301")
+                    page.wait_for_selector("#btn-today")
+                    page.wait_for_timeout(500)
+                    self.assertGreater(len([s for s in _visible_report(page)["shell"] if s == "map"]), 1)
+                    page.click("#btn-today")
+                    page.wait_for_selector("#view-intent:not(.hidden)")
+                    self.assertIn("intent", _visible_report(page)["shell"])
+                finally:
+                    browser.close()
 
 
 if __name__ == "__main__":

@@ -2365,6 +2365,12 @@ body.offline .needs-net { display:none !important; }
 
 /* ===== 放在文件末尾（2026-10-19）：纸面任务和成人研究条件 =====
    不紧挨着上面 quiet 那段写：那段和 quiet 修复（bigrayss/art-quest-app#2）逐字相同，两边合并时不打架。 */
+/* map_display = none（成人研究）：任务页上不摆地图，只留今天这张卡（app.js renderQuests 给 #view-quest 加 no-route）。
+   地图上能回去重画走过的题，所以它是条件，不跟着 quiet 走。 */
+#view-quest.no-route .map { display:none !important; }
+@media (min-width: 701px) and (min-height: 600px) {
+  #view-quest.no-route { grid-template-columns:minmax(0, 560px); justify-content:center; }
+}
 /* ===== 纸面任务（condition.medium = paper）：没有画布，一张卡 ===== */
 .paper-card { display:flex; flex-direction:column; gap:14px; }
 .paper-card .intent-task { border:none; padding:6px 0 0; box-shadow:none; background:none; }

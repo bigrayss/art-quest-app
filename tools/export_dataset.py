@@ -67,7 +67,7 @@ SESSION_COLS = [
     "time_limit_sec", "allowed_tools", "reference_id", "order_index", "sequence_id",
     "study_active", "study_id", "group", "cond_ui", "cond_reference_allowed",
     "cond_undo_allowed", "cond_questionnaire", "cond_feedback_source",
-    "cond_zoom_allowed", "cond_history_mode", "cond_sync_marks",
+    "cond_zoom_allowed", "cond_history_mode", "cond_sync_marks", "cond_intent_mode", "cond_map_display",
     # 在哪儿画（2026-10-19）：ipad | paper。改版之前的 session 没冻这一条，留空（全是屏上画的）
     "medium", "n_artifacts",
     # 客户端的钟（2026-10-19）：t_ms = 0 那一刻客户端墙上是几点（events.client_clock_anchor），
@@ -150,7 +150,8 @@ def _flat_session(m: Dict[str, Any]) -> Dict[str, Any]:
         "cond_undo_allowed": c.get("undo_allowed"), "cond_questionnaire": c.get("questionnaire"),
         "cond_feedback_source": c.get("feedback_source"),
         "cond_zoom_allowed": c.get("zoom_allowed"), "cond_history_mode": c.get("history_mode"),
-        "cond_sync_marks": c.get("sync_marks"),
+        "cond_sync_marks": c.get("sync_marks"), "cond_intent_mode": c.get("intent_mode"),
+        "cond_map_display": c.get("map_display"),
         "medium": c.get("medium"), "n_artifacts": len(m.get("artifacts") or []) if c.get("medium") == "paper" else None,
         "emotion": intent.get("emotion", ""), "intent_text": intent.get("text", ""),
         "status": m.get("status"), "revised": m.get("revised"),

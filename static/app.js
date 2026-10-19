@@ -968,8 +968,8 @@
    *  is telling them they failed at something. */
   function flowStages() {
     const quiet = state.condition && state.condition.feedback_source !== "ai";
-    // 简单版没有心愿那一站，条上也别数它
-    return ALL_STAGES.filter(s => !(quiet && (s.key === "result" || s.key === "evolve")) && !(isSimple() && s.key === "intent")
+    // 简单版（和 intent_mode = none）没有心愿那一站，条上也别数它
+    return ALL_STAGES.filter(s => !(quiet && (s.key === "result" || s.key === "evolve")) && !(!asksIntent() && s.key === "intent")
       && !(revisionOff() && s.key === "evolve"));   // 首访默认不开修改轮：条上也别数它
   }
   function renderFlow(currentKey) {
@@ -2649,6 +2649,8 @@
   // 2026-10-12 用户：「简单版 / 完整版」两档删掉，只留简单版——不问心情和心愿、不做问卷、不摆成长图、彩点只说一句。
   // ui 只剩 simple | quiet：quiet 是研究员定的对照组（去游戏化），其余一律 simple。
   const isSimple = () => state.condition.ui === "simple";
+  /** 开始画之前问不问心情和心愿：simple 本来就不问；intent_mode = none（成人研究）一律不问。 */
+  const asksIntent = () => !isSimple() && (state.condition.intent_mode || "ask") !== "none";
   function applyCondition() {
     const c = state.condition;
     if (c.ui !== "quiet") c.ui = "simple";
@@ -3062,6 +3064,9 @@
     grid.querySelectorAll(".quest-card, .map-col").forEach(el => el.remove());
     const seq = state.study && state.study.sequence ? state.study.sequence : null;
     const byId = Object.fromEntries(state.quests.map(q => [q.id, q]));
+    // map_display = none（成人研究）：不摆地图——锁着的下一关、走过的星星都是闯关的样子——只留今天这张卡。
+    // 地图上能回去重画走过的题，所以这是条件，不跟着 quiet 走：孩子的对照组照旧有地图。
+    $("#view-quest").classList.toggle("no-route", (state.condition || {}).map_display === "none");
 
     // Study Mode: the protocol names exact forms, in order. Free play: the child
     // picks a *mission family* — 75 forms is a task library, not a treasure map,
@@ -3506,8 +3511,8 @@
     const seqMode = !!(state.study && state.study.sequence);
     state.choice = Object.assign({ entrypoint: seqMode ? "protocol" : "map",
                                    choice_source: seqMode ? "protocol" : "child_click" }, via || {});
-    // 简单版：不问心情、不写心愿，选了就画
-    if (isSimple()) { state.emotion = ""; $("#intent-text").value = ""; return startDrawing(); }
+    // 简单版（和 intent_mode = none）：不问心情、不写心愿，选了就画
+    if (!asksIntent()) { state.emotion = ""; $("#intent-text").value = ""; return startDrawing(); }
     // 任务自带参考图、而且是「一直可见」那种的，心愿屏的任务卡里就先给他看：
     // 写心愿之前知道要照着什么画。on_demand 的不放——画面要等他自己点开。
     const ref = q.reference, showRef = ref && state.condition.reference_allowed && ref.mode === "always";
