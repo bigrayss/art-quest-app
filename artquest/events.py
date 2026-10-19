@@ -4,10 +4,14 @@
 Every module writes into the same stream with the same clock, so nothing has to
 be reconciled afterwards:
 
-* `t_ms` is **the** timestamp: milliseconds since the session started drawing.
-  Wall-clock time is recoverable from `metadata.times.started_at_ms + t_ms`, so
-  no event carries its own wall clock and no two modules can disagree about
-  what "now" was.
+* `t_ms` is **the** timestamp: milliseconds since the session started drawing,
+  read off the client's `Date.now()`. The wall clock at `t_ms = 0` is the
+  client's own reading, logged once as the `SYNC_MARK` with `n = 0` (see
+  `client_clock_anchor`). It is *not* `times.started_at`: that one is the
+  server's clock at the moment it handled the create request — a round trip
+  earlier, on another machine, and for an offline ticket whenever the create
+  was finally replayed. So no other event carries a wall clock, and no two
+  modules can disagree about what "now" was.
 * Server-side records (feedback shown, session end) land in the same stream with
   the same `t_ms`, taken from the client's clock at the request that caused them.
 
@@ -16,7 +20,7 @@ would orphan the sessions already collected, so `canonical()` folds the old name
 onto the new one and every reader goes through it. Old logs keep their bytes;
 readers stop caring.
 """
-from typing import Any, Dict, Iterable, Set
+from typing import Any, Dict, Iterable, Optional, Set
 
 # -- session / task ----------------------------------------------------------
 SESSION_START = "SESSION_START"
@@ -99,6 +103,21 @@ FEATURED_DECLINED = "FEATURED_DECLINED"
 # -- outcome -----------------------------------------------------------------
 QUESTIONNAIRE_SUBMITTED = "QUESTIONNAIRE_SUBMITTED"
 DOWNLOAD = "DOWNLOAD"
+# 纸面 session（condition.medium = paper，2026-10-19）收到一张作品照片或扫描件。payload：
+# artifact_id、kind（final 终稿 / stage 阶段照）、sha256、uploaded_by、label、superseded（被它取代的旧终稿）。
+# t_ms 是上传那一刻的会话时钟；拍摄时间记在 session.json 的 artifacts 里，不在这里。
+ARTIFACT_UPLOADED = "ARTIFACT_UPLOADED"
+
+# -- clocks ------------------------------------------------------------------
+# 这条时间线和外面的钟对上的地方（2026-10-19）。payload：n、source、visible，n=0 另带 wall_ms。
+# - n=0, source=clock, visible=false：时钟锚点。每个 session 一条，客户端在零点附近记，
+#   t_ms 和 wall_ms 出自同一次 Date.now()，锚点 = wall_ms − t_ms（见 client_clock_anchor）。
+# - n≥1, visible=true：看得见的同步标记，只在条件 sync_marks 打开时出现——整屏白闪一下、
+#   显示编号 n，让眼动眼镜的场景相机、俯拍相机拍到同一帧。source = start（进画布自己闪一次）
+#   / researcher（研究员按钮）/ submit（交卷那一下；纸面 session 是按「结束」那一下）。t_ms 记在白屏插进页面那一刻，
+#   真正上屏还要等下一帧（≤ 1 帧）加屏幕延迟，试点时用视频实测。
+#   不带 wall_ms：它就是锚点 + t_ms，能算出来的不存。
+SYNC_MARK = "SYNC_MARK"
 
 # Old name -> unified name. Sessions recorded before the vocabulary settled keep
 # their bytes; every reader folds them onto the current name.
@@ -118,8 +137,9 @@ VOCABULARY: Set[str] = {
     PAUSE_START, PAUSE_END, TIME_LIMIT_REACHED,
     ASSIST_OPEN, ASSIST_SHOW, MASCOT_STATE,
     FEEDBACK_SHOW, FEEDBACK_DISMISS, REVISION_START, REVISION_SKIPPED, MODEL_FALLBACK,
-    HISTORY_SHOWN, RATING_ADDED, QUESTIONNAIRE_SUBMITTED, DOWNLOAD,
+    HISTORY_SHOWN, RATING_ADDED, QUESTIONNAIRE_SUBMITTED, DOWNLOAD, ARTIFACT_UPLOADED,
     FEATURED_PROPOSED, FEATURED_ACCEPTED, FEATURED_DECLINED,
+    SYNC_MARK,
 }
 
 # The strokes that actually put ink on the canvas, under either vocabulary.
@@ -138,6 +158,26 @@ def is_known(type_: str) -> bool:
 def unknown_types(types: Iterable[str]) -> Set[str]:
     """Event types not in the vocabulary — a module inventing its own name."""
     return {t for t in types if t and not is_known(t)}
+
+
+def client_clock_anchor(events: Iterable[Dict[str, Any]]) -> Optional[int]:
+    """The client's wall clock at `t_ms = 0`, in ms since the epoch.
+
+    Read off the `SYNC_MARK` with `n = 0`: `wall_ms − t_ms`, both from one
+    `Date.now()`. `None` when the session has no such mark — a client from
+    before it existed — which is "not recorded", never 1970.
+    """
+    for e in events:
+        p = e.get("payload") or {}
+        if canonical(e.get("type", "")) == SYNC_MARK and p.get("n") == 0 and p.get("wall_ms") is not None:
+            return int(p["wall_ms"]) - int(e.get("t_ms") or 0)
+    return None
+
+
+def visible_sync_marks(events: Iterable[Dict[str, Any]]) -> int:
+    """How many on-screen sync marks the session shows (n ≥ 1)."""
+    return sum(1 for e in events if canonical(e.get("type", "")) == SYNC_MARK
+               and (e.get("payload") or {}).get("visible"))
 
 
 # ---------------------------------------------------------------------------

@@ -389,6 +389,8 @@
       <span class="dock-sep"></span>
       <button class="dockbtn" id="btn-clear" data-name="清空" title="清空画布" aria-label="清空画布"><i data-icon="trash" data-size="18"></i></button>
       <button class="dockbtn" id="btn-download" data-name="保存" title="保存到设备" aria-label="保存到设备"><i data-icon="download" data-size="18"></i></button>
+      <!-- 研究员的钮：只在条件 sync_marks 打开时露面，按一下整屏白闪、记一条 SYNC_MARK -->
+      <button class="dockbtn hidden" id="btn-sync" data-name="同步" title="同步标记" aria-label="同步标记"><i data-icon="bolt" data-size="18"></i></button>
     </div>
 
     <!-- 右栏只剩两件事：这次要画什么，和彩点说的话。 -->
@@ -434,6 +436,42 @@
     <button class="secondary" id="btn-more-color"><i data-icon="brush" data-size="16"></i>更多颜色</button>
     <button class="secondary" id="btn-eyedrop"><i data-icon="dropper" data-size="16"></i>从画面中取色</button>
     <button class="secondary hidden" id="btn-eyedrop-ref"><i data-icon="dropper" data-size="16"></i>从参考图中取色</button>
+  </div>
+</section>
+
+<!-- ===== 流程 2（纸面）：condition.medium = paper =====
+     画在纸上：这一屏没有画布，只有题面、研究员的「同步」和「结束」。
+     结束之后同一张卡换成收作品：终稿必传、阶段照可选可多张，每张记谁传的。
+     三段（doing / upload / finish）同时只露一段，由 app.js 的 paperStage() 切。 -->
+<section class="view hidden" id="view-paper">
+  <div class="survey-card paper-card">
+    <div class="quest-card small intent-task" id="paper-quest-card"></div>
+    <p class="paper-stim hidden" id="paper-stim"></p>
+    <div class="paper-stage" id="paper-doing">
+      <div class="actions">
+        <button class="secondary hidden" id="btn-paper-sync" title="同步标记"><i data-icon="bolt" data-size="18"></i>同步</button>
+        <button class="primary big grow" id="btn-paper-end">画完了，结束<i data-icon="arrowRight" data-size="17"></i></button>
+      </div>
+    </div>
+    <div class="paper-stage hidden" id="paper-upload">
+      <div class="sq paper-who">
+        <label class="sq-q" for="paper-uploader">上传者</label>
+        <input id="paper-uploader" type="text" maxlength="64" placeholder="研究员代号" autocomplete="off">
+      </div>
+      <div class="paper-picks">
+        <label class="filebtn primary-ish" for="paper-final-input"><i data-icon="image" data-size="18"></i>终稿照片（必传）</label>
+        <input class="file-input" id="paper-final-input" type="file" accept="image/jpeg,image/png">
+        <label class="filebtn" for="paper-stage-input"><i data-icon="image" data-size="18"></i>阶段照（可选，可多张）</label>
+        <input class="file-input" id="paper-stage-input" type="file" accept="image/jpeg,image/png" multiple>
+      </div>
+      <p class="paper-note hidden" id="paper-note" role="status"></p>
+      <ul class="paper-list" id="paper-list"></ul>
+      <div class="actions"><button class="primary big grow" id="btn-paper-done" disabled>完成<i data-icon="arrowRight" data-size="17"></i></button></div>
+    </div>
+    <div class="paper-stage hidden" id="paper-finish">
+      <p class="paper-done-text">作品已保存。</p>
+      <div class="actions"><button class="primary big grow" id="btn-paper-next">下一个任务<i data-icon="arrowRight" data-size="17"></i></button></div>
+    </div>
   </div>
 </section>
 
@@ -751,6 +789,8 @@
 <div class="pop pop-badge hidden" id="pop-badge"></div>
 
 <div id="overlay" class="hidden"><span class="sprite overlay-sprite" id="overlay-sprite"></span><div class="spinner"></div><div id="overlay-text">正在观察你的画……</div></div>
+<!-- 同步标记：整屏白、正中一个编号，盖在一切之上。给相机看的，不给 i18n 换字 -->
+<div id="sync-flash" class="sync-flash hidden" aria-hidden="true"></div>
 <!-- 语言表先于运行时，运行时先于界面：i18n.js 一跑就把页上的中文换掉，后面渲染的由它盯着换 -->
 <script src="/static/lang/en.js"></script>
 <script src="/static/i18n.js"></script>

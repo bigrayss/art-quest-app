@@ -11,6 +11,8 @@ Four data files, not fifteen:
                            an event on the same timeline, not a second file
         labels.jsonl       human ground truth: teacher ratings + expert spans
         final.png          the last submitted work
+        artifacts/         paper sessions (condition.medium = paper): the uploaded photos
+                           and scans as they came, named by content hash, append-only
         checkpoints/before_feedback.png   only when a revision actually happened
         reference/         the stimulus this child saw (static/refs gets replaced)
 
@@ -522,7 +524,9 @@ class SessionStore:
         state = meta.setdefault("streams", {}).setdefault(stream, {"last_seq": 0, "count": 0})
         prev = int(state.get("last_seq", 0))
         # One clock: `t_ms` / `t0_ms` since the session started drawing, and the
-        # wall clock recovered from `times.started_at`. A per-record timestamp
+        # wall clock recovered from the client's anchor (`SYNC_MARK` n=0, see
+        # `events.client_clock_anchor`) — not `times.started_at`, which is the
+        # server's clock at create time. A per-record timestamp
         # would be a second clock for the same fact, so records carry only
         # provenance. Strokes are folded onto the current field names on the way
         # in, so the file on disk is already canonical.
@@ -711,6 +715,50 @@ class SessionStore:
     def assist_clicks(self, sid: str) -> List[Dict[str, Any]]:
         return list(self.load(sid).get("assist_clicks") or [])
 
+    # -- 纸面作品：照片和扫描件（condition.medium = paper） -----------------------
+    def add_artifact(self, sid: str, raw: bytes, *, kind: str, mime: str,
+                     fields: Dict[str, Any]) -> Dict[str, Any]:
+        """存一张作品照片或扫描件，记进 `session.json` 的 `artifacts`。
+
+        原图字节按内容 hash 存进 `artifacts/`，只追加、不改写——和 `frames/` 同一个做法。
+        同一张图（同 kind、同 hash）再来一次是重发，原样返回，不记第二条。
+        新的终稿进来，旧终稿只**标记** `superseded_by`，文件和记录都留着。
+        返回 `{"artifact", "created", "superseded"}`。
+        """
+        sha = hashlib.sha256(raw).hexdigest()
+        aid = f"{kind}-{sha[:16]}"
+        d = self.dir(sid) / "artifacts"
+        with self._lock(sid):
+            meta = self.load(sid)
+            arts = meta.setdefault("artifacts", [])
+            for a in arts:
+                if a.get("artifact_id") == aid:
+                    return {"artifact": a, "created": False, "superseded": []}
+            d.mkdir(parents=True, exist_ok=True)
+            path = d / f"{sha[:24]}.{'jpg' if mime == 'image/jpeg' else 'png'}"
+            if not path.exists():
+                tmp = path.with_suffix(".tmp")
+                tmp.write_bytes(raw)
+                tmp.replace(path)
+            superseded = []
+            if kind == "final":
+                for a in arts:
+                    if a.get("kind") == "final" and not a.get("superseded_by"):
+                        a["superseded_by"] = aid
+                        superseded.append(a["artifact_id"])
+            rec = {"artifact_id": aid, "kind": kind, "file": f"artifacts/{path.name}", "sha256": sha,
+                   "bytes": len(raw), "mime": mime, **fields, "uploaded_at": now_iso(), "superseded_by": None}
+            arts.append(rec)
+            meta.setdefault("counts", {})["artifacts"] = len(arts)
+            self._write(sid, meta)
+        return {"artifact": rec, "created": True, "superseded": superseded}
+
+    def current_final(self, sid: str) -> Optional[Dict[str, Any]]:
+        """纸面 session 现在的终稿：最后一张没被取代的 final。没有就是 None。"""
+        finals = [a for a in (self.load(sid).get("artifacts") or [])
+                  if a.get("kind") == "final" and not a.get("superseded_by")]
+        return finals[-1] if finals else None
+
     def save_process_frames(self, sid: str, frames: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Process frames rebuilt from the logs (see reconstruct.rebuild), kept
         beside the uploaded snapshots but under their own key: a frame computed
@@ -760,6 +808,11 @@ class SessionStore:
             p = d / name
             if p.exists():
                 return p.read_bytes()
+        # 纸面 session 没有 final.png：作品是上传的原图（可能是 JPEG），终稿就是当前那一张
+        if phase in ("final", "after"):
+            cur = self.current_final(sid)
+            if cur and (d / cur["file"]).exists():
+                return (d / cur["file"]).read_bytes()
         return None
 
     # -- mutations ---------------------------------------------------------
@@ -1010,7 +1063,11 @@ _PART_FILES = {
 
 
 def is_blank_shell(meta: Dict[str, Any]) -> bool:
-    """开了一局、一笔没画、也没交过东西。"""
+    """开了一局、一笔没画、也没交过东西。
+
+    纸面 session 永远不是：画在纸上，屏上本来就是 0 笔，它的开始、同步标记和结束都是数据。"""
+    if (meta.get("condition") or {}).get("medium") == "paper":
+        return False
     return (not meta.get("before") and meta.get("status") != "done"
             and int((meta.get("counts") or {}).get("strokes") or 0) == 0)
 
@@ -1191,6 +1248,9 @@ def dataset_manifest(root: Optional[Path] = None) -> Dict[str, Any]:
                            "attempts and local heuristic/template runs alike; inputs as text + image "
                            "sha256 refs, outputs, outcome, usage; absent = not collected, not zero",
             "final.png": "the last submitted work",
+            "artifacts/": "paper sessions (condition.medium = paper): uploaded photos and scans as they came, "
+                          "named by content hash, append-only; session.json artifacts[] carries kind "
+                          "(final|stage), sha256, captured_at, uploaded_by, superseded_by",
             "checkpoints/": "frames kept on purpose (before_feedback, process_* rebuilt from the logs, and any uploaded snapshots)",
             "frames/": "the canvas at each assist click, named by content hash, append-only "
                        "(session.json assist_clicks + calls.jsonl point here)",

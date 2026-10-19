@@ -302,8 +302,12 @@
 
   // ---- 形象切换记进时间线（形象、模式、原因、在哪一屏、素材版本）----
   // 安静模式的进出不记：它是「落笔 / 最后一笔后 2 秒」的确定规则，从 stroke 流里能一字不差地算回来。
-  const mascotLog = (role, mode, reason, extra) =>
+  // 对照组（ui=quiet）里彩点整个不出现（style.css 的 body.quiet .sprite），也就没有形象可记：
+  // 记了就是一条从没发生过的曝光。
+  const mascotLog = (role, mode, reason, extra) => {
+    if (state.condition && state.condition.ui === "quiet") return;
     logEvent(EV.MASCOT_STATE, Object.assign({ role, mode, reason, view: curView(), asset_v: BUDDY_ASSET_V }, extra || {}));
+  };
   /** 精灵在哪一屏上（它可能画在还没 show 出来的下一屏里）。 */
   const viewOf = (el) => { const v = el && el.closest(".view"); return v ? v.id.replace(/^view-/, "") : curView(); };
 
@@ -964,8 +968,8 @@
    *  is telling them they failed at something. */
   function flowStages() {
     const quiet = state.condition && state.condition.feedback_source !== "ai";
-    // 简单版没有心愿那一站，条上也别数它
-    return ALL_STAGES.filter(s => !(quiet && (s.key === "result" || s.key === "evolve")) && !(isSimple() && s.key === "intent")
+    // 简单版（和 intent_mode = none）没有心愿那一站，条上也别数它
+    return ALL_STAGES.filter(s => !(quiet && (s.key === "result" || s.key === "evolve")) && !(!asksIntent() && s.key === "intent")
       && !(revisionOff() && s.key === "evolve"));   // 首访默认不开修改轮：条上也别数它
   }
   function renderFlow(currentKey) {
@@ -983,7 +987,7 @@
 
   // ---------- views ----------
   // 四个 tab 是四块独立的界面；做任务时导航整个收起来，只剩画画。
-  const VIEWS = ["welcome", "world", "quest", "dex", "buddy", "sessions", "intent", "draw", "result", "survey", "final",
+  const VIEWS = ["welcome", "world", "quest", "dex", "buddy", "sessions", "intent", "draw", "paper", "result", "survey", "final",
                  "teacher", "grade", "rubric"];
   /** 现在显示的是哪一屏。启动时用来判断「人是不是已经自己走开了」。 */
   const curView = () => VIEWS.find(v => !$(`#view-${v}`).classList.contains("hidden")) || "";
@@ -999,7 +1003,7 @@
     VIEWS.forEach(v => $(`#view-${v}`).classList.toggle("hidden", v !== name));
     const role = name === "final" ? (state.revised ? "encourage" : "normal") : VIEW_ROLE[name];
     if (role) mascotLog(role, name === "draw" ? "companion_quiet" : "companion", "view", { view: name });
-    native("keepAwake", { on: name === "draw" });     // 画着画的时候屏幕别自己暗下去
+    native("keepAwake", { on: name === "draw" || name === "paper" });     // 画着画的时候屏幕别自己暗下去
     const tab = VIEW_TAB[name];
     document.body.classList.toggle("inflow", !tab);
     document.body.classList.toggle("welcome", name === "welcome");   // 门口：连顶栏都没有
@@ -1018,9 +1022,10 @@
     }
     // 返回键归顶栏管：哪个流程界面，用哪个已有的返回逻辑
     $("#btn-back-quest").classList.toggle("hidden", name !== "intent");
-    $("#btn-back-draw").classList.toggle("hidden", name !== "draw");
+    // 纸面任务只在「画着」那一段能退：结束之后是收照片，退出去就丢了这一局的结尾
+    $("#btn-back-draw").classList.toggle("hidden", !(name === "draw" || (name === "paper" && state.paperStage === "doing")));
     const stage = tab ? "" : name === "draw" ? (state.phase === "after" ? "evolve" : "draw")
-      : name === "survey" ? "final" : name;
+      : name === "paper" ? "draw" : name === "survey" ? "final" : name;
     renderFlow(stage);
     window.scrollTo(0, 0);
     // 画布的像素上限和笔尖预览都只有在这一屏真的显示出来之后才量得到
@@ -1481,6 +1486,7 @@
     ASSIST_OPEN: "ASSIST_OPEN", ASSIST_SHOW: "ASSIST_SHOW", MASCOT_STATE: "MASCOT_STATE",
     FEEDBACK_DISMISS: "FEEDBACK_DISMISS", REVISION_START: "REVISION_START",
     TASK_SUBMIT: "TASK_SUBMIT", DOWNLOAD: "DOWNLOAD",
+    SYNC_MARK: "SYNC_MARK",
   };
 
   // ---------- canvas ----------
@@ -2390,12 +2396,37 @@
   document.documentElement.style.setProperty("--cur", color);
   paintNib();
   $("#btn-download").onclick = () => { const a = document.createElement("a"); a.download = `artquest-${state.sessionId || "draft"}.png`; a.href = canvas.toDataURL("image/png"); a.click(); logEvent(EV.DOWNLOAD); };
+  $("#btn-sync").onclick = () => syncMark("researcher");
 
   // ---------- process recording ----------
   const elapsed = () => state.startedAt ? Date.now() - state.startedAt : 0;
   const IDLE_MS = 3000;   // no input for this long counts as a pause worth logging
   /** One line of the append-only operation log; buffered locally, flushed in batches. */
   function logEvent(type, payload) { if (state.sessionId) ArtLog.event(type, elapsed(), payload || null); markActive(); }
+
+  // ---------- clocks: where this timeline meets the clocks outside it ----------
+  // t_ms 是客户端 Date.now() 减零点；零点在墙上是几点，只有客户端自己知道——服务端的
+  // started_at 是另一台机器、早一个往返的钟（离线票更是补传那一刻）。所以零点附近记一条
+  // SYNC_MARK n=0：t_ms 和 wall_ms 出自同一次读数，锚点 = wall_ms − t_ms（events.client_clock_anchor）。
+  let syncN = 0, syncTimer = 0;
+  const syncOn = () => state.condition.sync_marks === true;
+  function clockAnchor() {
+    if (!state.sessionId) return;
+    syncN = 0;
+    const now = Date.now();
+    ArtLog.event(EV.SYNC_MARK, now - state.startedAt, { n: 0, source: "clock", visible: false, wall_ms: now });
+  }
+  /** 看得见的同步标记：整屏白闪、正中显示编号，让眼动眼镜和俯拍相机拍到同一帧。只在 sync_marks 条件下有。
+   *  t_ms 记在白屏插进页面这一刻；真正上屏还要等下一帧（≤ 1 帧）加屏幕延迟，试点时用视频实测。
+   *  不走 logEvent：按钮是研究员按的，不是孩子的动作，不该把一段「停顿」打断。 */
+  function syncMark(source) {
+    if (!state.sessionId || !syncOn()) return;
+    const n = ++syncN, el = $("#sync-flash");
+    el.textContent = String(n); el.classList.remove("hidden");
+    ArtLog.event(EV.SYNC_MARK, elapsed(), { n, source, visible: true });
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(() => el.classList.add("hidden"), 500);
+  }
   function markActive() {
     const t = elapsed();
     if (state.idle) { ArtLog.event(EV.PAUSE_END, t, { duration_ms: Math.round(t - state.lastActivity), phase: state.phase }); state.idle = false; }
@@ -2431,7 +2462,7 @@
     // 到点自动交卷的逻辑照旧。研究要的 TIME_LIMIT_REACHED 一条不少。
     if (left === 0) {
       state.timeUp = true; logEvent("TIME_LIMIT_REACHED", { limit_sec: limit });
-      $("#btn-submit").click();
+      $(paperMode() ? "#btn-paper-end" : "#btn-submit").click();
     }
   }
   function stopTimers() { state.timers.forEach(clearInterval); state.timers = []; }
@@ -2618,6 +2649,8 @@
   // 2026-10-12 用户：「简单版 / 完整版」两档删掉，只留简单版——不问心情和心愿、不做问卷、不摆成长图、彩点只说一句。
   // ui 只剩 simple | quiet：quiet 是研究员定的对照组（去游戏化），其余一律 simple。
   const isSimple = () => state.condition.ui === "simple";
+  /** 开始画之前问不问心情和心愿：simple 本来就不问；intent_mode = none（成人研究）一律不问。 */
+  const asksIntent = () => !isSimple() && (state.condition.intent_mode || "ask") !== "none";
   function applyCondition() {
     const c = state.condition;
     if (c.ui !== "quiet") c.ui = "simple";
@@ -2626,8 +2659,11 @@
     if (rv) rv.innerHTML = `${icon("sparkle", 19)}再改一改${icon("arrowRight", 17)}`;
     if (sk) sk.textContent = "保留原样";
     document.body.classList.toggle("quiet", c.ui === "quiet");
+    // 画廊那一屏两块：「我的画」quiet 下收着，「大家的画廊」只在 always 时出现。两块都不出现，tab 也不该在
+    document.body.classList.toggle("wall-on", (c.gallery_display || "none") === "always");
     ["#btn-undo", "#btn-redo"].forEach(sel => { const b = $(sel); if (b) { b.disabled = !c.undo_allowed; b.classList.toggle("hidden", !c.undo_allowed); } });
     $("#zoombar").classList.toggle("hidden", !zoomAllowed());
+    $("#btn-sync").classList.toggle("hidden", !syncOn());
     if (!zoomAllowed()) { handMode = false; $("#btn-hand").classList.remove("active"); resetView(null); }
   }
   /** Per-task condition: reference image, time limit, allowed tools. */
@@ -3028,6 +3064,9 @@
     grid.querySelectorAll(".quest-card, .map-col").forEach(el => el.remove());
     const seq = state.study && state.study.sequence ? state.study.sequence : null;
     const byId = Object.fromEntries(state.quests.map(q => [q.id, q]));
+    // map_display = none（成人研究）：不摆地图——锁着的下一关、走过的星星都是闯关的样子——只留今天这张卡。
+    // 地图上能回去重画走过的题，所以这是条件，不跟着 quiet 走：孩子的对照组照旧有地图。
+    $("#view-quest").classList.toggle("no-route", (state.condition || {}).map_display === "none");
 
     // Study Mode: the protocol names exact forms, in order. Free play: the child
     // picks a *mission family* — 75 forms is a task library, not a treasure map,
@@ -3472,8 +3511,8 @@
     const seqMode = !!(state.study && state.study.sequence);
     state.choice = Object.assign({ entrypoint: seqMode ? "protocol" : "map",
                                    choice_source: seqMode ? "protocol" : "child_click" }, via || {});
-    // 简单版：不问心情、不写心愿，选了就画
-    if (isSimple()) { state.emotion = ""; $("#intent-text").value = ""; return startDrawing(); }
+    // 简单版（和 intent_mode = none）：不问心情、不写心愿，选了就画
+    if (!asksIntent()) { state.emotion = ""; $("#intent-text").value = ""; return startDrawing(); }
     // 任务自带参考图、而且是「一直可见」那种的，心愿屏的任务卡里就先给他看：
     // 写心愿之前知道要照着什么画。on_demand 的不放——画面要等他自己点开。
     const ref = q.reference, showRef = ref && state.condition.reference_allowed && ref.mode === "always";
@@ -3510,9 +3549,9 @@
   const leaveModal = $("#leave-modal");
   function askToLeave() {
     if (state.phase === "after") return;            // mid-revision: finish it
-    const n = visible.length;
-    $("#leave-body").textContent = n
-      ? `当前已画 ${n} 笔，要先保存吗？`
+    const n = paperMode() ? 0 : visible.length;     // 纸面任务屏上没有笔：退出就是放弃这一局（记录留着）
+    $("#leave-body").textContent = paperMode() ? "这一局纸面任务还没结束。退出会把它记为放弃，记录照样保留。"
+      : n ? `当前已画 ${n} 笔，要先保存吗？`
       : "画布上还没有内容，可以直接切换。";
     $("#btn-leave-save").classList.toggle("hidden", !n);
     leaveModal.classList.remove("hidden");
@@ -3564,7 +3603,8 @@
       quest_id: state.quest.id, intent,
       participant: { anon_id: state.anonId, participant_id: savedPid(), account_id: accountId(),
                      label: "", buddy_name: state.buddyName, age: (state.account || {}).age ?? null },
-      condition: state.condition, device: deviceInfo(), canvas: canvasGeom(),
+      // 纸面任务没有画布：不报一个藏着的画布的尺寸，那会被当成「在这么大的画布上画的」
+      condition: state.condition, device: deviceInfo(), canvas: paperMode() ? {} : canvasGeom(),
       // 首访任务库：这张地图是按年龄路由的——年龄、年龄从哪来、年龄段；从首访地图上进来的 M 族题也带（bank 为空），
       // 服务端预算下一次决策时靠它知道下一张地图还是首访模式。老地图 / 研究模式这里是空的。
       routing: state.bank ? { ...(state.bank || {}), first_visit: true, bank: isBank(state.quest) ? state.quest.bank : "" } : {},
@@ -3595,6 +3635,7 @@
     state.feedback = null; state.offlineSession = !!ticket;
     renderHistory(r.personalization);
     state.condition = { ...state.condition, ...(r.session.condition || {}) };  // the server froze it; mirror it back
+    if (paperMode()) return startPaper();   // 画在纸上：不碰画布、工具和颜色，那些在这一局里都不存在
     resetCanvas(); state.startedAt = Date.now();
     strokeCount = 0; state.lastActivity = 0; state.idle = false;
     applyTool("pencil");                 // 上一张用橡皮收的尾，不该带进下一张
@@ -3603,6 +3644,7 @@
     setColor(defaultColorFor(state.quest.id), null, "task_default");
     resetView(null); applyCondition(); syncName();   // a fresh canvas starts at 100 %, pen in hand
     await ArtLog.start(state.sessionId);
+    clockAnchor();
     applyTask(state.quest);
     $("#draw-quest-card").innerHTML = `<div class="type">${state.quest.type}</div><h3>${state.quest.title}</h3><p>${state.quest.prompt}</p>`;
     $("#draw-quest-card").classList.toggle("bank", isBank(state.quest));   // 首访：题面常显、不夹行
@@ -3615,6 +3657,7 @@
     startTimers(); show("draw");
     // the canvas has a real size only once the view is visible
     logEvent(EV.CANVAS_GEOMETRY, canvasGeom());
+    syncMark("start");
   }
 
   /** 首访任务库的「要做到」+ 按需提示：提示是预先固定的过程支持，点一次露一条，每次记 HINT_SHOW（hint_id / 第几次）。
@@ -3659,6 +3702,7 @@
   $("#btn-submit").onclick = async () => {
     if (state.phase === "after") return submitAfter();
     if (nothingDrawn()) return submitNote();
+    syncMark("submit");
     if (!navigator.onLine) return submitOffline();
     overlay("正在查看你的画…"); stopTimers();
     logEvent(EV.TASK_SUBMIT, { phase: state.phase, strokes: visible.length });
@@ -3718,6 +3762,7 @@
   };
   async function submitAfter() {
     if (canvasIsBlank()) return submitNote();      // 进化关把画全擦掉了也不收
+    syncMark("submit");
     overlay("正在查看修改内容…"); stopTimers();
     const image = canvas.toDataURL("image/png");
     try {
@@ -3728,6 +3773,106 @@
     } catch (e) { alert("提交失败：" + e.message); startTimers(); }
     overlay(null);
   }
+
+  // ---------- 纸面任务（condition.medium = paper） ----------
+  // 画在纸上：屏上不放画布、不记笔画，也不跑「停顿」检测——纸上画着的人在屏上永远是静止的，
+  // 那会记出一整局的假停顿。这一屏记的是开始、同步标记、结束，收的是作品照片；不评分、不给反馈。
+  function paperMode() { return !!(state.condition && state.condition.medium === "paper"); }
+  const UPLOADER_KEY = "artquest.uploader";
+  let paperArtifacts = [];
+  function paperStage(stage) {
+    state.paperStage = stage;
+    ["doing", "upload", "finish"].forEach(s => $(`#paper-${s}`).classList.toggle("hidden", s !== stage));
+    $("#btn-back-draw").classList.toggle("hidden", stage !== "doing");
+  }
+  function paperNote(text) { const n = $("#paper-note"); n.textContent = text; n.classList.toggle("hidden", !text); }
+  async function startPaper() {
+    stopTimers();
+    state.startedAt = Date.now(); state.lastActivity = 0; state.idle = false; state.timeUp = false;
+    strokeCount = 0; paperArtifacts = [];
+    applyCondition();
+    await ArtLog.start(state.sessionId);
+    clockAnchor();
+    const q = state.quest, stim = q.stimulus || {};
+    $("#paper-quest-card").innerHTML = `<div class="type">${q.type || ""}</div><h3>${q.title}</h3><p>${q.prompt || ""}</p>`;
+    // 参考物不在屏上：写生对着实物，临摹拿的是打印件——研究员要知道发哪一张
+    const stimNote = stim.kind === "physical" ? "参考物是实物，不在屏上。"
+      : stim.kind === "printed" ? (stim.stimulus_id ? `参考图是打印件（${stim.stimulus_id}），不在屏上。` : "参考图是打印件，不在屏上。")
+      : "";
+    $("#paper-stim").textContent = stimNote;
+    $("#paper-stim").classList.toggle("hidden", !stimNote);
+    $("#btn-paper-sync").classList.toggle("hidden", !syncOn());
+    $("#paper-list").innerHTML = ""; $("#btn-paper-done").disabled = true; paperNote("");
+    try { $("#paper-uploader").value = localStorage.getItem(UPLOADER_KEY) || ""; } catch (e) { /* 无痕模式 */ }
+    paperStage("doing");
+    show("paper");
+    state.timers.push(setInterval(tickTimeLimit, 1000));   // 到点自动「结束」；停顿检测不开
+    syncMark("start");
+  }
+  $("#btn-paper-sync").onclick = () => syncMark("researcher");
+  $("#btn-paper-end").onclick = async () => {
+    if (state.paperStage !== "doing") return;
+    state.paperStage = "ending";              // 连点两下只结束一次
+    syncMark("submit");
+    stopTimers();
+    const body = { elapsed_ms: elapsed() };   // 结束的时刻是按下去这一下，不是请求回来那一下
+    try {
+      body.pending = await flushLog();
+      if (state.offlineSession) throw new TypeError("offline session");
+      await api(`${API}/sessions/${state.sessionId}/end`, { method: "POST", body: JSON.stringify(body) });
+    } catch (e) {
+      // 没网（或这一局本来就是离线票开的）：「结束」进发件箱，时间按刚才那一刻记；连上网先补它，再收照片
+      if (!(e instanceof TypeError) && navigator.onLine) {
+        state.paperStage = "doing"; state.timers.push(setInterval(tickTimeLimit, 1000));
+        alert("结束失败：" + e.message); return;
+      }
+      await ArtLog.defer("end", state.sessionId, body);
+    }
+    paperStage("upload");                     // 服务器知道这一局结束了，终稿才收得下
+  };
+  function readAsDataURL(file) {
+    return new Promise((ok, bad) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => bad(r.error); r.readAsDataURL(file); });
+  }
+  function paintPaperList() {
+    const sid = state.sessionId;
+    $("#paper-list").innerHTML = paperArtifacts.map(a => {
+      const shot = a.exif_datetime_original || (a.captured_at_ms ? new Date(a.captured_at_ms).toLocaleString() : "拍摄时间不详");
+      const kind = a.kind === "final" ? (a.superseded_by ? "终稿（已换掉）" : "终稿") : "阶段照";
+      return `<li class="${a.superseded_by ? "superseded" : ""}"><img src="${fileUrl(`/files/${sid}/${a.file}`)}" alt="">`
+        + `<div><div class="k">${kind}</div><div class="m">${escapeHtml(a.uploaded_by || "")} · ${escapeHtml(shot)} · sha256 ${(a.sha256 || "").slice(0, 12)}</div></div></li>`;
+    }).join("");
+    $("#btn-paper-done").disabled = !paperArtifacts.some(a => a.kind === "final" && !a.superseded_by);
+  }
+  /** 一张一张传，按选的顺序。原图原样发过去（不重新编码：sha256 要对得上手里那份文件），拍摄时间报文件自己的修改时间。 */
+  async function uploadPaper(kind, files) {
+    const who = $("#paper-uploader").value.trim();
+    if (!who) { paperNote("先填上传者，再选照片。"); $("#paper-uploader").focus(); return; }
+    try { localStorage.setItem(UPLOADER_KEY, who); } catch (e) { /* 无痕模式 */ }
+    for (const f of files) {
+      if (!/^image\/(jpeg|png)$/.test(f.type)) { paperNote("只收 JPEG 或 PNG 格式的照片。"); continue; }
+      paperNote("正在上传…");
+      try {
+        await flushLog();                     // 发件箱里的「结束」先过去，终稿才收得下
+        const r = await api(`${API}/sessions/${state.sessionId}/artifacts`, { method: "POST", body: JSON.stringify({
+          kind, image: await readAsDataURL(f), uploaded_by: who,
+          captured_at_ms: f.lastModified || null, captured_at_source: f.lastModified ? "file_mtime" : "",
+          t_ms: elapsed() }) });
+        paperArtifacts = (r.session && r.session.artifacts) || paperArtifacts;
+        paintPaperList();
+        paperNote("");
+      } catch (e) { paperNote("上传失败：" + e.message); return; }
+    }
+  }
+  $("#paper-final-input").onchange = (e) => { const fs = [...e.target.files].slice(0, 1); e.target.value = ""; uploadPaper("final", fs); };
+  $("#paper-stage-input").onchange = (e) => { const fs = [...e.target.files]; e.target.value = ""; uploadPaper("stage", fs); };
+  $("#btn-paper-done").onclick = async () => {
+    await flushLog();
+    state.pendingFinal = { paper: true };
+    if (state.condition.questionnaire && !isSimple()) { renderSurvey(); show("survey"); return; }
+    showPaperDone();
+  };
+  function showPaperDone() { state.pendingFinal = null; show("paper"); paperStage("finish"); }
+  $("#btn-paper-next").onclick = () => $("#btn-again").onclick();
   // ---------- self-report ----------
   const SURVEY = [
     { key: "difficulty", q: "这次画起来难吗？", lo: "很简单", hi: "很难" },
@@ -3804,7 +3949,9 @@
     }
     try { await api(`${API}/sessions/${state.sessionId}/questionnaire`, { method: "POST", body: JSON.stringify(body) }); }
     catch (e) { console.warn("questionnaire failed", e); }
-    const f = state.pendingFinal; if (f) showFinal(f.session, f.beforeImg, f.afterImg, f.comparison);
+    const f = state.pendingFinal;
+    if (f && f.paper) showPaperDone();
+    else if (f) showFinal(f.session, f.beforeImg, f.afterImg, f.comparison);
   }
   $("#btn-survey-submit").onclick = () => sendSurvey(false);
   $("#btn-survey-skip").onclick = () => sendSurvey(true);
@@ -4585,13 +4732,16 @@
     const lit = litBadges();
     // 三块数字是**门**，不只是数字：点「画完的画」去画廊，点「点亮的徽章」
     // 去徽章墙。数字后面站着东西，就该让人走过去看。
+    // 对照组（quiet）：徽章那块不摆——徽章本身就是 quiet 收起来的东西；画廊 tab 收着时，「完成的作品」只是个数，不再是门
+    const quiet = (state.condition || {}).ui === "quiet";
+    const wallOn = ((state.condition || {}).gallery_display || "none") === "always";
     const tiles = [
-      { icon: "image",    v: done.length, unit: "张", label: "完成的作品",   c: "blue",   go: "dex" },
+      { icon: "image",    v: done.length, unit: "张", label: "完成的作品",   c: "blue",   go: quiet && !wallOn ? "" : "dex" },
       { icon: "compass",  v: fams,        unit: "个", label: "体验过的主题", c: "orange", go: "map" },
       { icon: "calendar", v: days,        unit: "天", label: "画画的天数", c: "green" },
-      { icon: "medal",    v: lit.size,    unit: "枚", label: "获得的徽章", c: "purple", go: "buddy" },
-    ];
-    el.innerHTML = `<div class="story-tiles">` + tiles.map(t =>
+      quiet ? null : { icon: "medal", v: lit.size, unit: "枚", label: "获得的徽章", c: "purple", go: "buddy" },
+    ].filter(Boolean);
+    el.innerHTML = `<div class="story-tiles" style="--n:${tiles.length}">` + tiles.map(t =>
       `<${t.go ? "button" : "div"} class="stile${t.go ? " jump" : ""}"${t.go ? ` data-go="${t.go}"` : ""}
          style="--tc:var(--${t.c});--tc-l:var(--${t.c}-l)">
          <span class="stile-ico">${icon(t.icon, 18)}</span>

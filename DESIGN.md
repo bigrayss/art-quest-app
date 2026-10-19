@@ -105,6 +105,8 @@ data/sessions/<session_id>/
   frames/             （schema 4）陪伴每次点击那一刻的画布，按内容 hash 命名、只追加；`session.json.assist_clicks`
                       一条点击一行（click_id / nth / 两个笔画数 / cached / source_call_id / call_id），calls.jsonl 的图指向这里
   reference/          孩子当时看到的那张刺激图的副本（static/refs 里的会被替换）
+  artifacts/          （2026-10-19）纸面 session 的作品照片 / 扫描件，原图字节按 sha256 命名，只追加；
+                      每张一条记录在 `session.json.artifacts[]`（见「纸面 session」一节）
 ```
 
 一条原则决定了什么进哪里：
@@ -135,7 +137,10 @@ $$Raw\ Stroke = Geometry + Time + Tool\ State$$
 point 的六个槽位固定是 `[x, y, dt_ms, pressure, tilt_x, tilt_y]`，画布像素坐标，
 `dt_ms` 从这一笔的 `t0_ms` 起算。绝对时间随时可以还原：
 
-$$t_{point} = \text{started\_at} + t0_{stroke} + dt$$
+$$t_{point} = \text{anchor}_{client} + t0_{stroke} + dt$$
+
+`anchor_client` 是客户端在 `t_ms = 0` 那一刻的墙钟，读自 `SYNC_MARK` n=0（见下面「同步标记」）。
+不是 `times.started_at`：那是服务端的钟。
 
 所以**每条记录都不带自己的时钟**——没有 `t_end_ms`（= `t0_ms` + 最后一个 `dt`）、
 没有 `ts`。速度、曲率、笔长、bounding box 一律留给离线分析。
@@ -217,10 +222,16 @@ python3 tools/check_json.py --dir data
 
 ### 统一事件时间轴（`artquest/events.py` 是唯一权威）
 
-**一条时间轴，一个时钟。** `t_ms` 就是那个时间戳——从开始画算起的毫秒；墙钟时间由
-`metadata.times.started_at_ms + t_ms` 还原，所以没有任何事件自带墙钟，也就没有两个模块
+**一条时间轴，一个时钟。** `t_ms` 就是那个时间戳——从开始画算起的毫秒，读的是客户端的
+`Date.now()`；墙钟时间由客户端锚点 + `t_ms` 还原（锚点 = `SYNC_MARK` n=0 的 `wall_ms − t_ms`，
+`events.client_clock_anchor`），所以别的事件都不自带墙钟，也就没有两个模块
 对"现在几点"产生分歧的余地。服务端事件（反馈展示、会话结束）用引发它的那次请求里的客户端时钟，
 落进同一条流。
+
+（2026-10-19 之前这里写的是 `times.started_at + t_ms`。`started_at` 是**服务端**处理建 session
+请求那一刻的钟，`t_ms` 的零点是客户端拿到响应之后的 `Date.now()`——两台机器、差一个往返；
+离线票补建时差的是画完到联网的整段时间。老 session 没有锚点，只能退回 `started_at`，
+导出里 `client_started_at_ms` 留空，分得开。）
 
 ```
 SESSION_START  TASK_SHOW  CANVAS_GEOMETRY  TASK_SUBMIT  SESSION_END
@@ -231,7 +242,20 @@ REFERENCE_FOCUS  CANVAS_FOCUS
 PAUSE_START  PAUSE_END  TIME_LIMIT_REACHED
 FEEDBACK_SHOW  FEEDBACK_DISMISS  REVISION_START  REVISION_SKIPPED
 HISTORY_SHOWN  RATING_ADDED  QUESTIONNAIRE_SUBMITTED  DOWNLOAD
+SYNC_MARK  ARTIFACT_UPLOADED
 ```
+
+**同步标记：这条时间轴和外面的钟对上的地方。** `SYNC_MARK` 的 payload 是 `{n, source, visible}`：
+
+| n | source | visible | 什么时候 | 用来 |
+|---|---|---|---|---|
+| 0 | `clock` | false | 每个 session 一条，零点附近 | 带 `wall_ms`，和 `t_ms` 出自同一次 `Date.now()`：客户端时钟锚点 |
+| ≥1 | `start` / `researcher` / `submit` | true | 只在条件 `sync_marks` 打开时：进画布、研究员按「同步」、交卷（纸面 session：进任务屏、按「同步」、按「结束」） | 整屏白闪一下、正中显示编号 n，眼动眼镜的场景相机和俯拍相机拍到同一帧，按编号对上 |
+
+可见标记不带 `wall_ms`——它就是锚点 + `t_ms`，能算出来的不存。`t_ms` 记在白屏插进页面那一刻，
+真正上屏还要等下一帧（≤ 1 帧）加屏幕延迟；这个误差**没量过**，试点时拿视频实测。
+同步钮不走 `logEvent`：那是研究员按的，不该打断一段「停顿」。
+导出：`sessions.csv` 的 `client_started_at_ms`、`n_sync_marks`、`cond_sync_marks`。
 
 `STROKE_START` 在落笔时记，不等抬笔——planning latency 和 first-stroke region 问的是
 孩子**什么时候开始**，不是什么时候松手。`FEEDBACK_SHOW` 就是反馈本身（正文、来源、
@@ -1021,7 +1045,7 @@ Apple Pencil 的 `tiltX/tiltY` 与 `altitudeAngle`、主屏模式下的 IndexedD
 
 | 条件字段 | 取值 | 作用 |
 |---|---|---|
-| `ui` | `full` / `quiet` | 游戏化程度（彩点、闯关路线、徽章、画廊） |
+| `ui` | `full` / `quiet` | 游戏化程度（彩点、闯关路线、徽章、画廊）。quiet 下彩点整个不出现，也不记 `MASCOT_STATE`；品牌名不显示；画廊那一屏两块都不出现时（`gallery_display` 不是 `always`），画廊 tab 也收起；「我的」上不摆徽章那块，也没有通向收起的 tab 的入口 |
 | `reference_allowed` | bool | 是否允许看参考图（开关时间进 event log） |
 | `undo_allowed` | bool | 是否允许撤销 |
 | `zoom_allowed` | bool | 是否允许缩放 / 平移画布（关掉时工具条隐藏、滚轮与空格失效） |
@@ -1032,6 +1056,10 @@ Apple Pencil 的 `tiltX/tiltY` 与 `altitudeAngle`、主屏模式下的 IndexedD
 | `questionnaire` | bool | 结束前是否做 1–5 自评 |
 | `feedback_source` | `ai` / `teacher` / `none` | 反馈来源 |
 | `time_limit_sec` | int / null | 时限，到点自动提交并记 `TIME_LIMIT_REACHED` |
+| `sync_marks` | bool | 看得见的同步标记（整屏白闪 + 编号 + 研究员「同步」钮），给外部相机对帧。默认 false：对孩子那一闪是干扰 |
+| `intent_mode` | `ask` / `none` | 开始画之前问不问心情和心愿。`ask` 和以前一样（simple 界面本来就不问，quiet 对照组问）；`none` 一律不问，选了就画。成人研究用 `none` |
+| `map_display` | `always` / `none` | 任务页上摆不摆地图。`none` 只留「今天这一张」任务卡。地图上能回去重画走过的题（protocol 记成偏离），所以它是条件，不跟着 quiet 走 |
+| `medium` | `ipad` / `paper` | 在哪儿画。`paper`：屏上不放画布，app 记时间线、收作品照片，见「纸面 session」。老 session 没有这一条，按 `ipad` 读 |
 
 **顺序随机化**：藏宝图上的关卡顺序就是 task sequence——按被试编号用**平衡拉丁方**排（每个任务在每个位置
 出现次数相同），同一个编号永远复现同一顺序。孩子看到的是关卡，reviewer 看到的是 counterbalanced order。
@@ -1084,6 +1112,73 @@ recording → completed_local → pending_upload → uploaded → server_verifie
 
 `quality.json` 与数据并排存放；`log_checksum` 记下两条主日志的内容哈希，
 以后的损坏或半截重传能被发现，而不是被静默分析。
+
+## 纸面 session：画在纸上，app 记时间线、收照片
+
+（2026-10-19。条件 `medium = paper`，默认 `ipad`；老 session 没有这一条，一律按 `ipad` 读。）
+
+成人被试在纸上写生或临摹时，屏上没有画布。app 只做四件事：
+
+- 发任务；
+- 记开始、结束和同步标记；
+- 收作品的照片或扫描件；
+- 收问卷。
+
+画的过程靠研究员打点和俯拍视频，不在这台设备上。
+
+**流程**：
+
+- 被试按「开始画」后进 `view-paper`，不建画布，`canvas` 是空对象。
+- 这时记 `SYNC_MARK` n=0（时钟锚点）；条件 `sync_marks` 打开时再记 n=1 `start`。
+- 中途研究员可以按「同步」。
+- 「画完了，结束」先打 `submit` 标记，再 `POST /sessions/{id}/end`。
+- 之后出现上传面板：终稿必传，阶段照可选、可以传多张。
+- 有了终稿，「完成」才能按，按完进问卷，然后结束。
+
+**接口**：
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| POST | `/api/sessions/{id}/end` | 记 `SESSION_END`（payload `{medium: paper}`）、结束时间和时长；可以一笔没有。重发原样返回，时间线上不多一条。iPad session 调它是 409 |
+| POST | `/api/sessions/{id}/artifacts` | 一张 PNG / JPEG：`kind` 是 `final` 或 `stage`，`uploaded_by` 必填。终稿要在 `/end` 之后传。同样的字节传两次只算一张。传新终稿时，旧终稿标 `superseded_by`，不删 |
+
+`/end` 进了离线发件箱（`log.js` 的 `end`），断网也能先结束。**上传必须联网**：一张照片几 MB，不进 IndexedDB 发件箱。
+
+**照片怎么存**：
+
+- 原图字节原样存进 `artifacts/<sha256 前 24 位>.jpg|png`，不重新编码，所以 EXIF 也留着。
+- `session.json.artifacts[]` 每张一条：`artifact_id` / `kind` / `file` / `sha256` / `bytes` / `mime` / `uploaded_by` / `uploaded_at` / `t_ms` / `label` / `superseded_by`。
+- 拍摄时间分三个字段记，不合并：
+  - `captured_at_ms` + `captured_at_source`：客户端报的，目前是文件的 `lastModified`，来源记 `file_mtime`；
+  - `exif_datetime_original` / `exif_offset_time_original`：文件自己的 EXIF。
+  - 哪个都不知道就是 null。
+- 带 `t_ms` 的上传在时间线上记一条 `ARTIFACT_UPLOADED`。从别的设备传的没有会话时钟，就只记在 `artifacts[]` 里。
+- `/files/{id}/final.png` 对纸面 session 返回当前那张终稿，`Content-Type` 按实际格式给。
+
+**QC 换一组项**（`qc.check_paper`，iPad 那组一项不动）：
+
+- 和 iPad 共用的项：`task_known` / `condition_frozen` / `stimulus_ready` / `events_nonempty` / `reference_available` / `log_checksum` / `times_monotonic` / `duration_plausible` / `uploads_flushed`。
+- 纸面专有的项：
+  - `no_canvas_strokes`：纸面 session 不该有屏上笔画；
+  - `final_artwork_uploaded`；
+  - `artifacts_intact`：盘上每张都在，hash 也对得上；
+  - `session_started` / `session_ended`：时间和事件都要有；
+  - `sync_marks_present`：有时钟锚点；`sync_marks` 打开时，还要有 `start` 和 `submit` 两个可见标记。
+- **0 笔不算失败。** `server_verified` 只在 `final_artwork_uploaded`、`artifacts_intact`、`uploads_flushed` 三项都过时才置上。
+
+**不打分。** 纸面作品走人评。服务器上配着 key、评分后端是 `auto` 的时候，模型也一张照片都不看，`calls.jsonl` 里没有 `score`。`tests/test_p1_condition.py` 在这种最坏配置下守着这一条：P1 条件下 `calls.jsonl` 全是 `local`。（陪伴在 `dialogue_mode=none` 下本来就是 403。）
+
+**导出**：
+
+- `sessions.csv` 加 `medium` 和 `n_artifacts` 两列；`n_artifacts` 只对纸面 session 有值。
+- 新增 `artifacts.csv`，一张照片一行，被取代的也在。
+
+**放弃**：纸面 session 屏上永远 0 笔，所以放弃时不按「空局」删掉，而是标记成 `abandoned`。
+
+**还没做**：
+- 上传不能离线；
+- 问卷的措辞是给孩子的；
+- 结束以后再放弃，会覆盖结束时间。
 
 ## 反馈 → 修改：不只记下反馈，还要能回答"他改了吗、改在哪"
 
@@ -1315,7 +1410,8 @@ python3 tools/export_sketches.py --out sketches/ --format all
 ```
 strokes[].path / pressure  平行数组       ←  我们的 points 里交错的 [x,y,dt,pressure,tiltX,tiltY]
 strokes[].use_pressure                    ←  pressure_supported（这一条我们各自独立得出了同一个结论）
-strokes[].s_time / e_time  epoch 毫秒     ←  started_at + t_start_ms / t_end_ms
+strokes[].s_time / e_time  epoch 毫秒     ←  客户端锚点 + 落笔 / 抬笔时刻（stroke_start_ms / stroke_end_ms）；
+                                              没有锚点的老 session 退回 started_at，artquest.clock 写明用的哪只钟
 strokes[].width                           ←  size
 undo_count / rm_stroke_count  只有总数     ←  我们有完整撤销时间线 + strokes_removed
 （他们没有）                                ←  逐点 dt_ms、倾角、颜色、工具、缩放、参考图交互、停顿
@@ -1327,7 +1423,7 @@ undo_count / rm_stroke_count  只有总数     ←  我们有完整撤销时间�
 ## 导出与回放
 
 ```bash
-python3 tools/export_dataset.py --out export/ --points   # sessions/strokes/events/feedback/questionnaire(.csv)
+python3 tools/export_dataset.py --out export/ --points   # sessions/strokes/events/feedback/questionnaire/artifacts(.csv)
 python3 tools/replay.py <session_id> --keyframes         # 重建 + 10/25/50/75/100% 与语义关键帧
 python3 tools/withdraw.py P007                          # 被试撤回（dry run；--confirm 才真删）
 python3 tools/replay.py --all --check                    # 校验每个 session 都能从日志回放
@@ -1431,6 +1527,8 @@ python3 tools/replay.py --all --check                    # 校验每个 session 
 | POST | `/api/sessions/{id}/snapshot` | 上传中间画布（辅助） |
 | POST | `/api/sessions/{id}/submit` | phase=before：评分 + 反馈；phase=after：评分 + 前后对比 + QC |
 | POST | `/api/sessions/{id}/finalize` | 不修改，直接完成 + QC |
+| POST | `/api/sessions/{id}/end` | 纸面 session 画完了：记 `SESSION_END`，可以一笔没有（幂等；iPad session 409） |
+| POST | `/api/sessions/{id}/artifacts` | 纸面 session 的一张作品照片 / 扫描件：终稿（结束之后）或阶段照；记 sha256、拍摄时间、上传者 |
 | POST | `/api/sessions/{id}/questionnaire` | 1–5 自评 |
 | POST 🔒 | `/api/sessions/{id}/feedback` | 记录老师反馈（与 AI 反馈同结构，可带 `target_region`） |
 | POST 🔒 | `/api/sessions/{id}/rating` | 教师 / 专家评分（append-only，多评分者） |
@@ -1491,6 +1589,8 @@ tests/               端到端测试 + 研究数据层测试（离线后端）
                      真实 Chrome 里把外壳放到第二个源上跑一遍登录 + 开画（= iOS 壳的 JS 那一半）
   test_browser.py    真实 Chrome：缩放不改坐标、含撤销的 session 能重建、参考图交互、
                      鼠标压感确实是 null（无浏览器则跳过）
+  test_paper_session.py 纸面 session：0 笔结束、照片的 hash / 拍摄时间 / 上传者、纸面 QC、iPad QC 不变
+  test_p1_condition.py  成人研究条件：tasks.json 的实物 / 打印件刺激、auto 评分下也不调模型、被试界面没有游戏化元素
 docs/                任务清单.docx / .pdf（75 个任务逐条：研究目的、主要考察、孩子看到的原话，给专业老师审，
                      由 gen_task_list.py 生成）、ART_LIST.md（美术清单：要画的参考图 19 张 / 地图字形 10 枚 / 徽章 51 枚 / app 图标，
                      每项写像素尺寸、文件名、画什么；由 gen_art_list.py 从代码生成）、ETHICS.md、开发指南

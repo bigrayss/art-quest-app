@@ -134,7 +134,8 @@ class Stroke(BaseModel):
         geometry + time + tool state, and nothing else
 
     `points` are `[x, y, dt_ms, pressure, tiltX, tiltY]` in canvas pixel space,
-    `dt_ms` counted from `t0_ms`; absolute time is `times.started_at + t0_ms + dt`,
+    `dt_ms` counted from `t0_ms`; absolute time is the client clock anchor
+    (`events.client_clock_anchor`) `+ t0_ms + dt`,
     so there is one clock and no record carries a second one. Anything derivable
     is left out: the stroke ends at `t0_ms + points[-1][2]`, and speed, length
     and hesitation belong to offline analysis.
@@ -241,6 +242,28 @@ class Finalize(BaseModel):
     elapsed_ms: int
     events: List[DrawEvent] = []
     strokes: List[Stroke] = []
+    pending: int = 0
+
+
+class EndSession(BaseModel):
+    """纸面 session 画完了（condition.medium = paper）。屏上没有画布可交，作品照片之后另传。"""
+    elapsed_ms: int
+    events: List[DrawEvent] = []
+    pending: int = 0
+
+
+class ArtifactUpload(BaseModel):
+    """纸面作品的一张照片或扫描件。原图字节原样存，一个字节不改。"""
+    kind: Literal["final", "stage"] = Field(..., description="final 终稿（必传，结束之后）/ stage 阶段照（可选，可多张）")
+    image: str = Field(..., description="原图的 data URL（image/png 或 image/jpeg）")
+    uploaded_by: str = Field(..., max_length=64, description="谁传的：研究员代号")
+    # 拍摄时间客户端报一个、文件自己的 EXIF 另算一个，两者可能对不上（相机钟错、扫描件没有 EXIF），都记、不合并。
+    # 不知道就是 null，不拿上传时间顶。
+    captured_at_ms: Optional[int] = Field(None, description="客户端说的拍摄时间，ms since epoch")
+    captured_at_source: Literal["file_mtime", "manual", ""] = ""
+    t_ms: Optional[int] = Field(None, description="上传那一刻的会话时钟；换一台设备传的不知道，留空")
+    label: str = Field("", max_length=80)
+    events: List[DrawEvent] = []
     pending: int = 0
 
 
