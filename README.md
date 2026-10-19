@@ -1,48 +1,39 @@
 # 彩绘冒险 · KidsArtQuest
 
-给 6–14 岁孩子和成年初学者的 AI 美术教育游戏，同时是一个研究数据采集平台。
-孩子选一个主题，写下想画什么，画完得到一句反馈，可以改一次再交；
-画的每一笔和每一次操作都记在时间线上，供后续研究分析。
+给孩子和成年初学者的 AI 美术教育游戏，也是一个研究数据采集平台。
+孩子选一道题，画完得到一句反馈，可以改一次再交；每一笔和每一次操作都记在时间线上。
 
-- 网页版：`static/`，原生 HTML / Canvas / JS，没有构建步骤
-- 后端：`artquest/`，FastAPI，一次创作一个目录
-- iOS app：`ios/`，Swift 壳里装的是同一份 `static/`
+- 网页版 `static/`：原生 HTML / Canvas / JS，没有构建步骤
+- 后端 `artquest/`：FastAPI，一次创作一个目录
+- iOS `ios/`：Swift 壳里装同一份 `static/`
 - 线上：https://art.ddhulu.cn/
 
-完整的设计说明（每个决定为什么这样做）在 [`DESIGN.md`](DESIGN.md)。
+设计说明（每个决定为什么这样做）在 [`DESIGN.md`](DESIGN.md)。
 
 ## 快速开始
 
 ```bash
 pip install -r requirements.txt
-cp .env.example .env     # 可选：填模型 key（ecnu-plus 或 Anthropic）才会用 AI 评分和反馈
+cp .env.example .env     # 可选：填模型 key 才会用 AI 评分和反馈
 ./run.sh                 # http://127.0.0.1:8000
-./test.sh                # 全部测试，离线，不需要 API key
+./test.sh                # 全部测试，离线，不需要 key
 ```
 
-没有 API key 时用离线启发式评分和模板反馈，整个流程照样能跑通。
-`tests/test_browser.py` 等几组会用系统的 Chrome 真跑一遍；没装 Playwright 或没有 Chrome 就自动跳过
-（`.venv/bin/pip install playwright`，不必 `playwright install`）。
-
-给 iPad 试用走 Tailscale（`tailscale serve --bg --https=443 http://127.0.0.1:8010`），
-不要用 `HOST=0.0.0.0`：后者把孩子的画暴露给整个局域网，而且不是 HTTPS，装到主屏后断网是白屏。
+没有 key 时用离线启发式评分和模板反馈，整个流程照样能跑。模型挂了也会自动退回这两样。
+浏览器测试用系统的 Chrome；没装 Playwright 或没有 Chrome 就自动跳过。
 
 ## 配置
 
 | 环境变量 | 默认 | 说明 |
 |---|---|---|
-| `ARTQUEST_LLM_BASE_URL` · `ARTQUEST_LLM_API_KEY` | 空 | 任何 OpenAI 兼容接口。华东师大 ecnu-plus：`https://chat.ecnu.edu.cn/open/api/v1` |
-| `ANTHROPIC_API_KEY` | 空 | 另一条路：Anthropic。两种 key 都给时走 OpenAI 兼容那条 |
-| `ARTQUEST_SCORER` | `auto` | `auto` / `llm` / `heuristic`（`claude`、`ecnu` 都当 `llm`） |
-| `ARTQUEST_FEEDBACK` | `auto` | `auto` / `llm` / `template`，陪伴跟它走 |
-| `ARTQUEST_MODEL` · `ARTQUEST_EFFORT` | `ecnu-plus` 或 `claude-opus-5` · `medium` | 模型与思考深度（ecnu 默认不开思维链，`ARTQUEST_LLM_THINKING=1` 才开） |
-| `ARTQUEST_DATA_DIR` | `./data` | 数据目录，已 gitignore，儿童作品不进仓库 |
-| `ARTQUEST_SNAPSHOT_INTERVAL` | `0` | 过程截图间隔（秒）。**现在的客户端不读它**：定时截图在主线程编码整张画布会让画画卡顿；老师看的过程图由服务器从笔画日志重建（`checkpoints/process_*.png`） |
-| `ARTQUEST_ADMIN_TOKEN` | 空 | 研究员令牌；不设则全量列表、打分、策展等接口一律 401 |
-| `ARTQUEST_LLM_TOOLS` | `off` | 模型后端是否支持工具协议（OpenAI tool_calls / Anthropic tool_use）。agent 选题臂要它；off 时 agent 臂记 `agent_unavailable` 回退规则，绝不静默跑普通模型再记成 agent。`native`（= on）：2026-10-18 用 `tools/probe_tools.py` 探过，ecnu 网关放行 tools、回标准 tool_calls |
-| `ARTQUEST_SELECTION_AUTHORITY` | `client` | 选题权威：`client` 浏览器按规则摆地图、服务端影子对照并记录；`server` 服务端算好排位（含随机抽签）发给浏览器摆，决策票直接成为那条 session。切回 `client` 即回滚 |
-| `ARTQUEST_TEACHER_CODE` | 空 | 老师注册的邀请码 |
-| `ARTQUEST_CORS_ORIGINS` | iOS 壳的源 | 跨源来源 |
+| `ARTQUEST_LLM_BASE_URL` · `ARTQUEST_LLM_API_KEY` | 空 | OpenAI 兼容接口（现用华东师大 ecnu-plus） |
+| `ANTHROPIC_API_KEY` | 空 | 另一条通路；两种都给时走 OpenAI 兼容那条 |
+| `ARTQUEST_MODEL` | `ecnu-plus` | 模型名 |
+| `ARTQUEST_SCORER` · `ARTQUEST_FEEDBACK` | `auto` | `auto` / `llm` / `heuristic` 或 `template` |
+| `ARTQUEST_SELECTION_AUTHORITY` | `client` | 选题权威：`client` 浏览器算、服务端影子对照；`server` 服务端算好发给浏览器 |
+| `ARTQUEST_LLM_TOOLS` | `off` | 模型后端是否支持工具协议（agent 选题臂要）；ecnu 已实测可设 `native` |
+| `ARTQUEST_DATA_DIR` | `./data` | 数据目录，不进仓库 |
+| `ARTQUEST_ADMIN_TOKEN` · `ARTQUEST_TEACHER_CODE` | 空 | 研究员令牌、老师邀请码 |
 
 ## 部署
 
@@ -50,70 +41,33 @@ cp .env.example .env     # 可选：填模型 key（ecnu-plus 或 Anthropic）�
 ./deploy/push.sh      # rsync 到服务器 + 重启 systemd --user 服务
 ```
 
-服务器只监听 `127.0.0.1:8010`，对外由机器上已有的 Caddy 反代，不需要 sudo。
-细节和踩过的坑在 [`deploy/README.md`](deploy/README.md) 和 [`deploy/服务器接入指南.md`](deploy/服务器接入指南.md)。
+细节在 [`deploy/README.md`](deploy/README.md)。
 
 ## 数据
 
-一次创作一个目录，四个数据文件加一张图：
+一次创作一个目录：
 
 ```
 data/sessions/<id>/
-  session.json    身份、冻结的任务定义、条件、设备、画布、自评、QC
-  strokes.jsonl   画本身，一行一笔
+  session.json    身份、冻结的任务、条件、评分、这道题怎么来的
+  strokes.jsonl   一行一笔
   events.jsonl    所有非绘画操作，反馈也在这条线上
   labels.jsonl    教师评分、专家标注
-  calls.jsonl     每次模型/引擎执行一条（schema 4 起）：评分一维一次尝试一条、反馈、陪伴、个性化，
-                  heuristic/template 也写（execution_kind=local）；输入是文字 + 图的 sha256，不含图本身
+  calls.jsonl     每次模型 / 引擎执行一条
   final.png       交上来的作品
-  frames/         陪伴每次点击那一刻的画布，按内容 hash 命名、只追加（session.json 的 assist_clicks 和 calls.jsonl 指向它）
-data/prompts/<sha256>.txt   固定的 system 正文按 hash 归档一份，calls.jsonl 里只有 system_hash
+  frames/         陪伴每次点击那一刻的画布
 ```
 
-原则：不高频、不是时间序列的进 `session.json`；能算出来的不存。
-`calls.jsonl` 不在的旧 session 是「没采集」，不是「零次调用」。
-`session.json` 的 `selection` 记这道题怎么来的（入口、孩子点的还是协议定的、服务端影子决策的候选与排位、对照结果）；
-服务端影子选题的规则在 `artquest/selection.py`，和 app.js 的地图规则是同一套，规则一变就升 `RULES_VERSION`。
-选题策略臂 `condition.selection_policy = rules | llm | agent`（study.json 的 condition 或 groups 里分配；默认 rules）：
-llm 臂在上一张画完/放弃落盘后由服务端预算，模型只在冻结候选里给**自由位**排序（`artquest/selection_llm.py`），
-地图加载路径上从不等模型；越界/超时/没历史一律回退 rules 并记 `fallback_reason`，分到的臂（selection_policy）和实际执行的臂（executed_policy）分开记。
-只在 `ARTQUEST_SELECTION_AUTHORITY=server` 下生效。
-agent 臂（`artquest/selection_agent.py`）是一个**受限的执行循环**，不是另一版提示词：两个真正执行的工具
-`retrieve_history`（只读这个孩子允许范围内、截止到决策时刻的真实记录，缺的标 missing）和 `validate_offer`（确定性校验，错误码到位置），
-模型每轮只能检索、校验或 `submit_offer`；最终提交永远由后端再校验一次（requested_by=runtime）。预算：4 次模型请求、2 次检索、2 次主动校验、总期限 150 秒；
-失败回退 rules 并保留轨迹。每轮模型请求一个 operation，每次工具执行一条 local 记录（tool_name / requested_by / step），都在决策票的 calls.jsonl。
-事件词表的唯一权威是 `artquest/events.py`。研究员接口见 `DESIGN.md` 的「API」一节。
-
-## 研究相关
-
-- **任务库**：十个主题家族，每家 2 道两版共通的锚定题加小学 3 道、初中 3 道，题面在 `artquest/missions_v2.py`（当前 2.6 版）。
-  题面是研究材料，改一个字都要升 `TASK_VERSION`。
-- **Study Mode**：条件（游戏化程度、能否看参考图、能否撤销、历史模式）冻进每个 session，`artquest/study.py`。
-- **评分**：九个维度 1–5 分，离线启发式或 Claude 视觉评分，可插拔（`artquest/scoring/`）。
-- **伦理**：`docs/ETHICS.md`；隐私政策页 `/privacy`。
+导出成 CSV：`tools/export_dataset.py`。字段含义和选题（影子、权威、三臂）的设计在 `DESIGN.md`。
 
 ## 目录
 
 ```
-artquest/     后端：missions_v2 任务库 · study 实验配置 · accounts 账号 · storage 存储 · events 事件词表
-              scoring / feedback / assist 三个可插拔的 AI 入口 · gallery 观摩与徽章 · qc 数据质量
-static/       前端：app.js 界面 · style.css · log.js 本地优先记录 · i18n.js + lang/en.js 中英文
-              art/buddy 彩点六个形象 · refs 参考图
-ios/          Swift 壳，见 ios/README.md
-deploy/       推送脚本、systemd 服务、Caddy 片段、接入指南
-tools/        生成清单（任务 / 文案 / 美术）、出精灵素材、导出数据集、回放、撤回
-tests/        端到端 + 研究数据层测试
-docs/         给人看的：试点测试流程、任务清单、文案清单、美术清单、伦理说明、原始开发指南
-art-src/      精灵的原始素材（tools/build_buddy_roles.py 的输入）
+artquest/   后端：任务库 · 实验配置 · 账号 · 存储 · 事件词表 · 评分 / 反馈 / 陪伴 · 选题
+static/     前端：app.js · style.css · log.js · 中英文 · 精灵素材 · 参考图
+ios/        Swift 壳
+deploy/     推送脚本、服务、接入指南
+tools/      生成清单、导出数据集、探测、回放、撤回
+tests/      端到端 + 数据层测试
+docs/       试点流程、任务清单、文案清单、伦理说明
 ```
-
-## 文档
-
-| 想知道 | 去哪 |
-|---|---|
-| 为什么这样设计、每个模块的契约 | `DESIGN.md` |
-| 第一次试点怎么组织 | `docs/试点测试流程.md` |
-| 80 道题面 | `docs/任务清单.pdf` |
-| 界面上每一句话 | `docs/文案清单.md`（`tools/gen_copy_list.py` 生成） |
-| 美术资源 | `docs/ART_LIST.md`（`tools/gen_art_list.py` 生成） |
-| 彩点怎么做的 | `static/art/buddy/README.md` |

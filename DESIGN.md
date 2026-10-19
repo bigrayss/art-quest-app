@@ -1501,3 +1501,17 @@ docs/                任务清单.docx / .pdf（75 个任务逐条：研究目�
 - 过程节点的 9 维比较、Growth 视图
 - AI 图文反馈（Level 2：圈选标记 → 填进已有的 `target_region`；Level 3：2–3 个视觉方向）
 - Intent 扩展为情绪 + 目标 + 描述 / 语音
+
+
+## 选题：影子、权威、三臂（2026-10-14 至 10-18，原在 README）
+
+`session.json` 的 `selection` 记这道题怎么来的（入口、孩子点的还是协议定的、服务端影子决策的候选与排位、对照结果）；
+服务端影子选题的规则在 `artquest/selection.py`，和 app.js 的地图规则是同一套，规则一变就升 `RULES_VERSION`。
+选题策略臂 `condition.selection_policy = rules | llm | agent`（study.json 的 condition 或 groups 里分配；默认 rules）：
+llm 臂在上一张画完/放弃落盘后由服务端预算，模型只在冻结候选里给**自由位**排序（`artquest/selection_llm.py`），
+地图加载路径上从不等模型；越界/超时/没历史一律回退 rules 并记 `fallback_reason`，分到的臂（selection_policy）和实际执行的臂（executed_policy）分开记。
+只在 `ARTQUEST_SELECTION_AUTHORITY=server` 下生效。
+agent 臂（`artquest/selection_agent.py`）是一个**受限的执行循环**，不是另一版提示词：两个真正执行的工具
+`retrieve_history`（只读这个孩子允许范围内、截止到决策时刻的真实记录，缺的标 missing）和 `validate_offer`（确定性校验，错误码到位置），
+模型每轮只能检索、校验或 `submit_offer`；最终提交永远由后端再校验一次（requested_by=runtime）。预算：4 次模型请求、2 次检索、2 次主动校验、总期限 150 秒；
+失败回退 rules 并保留轨迹。每轮模型请求一个 operation，每次工具执行一条 local 记录（tool_name / requested_by / step），都在决策票的 calls.jsonl。
