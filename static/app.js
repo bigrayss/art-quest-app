@@ -987,7 +987,7 @@
 
   // ---------- views ----------
   // 四个 tab 是四块独立的界面；做任务时导航整个收起来，只剩画画。
-  const VIEWS = ["welcome", "world", "quest", "dex", "buddy", "sessions", "intent", "draw", "result", "survey", "final",
+  const VIEWS = ["welcome", "world", "quest", "dex", "buddy", "sessions", "intent", "draw", "paper", "result", "survey", "final",
                  "teacher", "grade", "rubric"];
   /** 现在显示的是哪一屏。启动时用来判断「人是不是已经自己走开了」。 */
   const curView = () => VIEWS.find(v => !$(`#view-${v}`).classList.contains("hidden")) || "";
@@ -1003,7 +1003,7 @@
     VIEWS.forEach(v => $(`#view-${v}`).classList.toggle("hidden", v !== name));
     const role = name === "final" ? (state.revised ? "encourage" : "normal") : VIEW_ROLE[name];
     if (role) mascotLog(role, name === "draw" ? "companion_quiet" : "companion", "view", { view: name });
-    native("keepAwake", { on: name === "draw" });     // 画着画的时候屏幕别自己暗下去
+    native("keepAwake", { on: name === "draw" || name === "paper" });     // 画着画的时候屏幕别自己暗下去
     const tab = VIEW_TAB[name];
     document.body.classList.toggle("inflow", !tab);
     document.body.classList.toggle("welcome", name === "welcome");   // 门口：连顶栏都没有
@@ -1022,9 +1022,10 @@
     }
     // 返回键归顶栏管：哪个流程界面，用哪个已有的返回逻辑
     $("#btn-back-quest").classList.toggle("hidden", name !== "intent");
-    $("#btn-back-draw").classList.toggle("hidden", name !== "draw");
+    // 纸面任务只在「画着」那一段能退：结束之后是收照片，退出去就丢了这一局的结尾
+    $("#btn-back-draw").classList.toggle("hidden", !(name === "draw" || (name === "paper" && state.paperStage === "doing")));
     const stage = tab ? "" : name === "draw" ? (state.phase === "after" ? "evolve" : "draw")
-      : name === "survey" ? "final" : name;
+      : name === "paper" ? "draw" : name === "survey" ? "final" : name;
     renderFlow(stage);
     window.scrollTo(0, 0);
     // 画布的像素上限和笔尖预览都只有在这一屏真的显示出来之后才量得到
@@ -2461,7 +2462,7 @@
     // 到点自动交卷的逻辑照旧。研究要的 TIME_LIMIT_REACHED 一条不少。
     if (left === 0) {
       state.timeUp = true; logEvent("TIME_LIMIT_REACHED", { limit_sec: limit });
-      $("#btn-submit").click();
+      $(paperMode() ? "#btn-paper-end" : "#btn-submit").click();
     }
   }
   function stopTimers() { state.timers.forEach(clearInterval); state.timers = []; }
@@ -3543,9 +3544,9 @@
   const leaveModal = $("#leave-modal");
   function askToLeave() {
     if (state.phase === "after") return;            // mid-revision: finish it
-    const n = visible.length;
-    $("#leave-body").textContent = n
-      ? `当前已画 ${n} 笔，要先保存吗？`
+    const n = paperMode() ? 0 : visible.length;     // 纸面任务屏上没有笔：退出就是放弃这一局（记录留着）
+    $("#leave-body").textContent = paperMode() ? "这一局纸面任务还没结束。退出会把它记为放弃，记录照样保留。"
+      : n ? `当前已画 ${n} 笔，要先保存吗？`
       : "画布上还没有内容，可以直接切换。";
     $("#btn-leave-save").classList.toggle("hidden", !n);
     leaveModal.classList.remove("hidden");
@@ -3597,7 +3598,8 @@
       quest_id: state.quest.id, intent,
       participant: { anon_id: state.anonId, participant_id: savedPid(), account_id: accountId(),
                      label: "", buddy_name: state.buddyName, age: (state.account || {}).age ?? null },
-      condition: state.condition, device: deviceInfo(), canvas: canvasGeom(),
+      // 纸面任务没有画布：不报一个藏着的画布的尺寸，那会被当成「在这么大的画布上画的」
+      condition: state.condition, device: deviceInfo(), canvas: paperMode() ? {} : canvasGeom(),
       // 首访任务库：这张地图是按年龄路由的——年龄、年龄从哪来、年龄段；从首访地图上进来的 M 族题也带（bank 为空），
       // 服务端预算下一次决策时靠它知道下一张地图还是首访模式。老地图 / 研究模式这里是空的。
       routing: state.bank ? { ...(state.bank || {}), first_visit: true, bank: isBank(state.quest) ? state.quest.bank : "" } : {},
@@ -3628,6 +3630,7 @@
     state.feedback = null; state.offlineSession = !!ticket;
     renderHistory(r.personalization);
     state.condition = { ...state.condition, ...(r.session.condition || {}) };  // the server froze it; mirror it back
+    if (paperMode()) return startPaper();   // 画在纸上：不碰画布、工具和颜色，那些在这一局里都不存在
     resetCanvas(); state.startedAt = Date.now();
     strokeCount = 0; state.lastActivity = 0; state.idle = false;
     applyTool("pencil");                 // 上一张用橡皮收的尾，不该带进下一张
@@ -3765,6 +3768,106 @@
     } catch (e) { alert("提交失败：" + e.message); startTimers(); }
     overlay(null);
   }
+
+  // ---------- 纸面任务（condition.medium = paper） ----------
+  // 画在纸上：屏上不放画布、不记笔画，也不跑「停顿」检测——纸上画着的人在屏上永远是静止的，
+  // 那会记出一整局的假停顿。这一屏记的是开始、同步标记、结束，收的是作品照片；不评分、不给反馈。
+  function paperMode() { return !!(state.condition && state.condition.medium === "paper"); }
+  const UPLOADER_KEY = "artquest.uploader";
+  let paperArtifacts = [];
+  function paperStage(stage) {
+    state.paperStage = stage;
+    ["doing", "upload", "finish"].forEach(s => $(`#paper-${s}`).classList.toggle("hidden", s !== stage));
+    $("#btn-back-draw").classList.toggle("hidden", stage !== "doing");
+  }
+  function paperNote(text) { const n = $("#paper-note"); n.textContent = text; n.classList.toggle("hidden", !text); }
+  async function startPaper() {
+    stopTimers();
+    state.startedAt = Date.now(); state.lastActivity = 0; state.idle = false; state.timeUp = false;
+    strokeCount = 0; paperArtifacts = [];
+    applyCondition();
+    await ArtLog.start(state.sessionId);
+    clockAnchor();
+    const q = state.quest, stim = q.stimulus || {};
+    $("#paper-quest-card").innerHTML = `<div class="type">${q.type || ""}</div><h3>${q.title}</h3><p>${q.prompt || ""}</p>`;
+    // 参考物不在屏上：写生对着实物，临摹拿的是打印件——研究员要知道发哪一张
+    const stimNote = stim.kind === "physical" ? "参考物是实物，不在屏上。"
+      : stim.kind === "printed" ? (stim.stimulus_id ? `参考图是打印件（${stim.stimulus_id}），不在屏上。` : "参考图是打印件，不在屏上。")
+      : "";
+    $("#paper-stim").textContent = stimNote;
+    $("#paper-stim").classList.toggle("hidden", !stimNote);
+    $("#btn-paper-sync").classList.toggle("hidden", !syncOn());
+    $("#paper-list").innerHTML = ""; $("#btn-paper-done").disabled = true; paperNote("");
+    try { $("#paper-uploader").value = localStorage.getItem(UPLOADER_KEY) || ""; } catch (e) { /* 无痕模式 */ }
+    paperStage("doing");
+    show("paper");
+    state.timers.push(setInterval(tickTimeLimit, 1000));   // 到点自动「结束」；停顿检测不开
+    syncMark("start");
+  }
+  $("#btn-paper-sync").onclick = () => syncMark("researcher");
+  $("#btn-paper-end").onclick = async () => {
+    if (state.paperStage !== "doing") return;
+    state.paperStage = "ending";              // 连点两下只结束一次
+    syncMark("submit");
+    stopTimers();
+    const body = { elapsed_ms: elapsed() };   // 结束的时刻是按下去这一下，不是请求回来那一下
+    try {
+      body.pending = await flushLog();
+      if (state.offlineSession) throw new TypeError("offline session");
+      await api(`${API}/sessions/${state.sessionId}/end`, { method: "POST", body: JSON.stringify(body) });
+    } catch (e) {
+      // 没网（或这一局本来就是离线票开的）：「结束」进发件箱，时间按刚才那一刻记；连上网先补它，再收照片
+      if (!(e instanceof TypeError) && navigator.onLine) {
+        state.paperStage = "doing"; state.timers.push(setInterval(tickTimeLimit, 1000));
+        alert("结束失败：" + e.message); return;
+      }
+      await ArtLog.defer("end", state.sessionId, body);
+    }
+    paperStage("upload");                     // 服务器知道这一局结束了，终稿才收得下
+  };
+  function readAsDataURL(file) {
+    return new Promise((ok, bad) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = () => bad(r.error); r.readAsDataURL(file); });
+  }
+  function paintPaperList() {
+    const sid = state.sessionId;
+    $("#paper-list").innerHTML = paperArtifacts.map(a => {
+      const shot = a.exif_datetime_original || (a.captured_at_ms ? new Date(a.captured_at_ms).toLocaleString() : "拍摄时间不详");
+      const kind = a.kind === "final" ? (a.superseded_by ? "终稿（已换掉）" : "终稿") : "阶段照";
+      return `<li class="${a.superseded_by ? "superseded" : ""}"><img src="${fileUrl(`/files/${sid}/${a.file}`)}" alt="">`
+        + `<div><div class="k">${kind}</div><div class="m">${escapeHtml(a.uploaded_by || "")} · ${escapeHtml(shot)} · sha256 ${(a.sha256 || "").slice(0, 12)}</div></div></li>`;
+    }).join("");
+    $("#btn-paper-done").disabled = !paperArtifacts.some(a => a.kind === "final" && !a.superseded_by);
+  }
+  /** 一张一张传，按选的顺序。原图原样发过去（不重新编码：sha256 要对得上手里那份文件），拍摄时间报文件自己的修改时间。 */
+  async function uploadPaper(kind, files) {
+    const who = $("#paper-uploader").value.trim();
+    if (!who) { paperNote("先填上传者，再选照片。"); $("#paper-uploader").focus(); return; }
+    try { localStorage.setItem(UPLOADER_KEY, who); } catch (e) { /* 无痕模式 */ }
+    for (const f of files) {
+      if (!/^image\/(jpeg|png)$/.test(f.type)) { paperNote("只收 JPEG 或 PNG 格式的照片。"); continue; }
+      paperNote("正在上传…");
+      try {
+        await flushLog();                     // 发件箱里的「结束」先过去，终稿才收得下
+        const r = await api(`${API}/sessions/${state.sessionId}/artifacts`, { method: "POST", body: JSON.stringify({
+          kind, image: await readAsDataURL(f), uploaded_by: who,
+          captured_at_ms: f.lastModified || null, captured_at_source: f.lastModified ? "file_mtime" : "",
+          t_ms: elapsed() }) });
+        paperArtifacts = (r.session && r.session.artifacts) || paperArtifacts;
+        paintPaperList();
+        paperNote("");
+      } catch (e) { paperNote("上传失败：" + e.message); return; }
+    }
+  }
+  $("#paper-final-input").onchange = (e) => { const fs = [...e.target.files].slice(0, 1); e.target.value = ""; uploadPaper("final", fs); };
+  $("#paper-stage-input").onchange = (e) => { const fs = [...e.target.files]; e.target.value = ""; uploadPaper("stage", fs); };
+  $("#btn-paper-done").onclick = async () => {
+    await flushLog();
+    state.pendingFinal = { paper: true };
+    if (state.condition.questionnaire && !isSimple()) { renderSurvey(); show("survey"); return; }
+    showPaperDone();
+  };
+  function showPaperDone() { state.pendingFinal = null; show("paper"); paperStage("finish"); }
+  $("#btn-paper-next").onclick = () => $("#btn-again").onclick();
   // ---------- self-report ----------
   const SURVEY = [
     { key: "difficulty", q: "这次画起来难吗？", lo: "很简单", hi: "很难" },
@@ -3841,7 +3944,9 @@
     }
     try { await api(`${API}/sessions/${state.sessionId}/questionnaire`, { method: "POST", body: JSON.stringify(body) }); }
     catch (e) { console.warn("questionnaire failed", e); }
-    const f = state.pendingFinal; if (f) showFinal(f.session, f.beforeImg, f.afterImg, f.comparison);
+    const f = state.pendingFinal;
+    if (f && f.paper) showPaperDone();
+    else if (f) showFinal(f.session, f.beforeImg, f.afterImg, f.comparison);
   }
   $("#btn-survey-submit").onclick = () => sendSurvey(false);
   $("#btn-survey-skip").onclick = () => sendSurvey(true);

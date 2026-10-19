@@ -161,8 +161,10 @@
     snapshot: (s) => `${API}/sessions/${s}/snapshot`,
     submit:   (s) => `${API}/sessions/${s}/submit`,
     finalize: (s) => `${API}/sessions/${s}/finalize`,
+    end:      (s) => `${API}/sessions/${s}/end`,                // 纸面任务的「结束」：和交卷一样排在笔画/标记后面
     assist_click: (s) => `${API}/sessions/${s}/assist/click`,   // 没调模型的点击（冷却/离线）的画面与账
   };
+  const CLOSING = (r) => r.kind === "submit" || r.kind === "finalize" || r.kind === "end";
 
   /** 还没重放的「建 session」是哪些 —— 它们的笔画得等着。 */
   async function pendingCreates() {
@@ -205,7 +207,7 @@
     try {
       // 顺序：先把「建 session」送过去 → 再送笔画 → 最后送离线时存下的「交卷」。
       // 交卷排在笔画后面：服务器收到画的时候，这一局的笔画已经在了。
-      await drainOutbox(r => r.kind !== "submit" && r.kind !== "finalize");
+      await drainOutbox(r => !CLOSING(r));
       const held = await pendingCreates();
       for (;;) {
         const rows = await pull(MAX_BATCH);
@@ -233,7 +235,7 @@
         if (!moved) break;                      // 全被挡住了：这一轮没得做，等下一轮
         if (rows.length < MAX_BATCH) break;
       }
-      if (!held.size && !(await count())) await drainOutbox(r => r.kind === "submit" || r.kind === "finalize");
+      if (!held.size && !(await count())) await drainOutbox(CLOSING);
     } catch (e) {
       // keep the queue; the next tick (or reconnect) retries
     } finally {

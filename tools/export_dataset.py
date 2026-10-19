@@ -2,7 +2,8 @@
 
     python3 tools/export_dataset.py --out export/ [--points]
 
-Writes sessions.csv, strokes.csv, events.csv, feedback.csv, questionnaire.csv, calls.csv (+ prompts/), assist_clicks.csv —
+Writes sessions.csv, strokes.csv, events.csv, feedback.csv, questionnaire.csv, calls.csv (+ prompts/), assist_clicks.csv,
+artifacts.csv (paper sessions' photos and scans) —
 and with --points, points.csv (one row per sampled pen point; large).
 
 Nothing is aggregated beyond counts: stroke speed, hesitation and rhythm stay
@@ -67,6 +68,8 @@ SESSION_COLS = [
     "study_active", "study_id", "group", "cond_ui", "cond_reference_allowed",
     "cond_undo_allowed", "cond_questionnaire", "cond_feedback_source",
     "cond_zoom_allowed", "cond_history_mode", "cond_sync_marks",
+    # 在哪儿画（2026-10-19）：ipad | paper。改版之前的 session 没冻这一条，留空（全是屏上画的）
+    "medium", "n_artifacts",
     # 客户端的钟（2026-10-19）：t_ms = 0 那一刻客户端墙上是几点（events.client_clock_anchor），
     # 和看得见的同步标记有几个。started_at 是服务端的钟，两者不能混用；没有锚点 = 客户端早于它，两列都空
     "client_started_at_ms", "n_sync_marks",
@@ -148,6 +151,7 @@ def _flat_session(m: Dict[str, Any]) -> Dict[str, Any]:
         "cond_feedback_source": c.get("feedback_source"),
         "cond_zoom_allowed": c.get("zoom_allowed"), "cond_history_mode": c.get("history_mode"),
         "cond_sync_marks": c.get("sync_marks"),
+        "medium": c.get("medium"), "n_artifacts": len(m.get("artifacts") or []) if c.get("medium") == "paper" else None,
         "emotion": intent.get("emotion", ""), "intent_text": intent.get("text", ""),
         "status": m.get("status"), "revised": m.get("revised"),
         "bank": t.get("bank", ""), "band": t.get("band", "") or (m.get("routing") or {}).get("band", ""),
@@ -195,6 +199,11 @@ def _flat_call(sid: str, c: Dict[str, Any]) -> Dict[str, Any]:
         "reasoning_chars": out.get("reasoning_chars") if isinstance(out, dict) else None,
     }
 
+
+# 纸面作品的照片和扫描件，一张一行（session.json 的 artifacts）。拍摄时间两个来源分两列，不合并。
+ARTIFACT_COLS = ["session_id", "artifact_id", "kind", "file", "sha256", "bytes", "mime", "captured_at_ms",
+                 "captured_at_source", "exif_datetime_original", "exif_offset_time_original", "uploaded_by",
+                 "uploaded_at", "t_ms", "label", "superseded_by"]
 
 ASSIST_CLICK_COLS = ["session_id", "click_id", "nth", "t_ms", "phase", "cached", "offline", "deferred",
                      "n_strokes_client", "n_strokes_server", "server_count_at", "frame_file", "frame_sha256",
@@ -265,7 +274,7 @@ def _write(path: Path, cols: List[str], rows: List[Dict[str, Any]]) -> int:
 def export(out: Path, with_points: bool = False) -> Dict[str, int]:
     out.mkdir(parents=True, exist_ok=True)
     sessions, strokes, events, feedback, quest, personal, ratings = [], [], [], [], [], [], []
-    annotations, calls, clicks, decisions, unconsumed = [], [], [], [], []
+    annotations, calls, clicks, decisions, unconsumed, artifacts = [], [], [], [], [], []
     points_path = out / "points.csv"
     pf = points_path.open("w", newline="", encoding="utf-8") if with_points else None
     pw = csv.writer(pf) if pf else None
@@ -298,6 +307,8 @@ def export(out: Path, with_points: bool = False) -> Dict[str, int]:
         if cs:
             calls.extend(_flat_call(sid, c) for c in cs)
         clicks.extend(_flat_click(sid, c) for c in (m.get("assist_clicks") or []))
+        artifacts.extend({"session_id": sid, **{k: a.get(k) for k in ARTIFACT_COLS[1:]}}
+                         for a in (m.get("artifacts") or []))
         if m.get("selection"):
             decisions.append(_flat_decision(sid, (m["selection"].get("decision") or {}), m["selection"], None))
 
@@ -400,6 +411,7 @@ def export(out: Path, with_points: bool = False) -> Dict[str, int]:
         "personalization": _write(out / "personalization.csv", PERSONALIZATION_COLS, personal),
         "calls": _write(out / "calls.csv", CALL_COLS, calls),
         "assist_clicks": _write(out / "assist_clicks.csv", ASSIST_CLICK_COLS, clicks),
+        "artifacts": _write(out / "artifacts.csv", ARTIFACT_COLS, artifacts),
         # 一次任务安排三层：冻结候选 / 实际展示 / 实际选择。每条 session 一行（它选的那次），
         # 没被消费的服务端决策单独一张表——它们不是作品，不能混进样本
         "decisions": _write(out / "decisions.csv", DECISION_COLS, decisions),

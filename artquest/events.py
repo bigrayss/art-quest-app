@@ -103,6 +103,10 @@ FEATURED_DECLINED = "FEATURED_DECLINED"
 # -- outcome -----------------------------------------------------------------
 QUESTIONNAIRE_SUBMITTED = "QUESTIONNAIRE_SUBMITTED"
 DOWNLOAD = "DOWNLOAD"
+# 纸面 session（condition.medium = paper，2026-10-19）收到一张作品照片或扫描件。payload：
+# artifact_id、kind（final 终稿 / stage 阶段照）、sha256、uploaded_by、label、superseded（被它取代的旧终稿）。
+# t_ms 是上传那一刻的会话时钟；拍摄时间记在 session.json 的 artifacts 里，不在这里。
+ARTIFACT_UPLOADED = "ARTIFACT_UPLOADED"
 
 # -- clocks ------------------------------------------------------------------
 # 这条时间线和外面的钟对上的地方（2026-10-19）。payload：n、source、visible，n=0 另带 wall_ms。
@@ -110,7 +114,7 @@ DOWNLOAD = "DOWNLOAD"
 #   t_ms 和 wall_ms 出自同一次 Date.now()，锚点 = wall_ms − t_ms（见 client_clock_anchor）。
 # - n≥1, visible=true：看得见的同步标记，只在条件 sync_marks 打开时出现——整屏白闪一下、
 #   显示编号 n，让眼动眼镜的场景相机、俯拍相机拍到同一帧。source = start（进画布自己闪一次）
-#   / researcher（研究员按钮）/ submit（交卷那一下）。t_ms 记在白屏插进页面那一刻，
+#   / researcher（研究员按钮）/ submit（交卷那一下；纸面 session 是按「结束」那一下）。t_ms 记在白屏插进页面那一刻，
 #   真正上屏还要等下一帧（≤ 1 帧）加屏幕延迟，试点时用视频实测。
 #   不带 wall_ms：它就是锚点 + t_ms，能算出来的不存。
 SYNC_MARK = "SYNC_MARK"
@@ -133,7 +137,7 @@ VOCABULARY: Set[str] = {
     PAUSE_START, PAUSE_END, TIME_LIMIT_REACHED,
     ASSIST_OPEN, ASSIST_SHOW, MASCOT_STATE,
     FEEDBACK_SHOW, FEEDBACK_DISMISS, REVISION_START, REVISION_SKIPPED, MODEL_FALLBACK,
-    HISTORY_SHOWN, RATING_ADDED, QUESTIONNAIRE_SUBMITTED, DOWNLOAD,
+    HISTORY_SHOWN, RATING_ADDED, QUESTIONNAIRE_SUBMITTED, DOWNLOAD, ARTIFACT_UPLOADED,
     FEATURED_PROPOSED, FEATURED_ACCEPTED, FEATURED_DECLINED,
     SYNC_MARK,
 }

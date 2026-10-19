@@ -32,7 +32,7 @@ from .config import (LLM_BACKEND, LLM_MODEL, LLM_PROVIDER, SESSIONS_DIR, SNAPSHO
 from .assist import get_assist_engine
 from .feedback import get_feedback_engine
 from .personalize import MODES as HISTORY_MODES, get_personalizer
-from .qc import check as qc_check
+from .qc import check as qc_check, check_paper as qc_check_paper
 from .quests import (EMOTIONS, QUESTS, QUESTS_BY_ID, condition_snapshot,
                      families as task_families)
 from .reconstruct import check_final, rebuild
@@ -41,8 +41,8 @@ from .revision import attribute as attribute_revision
 from .schemas import (
     Opinion,
     TeacherPoolUpdate,
-    AssistClick, AssistIn,Abandon, Annotation, ClaimDevice, CreateSession, Curate, DrawEvent, EarnedBadges,
-                      FeaturedAnswer, FeedbackIn, Finalize, HARDEST_PARTS_SHOWN, IssueTickets, TaskOptions, Login, LogBatch,
+    AssistClick, AssistIn,Abandon, Annotation, ArtifactUpload, ClaimDevice, CreateSession, Curate, DrawEvent,
+                      EarnedBadges, EndSession, FeaturedAnswer, FeedbackIn, Finalize, HARDEST_PARTS_SHOWN, IssueTickets, TaskOptions, Login, LogBatch,
                       PROCESS_LABELS, ProfileUpdate, Questionnaire, Rating, Register, ResetPin, Snapshot, TeacherGrade, StudyAssign,
                       Stroke, Submit, TokenOnly)
 from .scoring import DIMENSIONS, SCALE_MAX, get_scorer
@@ -131,7 +131,8 @@ def phase_image(sid: str, phase: str):
         raise HTTPException(404, "session not found")
     if png is None:
         raise HTTPException(404, "not found")
-    return Response(content=png, media_type="image/png",
+    # 纸面 session 的终稿是上传的原图，可能是 JPEG：按字节说它是什么，不按 URL 的后缀
+    return Response(content=png, media_type="image/jpeg" if png[:3] == b"\xff\xd8\xff" else "image/png",
                     headers={"Cache-Control": "no-cache"})
 
 
@@ -244,8 +245,46 @@ def _reference_available(sid: str, meta: Dict[str, Any]) -> Optional[bool]:
     return bool((meta.get("task") or {}).get("reference_file"))
 
 
+def _artifact_state(sid: str, meta: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """session.json 里记的每张作品照片，加上盘上那份还在不在、hash 还对不对（现算，不存）。"""
+    out = []
+    for a in meta.get("artifacts") or []:
+        p = store.dir(sid) / (a.get("file") or "")
+        found = bool(a.get("file")) and p.is_file()
+        out.append(dict(a, file_ok=found,
+                        hash_ok=found and hashlib.sha256(p.read_bytes()).hexdigest() == a.get("sha256")))
+    return out
+
+
+def _run_paper_qc(sid: str, meta: Dict[str, Any], pending: int = 0) -> Dict[str, Any]:
+    """纸面 session：没有画布可回放，查的是终稿图、开始结束和同步标记（qc.check_paper）。"""
+    result = qc_check_paper(
+        meta,
+        events=store.log(sid, "events").read(),
+        artifacts=_artifact_state(sid, meta),
+        n_strokes=store.log(sid, "strokes").count(),
+        known_task=meta.get("quest_id") in QUESTS_BY_ID,
+        pending_uploads=pending,
+        condition_frozen=bool((store.condition_snapshot(sid) or {}).get("task_id")),
+        reference_available=_reference_available(sid, meta),
+        checksum=store.log_checksum(sid),
+    )
+    result["at"] = now_iso()
+    store.save_quality(sid, result)
+    # 和 iPad 那三项同一个意思：数据本身齐了、对得上，客户端也没有还压着的
+    verified = {"final_artwork_uploaded", "artifacts_intact", "uploads_flushed"}
+    if not (verified & set(result["failed"])):
+        store.set_lifecycle(sid, "server_verified")
+        store.finalize(sid)
+    if not result["ok"]:
+        log.warning("paper session %s failed QC: %s", sid, result["failed"])
+    return result
+
+
 def _run_qc(sid: str, pending: int = 0) -> Dict[str, Any]:
     meta = store.load(sid)
+    if (meta.get("condition") or {}).get("medium") == "paper":
+        return _run_paper_qc(sid, meta, pending)
     try:
         # rebuild the artwork from the logs and hold it against what was saved
         built = rebuild(store.dir(sid))
@@ -1188,6 +1227,12 @@ def _selection_record(body: CreateSession, quest: Dict[str, Any], who: Dict[str,
     return rec
 
 
+def _check_medium(condition: Dict[str, Any]) -> None:
+    """在哪儿画决定了后面走哪条收作品、哪组 QC 的路；拼错一个字就会悄悄走回 iPad 那条，所以当场拒。"""
+    if condition.get("medium", "ipad") not in study_mod.MEDIA:
+        raise HTTPException(422, f"unknown medium {condition.get('medium')!r}; expected one of {study_mod.MEDIA}")
+
+
 @api.post("/tickets", status_code=201)
 def issue_tickets(body: IssueTickets, request: Request):
     """预发几张票，留着离线用。
@@ -1212,6 +1257,7 @@ def issue_tickets(body: IssueTickets, request: Request):
         if qid and quest is None:
             raise HTTPException(400, f"unknown quest {qid}")
         condition = study_mod.resolve_condition(None, st.get("group", ""))
+        _check_medium(condition)
         if quest and quest.get("time_limit_sec") and not condition.get("time_limit_sec"):
             condition["time_limit_sec"] = quest["time_limit_sec"]
         t = store.issue(condition=condition, participant=body.participant.model_dump(),
@@ -1240,6 +1286,7 @@ def create_session(body: CreateSession, request: Request):
             _check_owner(request, who["account_id"])
     st = body.study.model_dump()
     condition = study_mod.resolve_condition(body.condition, st.get("group", ""))
+    _check_medium(condition)
     if quest.get("time_limit_sec") and not condition.get("time_limit_sec"):
         condition["time_limit_sec"] = quest["time_limit_sec"]
     # 界面语言此刻冻进 session：之后评分、反馈、陪伴都按它，task 快照记的也是孩子看到的那一版
@@ -1617,6 +1664,105 @@ def finalize(sid: str, body: Finalize):
     qc = _run_qc(sid, body.pending)
     _prepare_next(store.load(sid))
     return {"session": store.load_full(sid), "qc": qc}
+
+
+# -- 纸面 session（condition.medium = paper）-----------------------------------
+# 画在纸上，屏上没有画布可交：`/end` 记结束（可以一笔没有），作品照片和扫描件走 `/artifacts`。
+# 不打分——纸面作品的评分是人评（量表另配），模型一张照片都不看。
+def _is_paper(meta: Dict[str, Any]) -> bool:
+    return (meta.get("condition") or {}).get("medium") == "paper"
+
+
+@api.post("/sessions/{sid}/end")
+def end_paper_session(sid: str, body: EndSession):
+    """纸面 session 画完了：记 SESSION_END、结束时间和时长。终稿到了才算 done、才跑 QC。
+    发件箱会重发：已经结束的原样返回，时间线上不多一条。"""
+    meta = _session_or_404(sid)
+    if not _is_paper(meta):
+        raise HTTPException(409, "only a paper session ends without submitting its canvas")
+    if meta.get("status") == "abandoned":
+        raise HTTPException(409, "session was abandoned")
+    if meta.get("status") in ("ended", "done"):
+        return {"session": meta, "replayed": True}
+    _ingest(sid, body.events, [])
+    store.add_server_event(sid, ev.SESSION_END, body.elapsed_ms, {"medium": "paper"})
+    store.update(sid, status="ended")
+    store.mark_ended(sid, body.elapsed_ms)
+    return {"session": store.load(sid)}
+
+
+def _inspect_upload(raw: bytes) -> Optional[Dict[str, Any]]:
+    """打得开的 PNG / JPEG 才收。顺手读出文件自己记的拍摄时间（EXIF DateTimeOriginal 和时区），没有就是 None。"""
+    import io
+    from PIL import Image
+    try:
+        with Image.open(io.BytesIO(raw)) as im:
+            fmt = im.format
+            sub = im.getexif().get_ifd(0x8769)          # Exif IFD
+            im.load()                                    # 半截的文件在这里才露馅
+    except Exception:
+        return None
+    mime = {"PNG": "image/png", "JPEG": "image/jpeg"}.get(fmt)
+    if not mime:
+        return None
+
+    def text(v):
+        if v is None:
+            return None
+        if isinstance(v, bytes):
+            v = v.decode("ascii", "replace")
+        return str(v).strip("\x00 ") or None
+    return {"mime": mime, "dto": text(sub.get(0x9003)), "oto": text(sub.get(0x9011))}
+
+
+@api.post("/sessions/{sid}/artifacts")
+def upload_artifact(sid: str, body: ArtifactUpload):
+    """纸面作品的一张照片或扫描件：终稿（结束之后，必传）或阶段照（随时，可多张）。
+
+    原图字节原样存（storage.add_artifact），记 sha256、拍摄时间（客户端报的 + 文件 EXIF 里的，
+    不合并、不知道就是 null）、上传者。终稿第一次到：session 算 done，跑纸面那组 QC；
+    再传一张新终稿是把旧的标成被取代，不删。"""
+    meta = _session_or_404(sid)
+    if not _is_paper(meta):
+        raise HTTPException(409, "artifacts are for paper sessions; an iPad session submits its canvas")
+    if meta.get("status") == "abandoned":
+        raise HTTPException(409, "session was abandoned")
+    if body.kind == "final" and meta.get("status") not in ("ended", "done"):
+        raise HTTPException(409, "end the session before uploading the final artwork")
+    who = body.uploaded_by.strip()
+    if not who:
+        raise HTTPException(422, "uploaded_by is required: who photographed or scanned this")
+    try:
+        raw = decode_data_url(body.image)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    info = _inspect_upload(raw)
+    if info is None:
+        raise HTTPException(422, "not a readable PNG or JPEG image")
+    _ingest(sid, body.events, [])
+    res = store.add_artifact(sid, raw, kind=body.kind, mime=info["mime"], fields={
+        "captured_at_ms": body.captured_at_ms,
+        "captured_at_source": body.captured_at_source if body.captured_at_ms is not None else "",
+        "exif_datetime_original": info["dto"], "exif_offset_time_original": info["oto"],
+        "uploaded_by": who, "t_ms": body.t_ms, "label": body.label.strip()})
+    art = res["artifact"]
+    # 上传那一刻落在会话时间线上；换一台设备传的不知道会话时钟，就只记在 artifacts 里
+    if res["created"] and body.t_ms is not None:
+        store.add_server_event(sid, ev.ARTIFACT_UPLOADED, body.t_ms, {
+            "artifact_id": art["artifact_id"], "kind": art["kind"], "sha256": art["sha256"],
+            "uploaded_by": who, "label": art["label"], "superseded": res["superseded"] or None})
+    qc = None
+    status = store.load(sid).get("status")
+    if body.kind == "final" and status == "ended":
+        store.update(sid, status="done")
+        store.set_lifecycle(sid, "pending_upload" if body.pending else "completed_local")
+        if not body.pending:
+            store.set_lifecycle(sid, "uploaded")
+        qc = _run_qc(sid, body.pending)
+        _prepare_next(store.load(sid))
+    elif status == "done" and res["created"]:
+        qc = _run_qc(sid, body.pending)         # 后补的照片也要过一遍：hash 对不对、终稿换没换
+    return {"artifact": art, "created": res["created"], "session": store.load(sid), "qc": qc}
 
 
 @api.post("/sessions/{sid}/abandon")

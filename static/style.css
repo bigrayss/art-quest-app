@@ -2362,3 +2362,31 @@ body.offline .needs-net { display:none !important; }
 /* 年龄旁边那一句：为什么要填 */
 .acct-hint { margin:6px 2px 10px; font-size:0.8125rem; color:var(--muted-2); line-height:1.5; }
 .age-gate .acct-hint { margin:-4px 0 12px; }
+
+/* ===== 放在文件末尾（2026-10-19）：纸面任务和成人研究条件 =====
+   不紧挨着上面 quiet 那段写：那段和 quiet 修复（bigrayss/art-quest-app#2）逐字相同，两边合并时不打架。 */
+/* ===== 纸面任务（condition.medium = paper）：没有画布，一张卡 ===== */
+.paper-card { display:flex; flex-direction:column; gap:14px; }
+.paper-card .intent-task { border:none; padding:6px 0 0; box-shadow:none; background:none; }
+.paper-stim { margin:0; font-weight:700; color:var(--muted-2); }
+.paper-who { grid-template-columns:auto 1fr; border-bottom:none; padding:4px 0; }
+.paper-who input { max-width:none; }
+.paper-picks { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.filebtn { display:flex; align-items:center; justify-content:center; gap:8px; min-height:52px; padding:10px 14px;
+  border:2px solid var(--line); border-radius:var(--r); background:var(--card); font-weight:800; cursor:pointer;
+  box-shadow:0 var(--edge) 0 var(--line); text-align:center; }
+.filebtn.primary-ish { border-color:var(--blue); color:var(--blue-d); box-shadow:0 var(--edge) 0 var(--blue); }
+.filebtn:active { transform:translateY(var(--edge)); box-shadow:none; }
+/* 不用 display:none：iOS 上点 label 打开被 display:none 的 file input 不总灵 */
+.file-input { position:absolute; width:1px; height:1px; opacity:0; overflow:hidden; pointer-events:none; }
+.paper-note { margin:0; font-weight:700; color:var(--red-d); }
+.paper-list { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
+.paper-list li { display:grid; grid-template-columns:56px 1fr; gap:12px; align-items:center;
+  padding:8px; border:2px solid var(--line); border-radius:var(--r); }
+.paper-list img { width:56px; height:56px; object-fit:cover; border-radius:8px; background:var(--soft); }
+.paper-list .k { font-weight:800; }
+.paper-list .m { font-size:0.75rem; color:var(--muted-2); font-family:ui-monospace, SFMono-Regular, Menlo, monospace;
+  overflow-wrap:anywhere; }
+.paper-list li.superseded { opacity:.55; }
+.paper-done-text { margin:0; font-size:1.25rem; font-weight:800; }
+@media (max-width:700px) { .paper-picks { grid-template-columns:1fr; } }

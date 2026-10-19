@@ -61,7 +61,12 @@ DEFAULT_CONDITION: Dict[str, Any] = {
     # 研究员还有一颗「同步」钮随时补一次——给眼动眼镜、俯拍相机对帧用（events.SYNC_MARK）。
     # 默认关：对孩子来说那一闪是干扰。时钟锚点（n=0）不看这一条，每个 session 都记。
     "sync_marks": False,
+    # 在哪儿画（2026-10-19）：ipad = 画在屏上（改版之前的全部 session）；paper = 画在纸上，
+    # app 只发任务、记时间线和同步标记、收作品照片（POST /sessions/{id}/end、/artifacts），QC 换一组项。
+    # 旧 session 没有这一条，一律按 ipad 读。
+    "medium": "ipad",          # ipad | paper
 }
+MEDIA = ("ipad", "paper")
 
 # A protocol says which *families* a child must cover, which parallel form they
 # get, and what is held out — so that one library of 75 forms turns into a short,
