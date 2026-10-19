@@ -1301,6 +1301,11 @@ body.quiet .buddy-head,
 body.quiet #btn-world,
 body.quiet .rail-brand .mark,
 body.quiet #view-final > h1 .ico { display:none !important; }
+/* quiet 是去游戏化的那一臂（DESIGN：彩点、闯关路线、徽章、画廊），这两样也算（2026-10-19）：
+   品牌名「彩绘冒险」；画廊 tab——「我的画」quiet 下本来就收着，「大家的画廊」只在 always 时出现，
+   两块都不在时点进去是空的一屏（app.js applyCondition 给 body 加 wall-on）。 */
+body.quiet .rail-brand b,
+body.quiet:not(.wall-on) [data-tab="dex"] { display:none !important; }
 
 /* ===== 封面：彩点的世界 =====
    不放图——试过手画的风景和照片，前者像随手涂的，后者放大了瘆人。
@@ -2040,7 +2045,7 @@ html[data-lang="en"] .intent-form .chips button { flex:1 1 auto; white-space:now
   .badge-row { grid-template-columns:repeat(auto-fill, minmax(128px, 1fr)); gap:24px 10px; }
   .badge .b-ico { width:78px; height:78px; }
   .badge .b-name { font-size:0.9375rem; }
-  .story-tiles { grid-template-columns:repeat(4, 1fr); gap:12px; }
+  .story-tiles { grid-template-columns:repeat(var(--n, 4), 1fr); gap:12px; }   /* quiet 下少一块徽章：按块数排满一行 */
   .stile { min-height:96px; justify-content:flex-end; padding:14px 16px; }
   .stile b { font-size:2rem; }
   .stile > span { font-size:0.75rem; }

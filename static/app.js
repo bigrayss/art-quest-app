@@ -2630,6 +2630,8 @@
     if (rv) rv.innerHTML = `${icon("sparkle", 19)}再改一改${icon("arrowRight", 17)}`;
     if (sk) sk.textContent = "保留原样";
     document.body.classList.toggle("quiet", c.ui === "quiet");
+    // 画廊那一屏两块：「我的画」quiet 下收着，「大家的画廊」只在 always 时出现。两块都不出现，tab 也不该在
+    document.body.classList.toggle("wall-on", (c.gallery_display || "none") === "always");
     ["#btn-undo", "#btn-redo"].forEach(sel => { const b = $(sel); if (b) { b.disabled = !c.undo_allowed; b.classList.toggle("hidden", !c.undo_allowed); } });
     $("#zoombar").classList.toggle("hidden", !zoomAllowed());
     if (!zoomAllowed()) { handMode = false; $("#btn-hand").classList.remove("active"); resetView(null); }
@@ -4589,13 +4591,16 @@
     const lit = litBadges();
     // 三块数字是**门**，不只是数字：点「画完的画」去画廊，点「点亮的徽章」
     // 去徽章墙。数字后面站着东西，就该让人走过去看。
+    // 对照组（quiet）：徽章那块不摆——徽章本身就是 quiet 收起来的东西；画廊 tab 收着时，「完成的作品」只是个数，不再是门
+    const quiet = (state.condition || {}).ui === "quiet";
+    const wallOn = ((state.condition || {}).gallery_display || "none") === "always";
     const tiles = [
-      { icon: "image",    v: done.length, unit: "张", label: "完成的作品",   c: "blue",   go: "dex" },
+      { icon: "image",    v: done.length, unit: "张", label: "完成的作品",   c: "blue",   go: quiet && !wallOn ? "" : "dex" },
       { icon: "compass",  v: fams,        unit: "个", label: "体验过的主题", c: "orange", go: "map" },
       { icon: "calendar", v: days,        unit: "天", label: "画画的天数", c: "green" },
-      { icon: "medal",    v: lit.size,    unit: "枚", label: "获得的徽章", c: "purple", go: "buddy" },
-    ];
-    el.innerHTML = `<div class="story-tiles">` + tiles.map(t =>
+      quiet ? null : { icon: "medal", v: lit.size, unit: "枚", label: "获得的徽章", c: "purple", go: "buddy" },
+    ].filter(Boolean);
+    el.innerHTML = `<div class="story-tiles" style="--n:${tiles.length}">` + tiles.map(t =>
       `<${t.go ? "button" : "div"} class="stile${t.go ? " jump" : ""}"${t.go ? ` data-go="${t.go}"` : ""}
          style="--tc:var(--${t.c});--tc-l:var(--${t.c}-l)">
          <span class="stile-ico">${icon(t.icon, 18)}</span>
