@@ -278,6 +278,8 @@ window.ARTQUEST_LANG_EN = {
   "放大": "Zoom in",
   "清空画布": "Clear the canvas",
   "保存到设备": "Save to this device",
+  "同步": "Sync",
+  "同步标记": "Sync mark",
   "已保存到相册": "Saved to Photos",
   "保存失败，请再试一次": "Could not save. Please try again.",
   "色相": "Hue",

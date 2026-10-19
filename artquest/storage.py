@@ -522,7 +522,9 @@ class SessionStore:
         state = meta.setdefault("streams", {}).setdefault(stream, {"last_seq": 0, "count": 0})
         prev = int(state.get("last_seq", 0))
         # One clock: `t_ms` / `t0_ms` since the session started drawing, and the
-        # wall clock recovered from `times.started_at`. A per-record timestamp
+        # wall clock recovered from the client's anchor (`SYNC_MARK` n=0, see
+        # `events.client_clock_anchor`) — not `times.started_at`, which is the
+        # server's clock at create time. A per-record timestamp
         # would be a second clock for the same fact, so records carry only
         # provenance. Strokes are folded onto the current field names on the way
         # in, so the file on disk is already canonical.

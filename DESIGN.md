@@ -135,7 +135,10 @@ $$Raw\ Stroke = Geometry + Time + Tool\ State$$
 point 的六个槽位固定是 `[x, y, dt_ms, pressure, tilt_x, tilt_y]`，画布像素坐标，
 `dt_ms` 从这一笔的 `t0_ms` 起算。绝对时间随时可以还原：
 
-$$t_{point} = \text{started\_at} + t0_{stroke} + dt$$
+$$t_{point} = \text{anchor}_{client} + t0_{stroke} + dt$$
+
+`anchor_client` 是客户端在 `t_ms = 0` 那一刻的墙钟，读自 `SYNC_MARK` n=0（见下面「同步标记」）。
+不是 `times.started_at`：那是服务端的钟。
 
 所以**每条记录都不带自己的时钟**——没有 `t_end_ms`（= `t0_ms` + 最后一个 `dt`）、
 没有 `ts`。速度、曲率、笔长、bounding box 一律留给离线分析。
@@ -217,10 +220,16 @@ python3 tools/check_json.py --dir data
 
 ### 统一事件时间轴（`artquest/events.py` 是唯一权威）
 
-**一条时间轴，一个时钟。** `t_ms` 就是那个时间戳——从开始画算起的毫秒；墙钟时间由
-`metadata.times.started_at_ms + t_ms` 还原，所以没有任何事件自带墙钟，也就没有两个模块
+**一条时间轴，一个时钟。** `t_ms` 就是那个时间戳——从开始画算起的毫秒，读的是客户端的
+`Date.now()`；墙钟时间由客户端锚点 + `t_ms` 还原（锚点 = `SYNC_MARK` n=0 的 `wall_ms − t_ms`，
+`events.client_clock_anchor`），所以别的事件都不自带墙钟，也就没有两个模块
 对"现在几点"产生分歧的余地。服务端事件（反馈展示、会话结束）用引发它的那次请求里的客户端时钟，
 落进同一条流。
+
+（2026-10-19 之前这里写的是 `times.started_at + t_ms`。`started_at` 是**服务端**处理建 session
+请求那一刻的钟，`t_ms` 的零点是客户端拿到响应之后的 `Date.now()`——两台机器、差一个往返；
+离线票补建时差的是画完到联网的整段时间。老 session 没有锚点，只能退回 `started_at`，
+导出里 `client_started_at_ms` 留空，分得开。）
 
 ```
 SESSION_START  TASK_SHOW  CANVAS_GEOMETRY  TASK_SUBMIT  SESSION_END
@@ -231,7 +240,20 @@ REFERENCE_FOCUS  CANVAS_FOCUS
 PAUSE_START  PAUSE_END  TIME_LIMIT_REACHED
 FEEDBACK_SHOW  FEEDBACK_DISMISS  REVISION_START  REVISION_SKIPPED
 HISTORY_SHOWN  RATING_ADDED  QUESTIONNAIRE_SUBMITTED  DOWNLOAD
+SYNC_MARK
 ```
+
+**同步标记：这条时间轴和外面的钟对上的地方。** `SYNC_MARK` 的 payload 是 `{n, source, visible}`：
+
+| n | source | visible | 什么时候 | 用来 |
+|---|---|---|---|---|
+| 0 | `clock` | false | 每个 session 一条，零点附近 | 带 `wall_ms`，和 `t_ms` 出自同一次 `Date.now()`：客户端时钟锚点 |
+| ≥1 | `start` / `researcher` / `submit` | true | 只在条件 `sync_marks` 打开时：进画布、研究员按「同步」、交卷 | 整屏白闪一下、正中显示编号 n，眼动眼镜的场景相机和俯拍相机拍到同一帧，按编号对上 |
+
+可见标记不带 `wall_ms`——它就是锚点 + `t_ms`，能算出来的不存。`t_ms` 记在白屏插进页面那一刻，
+真正上屏还要等下一帧（≤ 1 帧）加屏幕延迟；这个误差**没量过**，试点时拿视频实测。
+同步钮不走 `logEvent`：那是研究员按的，不该打断一段「停顿」。
+导出：`sessions.csv` 的 `client_started_at_ms`、`n_sync_marks`、`cond_sync_marks`。
 
 `STROKE_START` 在落笔时记，不等抬笔——planning latency 和 first-stroke region 问的是
 孩子**什么时候开始**，不是什么时候松手。`FEEDBACK_SHOW` 就是反馈本身（正文、来源、
@@ -1032,6 +1054,7 @@ Apple Pencil 的 `tiltX/tiltY` 与 `altitudeAngle`、主屏模式下的 IndexedD
 | `questionnaire` | bool | 结束前是否做 1–5 自评 |
 | `feedback_source` | `ai` / `teacher` / `none` | 反馈来源 |
 | `time_limit_sec` | int / null | 时限，到点自动提交并记 `TIME_LIMIT_REACHED` |
+| `sync_marks` | bool | 看得见的同步标记（整屏白闪 + 编号 + 研究员「同步」钮），给外部相机对帧。默认 false：对孩子那一闪是干扰 |
 
 **顺序随机化**：藏宝图上的关卡顺序就是 task sequence——按被试编号用**平衡拉丁方**排（每个任务在每个位置
 出现次数相同），同一个编号永远复现同一顺序。孩子看到的是关卡，reviewer 看到的是 counterbalanced order。

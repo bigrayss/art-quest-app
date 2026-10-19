@@ -66,7 +66,10 @@ SESSION_COLS = [
     "time_limit_sec", "allowed_tools", "reference_id", "order_index", "sequence_id",
     "study_active", "study_id", "group", "cond_ui", "cond_reference_allowed",
     "cond_undo_allowed", "cond_questionnaire", "cond_feedback_source",
-    "cond_zoom_allowed", "cond_history_mode",
+    "cond_zoom_allowed", "cond_history_mode", "cond_sync_marks",
+    # 客户端的钟（2026-10-19）：t_ms = 0 那一刻客户端墙上是几点（events.client_clock_anchor），
+    # 和看得见的同步标记有几个。started_at 是服务端的钟，两者不能混用；没有锚点 = 客户端早于它，两列都空
+    "client_started_at_ms", "n_sync_marks",
     "emotion", "intent_text", "status", "revised",
     # 首访任务库（2026-10-12）：按年龄路由的记录 + 任务实例的几项条件（年龄是协变量，不是能力分数）
     "bank", "band", "routing_age", "routing_age_source", "first_visit", "revision_enabled", "reference_fit", "post_config",
@@ -144,6 +147,7 @@ def _flat_session(m: Dict[str, Any]) -> Dict[str, Any]:
         "cond_undo_allowed": c.get("undo_allowed"), "cond_questionnaire": c.get("questionnaire"),
         "cond_feedback_source": c.get("feedback_source"),
         "cond_zoom_allowed": c.get("zoom_allowed"), "cond_history_mode": c.get("history_mode"),
+        "cond_sync_marks": c.get("sync_marks"),
         "emotion": intent.get("emotion", ""), "intent_text": intent.get("text", ""),
         "status": m.get("status"), "revised": m.get("revised"),
         "bank": t.get("bank", ""), "band": t.get("band", "") or (m.get("routing") or {}).get("band", ""),
@@ -317,7 +321,11 @@ def export(out: Path, with_points: bool = False) -> Dict[str, int]:
                     p = list(p) + [""] * (6 - len(p))
                     pw.writerow([sid, s.get("stroke_id"), i, p[0], p[1], t0 + (p[2] or 0), p[3], p[4], p[5]])
 
-        for e in session_events(d):
+        evs = session_events(d)
+        anchor = ev.client_clock_anchor(evs)
+        row["client_started_at_ms"] = anchor
+        row["n_sync_marks"] = ev.visible_sync_marks(evs) if anchor is not None else None
+        for e in evs:
             events.append({"session_id": sid, "seq": e.get("seq"), "src": e.get("src"),
                            "t_ms": e.get("t_ms"), "type": e.get("type"),
                            "payload": json.dumps(e.get("payload"), ensure_ascii=False) if e.get("payload") else ""})

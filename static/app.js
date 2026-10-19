@@ -1481,6 +1481,7 @@
     ASSIST_OPEN: "ASSIST_OPEN", ASSIST_SHOW: "ASSIST_SHOW", MASCOT_STATE: "MASCOT_STATE",
     FEEDBACK_DISMISS: "FEEDBACK_DISMISS", REVISION_START: "REVISION_START",
     TASK_SUBMIT: "TASK_SUBMIT", DOWNLOAD: "DOWNLOAD",
+    SYNC_MARK: "SYNC_MARK",
   };
 
   // ---------- canvas ----------
@@ -2390,12 +2391,37 @@
   document.documentElement.style.setProperty("--cur", color);
   paintNib();
   $("#btn-download").onclick = () => { const a = document.createElement("a"); a.download = `artquest-${state.sessionId || "draft"}.png`; a.href = canvas.toDataURL("image/png"); a.click(); logEvent(EV.DOWNLOAD); };
+  $("#btn-sync").onclick = () => syncMark("researcher");
 
   // ---------- process recording ----------
   const elapsed = () => state.startedAt ? Date.now() - state.startedAt : 0;
   const IDLE_MS = 3000;   // no input for this long counts as a pause worth logging
   /** One line of the append-only operation log; buffered locally, flushed in batches. */
   function logEvent(type, payload) { if (state.sessionId) ArtLog.event(type, elapsed(), payload || null); markActive(); }
+
+  // ---------- clocks: where this timeline meets the clocks outside it ----------
+  // t_ms 是客户端 Date.now() 减零点；零点在墙上是几点，只有客户端自己知道——服务端的
+  // started_at 是另一台机器、早一个往返的钟（离线票更是补传那一刻）。所以零点附近记一条
+  // SYNC_MARK n=0：t_ms 和 wall_ms 出自同一次读数，锚点 = wall_ms − t_ms（events.client_clock_anchor）。
+  let syncN = 0, syncTimer = 0;
+  const syncOn = () => state.condition.sync_marks === true;
+  function clockAnchor() {
+    if (!state.sessionId) return;
+    syncN = 0;
+    const now = Date.now();
+    ArtLog.event(EV.SYNC_MARK, now - state.startedAt, { n: 0, source: "clock", visible: false, wall_ms: now });
+  }
+  /** 看得见的同步标记：整屏白闪、正中显示编号，让眼动眼镜和俯拍相机拍到同一帧。只在 sync_marks 条件下有。
+   *  t_ms 记在白屏插进页面这一刻；真正上屏还要等下一帧（≤ 1 帧）加屏幕延迟，试点时用视频实测。
+   *  不走 logEvent：按钮是研究员按的，不是孩子的动作，不该把一段「停顿」打断。 */
+  function syncMark(source) {
+    if (!state.sessionId || !syncOn()) return;
+    const n = ++syncN, el = $("#sync-flash");
+    el.textContent = String(n); el.classList.remove("hidden");
+    ArtLog.event(EV.SYNC_MARK, elapsed(), { n, source, visible: true });
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(() => el.classList.add("hidden"), 500);
+  }
   function markActive() {
     const t = elapsed();
     if (state.idle) { ArtLog.event(EV.PAUSE_END, t, { duration_ms: Math.round(t - state.lastActivity), phase: state.phase }); state.idle = false; }
@@ -2628,6 +2654,7 @@
     document.body.classList.toggle("quiet", c.ui === "quiet");
     ["#btn-undo", "#btn-redo"].forEach(sel => { const b = $(sel); if (b) { b.disabled = !c.undo_allowed; b.classList.toggle("hidden", !c.undo_allowed); } });
     $("#zoombar").classList.toggle("hidden", !zoomAllowed());
+    $("#btn-sync").classList.toggle("hidden", !syncOn());
     if (!zoomAllowed()) { handMode = false; $("#btn-hand").classList.remove("active"); resetView(null); }
   }
   /** Per-task condition: reference image, time limit, allowed tools. */
@@ -3603,6 +3630,7 @@
     setColor(defaultColorFor(state.quest.id), null, "task_default");
     resetView(null); applyCondition(); syncName();   // a fresh canvas starts at 100 %, pen in hand
     await ArtLog.start(state.sessionId);
+    clockAnchor();
     applyTask(state.quest);
     $("#draw-quest-card").innerHTML = `<div class="type">${state.quest.type}</div><h3>${state.quest.title}</h3><p>${state.quest.prompt}</p>`;
     $("#draw-quest-card").classList.toggle("bank", isBank(state.quest));   // 首访：题面常显、不夹行
@@ -3615,6 +3643,7 @@
     startTimers(); show("draw");
     // the canvas has a real size only once the view is visible
     logEvent(EV.CANVAS_GEOMETRY, canvasGeom());
+    syncMark("start");
   }
 
   /** 首访任务库的「要做到」+ 按需提示：提示是预先固定的过程支持，点一次露一条，每次记 HINT_SHOW（hint_id / 第几次）。
@@ -3659,6 +3688,7 @@
   $("#btn-submit").onclick = async () => {
     if (state.phase === "after") return submitAfter();
     if (nothingDrawn()) return submitNote();
+    syncMark("submit");
     if (!navigator.onLine) return submitOffline();
     overlay("正在查看你的画…"); stopTimers();
     logEvent(EV.TASK_SUBMIT, { phase: state.phase, strokes: visible.length });
@@ -3718,6 +3748,7 @@
   };
   async function submitAfter() {
     if (canvasIsBlank()) return submitNote();      // 进化关把画全擦掉了也不收
+    syncMark("submit");
     overlay("正在查看修改内容…"); stopTimers();
     const image = canvas.toDataURL("image/png");
     try {

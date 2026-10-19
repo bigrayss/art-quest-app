@@ -57,6 +57,10 @@ DEFAULT_CONDITION: Dict[str, Any] = {
     # llm = 模型在冻结候选里排序；agent = 预留（同一契约，现在回退 rules 并记 policy_unavailable）。
     # 在决策生成之前由协议分配、冻进 session；实际执行的臂另记在 selection.executed_policy。
     "selection_policy": "rules",   # rules | llm | agent
+    # 看得见的同步标记（2026-10-19）：开了以后进画布、交卷各整屏白闪一次并显示编号，
+    # 研究员还有一颗「同步」钮随时补一次——给眼动眼镜、俯拍相机对帧用（events.SYNC_MARK）。
+    # 默认关：对孩子来说那一闪是干扰。时钟锚点（n=0）不看这一条，每个 session 都记。
+    "sync_marks": False,
 }
 
 # A protocol says which *families* a child must cover, which parallel form they
