@@ -1292,6 +1292,15 @@ body.quiet #badges-head,
 body.quiet #badges-card,
 body.quiet [data-tab="buddy"],
 body.quiet #collection-wrap { display:none; }
+/* 彩点本身也收起来（2026-10-19）：上面那条 .buddy-head 在结算页被 `#view-final .buddy-head` 盖过去了
+   （ID 选择器更具体），彩点照样露脸；而任务卡、心愿、问卷、等待层上的精灵 `.sprite` 从来没收过。
+   顶栏的彩点头像、品牌章（app 图标就是彩点）、结算页标题上的奖杯同理。这里一律 !important：
+   对照组的「不出现」不能输给某一屏自己的排版规则。 */
+body.quiet .sprite,
+body.quiet .buddy-head,
+body.quiet #btn-world,
+body.quiet .rail-brand .mark,
+body.quiet #view-final > h1 .ico { display:none !important; }
 
 /* ===== 封面：彩点的世界 =====
    不放图——试过手画的风景和照片，前者像随手涂的，后者放大了瘆人。

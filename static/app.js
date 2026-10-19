@@ -302,8 +302,12 @@
 
   // ---- 形象切换记进时间线（形象、模式、原因、在哪一屏、素材版本）----
   // 安静模式的进出不记：它是「落笔 / 最后一笔后 2 秒」的确定规则，从 stroke 流里能一字不差地算回来。
-  const mascotLog = (role, mode, reason, extra) =>
+  // 对照组（ui=quiet）里彩点整个不出现（style.css 的 body.quiet .sprite），也就没有形象可记：
+  // 记了就是一条从没发生过的曝光。
+  const mascotLog = (role, mode, reason, extra) => {
+    if (state.condition && state.condition.ui === "quiet") return;
     logEvent(EV.MASCOT_STATE, Object.assign({ role, mode, reason, view: curView(), asset_v: BUDDY_ASSET_V }, extra || {}));
+  };
   /** 精灵在哪一屏上（它可能画在还没 show 出来的下一屏里）。 */
   const viewOf = (el) => { const v = el && el.closest(".view"); return v ? v.id.replace(/^view-/, "") : curView(); };
 
