@@ -1338,7 +1338,8 @@ python3 tools/export_sketches.py --out sketches/ --format all
 ```
 strokes[].path / pressure  平行数组       ←  我们的 points 里交错的 [x,y,dt,pressure,tiltX,tiltY]
 strokes[].use_pressure                    ←  pressure_supported（这一条我们各自独立得出了同一个结论）
-strokes[].s_time / e_time  epoch 毫秒     ←  started_at + t_start_ms / t_end_ms
+strokes[].s_time / e_time  epoch 毫秒     ←  客户端锚点 + 落笔 / 抬笔时刻（stroke_start_ms / stroke_end_ms）；
+                                              没有锚点的老 session 退回 started_at，artquest.clock 写明用的哪只钟
 strokes[].width                           ←  size
 undo_count / rm_stroke_count  只有总数     ←  我们有完整撤销时间线 + strokes_removed
 （他们没有）                                ←  逐点 dt_ms、倾角、颜色、工具、缩放、参考图交互、停顿
