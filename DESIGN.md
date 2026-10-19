@@ -1043,7 +1043,7 @@ Apple Pencil 的 `tiltX/tiltY` 与 `altitudeAngle`、主屏模式下的 IndexedD
 
 | 条件字段 | 取值 | 作用 |
 |---|---|---|
-| `ui` | `full` / `quiet` | 游戏化程度（彩点、闯关路线、徽章、画廊） |
+| `ui` | `full` / `quiet` | 游戏化程度（彩点、闯关路线、徽章、画廊）。quiet 下彩点整个不出现，也不记 `MASCOT_STATE`；品牌名不显示；画廊那一屏两块都不出现时（`gallery_display` 不是 `always`），画廊 tab 也收起；「我的」上不摆徽章那块，也没有通向收起的 tab 的入口 |
 | `reference_allowed` | bool | 是否允许看参考图（开关时间进 event log） |
 | `undo_allowed` | bool | 是否允许撤销 |
 | `zoom_allowed` | bool | 是否允许缩放 / 平移画布（关掉时工具条隐藏、滚轮与空格失效） |
