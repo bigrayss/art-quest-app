@@ -48,12 +48,21 @@ LOSSY = {
 }
 
 
-def _epoch_ms(meta: Dict[str, Any]) -> int:
+def _epoch_ms(meta: Dict[str, Any], events: List[Dict[str, Any]]):
+    """Wall clock at `t_ms = 0`, and which clock it came from.
+
+    The client's own anchor when the session has one (`SYNC_MARK` n=0); older
+    sessions only have the server's `started_at`, a round trip off and on
+    another machine — still the best there is, so it is used and named.
+    """
+    anchor = ev.client_clock_anchor(events)
+    if anchor is not None:
+        return anchor, "client_anchor"
     t = ((meta.get("times") or {}).get("started_at")) or ""
     try:
-        return int(datetime.fromisoformat(t).timestamp() * 1000)
+        return int(datetime.fromisoformat(t).timestamp() * 1000), "server_started_at"
     except ValueError:
-        return 0
+        return 0, "none"
 
 
 def _load(sid: str):
@@ -92,7 +101,7 @@ def to_differsketching(sid: str) -> Optional[Dict[str, Any]]:
     meta, events, strokes = _load(sid)
     if not strokes:
         return None
-    base = _epoch_ms(meta)
+    base, clock = _epoch_ms(meta, events)
     tools = sorted({s.get("tool") for s in strokes if s.get("tool")})
     out_strokes = []
     for i, s in enumerate(strokes):
@@ -107,8 +116,10 @@ def to_differsketching(sid: str) -> Optional[Dict[str, Any]]:
             "use_pressure": supported,
             # an unmeasured channel stays empty rather than becoming zeros
             "pressure": [p[3] for p in pts] if supported else [],
-            "s_time": base + int(s.get("t_start_ms") or 0),
-            "e_time": base + int(s.get("t_end_ms") or 0),
+            # strokes come back canonical (t0_ms, no t_end_ms): read them through
+            # the helpers, which also understand the older spelling
+            "s_time": base + int(ev.stroke_start_ms(s)),
+            "e_time": base + int(ev.stroke_end_ms(s)),
             "width": s.get("size") or 1,
         })
     kinds = [ev.canonical(e.get("type")) for e in events]
@@ -118,7 +129,7 @@ def to_differsketching(sid: str) -> Optional[Dict[str, Any]]:
         "undo_count": kinds.count(ev.UNDO),
         "rm_stroke_count": len(all_strokes) - len(strokes),
         "artquest": dict(_provenance(meta, "differsketching"),
-                         tool_by_draw_type={i: t for i, t in enumerate(tools)}),
+                         tool_by_draw_type={i: t for i, t in enumerate(tools)}, clock=clock),
     }
 
 
@@ -132,7 +143,7 @@ def to_quickdraw(sid: str) -> Optional[Dict[str, Any]]:
     drawing = []
     for s in strokes:
         pts = s.get("points") or []
-        t0 = int(s.get("t_start_ms") or 0)
+        t0 = int(ev.stroke_start_ms(s))
         drawing.append([[round(p[0]) for p in pts],
                         [round(p[1]) for p in pts],
                         [t0 + int(p[2] or 0) for p in pts]])

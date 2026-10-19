@@ -389,6 +389,8 @@
       <span class="dock-sep"></span>
       <button class="dockbtn" id="btn-clear" data-name="清空" title="清空画布" aria-label="清空画布"><i data-icon="trash" data-size="18"></i></button>
       <button class="dockbtn" id="btn-download" data-name="保存" title="保存到设备" aria-label="保存到设备"><i data-icon="download" data-size="18"></i></button>
+      <!-- 研究员的钮：只在条件 sync_marks 打开时露面，按一下整屏白闪、记一条 SYNC_MARK -->
+      <button class="dockbtn hidden" id="btn-sync" data-name="同步" title="同步标记" aria-label="同步标记"><i data-icon="bolt" data-size="18"></i></button>
     </div>
 
     <!-- 右栏只剩两件事：这次要画什么，和彩点说的话。 -->
@@ -751,6 +753,8 @@
 <div class="pop pop-badge hidden" id="pop-badge"></div>
 
 <div id="overlay" class="hidden"><span class="sprite overlay-sprite" id="overlay-sprite"></span><div class="spinner"></div><div id="overlay-text">正在观察你的画……</div></div>
+<!-- 同步标记：整屏白、正中一个编号，盖在一切之上。给相机看的，不给 i18n 换字 -->
+<div id="sync-flash" class="sync-flash hidden" aria-hidden="true"></div>
 <!-- 语言表先于运行时，运行时先于界面：i18n.js 一跑就把页上的中文换掉，后面渲染的由它盯着换 -->
 <script src="/static/lang/en.js"></script>
 <script src="/static/i18n.js"></script>

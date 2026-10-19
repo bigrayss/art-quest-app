@@ -134,7 +134,8 @@ class Stroke(BaseModel):
         geometry + time + tool state, and nothing else
 
     `points` are `[x, y, dt_ms, pressure, tiltX, tiltY]` in canvas pixel space,
-    `dt_ms` counted from `t0_ms`; absolute time is `times.started_at + t0_ms + dt`,
+    `dt_ms` counted from `t0_ms`; absolute time is the client clock anchor
+    (`events.client_clock_anchor`) `+ t0_ms + dt`,
     so there is one clock and no record carries a second one. Anything derivable
     is left out: the stroke ends at `t0_ms + points[-1][2]`, and speed, length
     and hesitation belong to offline analysis.
