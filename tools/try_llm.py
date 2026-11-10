@@ -74,6 +74,9 @@ def main():
     t = time.time()
     print(f"\n[5] 反馈 ({time.time() - t:.1f}s):\n" + ClaudeFeedback().feedback(png, quest, intent, scores)["text"]); stat()
 
+    from artquest import llm
+    print("\n[健康] 「我的 → 这台设备 → 模型」那一行看到的就是这个：", llm.health())
+
 
 if __name__ == "__main__":
     main()

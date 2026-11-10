@@ -71,6 +71,51 @@ _POOL = _KeyPool(LLM_API_KEYS, _PER_KEY)
 # 最近一次 openai 通路调用的体检单（耗时、token、有没有思维链），tools/try_llm.py 打印它。
 LAST_CALL: Dict[str, Any] = {}
 
+# ---- 模型健康（2026-11-10）------------------------------------------------------------
+# key 过期是静默的：401 被兜底吞掉，孩子照样拿到模板，没人知道（10-13 到 10-17 就这么过了四天）。
+# 这里记住最近一次成败，「我的 → 这台设备」那一行靠它。只记状态和时间，不记错误原文——/api/config 是公开接口。
+#   ok          最近一次调用成功
+#   key_expired 401 / 403：钥匙到期了，换 key 才会好
+#   unreachable 别的失败（超时、429 重完还不行、5xx）：暂时连不上，等等就好
+#   untested    启动后还没调过
+# since = 现在这个状态是从什么时候开始的（状态没变就不动），面板上那个「（10-13 起）」。
+_HEALTH: Dict[str, Any] = {"state": "untested", "since": None, "ok_at": None, "fail_at": None, "http_status": None}
+_HEALTH_LOCK = threading.Lock()
+
+
+def _note_health(state: str, http_status: Optional[int] = None) -> None:
+    now = _now_iso()
+    with _HEALTH_LOCK:
+        if _HEALTH["state"] != state:
+            _HEALTH["since"] = now
+        _HEALTH["state"] = state
+        _HEALTH["http_status"] = http_status
+        _HEALTH["ok_at" if state == "ok" else "fail_at"] = now
+
+
+def _note_failure(http_status: Optional[int] = None) -> None:
+    _note_health("key_expired" if http_status in (401, 403) else "unreachable", http_status)
+
+
+def health() -> Dict[str, Any]:
+    with _HEALTH_LOCK:
+        return dict(_HEALTH)
+
+
+def reset_health() -> None:
+    """测试用。"""
+    with _HEALTH_LOCK:
+        _HEALTH.update(state="untested", since=None, ok_at=None, fail_at=None, http_status=None)
+
+
+def probe() -> Dict[str, Any]:
+    """最短的一次真调用，只为更新健康状态；结果不进任何记录。启动后和之后每小时一次（main 里起线程）。"""
+    try:
+        claude_text("Reply with the single word OK.", [{"type": "text", "text": "OK?"}], max_tokens=8)
+    except Exception as e:      # 状态已在通路里记下；这里只是别让探测线程死掉
+        log.warning("llm probe failed: %s", f"{type(e).__name__}: {e}"[:200])
+    return health()
+
 
 class ClaudeRefused(RuntimeError):
     pass
@@ -315,8 +360,10 @@ def _anthropic_create(system: str, content: List[Dict[str, Any]], max_tokens: in
         if ctx is not None:
             ctx.emit(rec, sysx, outcome="exception", seconds=round(time.monotonic() - t0, 2),
                      error=f"{type(e).__name__}: {e}"[:300])
+        _note_failure(getattr(e, "status_code", None))
         raise
     dt = time.monotonic() - t0
+    _note_health("ok", 200)
     text = "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
     usage = getattr(resp, "usage", None)
     if resp.stop_reason == "refusal":
@@ -413,6 +460,7 @@ def _openai_post(body: Dict[str, Any], system: str = "", content: Optional[List[
             if ctx is not None:
                 ctx.emit(rec, sysx, outcome="exception", seconds=round(time.monotonic() - t0, 2),
                          error=f"{type(e).__name__}: {e}"[:300])
+            _note_failure()
             raise
         # 撞了 429 的 key 歇一会儿（多把 key 时别人顶上；只有一把时等于退避）
         _POOL.release(ki, cool=_RETRY_SLEEP[min(attempt, len(_RETRY_SLEEP) - 1)] if r.status_code == 429 else 0.0)
@@ -431,8 +479,10 @@ def _openai_post(body: Dict[str, Any], system: str = "", content: Optional[List[
             if ctx is not None:
                 ctx.emit(rec, sysx, outcome="http_error", seconds=round(dt, 2), http_status=r.status_code,
                          error=r.text[:300])
+            _note_failure(r.status_code)
             raise RuntimeError(f"{LLM_PROVIDER} {r.status_code}: {r.text[:300]}")
         data = r.json()
+        _note_health("ok", r.status_code)
         _record_call(body, data, dt)
         if ctx is not None:
             usage = data.get("usage") or {}

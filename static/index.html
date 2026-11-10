@@ -309,7 +309,8 @@
     <summary><i data-icon="sliders" data-size="16"></i>这台设备<span class="me-sync hidden" id="me-sync"></span></summary>
     <div class="infolist">
       <div class="info"><span>当前版本</span><b id="shell-badge"></b></div>
-      <div class="info"><span>评分 / 反馈</span><b id="backend-badge"></b></div>
+      <!-- 模型这一行（2026-11-10）：有 key 时报「ecnu-plus · 正常 / 钥匙到期了 / 暂时连不上」，没 key 时报本地引擎。平常话，不标色 -->
+      <div class="info"><span>模型</span><b id="backend-badge" data-no-i18n></b></div>
       <div class="info"><span>本机代号</span><b id="anon-badge"></b></div>
       <div class="info"><span>全部记录</span><b><a id="export-link" href="/api/v1/sessions" target="_blank">导出 JSON</a></b></div>
     </div>

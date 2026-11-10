@@ -24,6 +24,19 @@
   const LANG = (window.I18N || {}).lang || "zh";
   const T = s => (window.I18N ? window.I18N.t(s) : s);
   const dimName = d => (LANG === "en" && d && d.en) ? d.en : ((d || {}).zh || "");
+  // 「我的 → 这台设备 → 模型」那一行。key 过期是静默的（兜底给孩子模板），所以这里得说得出来；
+  // 用平常话，不标色：正常 / 钥匙到期了 / 暂时连不上，后面跟「（10-13 起）」回答「坏了多久了」。
+  function modelLine(cfg) {
+    const llm = cfg.llm || {}, h = llm.health || {};
+    if (!cfg.claude_available || !llm.model) return T("{a} · {b}（本地）", { a: cfg.scorer, b: cfg.feedback });
+    const word = { ok: "正常", key_expired: "钥匙到期了", unreachable: "暂时连不上" }[h.state] || "还没试过";
+    let since = "";
+    if (h.since && h.state !== "untested") {
+      const d = new Date(h.since);
+      if (!isNaN(d)) since = T("（{d} 起）", { d: `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` });
+    }
+    return `${llm.model} · ${T(word)}${since}`;
+  }
   // 玫瑰图上九个标签挤在一圈里，英文全名放不下：用一个词
   // 扇形图上的标签就用正式名（英文是 KidsArtBench 的九个维度名，用户 2026-10-05：别用 Shape/Ideas 这种小名）。
   // 两个词的名字在图上拆成两行，由 roseLabel() 排。
@@ -3407,7 +3420,7 @@
       api(`${API}/config`), api(`${API}/quests`), api(`${API}/families`)]);
     // 账号要在取任何「我的」数据之前问清楚：画廊、地图上的星都按它来筛
     await loadAccount();
-    $("#backend-badge").textContent = `${state.cfg.scorer} · ${state.cfg.feedback}` + (state.cfg.claude_available ? "" : "（离线）");
+    $("#backend-badge").textContent = modelLine(state.cfg);
     // 设备上跑的是哪一版外壳。iPad 上「到底更新了没有」以前只能靠猜——
     // 这一行就是答案：和电脑上 `curl .../api/config` 里的 shell 对一下就知道。
     const sb = $("#shell-badge");

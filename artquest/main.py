@@ -109,6 +109,25 @@ api = APIRouter()
 # 图片、字体、视频由 GZipMiddleware 自己的 exclude_content_types 跳过，不用管。
 app.add_middleware(GZipMiddleware, minimum_size=1024)
 
+
+@app.on_event("startup")
+def _start_llm_probe() -> None:
+    """模型健康探测线程：启动时一次，之后每 LLM_PROBE_SEC 一次。没配 key 或间隔为 0 就不起。"""
+    if not (llm_available() and cfg.LLM_PROBE_SEC > 0):
+        return
+
+    def run():
+        while True:
+            try:
+                h = llm_mod.probe()
+                log.info("llm probe: %s", h.get("state"))
+            except Exception:
+                log.exception("llm probe thread")
+            time.sleep(cfg.LLM_PROBE_SEC)
+
+    import threading
+    threading.Thread(target=run, name="llm-probe", daemon=True).start()
+
 app.add_middleware(CORSMiddleware, allow_origins=cfg.CORS_ORIGINS,
                    allow_methods=["GET", "POST", "OPTIONS"],
                    allow_headers=["Authorization", "Content-Type"], max_age=600)
@@ -400,7 +419,10 @@ def config():
         "scorer": scorer.name,
         "feedback": fb.name,
         "claude_available": llm_available(),   # 旧字段名，前端「离线」角标靠它
-        "llm": {"provider": LLM_PROVIDER, "backend": LLM_BACKEND, "model": LLM_MODEL if llm_available() else ""},
+        "llm": {"provider": LLM_PROVIDER, "backend": LLM_BACKEND, "model": LLM_MODEL if llm_available() else "",
+                # 「我的 → 这台设备」那一行：ok / key_expired / unreachable / untested，加个 since。
+                # 不带错误原文，这个接口是公开的。
+                "health": llm_mod.health()},
         "dimensions": DIMENSIONS,
         "scale_max": SCALE_MAX,
         "emotions": EMOTIONS,

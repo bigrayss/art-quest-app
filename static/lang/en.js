@@ -596,11 +596,16 @@ window.ARTQUEST_LANG_EN = {
   "这台设备": "This device",
   "当前版本": "Current version",
   "评分 / 反馈": "Scoring / feedback",
+  "模型": "Model",
+  "{a} · {b}（本地）": "{a} · {b} (local)",
+  "正常": "OK",
+  "钥匙到期了": "Key has expired",
+  "暂时连不上": "Can't reach it right now",
+  "还没试过": "Not tried yet",
+  "（{d} 起）": " (since {d})",
   "本机代号": "Device ID",
   "全部记录": "All records",
   "导出 JSON": "Export JSON",
-  "（离线）": "(offline)",
-  "{a} · {b}（离线）": "{a} · {b} (offline)",
   "（尚未分配代号）": "(no code assigned)",
 
   // ---------- 流程条 ----------

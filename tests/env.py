@@ -15,6 +15,8 @@ ADMIN_TOKEN = os.environ.setdefault("ARTQUEST_ADMIN_TOKEN", "test-admin-token")
 # 首访任务库（2026-10-12）默认开着：第一次来的孩子看到的是年龄门 + 五道固定的题，不是十个家族的地图。
 # 既有的浏览器用例走的都是老地图，所以测试里统一关掉；test_bank 自己把开关打开再测。
 os.environ.setdefault("ARTQUEST_FIRST_VISIT", "off")
+# 模型健康探测线程（2026-11-10）测试里不起：它会真发请求。
+os.environ.setdefault("ARTQUEST_LLM_PROBE_SEC", "0")
 ADMIN = {"Authorization": f"Bearer {ADMIN_TOKEN}"}
 
 import artquest.config  # noqa: E402

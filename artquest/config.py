@@ -106,5 +106,8 @@ SELECTION_AUTHORITY = os.environ.get("ARTQUEST_SELECTION_AUTHORITY", "client").s
 # agent 臂返回 agent_unavailable 回退 rules，绝不静默跑普通模型再记成 agent。确认后端支持后在服务器上设 on。
 # 2026-10-18 用 tools/probe_tools.py 在服务器上探过：ecnu 网关放行 tools、模型回标准 tool_calls → 设 native（= on）即可，不用模拟。
 LLM_TOOLS = os.environ.get("ARTQUEST_LLM_TOOLS", "off").strip().lower() in ("1", "true", "yes", "on", "native")
+# 模型健康探测：启动后、之后每隔这么多秒发一次最短的调用，让「钥匙到期了」不用等第一个孩子画完才被发现。
+# 0 关掉（测试里关）。一小时一次 = 一天 24 次，ecnu 的 50000 rpd 看不见这点。
+LLM_PROBE_SEC = float(os.environ.get("ARTQUEST_LLM_PROBE_SEC", "3600") or 0)
 if SELECTION_AUTHORITY not in ("client", "server"):
     SELECTION_AUTHORITY = "client"
