@@ -44,6 +44,9 @@ class Canvas(BaseModel):
     height: int = 0
     css_width: float = 0
     css_height: float = 0
+    # 日常版 / 专业版，和画这张画的引擎（专业版是 "paint/1"）。重放要按引擎来。
+    edition: str = ""
+    engine: str = ""
 
 
 class StudyContext(BaseModel):
@@ -141,7 +144,14 @@ class Stroke(BaseModel):
 
     `pressure`/`tilt` are `null` when the pointer does not measure them, and the
     two `*_supported` flags say *why* — no sensor, as against a sensor that read
-    nothing. Zoom and pan never enter the coordinates (they are a view
+    nothing.
+
+    A pen or a finger adds two more slots, `[…, twist, contact]` (a mouse stops
+    at six). `twist` is the pen's barrel rotation in degrees. `contact` is the
+    long axis of a finger's contact patch in CSS pixels: a finger has no force
+    sensor, a harder press makes a bigger patch, and that proxy lives in its
+    own slot so it can never be read as pressure. `twist_supported` /
+    `contact_supported` say whether the stroke actually carried a reading. Zoom and pan never enter the coordinates (they are a view
     transform, so a stroke drawn at 4x lands where a 1x one would and replay
     stays exact); `zoom` records what the child could see while drawing it,
     which is a different question and not recoverable from the numbers.
@@ -163,6 +173,13 @@ class Stroke(BaseModel):
     pointer: str = Field("", validation_alias=AliasChoices("pointer", "pointer_type"))
     pressure_supported: bool = False
     tilt_supported: bool = False
+    twist_supported: bool = False
+    contact_supported: bool = False
+    # 专业版：这一笔画在哪个图层、随机种子（纸纹起点、每根笔毛）、哪一版引擎。
+    # 有了这三样，同一份引擎代码能把这一笔逐像素重画出来。
+    layer: str = ""
+    seed: int = 0
+    engine: str = ""
     zoom: float = 1.0
     # `None` in a slot means the device does not measure that channel — a mouse
     # reports a constant 0.5 pressure, which is not a reading
@@ -588,3 +605,15 @@ class ClaimDevice(TokenOnly):
 class ProfileUpdate(TokenOnly):
     buddy_name: str = Field("", max_length=16)
     age: Optional[int] = Field(None, ge=3, le=99, description="改年龄；不传就不动")
+
+
+class ClassCreate(BaseModel):
+    """老师建一个班。`lesson_ids` 空着 = 所有内置的课。"""
+    name: str
+    lesson_ids: List[str] = []
+
+
+class ClassJoin(BaseModel):
+    """学生凭班级码进班。登录着按账号记，没登录按设备记。"""
+    anon_id: str = ""
+    name: str = ""

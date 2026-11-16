@@ -35,6 +35,8 @@
   <!-- 老师登录后：评分参考、打分、我的。进来落在打分 -->
   <button class="tab teacher-only" data-tab="rubric"><i data-icon="bulb" data-size="24"></i><span>评分参考</span></button>
   <button class="tab teacher-only" data-tab="grade"><i data-icon="medal" data-size="24"></i><span>评分</span></button>
+  <!-- 课堂：学生和老师都有。学生凭班级码进班、翻课件、做练习和作业；老师建班、讲课件、看交上来的画 -->
+  <button class="tab" data-tab="class"><i data-icon="board" data-size="24"></i><span>课堂</span></button>
   <button class="tab" data-tab="me"><i data-icon="books" data-size="24"></i><span>我的</span></button>
 </nav>
 
@@ -205,6 +207,33 @@
 <!-- ===== tab 4：我的 ===== -->
 <!-- ===== 教师端 1：打分列表 =====
      老师登录进来就是这一屏。待评 = 没评满 K 次、我也没评过的；评满就从大家的待评里消失。已评 = 我评过的。 -->
+<!-- ===== 课堂 ===== -->
+<section class="view hidden" id="view-class">
+  <p class="cl-msg hidden" id="cl-msg" role="status"></p>
+  <div id="class-home">
+    <div id="cl-bar"></div>
+    <div class="cl-lessons" id="cl-lessons"></div>
+    <div class="cl-teacher hidden" id="cl-teacher"></div>
+  </div>
+  <div class="hidden" id="class-lesson">
+    <div class="cl-top">
+      <button class="secondary" id="cl-back"><i data-icon="arrowLeft" data-size="15"></i>返回课堂</button>
+      <div><h2 id="cl-lesson-title" data-no-i18n></h2><span class="cl-dim" id="cl-lesson-meta" data-no-i18n></span></div>
+    </div>
+    <p class="cl-dim hidden" id="cl-lesson-note">课题按教材目录对齐，上课前请对照课本确认。</p>
+    <!-- 课件：老师投屏时翻，学生在自己的设备上也能翻。左右方向键、空格都能翻页 -->
+    <div class="cl-stage" id="cl-stage">
+      <div class="cl-slide" id="cl-slide"></div>
+      <div class="cl-nav">
+        <button class="secondary" id="cl-prev">上一页</button><span id="cl-page" data-no-i18n></span><button class="secondary" id="cl-next">下一页</button>
+        <button class="secondary" id="cl-full">全屏</button>
+      </div>
+    </div>
+    <div id="cl-lesson-files"></div>
+    <div id="cl-lesson-tasks"></div>
+  </div>
+</section>
+
 <section class="view hidden" id="view-teacher">
   <div class="tfilter" id="tfilter">
     <button class="on" data-f="todo">待评 <b id="tf-todo"></b></button>
@@ -304,6 +333,15 @@
   <!-- 课后问卷：对这个 app 的看法，几道开放题。老师最后几分钟让学生点开填 -->
   <button class="secondary student-only" id="btn-opinion"><i data-icon="feather" data-size="17"></i>问卷</button>
   <!-- 语言就摆在这一行，不藏进「这台设备」的折叠里——进来之后也要一眼找得到 -->
+  <!-- 日常版 / 专业版：随时能换，从下一张画起算。专业版多一行画布大小 -->
+  <div class="edition student-only" id="edition-box">
+    <div class="seg" id="edition-seg"><button data-edition="daily">日常版</button><button data-edition="pro">专业版</button></div>
+    <div class="edition-canvas hidden" id="edition-canvas">
+      <label for="canvas-preset">画布</label>
+      <select id="canvas-preset"></select>
+      <span class="hidden" id="canvas-custom"><input id="canvas-w" type="number" min="256" max="4096" step="1" aria-label="宽">×<input id="canvas-h" type="number" min="256" max="4096" step="1" aria-label="高"></span>
+    </div>
+  </div>
   <button class="secondary" id="btn-lang-me"><i data-icon="swap" data-size="17"></i><span data-no-i18n id="lang-me-label"></span></button>
   <details class="techbox" id="techbox">
     <summary><i data-icon="sliders" data-size="16"></i>这台设备<span class="me-sync hidden" id="me-sync"></span></summary>
@@ -369,6 +407,16 @@
          它和细条、画布是**平级**的格子，不嵌在画布那一格里——
          嵌进去的话细条会居中于整列、画布居中于「列减去 dock」，
          两者的中心天然差着半个 dock 的高度，怎么调都对不齐。 -->
+    <!-- 专业版的图层面板：点 dock 上的「图层」才浮出来 -->
+    <div class="layers-panel hidden" id="layers-panel">
+      <div class="lp-head"><b>图层</b><button class="lp-btn" id="lp-add" title="新建图层">新建</button><button class="lp-btn" id="lp-close" title="关闭">关闭</button></div>
+      <div class="lp-list" id="lp-list"></div>
+      <div class="lp-foot">
+        <label>不透明度<input id="lp-opacity" type="range" min="0" max="100" value="100"></label>
+        <label>混合<select id="lp-blend"><option value="normal">正常</option><option value="multiply">正片叠底</option></select></label>
+        <div class="lp-actions"><button class="lp-btn" id="lp-up">上移</button><button class="lp-btn" id="lp-down">下移</button><button class="lp-btn" id="lp-merge">向下合并</button><button class="lp-btn" id="lp-del">删除</button></div>
+      </div>
+    </div>
     <div class="dock">
       <!-- 唯一的一处文字：现在手里是什么。按一下就发生的按钮（缩放、清空……）
            按下去时它闪一下那个名字，一秒后回到当前工具。图标底下不放字。 -->
@@ -388,6 +436,7 @@
         <button id="btn-zoom-in" data-name="放大" title="放大" aria-label="放大"><i data-icon="zoomIn" data-size="18"></i></button>
       </div>
       <span class="dock-sep"></span>
+      <button class="dockbtn hidden" id="btn-layers" data-name="图层" title="图层" aria-label="图层"><i data-icon="layers" data-size="18"></i></button>
       <button class="dockbtn" id="btn-clear" data-name="清空" title="清空画布" aria-label="清空画布"><i data-icon="trash" data-size="18"></i></button>
       <button class="dockbtn" id="btn-download" data-name="保存" title="保存到设备" aria-label="保存到设备"><i data-icon="download" data-size="18"></i></button>
     </div>
@@ -756,6 +805,7 @@
 <script src="/static/lang/en.js"></script>
 <script src="/static/i18n.js"></script>
 <script src="/static/log.js"></script>
+<script src="/static/paint.js"></script>
 <script src="/static/app.js"></script>
 </body>
 </html>

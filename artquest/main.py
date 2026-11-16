@@ -33,13 +33,14 @@ from .assist import get_assist_engine
 from .feedback import get_feedback_engine
 from .personalize import MODES as HISTORY_MODES, get_personalizer
 from .qc import check as qc_check
+from . import classroom
 from .quests import (EMOTIONS, QUESTS, QUESTS_BY_ID, condition_snapshot,
                      families as task_families)
 from .reconstruct import check_final, rebuild
 from .rubric import apply_contract, check_rating
 from .revision import attribute as attribute_revision
 from .schemas import (
-    Opinion,
+    Opinion, ClassCreate, ClassJoin,
     TeacherPoolUpdate,
     AssistClick, AssistIn,Abandon, Annotation, ClaimDevice, CreateSession, Curate, DrawEvent, EarnedBadges,
                       FeaturedAnswer, FeedbackIn, Finalize, HARDEST_PARTS_SHOWN, IssueTickets, TaskOptions, Login, LogBatch,
@@ -66,7 +67,7 @@ from .prompts import VERSION as PROMPT_VERSION   # 提示词文件的版本号�
 # 以前 sw.js 里写死一个 `v3`，改完前端忘了跟着 bump，装在 iPad 主屏上的那份
 # 就一直拿旧外壳；而且当时**没有任何地方看得出设备上跑的是哪一版**，
 # 于是「到底更新了没有」只能靠猜。
-_SHELL_FILES = ("index.html", "app.js", "log.js", "style.css", "sw.js", "i18n.js", "lang/en.js",
+_SHELL_FILES = ("index.html", "app.js", "paint.js", "log.js", "style.css", "sw.js", "i18n.js", "lang/en.js",
                 "art/buddy/hero.webp", "art/buddy/hero-hand.webp",
                 "art/buddy/hero-feet.webp", "art/buddy/hero-eyes.webp",
                 # 字体子集重裁了也得换外壳，不然装在主屏上的那份还拿旧字体，新文案的字照旧掉成黑体
@@ -481,6 +482,148 @@ def quests(request: Request, full: int = 0):
     lang = i18n.pick_lang(request)
     rows = [i18n.quest_for(q, lang) for q in QUESTS]
     return rows if full else [_slim(q) for q in rows]
+
+
+# -- 课堂 ------------------------------------------------------------------
+# 一节课 = 课件 + 课堂练习 + 课后作业（内容在 classroom.py）。接口按「谁在说话」归类：
+#   · 课的内容：公开（它就是课件，没有任何人的数据）
+#   · 建班、看全班作业、传课件、删课件：老师（且得是这个班的老师；研究员可替任何人）
+#   · 看一个班的课件、加入一个班：知道班级码就行——班级码就是老师写在黑板上的那串字，和分享链接一个尺度
+def _class_or_404(code: str) -> Dict[str, Any]:
+    cls = classroom.load(code)
+    if not cls:
+        raise HTTPException(404, "没有这个班级码，请再看一下老师给的码")
+    return cls
+
+
+def _own_class(request: Request, code: str) -> Dict[str, Any]:
+    me = _require_teacher(request)
+    cls = _class_or_404(code)
+    if me["rater_id"] != "admin" and cls.get("teacher_id") != me["rater_id"]:
+        raise HTTPException(403, "这不是你的班级")
+    return cls
+
+
+def _routing_with_classroom(body: CreateSession, quest: Dict[str, Any]) -> Dict[str, Any]:
+    """课堂任务的 session 带一个课堂标签。哪节课、练习还是作业以**任务**为准（不信客户端说的）；
+    班级码是客户端带来的，查得到才留——没进班自己点开课件画的，班级码是空的。"""
+    routing = dict(body.routing or {})
+    routing.pop("classroom", None)
+    cl = quest.get("classroom")
+    if cl:
+        code = classroom.norm_code(((body.routing or {}).get("classroom") or {}).get("class_code", ""))
+        routing["classroom"] = {"lesson_id": cl["lesson_id"], "task_kind": cl["kind"], "task_key": cl["key"],
+                                "class_code": code if classroom.load(code) else ""}
+    return routing
+
+
+def _class_teacher_view(cls: Dict[str, Any]) -> Dict[str, Any]:
+    return dict(classroom.public(cls), created_at=cls.get("created_at"), n_members=len(cls.get("members") or []))
+
+
+@api.get("/classroom/lessons")
+def classroom_lessons():
+    return [classroom.lesson_card(l) for l in classroom.LESSONS]
+
+
+@api.get("/classroom/lessons/{lesson_id}")
+def classroom_lesson(lesson_id: str, request: Request):
+    lesson = classroom.LESSONS_BY_ID.get(lesson_id)
+    if not lesson:
+        raise HTTPException(404, "没有这节课")
+    out = classroom.lesson_full(lesson)
+    lang = i18n.pick_lang(request)
+    for t in out["tasks"]:      # 任务按任务库的形状给，前端拿它直接开画
+        t["quest"] = _slim(i18n.quest_for(QUESTS_BY_ID[t["task_id"]], lang))
+    return out
+
+
+@api.get("/classroom/classes")
+def classroom_classes(request: Request):
+    me = _require_teacher(request)
+    rows = classroom.classes_of(None if me["rater_id"] == "admin" else me["rater_id"])
+    return {"me": me, "classes": [_class_teacher_view(c) for c in rows]}
+
+
+@api.post("/classroom/classes", status_code=201)
+def classroom_create(body: ClassCreate, request: Request):
+    me = _require_teacher(request)
+    try:
+        cls = classroom.create(body.name, me["rater_id"], me["name"], body.lesson_ids)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    return _class_teacher_view(cls)
+
+
+@api.get("/classroom/classes/{code}")
+def classroom_class(code: str):
+    return classroom.public(_class_or_404(code))
+
+
+@api.post("/classroom/classes/{code}/join")
+def classroom_join(code: str, body: ClassJoin, request: Request):
+    _class_or_404(code)
+    # 登录着就按账号记（令牌说了算），没登录按这台设备记
+    acc = accounts.by_token(_token(request, "")) if _token(request, "") else None
+    who = acc["account_id"] if acc else body.anon_id
+    name = acc.get("name", "") if acc else body.name
+    return classroom.public(classroom.join(code, who, name))
+
+
+@api.post("/classroom/classes/{code}/courseware", status_code=201)
+async def classroom_upload(code: str, request: Request, filename: str = "", lesson_id: str = ""):
+    """老师传自己的课件。文件就是请求体本身（不是表单），文件名走 `?filename=`。"""
+    cls = _own_class(request, code)
+    declared = int(request.headers.get("content-length") or 0)
+    if declared > classroom.MAX_UPLOAD_BYTES:
+        raise HTTPException(413, f"文件太大了，最多 {classroom.MAX_UPLOAD_BYTES // (1024 * 1024)} MB")
+    data = await request.body()
+    try:
+        return classroom.add_upload(cls["code"], lesson_id, filename, data)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+
+
+@api.get("/classroom/classes/{code}/courseware/{fid}")
+def classroom_courseware(code: str, fid: str):
+    f = classroom.upload_file(code, fid)
+    if not f:
+        raise HTTPException(404, "这份课件不在了")
+    # PDF 和图片直接在页面里翻；PPT 浏览器打不开，只能下载
+    return FileResponse(f["path"], media_type=f["media_type"], filename=f["filename"],
+                        content_disposition_type="inline" if f["viewable"] else "attachment",
+                        headers={"X-Content-Type-Options": "nosniff"})
+
+
+@api.delete("/classroom/classes/{code}/courseware/{fid}")
+def classroom_courseware_delete(code: str, fid: str, request: Request):
+    cls = _own_class(request, code)
+    if not classroom.remove_upload(cls["code"], fid):
+        raise HTTPException(404, "这份课件不在了")
+    return {"ok": True}
+
+
+@api.get("/classroom/classes/{code}/work")
+def classroom_work(code: str, request: Request):
+    """这个班交上来的画：谁、哪节课、练习还是作业、画完没有。画完的可以直接去评分。"""
+    cls = _own_class(request, code)
+    rows = []
+    for row in store.list():
+        try:
+            meta = store.load(row["session_id"])
+        except KeyError:
+            continue
+        tag = classroom.tag_of(meta)
+        if tag.get("class_code") != cls["code"]:
+            continue
+        sid, task, done = sid_of(meta), meta.get("task") or {}, meta.get("status") == "done"
+        rows.append({"session_id": sid, "student": _student_name(meta), "created_at": meta.get("created_at"),
+                     "lesson_id": tag.get("lesson_id"), "task_kind": tag.get("task_kind"), "task_key": tag.get("task_key"),
+                     "task_title": task.get("title") or meta.get("quest_id"), "status": meta.get("status"),
+                     "image": f"/files/{sid}/final.png" if done else "",
+                     "edition": (meta.get("canvas") or {}).get("edition") or "daily"})
+    rows.sort(key=lambda r: r.get("created_at") or "", reverse=True)
+    return {"class": _class_teacher_view(cls), "members": cls.get("members") or [], "work": rows}
 
 
 # -- study mode ------------------------------------------------------------
@@ -1291,7 +1434,7 @@ def create_session(body: CreateSession, request: Request):
             quest, body.intent.model_dump(),
             participant=body.participant_dict(), condition=condition,
             device=body.device.model_dump(), study=st, canvas=body.canvas.model_dump(),
-            sid=use_sid, lang=lang, routing=dict(body.routing or {}),
+            sid=use_sid, lang=lang, routing=_routing_with_classroom(body, quest),
         )
     except KeyError:
         # 带了一个从没发出去过的票号。不当场给它建一个——那正是「客户端自己发 id」

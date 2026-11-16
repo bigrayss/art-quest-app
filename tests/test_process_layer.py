@@ -136,6 +136,48 @@ class HonestSignals(unittest.TestCase):
         self.assertEqual(mine[0].split(",")[col], "")
         self.assertTrue(mine[1].split(",")[col])
 
+    def test_a_finger_s_contact_patch_is_kept_apart_from_pressure(self):
+        """A finger has no force sensor. How big its contact patch is says
+        something about how hard it pressed — in its own slot, never as pressure."""
+        sid = self._session()
+        finger = _stroke(1, t_start=1000)
+        finger.update(pointer_type="touch", contact_supported=True,
+                      points=[p + [None, 18.5 + j] for j, p in enumerate(finger["points"])])
+        pen = _stroke(2, t_start=2000, pressure=0.7)
+        pen.update(twist_supported=True, points=[p + [40, None] for p in pen["points"]])
+        mouse = _stroke(3, t_start=3000)                      # six slots, as before
+        strokes = [finger, pen, mouse]
+        r = self.c.post(f"/api/sessions/{sid}/log",
+                        json={"strokes": strokes, "events": _events(strokes)})
+        self.assertEqual(r.status_code, 200, r.text)
+
+        stored = self.c.get(f"/api/sessions/{sid}/strokes").json()
+        self.assertTrue(stored[0]["contact_supported"])
+        self.assertFalse(stored[0]["pressure_supported"])
+        self.assertIsNone(stored[0]["points"][0][3], "contact leaked into the pressure slot")
+        self.assertEqual(stored[0]["points"][0][7], 18.5)
+        self.assertTrue(stored[1]["twist_supported"])
+        self.assertEqual(stored[1]["points"][0][6], 40)
+        self.assertFalse(stored[2]["contact_supported"])
+        self.assertEqual(len(stored[2]["points"][0]), 6)
+
+        # the renderer reads width from pressure only: a finger stroke replays
+        # exactly as it did before the extra slots existed
+        self.assertEqual(render([stored[0]], (1024, 704)).tobytes(),
+                         render([dict(stored[0], points=[p[:6] for p in stored[0]["points"]])],
+                                (1024, 704)).tobytes())
+
+        out = Path(tempfile.mkdtemp(prefix="artquest-proc-"))
+        export(out, with_points=True)
+        rows = (out / "strokes.csv").read_text(encoding="utf-8").splitlines()
+        head = rows[0].split(",")
+        mine = [r.split(",") for r in rows[1:] if sid in r]
+        self.assertTrue(mine[0][head.index("mean_contact")])
+        self.assertEqual(mine[0][head.index("mean_pressure")], "")
+        self.assertEqual(mine[1][head.index("mean_contact")], "")
+        pts = (out / "points.csv").read_text(encoding="utf-8").splitlines()
+        self.assertEqual(pts[0].split(",")[-2:], ["twist", "contact"])
+
     def test_semantic_keyframes_sit_where_the_intervention_was(self):
         sid = self._session()
         before = [_stroke(i + 1, t_start=1000 + i * 1000) for i in range(3)]

@@ -29,6 +29,7 @@ const SHELL_URLS = [
   "/",
   "/static/style.css",
   "/static/app.js",
+  "/static/paint.js",
   "/static/log.js",
   "/static/i18n.js",
   "/static/lang/en.js",

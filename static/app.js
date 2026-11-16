@@ -106,7 +106,9 @@
     app: NATIVE ? { platform: NATIVE.platform || "ios", version: NATIVE.version || "" } : {},
   });
   const canvasGeom = () => { const r = canvas.getBoundingClientRect();
-    return { width: canvas.width, height: canvas.height, css_width: Math.round(r.width), css_height: Math.round(r.height) }; };
+    return { width: canvas.width, height: canvas.height, css_width: Math.round(r.width), css_height: Math.round(r.height),
+      // 专业版的画是另一套引擎画的：重放要按它来，分析时它也是协变量
+      edition: state.proNext ? "pro" : "daily", engine: state.proNext ? Paint.ENGINE : "" }; };
 
   // ---------- 图标 ----------
   // 一套自己的线性图标：粗描边、圆端点、24×24 网格，全部用 currentColor 上色，
@@ -124,6 +126,15 @@
     pencil: '<g transform="rotate(-45 12 12)"><path d="M8.6 6.8a3.4 3.4 0 0 1 6.8 0v5.8H8.6Z"/><path d="M8.6 12.6h6.8L12 20.4Z"/><path d="M8.6 10h6.8"/></g>',
     brush: '<g transform="rotate(-45 12 12)"><rect x="9.4" y="3.4" width="5.2" height="8" rx="2.4"/><path d="M8 11.4h8v2.4a4 4 0 0 1-.6 2.1l-2.2 3.5a1.4 1.4 0 0 1-2.4 0l-2.2-3.5a4 4 0 0 1-.6-2.1Z"/></g>',
     marker: '<g transform="rotate(-45 12 12)"><rect x="7.6" y="3.4" width="8.8" height="8.6" rx="2.6"/><path d="M9.2 12h5.6l-.8 6.4a1.3 1.3 0 0 1-1.3 1.1h-1.4a1.3 1.3 0 0 1-1.3-1.1Z"/></g>',
+    // 专业版的笔和图层
+    charcoal: '<g transform="rotate(-45 12 12)"><rect x="9" y="3.6" width="6" height="16.8" rx="1.4"/><path d="M9 15.4h6"/></g>',
+    ink: '<g transform="rotate(-45 12 12)"><path d="M11 3.4h2v8.2h-2Z"/><path d="M9.6 11.6h4.8c.6 3-.6 5.6-2.4 8.8-1.8-3.2-3-5.8-2.4-8.8Z"/></g>',
+    wash: '<path d="M12 3.6c3 3.8 5.4 6.8 5.4 10a5.4 5.4 0 0 1-10.8 0c0-3.2 2.4-6.2 5.4-10Z"/><path d="M9.4 14.2a2.7 2.7 0 0 0 2.2 2.6"/>',
+    oil: '<g transform="rotate(-45 12 12)"><rect x="10.4" y="3.2" width="3.2" height="7.6" rx="1.2"/><path d="M8 10.8h8v3H8Z"/><path d="M8 13.8h8v5.6l-2-1.2-2 1.6-2-1.6-2 1.2Z"/></g>',
+    layers: '<path d="M12 4 3.6 8.4 12 12.8l8.4-4.4Z"/><path d="m3.6 12.4 8.4 4.4 8.4-4.4"/><path d="m3.6 16.2 8.4 4.4 8.4-4.4"/>',
+    eye: '<path d="M2.6 12s3.4-6.2 9.4-6.2 9.4 6.2 9.4 6.2-3.4 6.2-9.4 6.2S2.6 12 2.6 12Z"/><circle cx="12" cy="12" r="2.8"/>',
+    eyeOff: '<path d="M2.6 12s3.4-6.2 9.4-6.2 9.4 6.2 9.4 6.2-3.4 6.2-9.4 6.2S2.6 12 2.6 12Z"/><path d="M4.4 4.4l15.2 15.2"/>',
+    board: '<rect x="3.4" y="4.4" width="17.2" height="11.6" rx="1.6"/><path d="M8.4 20l1.8-4M15.6 20l-1.8-4M7.4 8.6h5.2M7.4 11.8h8.4"/>',
     eraser: '<g transform="rotate(-30 12 12)"><rect x="3.6" y="8.6" width="16.8" height="7.4" rx="1.6"/><path d="M11.4 8.6V16"/></g>',
     dropper: '<path d="m17.4 3.4 3.2 3.2"/><path d="m15 5.8 3.2 3.2"/><path d="M13.4 7.4 16.6 10.6 8.2 19a2.2 2.2 0 0 1-3.1 0l-.1-.1a2.2 2.2 0 0 1 0-3.1Z"/><path d="m4.2 19.8-1 1"/>',
     undo: '<path d="M4.2 8.8h9.6a5.4 5.4 0 0 1 0 10.8H9.2"/><path d="M8 4.4 3.4 8.8 8 13.2"/>',
@@ -997,12 +1008,12 @@
   // ---------- views ----------
   // 四个 tab 是四块独立的界面；做任务时导航整个收起来，只剩画画。
   const VIEWS = ["welcome", "world", "quest", "dex", "buddy", "sessions", "intent", "draw", "result", "survey", "final",
-                 "teacher", "grade", "rubric"];
+                 "teacher", "grade", "rubric", "class"];
   /** 现在显示的是哪一屏。启动时用来判断「人是不是已经自己走开了」。 */
   const curView = () => VIEWS.find(v => !$(`#view-${v}`).classList.contains("hidden")) || "";
-  const TAB_VIEW = { map: "quest", dex: "dex", buddy: "buddy", me: "sessions", grade: "teacher", rubric: "rubric" };
-  const VIEW_TAB = { world: "map", quest: "map", dex: "dex", buddy: "buddy", sessions: "me", teacher: "grade", grade: "grade", rubric: "rubric" };
-  const TITLES = { world: "彩点的画室", quest: "任务", dex: "画廊", buddy: "彩点", sessions: "我的", teacher: "评分", grade: "评分", rubric: "评分参考" };
+  const TAB_VIEW = { map: "quest", dex: "dex", buddy: "buddy", me: "sessions", grade: "teacher", rubric: "rubric", class: "class" };
+  const VIEW_TAB = { world: "map", quest: "map", dex: "dex", buddy: "buddy", sessions: "me", teacher: "grade", grade: "grade", rubric: "rubric", class: "class" };
+  const TITLES = { world: "彩点的画室", quest: "任务", dex: "画廊", buddy: "彩点", sessions: "我的", teacher: "评分", grade: "评分", rubric: "评分参考", class: "课堂" };
   const VIEW_ROLE = { draw: "normal", result: "happy", survey: "encourage" };
   function show(name) {
     // 离开一屏就取消这一屏没结束的回应：精灵始终回应当前页面，不是迟到的上一条
@@ -1060,6 +1071,7 @@
     else if (view === "sessions") await loadSessions();
     else if (view === "teacher") await loadTeacherList();
     else if (view === "rubric") await openRubric();
+    else if (view === "class") await openClass();
   }
   document.querySelectorAll(".tab").forEach(b => { b.onclick = () => openTab(b.dataset.tab); });
   // 等待层上是「想一想」的彩点：这是真的在等一个请求，不是装饰
@@ -1493,8 +1505,171 @@
     STROKE_CANCELLED: "STROKE_CANCELLED",
     ASSIST_OPEN: "ASSIST_OPEN", ASSIST_SHOW: "ASSIST_SHOW", MASCOT_STATE: "MASCOT_STATE",
     FEEDBACK_DISMISS: "FEEDBACK_DISMISS", REVISION_START: "REVISION_START",
-    TASK_SUBMIT: "TASK_SUBMIT", DOWNLOAD: "DOWNLOAD",
+    TASK_SUBMIT: "TASK_SUBMIT", DOWNLOAD: "DOWNLOAD", LAYER_OP: "LAYER_OP",
   };
+
+  // ===================== 课堂 =====================
+  // 一节课 = 课件 + 课堂练习 + 课后作业。学生凭班级码进班；老师建班、讲课件、传自己的课件、看交上来的画。
+  // 课堂上画的就是一条普通的 session（走原来的开画、打分、反馈），只多一个课堂标签说它是哪个班哪节课的。
+  const isClassTask = (q) => !!q && String(q.id || "").indexOf("CL_") === 0;
+  const clDone = () => { try { return JSON.parse(lsGet("artquest.class.done") || "[]"); } catch (e) { return []; } };
+  function classMarkDone(taskId) { const d = clDone(); if (d.indexOf(taskId) < 0) { d.push(taskId); lsSet("artquest.class.done", JSON.stringify(d)); } }
+  const myClassCode = () => lsGet("artquest.class") || "";
+  const cl = { cls: null, lessons: [], lesson: null, page: 0, classes: [], cur: "", work: null };
+  state.classQuests = {};
+  const clToast = (text) => { const el = $("#cl-msg"); el.textContent = text || ""; el.classList.toggle("hidden", !text); };
+  const fmtSize = (n) => n > 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB";
+
+  async function openClass() {
+    clToast("");
+    $("#class-lesson").classList.add("hidden"); $("#class-home").classList.remove("hidden");
+    try {
+      if (isTeacher()) {
+        cl.classes = (await api(`${API}/classroom/classes`)).classes;
+        if (!cl.classes.some(c => c.code === cl.cur)) cl.cur = (cl.classes[0] || {}).code || "";
+        cl.cls = cl.classes.find(c => c.code === cl.cur) || null;
+        cl.work = cl.cur ? await api(`${API}/classroom/classes/${cl.cur}/work`) : null;
+      } else {
+        cl.cls = null;
+        if (myClassCode()) cl.cls = await api(`${API}/classroom/classes/${myClassCode()}`).catch(() => null);
+      }
+      cl.lessons = cl.cls ? cl.cls.lessons : await api(`${API}/classroom/lessons`);
+    } catch (e) { clToast("课堂暂时打不开，请检查网络后再试。"); }
+    renderClassHome();
+  }
+  function lessonCards() {
+    return cl.lessons.map(l => `<button class="cl-lesson" data-lesson="${l.id}">
+        <span class="cl-sub" data-no-i18n>${escapeHtml(l.subject)}</span><b data-no-i18n>${escapeHtml(l.title)}</b>
+        <span class="cl-sum" data-no-i18n>${escapeHtml(l.summary)}</span>
+        <span class="cl-open">打开这节课${icon("arrowRight", 15)}</span></button>`).join("");
+  }
+  function uploadRows(list, canDelete) {
+    if (!list.length) return "";
+    return list.map(u => `<div class="cl-file"><a href="${u.url}" target="_blank" rel="noopener" data-no-i18n>${escapeHtml(u.filename)}</a>
+      <span class="cl-dim" data-no-i18n>${fmtSize(u.size)}</span>${u.viewable ? "" : `<span class="cl-dim">下载后打开</span>`}
+      ${canDelete ? `<button class="linkbtn" data-del="${u.id}">删除</button>` : ""}</div>`).join("");
+  }
+  function renderClassHome() {
+    const bar = $("#cl-bar"), box = $("#cl-teacher");
+    $("#cl-lessons").innerHTML = (isTeacher() && cl.lessons.length ? `<h3 class="cl-h">课</h3>` : "") + lessonCards();
+    $("#cl-lessons").querySelectorAll("[data-lesson]").forEach(b => b.onclick = () => openLesson(b.dataset.lesson));
+    box.classList.toggle("hidden", !isTeacher());
+    if (!isTeacher()) {
+      bar.innerHTML = cl.cls
+        ? `<div class="cl-mine"><b data-no-i18n>${escapeHtml(cl.cls.name)}</b><span class="cl-dim" data-no-i18n>${escapeHtml(cl.cls.teacher_name || "")}</span>
+             <button class="linkbtn" id="cl-leave">退出班级</button></div>`
+        : `<div class="cl-join"><label for="cl-code">班级码</label><input id="cl-code" type="text" maxlength="8" autocomplete="off" autocapitalize="characters" placeholder="老师给的六位码">
+             <button class="primary" id="cl-join-go">加入班级</button></div>`;
+      const go = $("#cl-join-go");
+      if (go) go.onclick = async () => {
+        const code = $("#cl-code").value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+        if (!code) return;
+        try {
+          const c = await api(`${API}/classroom/classes/${code}/join`, { method: "POST",
+            body: JSON.stringify({ anon_id: state.anonId, name: (state.account || {}).name || "" }) });
+          lsSet("artquest.class", c.code); openClass();
+        } catch (e) { clToast("没有这个班级码，请再看一下老师给的码。"); }
+      };
+      const leave = $("#cl-leave");
+      if (leave) leave.onclick = () => { lsSet("artquest.class", ""); openClass(); };
+      return;
+    }
+    // 老师：我的班级、这个班的课件、交上来的画
+    bar.innerHTML = `<div class="cl-join"><label for="cl-name">新班级</label><input id="cl-name" type="text" maxlength="40" placeholder="例如 五（2）班">
+      <button class="primary" id="cl-new">建班</button></div>`;
+    $("#cl-new").onclick = async () => {
+      const name = $("#cl-name").value.trim(); if (!name) return;
+      try { const c = await api(`${API}/classroom/classes`, { method: "POST", body: JSON.stringify({ name }) }); cl.cur = c.code; openClass(); }
+      catch (e) { clToast("班级没有建成，请再试一次。"); }
+    };
+    if (!cl.cls) { box.innerHTML = `<p class="cl-dim">建一个班，把班级码写在黑板上，学生在「课堂」里输入它就进来了。</p>`; return; }
+    const w = (cl.work || {}).work || [], kinds = { practice: "课堂练习", homework: "课后作业" };
+    box.innerHTML = `
+      <div class="cl-classes">${cl.classes.map(c => `<button class="cl-class${c.code === cl.cur ? " on" : ""}" data-code="${c.code}">
+        <b data-no-i18n>${escapeHtml(c.name)}</b><span class="cl-codebig" data-no-i18n>${c.code}</span><span class="cl-dim">${c.n_members} 人已加入</span></button>`).join("")}</div>
+      <h3 class="cl-h">我的课件</h3>
+      <div class="cl-files" id="cl-files">${uploadRows(cl.cls.uploads, true) || `<p class="cl-dim">还没有上传。PDF 和图片学生能直接翻，PPT 需要下载。</p>`}</div>
+      <button class="secondary" id="cl-upload">上传课件</button><input type="file" id="cl-file" accept=".pdf,.png,.jpg,.jpeg,.webp,.ppt,.pptx" hidden>
+      <h3 class="cl-h">交上来的画</h3>
+      <div class="cl-work">${w.length ? w.map(r => `<button class="cl-piece" data-sid="${r.session_id}" ${r.status === "done" ? "" : "disabled"}>
+        ${r.image ? `<img src="${r.image}" alt="" loading="lazy">` : `<span class="cl-blank">还在画</span>`}
+        <b data-no-i18n>${escapeHtml(r.student || "")}</b><span class="cl-dim">${kinds[r.task_kind] || ""}</span><span class="cl-dim" data-no-i18n>${escapeHtml(r.task_title || "")}</span></button>`).join("")
+        : `<p class="cl-dim">还没有人交。</p>`}</div>`;
+    box.querySelectorAll("[data-code]").forEach(b => b.onclick = () => { cl.cur = b.dataset.code; openClass(); });
+    box.querySelectorAll("[data-del]").forEach(b => b.onclick = async () => {
+      await api(`${API}/classroom/classes/${cl.cur}/courseware/${b.dataset.del}`, { method: "DELETE" }).catch(() => {}); openClass(); });
+    box.querySelectorAll("[data-sid]").forEach(b => b.onclick = () => openGrade(b.dataset.sid));
+    $("#cl-upload").onclick = () => $("#cl-file").click();
+    $("#cl-file").onchange = async (e) => {
+      const f = e.target.files[0]; if (!f) return;
+      clToast("正在上传…");
+      try {
+        // 文件本身就是请求体；文件名放在查询串里
+        const r = await fetch(`${API}/classroom/classes/${cl.cur}/courseware?filename=${encodeURIComponent(f.name)}`, { method: "POST",
+          headers: { "Content-Type": "application/octet-stream", Authorization: `Bearer ${savedToken()}` }, body: f });
+        if (!r.ok) { const t = await r.json().catch(() => ({})); clToast(t.detail || "没有传上去，请再试一次。"); renderClassHome(); return; }
+        await openClass();
+      } catch (err) { clToast("没有传上去，请检查网络后再试。"); }
+    };
+  }
+  async function openLesson(id) {
+    try { cl.lesson = await api(`${API}/classroom/lessons/${id}`); }
+    catch (e) { clToast("这节课暂时打不开，请检查网络后再试。"); return; }
+    cl.lesson.tasks.forEach(t => { state.classQuests[t.task_id] = t.quest; });
+    cl.page = 0;
+    $("#class-home").classList.add("hidden"); $("#class-lesson").classList.remove("hidden");
+    const L = cl.lesson, tb = L.textbook || {};
+    $("#cl-lesson-title").textContent = L.title;
+    $("#cl-lesson-meta").textContent = [tb.edition, tb.lesson, `${L.minutes} 分钟`].filter(Boolean).join(" · ");
+    // 课题是按教材目录对的，目录没有官方核对过：这句话只给老师看
+    $("#cl-lesson-note").classList.toggle("hidden", !(isTeacher() && tb.verified === false));
+    const mine = ((cl.cls || {}).uploads || []).filter(u => !u.lesson_id || u.lesson_id === L.id);
+    $("#cl-lesson-files").innerHTML = mine.length ? `<h3 class="cl-h">老师的课件</h3>${uploadRows(mine, false)}` : "";
+    const done = clDone(), group = (kind, name) => {
+      const ts = L.tasks.filter(t => t.kind === kind); if (!ts.length) return "";
+      return `<h3 class="cl-h">${name}</h3><div class="cl-tasks">${ts.map(t => `<div class="cl-task">
+        <div class="cl-task-head"><b data-no-i18n>${escapeHtml(t.title)}</b><span class="cl-dim">${t.minutes} 分钟</span>${t.optional ? `<span class="cl-tag">选做</span>` : ""}
+          ${done.indexOf(t.task_id) >= 0 ? `<span class="cl-tag ok">画过了</span>` : ""}</div>
+        <p data-no-i18n>${escapeHtml(t.instruction)}</p><p class="cl-req" data-no-i18n><span>要做到</span>${escapeHtml(t.requirements)}</p>
+        ${isTeacher() ? "" : `<button class="primary" data-task="${t.task_id}">${done.indexOf(t.task_id) >= 0 ? "再画一张" : "开始画"}${icon("arrowRight", 16)}</button>`}</div>`).join("")}</div>`;
+    };
+    $("#cl-lesson-tasks").innerHTML = group("practice", "课堂练习") + group("homework", "课后作业");
+    $("#cl-lesson-tasks").querySelectorAll("[data-task]").forEach(b => b.onclick = () => {
+      const t = L.tasks.find(x => x.task_id === b.dataset.task);
+      state.classroom = { class_code: (cl.cls || {}).code || "", lesson_id: L.id };
+      chooseQuest(t.quest, { entrypoint: "classroom", choice_source: "child_click" });
+    });
+    renderSlide();
+  }
+  function renderSlide() {
+    const L = cl.lesson; if (!L) return;
+    cl.page = clamp(cl.page, 0, L.slides.length - 1);
+    const s = L.slides[cl.page], figs = s.figures || [], caps = s.captions || [];
+    $("#cl-slide").className = "cl-slide" + (s.kind ? " " + s.kind : "") + (figs.length > 1 ? " many" : "");
+    $("#cl-slide").innerHTML = `<h2 data-no-i18n>${escapeHtml(s.title)}</h2>
+      ${figs.length ? `<div class="cl-figs">${figs.map((f, i) => `<figure>${f}${caps[i] ? `<figcaption data-no-i18n>${escapeHtml(caps[i])}</figcaption>` : ""}</figure>`).join("")}</div>` : ""}
+      <ul>${(s.lines || []).map(t => `<li data-no-i18n>${escapeHtml(t)}</li>`).join("")}</ul>
+      ${s.ask ? `<p class="cl-ask" data-no-i18n>${escapeHtml(s.ask)}</p>` : ""}`;
+    $("#cl-page").textContent = `${cl.page + 1} / ${L.slides.length}`;
+    $("#cl-prev").disabled = cl.page === 0; $("#cl-next").disabled = cl.page === L.slides.length - 1;
+  }
+  function bindClass() {
+    $("#cl-prev").onclick = () => { cl.page--; renderSlide(); };
+    $("#cl-next").onclick = () => { cl.page++; renderSlide(); };
+    $("#cl-back").onclick = () => openClass();
+    $("#cl-full").onclick = () => {
+      const el = $("#cl-stage");
+      if (document.fullscreenElement) document.exitFullscreen();
+      else if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+    };
+    document.addEventListener("keydown", (e) => {
+      if ($("#view-class").classList.contains("hidden") || $("#class-lesson").classList.contains("hidden")) return;
+      if (/^(INPUT|TEXTAREA|SELECT)$/.test((e.target || {}).tagName || "")) return;
+      if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") { e.preventDefault(); cl.page++; renderSlide(); }
+      if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); cl.page--; renderSlide(); }
+    });
+  }
+  bindClass();
 
   // ---------- canvas ----------
   const canvas = $("#canvas"), ctx = canvas.getContext("2d", { willReadFrequently: true });
@@ -1503,6 +1678,8 @@
     brush:  { size: 3, alpha: 0.9, cap: "round", pressure: 1 },
     marker: { size: 6, alpha: 0.35, cap: "square", pressure: 0 },
     eraser: { size: 6, alpha: 1, cap: "round", pressure: 0, color: "#ffffff" },
+    // 专业版的笔：怎么画在 paint.js 里，这里只留笔尖预览要的粗细倍率
+    charcoal: { size: 2.2 }, ink: { size: 2.6 }, wash: { size: 5 }, oil: { size: 4 },
   };
   let tool = "pencil", color = "#222222", size = 4, opacity = 1, drawing = false, last = null, strokeCount = 0, curStroke = null;
   // 每一步撤销是整张画布的 ImageData（1024×704×4 ≈ 2.9 MB）。40 步 + 40 步重做最多 230 MB，
@@ -1518,6 +1695,180 @@
   function docDiff(prev, next) {
     const before = new Set(prev), after = new Set(next);
     return { removed: prev.filter(id => !after.has(id)), restored: next.filter(id => !before.has(id)), visible_n: next.length };
+  }
+
+  // ===================== 专业版 =====================
+  // 日常版和专业版是两套画法：日常版是原来那四支笔（Canvas2D 画线）；专业版换成 paint.js 的引擎——
+  // 有纸纹和笔毛的画笔、图层、自定义画布。一张画从头到尾只用一套，开画那一刻定下来（state.proNext）。
+  // 专业版里 `canvas` 只是**显示**：真正的像素在 `pro`（Paint 文档）里，每次改动把那一块合成好贴上来。
+  // 所以交卷的 toDataURL、取色、空白检查这些读 `canvas` 的地方一行都不用改。
+  let pro = null, proLayer = "L1", proLayerN = 1, proOpN = 0, proDirty = null, proRaf = 0, proScale = 1;
+  const DAILY_SIZE = [1024, 704], CANVAS_MIN = 256, CANVAS_MAX = 4096;
+  const CANVAS_PRESETS = [["1024x704", "标准 1024 × 704"], ["2048x1408", "高清 2048 × 1408"], ["1536x2048", "竖幅 1536 × 2048"],
+                          ["2048x2048", "方形 2048 × 2048"], ["2732x2048", "iPad 满屏 2732 × 2048"], ["custom", "自定义"]];
+  const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+  const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+  const edition = () => lsGet("artquest.edition") === "pro" ? "pro" : "daily";
+  function proCanvasSize() {
+    const m = /^(\d+)x(\d+)$/.exec(lsGet("artquest.canvas") || "");
+    if (!m) return DAILY_SIZE.slice();
+    return [clamp(+m[1], CANVAS_MIN, CANVAS_MAX), clamp(+m[2], CANVAS_MIN, CANVAS_MAX)];
+  }
+  /** 开画之前：这张画用哪一套、画布多大。印着图形的任务（M3 那类）图形是按标准画布画的，只能用日常版。 */
+  function prepareCanvas(q) {
+    const printed = q && q.stimulus && q.stimulus.kind === "fragments";
+    state.proNext = edition() === "pro" && !!window.Paint && !printed;
+    const [w, h] = state.proNext ? proCanvasSize() : DAILY_SIZE;
+    if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+  }
+  const DAILY_TOOLS = ["pencil", "brush", "marker", "eraser"], PRO_TOOLS = ["pencil", "charcoal", "ink", "wash", "oil", "eraser"];
+  function proStart() {
+    const on = !!state.proNext;
+    pro = on ? Paint.create({ width: canvas.width, height: canvas.height, background: "#ffffff" }) : null;
+    proLayer = "L1"; proLayerN = 1; proOpN = 0; proDirty = null;
+    // 粗细滑块的数字是按标准画布定的；画布大了笔跟着大，不然 4K 画布上最粗的笔也只是一根线
+    proScale = on ? Math.max(1, Math.max(canvas.width, canvas.height) / 1024) : 1;
+    document.body.classList.toggle("pro", on);
+    $("#tools").innerHTML = (on ? PRO_TOOLS : DAILY_TOOLS).map(t =>
+      `<button data-tool="${t}" title="${TOOL_NAMES[t]}" aria-label="${TOOL_NAMES[t]}">${icon(t, 21)}</button>`).join("");
+    bindTools();
+    $("#btn-layers").classList.toggle("hidden", !on);
+    $("#layers-panel").classList.add("hidden");
+    if (on) proSyncLayers();
+  }
+  const penSize = () => pro ? R(size * proScale, 1) : size;
+  function proPresent(rect) {
+    if (!pro) return;
+    rect = rect || { x: 0, y: 0, w: canvas.width, h: canvas.height };
+    const x = Math.max(0, rect.x), y = Math.max(0, rect.y);
+    const w = Math.min(canvas.width, rect.x + rect.w) - x, h = Math.min(canvas.height, rect.y + rect.h) - y;
+    if (w <= 0 || h <= 0) return;
+    const img = ctx.createImageData(w, h);
+    pro.composite({ x, y, w, h }, img.data);
+    ctx.putImageData(img, x, y);
+  }
+  /** 一帧里来了好几个采样点：把动到的地方并起来，下一帧贴一次。 */
+  function proQueue(rect) {
+    if (!rect) return;
+    if (!proDirty) proDirty = { x: rect.x, y: rect.y, w: rect.w, h: rect.h };
+    else {
+      const x0 = Math.min(proDirty.x, rect.x), y0 = Math.min(proDirty.y, rect.y);
+      const x1 = Math.max(proDirty.x + proDirty.w, rect.x + rect.w), y1 = Math.max(proDirty.y + proDirty.h, rect.y + rect.h);
+      proDirty = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+    }
+    if (!proRaf) proRaf = requestAnimationFrame(proFlush);
+  }
+  function proFlush() {
+    if (proRaf) { cancelAnimationFrame(proRaf); proRaf = 0; }
+    const r = proDirty; proDirty = null;
+    if (r) proPresent(r);
+  }
+  /** 喂给引擎的必须是**记进日志的那个点**（已经取整过的），重放才会逐像素一样。 */
+  const proFeed = (pt) => proQueue(pro.strokeTo(pt[0], pt[1], pt[3], pt[4], pt[5], pt[2]));
+  function proDown() {
+    const s = curStroke;
+    s.layer = proLayer; s.engine = Paint.ENGINE;
+    s.seed = (Math.random() * 0x7fffffff) | 0;      // 纸纹从哪起、每根笔毛多长：记下来，重放用同一个
+    pro.beginStroke({ op: s.id, brush: s.tool, layer: s.layer, color: s.color, size: s.size, opacity: s.opacity, seed: s.seed });
+    proFeed(s.points[0]);
+  }
+  /** 当前图层能不能落笔。藏起来的图层画了也看不见，不如直接说。 */
+  function proCanDraw() {
+    const l = pro.layer(proLayer);
+    if (l && l.visible) return true;
+    flashName("图层已隐藏"); return false;
+  }
+  /** 图层操作：每个都是一步——可撤销，进日志，重放时按顺序再做一遍。 */
+  function proOp(kind, args) {
+    if (!pro) return false;
+    const id = "o" + String(++proOpN).padStart(5, "0");
+    if (!pro.apply(Object.assign({ id, kind }, args))) return false;
+    visible.push(id);
+    logEvent(EV.LAYER_OP, Object.assign({ op_id: id, kind }, args));
+    proPresent(); proSyncLayers();
+    return true;
+  }
+  function proUndo(again) {
+    const r = again ? pro.redo() : pro.undo();
+    if (!r) return;
+    proPresent();
+    const prev = visible; visible = again ? prev.concat([r.op]) : prev.filter(i => i !== r.op);
+    logEvent(again ? EV.REDO : EV.UNDO, docDiff(prev, visible));
+    proSyncLayers();
+  }
+  /** 图层面板：最上面的图层排在最上面。 */
+  function proSyncLayers() {
+    if (!pro) return;
+    if (!pro.layer(proLayer)) proLayer = pro.layers[pro.layers.length - 1].id;
+    const list = $("#lp-list"), tw = 52, th = Math.max(20, Math.round(52 * canvas.height / canvas.width));
+    list.innerHTML = pro.layers.slice().reverse().map(l =>
+      `<div class="lp-row${l.id === proLayer ? " active" : ""}" data-layer="${l.id}">
+         <canvas width="${tw}" height="${th}"></canvas><span class="lp-name" data-no-i18n>${escapeHtml(l.name)}</span>
+         <button class="lp-eye${l.visible ? "" : " off"}" title="显示或隐藏" aria-label="显示或隐藏">${icon(l.visible ? "eye" : "eyeOff", 17)}</button>
+       </div>`).join("");
+    list.querySelectorAll(".lp-row").forEach(row => {
+      const id = row.dataset.layer, c = row.querySelector("canvas").getContext("2d");
+      const img = c.createImageData(tw, th); img.data.set(pro.thumb(id, tw, th)); c.putImageData(img, 0, 0);
+      row.onclick = (e) => {
+        if (e.target.closest(".lp-eye")) { proOp("layer_props", { layer: id, props: { visible: !pro.layer(id).visible } }); return; }
+        proLayer = id; proSyncLayers();
+      };
+    });
+    const cur = pro.layer(proLayer), i = pro.layers.indexOf(cur);
+    $("#lp-opacity").value = Math.round(cur.opacity * 100);
+    $("#lp-blend").value = cur.blend;
+    $("#lp-add").disabled = pro.layers.length >= pro.maxLayers();
+    $("#lp-up").disabled = i >= pro.layers.length - 1; $("#lp-down").disabled = i <= 0;
+    $("#lp-merge").disabled = i <= 0; $("#lp-del").disabled = pro.layers.length < 2;
+  }
+  function bindLayerPanel() {
+    $("#btn-layers").onclick = () => {
+      const panel = $("#layers-panel");
+      panel.classList.toggle("hidden"); proSyncLayers();
+      // 浮在画布的右下角、dock 的正上方：不盖右栏的任务卡和「画好了」
+      const dock = $("#view-draw .dock").getBoundingClientRect(), vp = viewport.getBoundingClientRect();
+      panel.style.bottom = Math.max(8, innerHeight - dock.top + 8) + "px";
+      panel.style.right = Math.max(8, innerWidth - vp.right + 8) + "px";
+    };
+    $("#lp-close").onclick = () => $("#layers-panel").classList.add("hidden");
+    $("#lp-add").onclick = () => {
+      const id = "L" + (++proLayerN), at = pro.layers.findIndex(l => l.id === proLayer) + 1;
+      if (proOp("layer_add", { layer: id, index: at, name: `图层 ${proLayerN}` })) { proLayer = id; proSyncLayers(); }
+    };
+    $("#lp-del").onclick = () => proOp("layer_remove", { layer: proLayer });
+    $("#lp-merge").onclick = () => proOp("layer_merge", { layer: proLayer });
+    $("#lp-up").onclick = () => proOp("layer_move", { layer: proLayer, to: pro.layers.findIndex(l => l.id === proLayer) + 1 });
+    $("#lp-down").onclick = () => proOp("layer_move", { layer: proLayer, to: pro.layers.findIndex(l => l.id === proLayer) - 1 });
+    // 拖的时候不记：松手才算一步，不然撤销要按几十下
+    $("#lp-opacity").onchange = (e) => proOp("layer_props", { layer: proLayer, props: { opacity: clamp(+e.target.value, 0, 100) / 100 } });
+    $("#lp-blend").onchange = (e) => proOp("layer_props", { layer: proLayer, props: { blend: e.target.value } });
+  }
+  /** 「我的」里的版本和画布大小。换了从下一张画开始算。 */
+  function bindEdition() {
+    const seg = $("#edition-seg"), box = $("#edition-canvas"), sel = $("#canvas-preset"), cw = $("#canvas-w"), ch = $("#canvas-h");
+    if (!seg) return;
+    sel.innerHTML = CANVAS_PRESETS.map(([v, t]) => `<option value="${v}">${t}</option>`).join("");
+    const sync = () => {
+      const ed = edition(), [w, h] = proCanvasSize(), key = `${w}x${h}`;
+      seg.querySelectorAll("button").forEach(b => b.classList.toggle("active", b.dataset.edition === ed));
+      box.classList.toggle("hidden", ed !== "pro");
+      const preset = CANVAS_PRESETS.some(p => p[0] === key) && lsGet("artquest.canvas.custom") !== "1";
+      sel.value = preset ? key : "custom";
+      $("#canvas-custom").classList.toggle("hidden", preset);
+      cw.value = w; ch.value = h;
+    };
+    seg.querySelectorAll("button").forEach(b => b.onclick = () => { lsSet("artquest.edition", b.dataset.edition); sync(); });
+    sel.onchange = () => {
+      lsSet("artquest.canvas.custom", sel.value === "custom" ? "1" : "0");
+      if (sel.value !== "custom") lsSet("artquest.canvas", sel.value);
+      sync();
+    };
+    const custom = () => {
+      const w = clamp(Math.round(+cw.value) || DAILY_SIZE[0], CANVAS_MIN, CANVAS_MAX), h = clamp(Math.round(+ch.value) || DAILY_SIZE[1], CANVAS_MIN, CANVAS_MAX);
+      lsSet("artquest.canvas", `${w}x${h}`); sync();
+    };
+    cw.onchange = custom; ch.onchange = custom;
+    sync();
   }
 
   function resetCanvas() { ctx.globalAlpha = 1; ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height); undoStack.length = redoStack.length = 0; visible = []; undoDoc.length = redoDoc.length = 0; }
@@ -1614,18 +1965,31 @@
    *  stroke, and offline analysis could not tell it from a real one — so an
    *  unsupported channel is recorded as null, never as a plausible value. */
   const hasPen = (e) => e.pointerType === "pen";
+  /** 手指的接触面有多大（CSS 像素，长轴）。
+   *  手指没有压力传感器，但按得重、接触面就大——这是一个**代理量**，所以单独占一格，
+   *  绝不写进 pressure 那一格。屏幕不报接触面时 width/height 是规范规定的默认值 1，
+   *  那不是读数，记 null。 */
+  const contactOf = (e) => {
+    if (e.pointerType !== "touch") return null;
+    const w = e.width || 0, h = e.height || 0;
+    return (w > 1 || h > 1) ? R(Math.max(w, h), 1) : null;
+  };
+  /** 一个采样点：`[x, y, dt, pressure, tiltX, tiltY]`，笔和手指再多两格 `twist, contact`。
+   *  鼠标什么都测不了，停在六格，不为它多写两个 null。 */
   function samplePoint(e, t0) {
     const q = pos(e), pen = hasPen(e);
-    return [R(q.x, 1), R(q.y, 1), Math.round(elapsed() - t0),
+    const pt = [R(q.x, 1), R(q.y, 1), Math.round(elapsed() - t0),
             pen ? R(e.pressure, 3) : null,
             pen ? Math.round(e.tiltX || 0) : null,
             pen ? Math.round(e.tiltY || 0) : null];
+    if (pen || e.pointerType === "touch") pt.push(pen ? Math.round(e.twist || 0) : null, contactOf(e));
+    return pt;
   }
   function beginStroke(e) {
     buddyQuiet(true);
     const t0 = elapsed();
     const id = "s" + String(++strokeCount).padStart(5, "0");
-    curStroke = { id, t0, tool, color: TOOLS[tool].color || color, size, opacity: toolAlpha(),
+    curStroke = { id, t0, tool, color: TOOLS[tool].color || color, size: penSize(), opacity: toolAlpha(),
       erase: tool === "eraser", pointer_type: e.pointerType || "",
       // the stroke says whether these channels were measured at all
       pressure_supported: hasPen(e), tilt_supported: hasPen(e),
@@ -1633,11 +1997,12 @@
     // logged at pen-down, not at pen-up: planning latency and first-stroke
     // region are about when the child *started*, not when they let go
     logEvent(EV.STROKE_START, { stroke_id: id, tool: curStroke.tool, color: curStroke.color,
-      size, erase: curStroke.erase, pointer_type: curStroke.pointer_type, zoom: R(view.z, 3) });
+      size: curStroke.size, erase: curStroke.erase, pointer_type: curStroke.pointer_type, zoom: R(view.z, 3) });
   }
   function finishStroke() {
     if (!curStroke) return;
     const s = curStroke; curStroke = null;
+    if (pro) { proQueue((pro.endStroke() || {}).rect); proFlush(); }
     const id = s.id, last_pt = s.points[s.points.length - 1];
     // 一笔 = 几何 + 时间 + 工具状态，别的都不存。
     // t_end 是 t0_ms + 最后一个点的 dt，能算出来就不写进去；
@@ -1646,7 +2011,13 @@
     ArtLog.stroke({ stroke_id: id, phase: state.phase, op: s.erase ? "erase" : "draw",
       tool: s.tool, color: s.color, size: s.size, opacity: s.opacity,
       pointer: s.pointer_type, pressure_supported: s.pressure_supported,
-      tilt_supported: s.tilt_supported, zoom: R(s.zoom, 3),
+      tilt_supported: s.tilt_supported,
+      // 这两条要看完整一笔才知道：不带笔身旋转的笔 twist 恒为 0，不报接触面的屏幕 contact 恒为 null
+      twist_supported: s.points.some(p => !!p[6]),
+      contact_supported: s.points.some(p => p[7] != null),
+      zoom: R(s.zoom, 3),
+      // 专业版：画在哪一层、用哪个随机种子、哪一版引擎——按日志重放缺一不可
+      ...(s.engine ? { layer: s.layer, seed: s.seed, engine: s.engine } : {}),
       t0_ms: Math.round(s.t0), points: s.points });
     visible.push(id);
     // the same stroke also lands in the unified event timeline, cross-referenced by id
@@ -1670,7 +2041,8 @@
     if (!drawing || !curStroke) return;
     drawing = false; ctx.globalAlpha = 1;
     const s = curStroke; curStroke = null;
-    if (undoStack.length) { ctx.putImageData(undoStack.pop(), 0, 0); undoDoc.pop(); }
+    if (pro) { proQueue(pro.cancelStroke()); proFlush(); }
+    else if (undoStack.length) { ctx.putImageData(undoStack.pop(), 0, 0); undoDoc.pop(); }
     logEvent(EV.STROKE_CANCELLED, { stroke_id: s.id, reason, n: s.points.length });
   }
 
@@ -1743,7 +2115,10 @@
     if (e.button !== 0 && e.pointerType === "mouse") return;
     if (state.timeUp) return;
     flushZoom();   // a zoom gesture closes before the stroke it was made for
-    canvas.setPointerCapture(e.pointerId); pushUndo(); drawing = true; last = pos(e); beginStroke(e);
+    if (pro && !proCanDraw()) return;
+    canvas.setPointerCapture(e.pointerId); drawing = true; last = pos(e);
+    if (pro) { beginStroke(e); proDown(); markActive(); return; }
+    pushUndo(); beginStroke(e);
     strokeStyle(last.p); ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(last.x + 0.01, last.y); ctx.stroke();
     markActive();
   });
@@ -1758,6 +2133,7 @@
     // coalesced events keep the full input rate of a pen (up to ~240 Hz)
     const evs = (e.getCoalescedEvents && e.getCoalescedEvents()) || [];
     (evs.length ? evs : [e]).forEach(ev => {
+      if (pro) { if (curStroke) { const pt = samplePoint(ev, curStroke.t0); curStroke.points.push(pt); proFeed(pt); } return; }
       const p = pos(ev); strokeStyle(p.p);
       ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke(); last = p;
       if (curStroke) curStroke.points.push(samplePoint(ev, curStroke.t0));
@@ -1845,7 +2221,17 @@
     const w = canvas.offsetWidth, grid = studio && getComputedStyle(studio).display === "grid";
     if (grid && stage && w > 0 && w < stage.clientWidth - 1) {
       const cols = getComputedStyle(studio).gridTemplateColumns.split(" ");
-      if (cols.length === 3) studio.style.gridTemplateColumns = `${cols[0]} ${w}px ${cols[2]}`;
+      // 专业版的竖幅画布很窄：中间那列跟着收到那么窄的话 dock 要折三四行。给它留个底，画布在列里居中。
+      const floor = pro ? Math.min(stage.clientWidth, 560) : 0;
+      const setCol = (cw) => { if (cols.length === 3) studio.style.gridTemplateColumns = `${cols[0]} ${Math.max(cw, floor)}px ${cols[2]}`; };
+      setCol(w);
+      // 列收窄之后 dock 可能多折一行，把画布区压矮——画布还按刚才量的高度长着，就被框切掉了。
+      // 所以收完再量：框比画布矮就按框重新封顶（画布变矮也就变窄，列再跟一次）。标准画布走不到这儿。
+      for (let i = 0; i < 4; i++) {
+        const room2 = viewport.clientHeight;
+        if (!(room2 > 0 && room2 < canvas.offsetHeight - 0.5)) break;
+        canvas.style.maxHeight = room2 + "px"; setCol(canvas.offsetWidth);
+      }
     }
     applyView();                                  // 框变了，平移的边界跟着变
   }
@@ -1947,6 +2333,7 @@
   };
 
   function undo() {
+    if (pro) return proUndo(false);
     if (!undoStack.length) return;
     redoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height)); redoDoc.push(visible.slice());
     ctx.putImageData(undoStack.pop(), 0, 0);
@@ -1954,6 +2341,7 @@
     logEvent(EV.UNDO, docDiff(prev, visible));
   }
   function redo() {
+    if (pro) return proUndo(true);
     if (!redoStack.length) return;
     undoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height)); undoDoc.push(visible.slice());
     ctx.putImageData(redoStack.pop(), 0, 0);
@@ -1964,7 +2352,7 @@
   const clearModal = $("#clear-modal");
   $("#btn-clear").onclick = () => {
     const n = visible.length;
-    $("#clear-body").textContent = n
+    $("#clear-body").textContent = pro ? "将清空当前图层，之后可以用「撤销」恢复。" : n
       ? `将清除这 ${n} 笔，之后可以用「撤销」恢复。`
       : "画布上还没有内容。";
     clearModal.classList.remove("hidden");
@@ -1972,6 +2360,7 @@
   $("#btn-clear-keep").onclick = () => clearModal.classList.add("hidden");
   $("#btn-clear-go").onclick = () => {
     clearModal.classList.add("hidden");
+    if (pro) { proOp("layer_clear", { layer: proLayer }); return; }
     pushUndo(); ctx.globalAlpha = 1; ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
     const prev = visible; visible = [];
     logEvent(EV.CLEAR, docDiff(prev, visible));
@@ -1993,7 +2382,8 @@
   // ---------- dock 上那一个小框：现在手里是什么 ----------
   // 图标底下不放字。选中的工具名常驻在这儿；按一下就发生的按钮（缩放、清空、
   // 撤销……）和拖滑块的时候，它闪一下那个名字，一秒后回到当前工具。
-  const TOOL_NAMES = { pencil: "铅笔", brush: "笔刷", marker: "马克笔", eraser: "橡皮" };
+  const TOOL_NAMES = { pencil: "铅笔", brush: "笔刷", marker: "马克笔", eraser: "橡皮",
+                       charcoal: "炭笔", ink: "毛笔", wash: "淡墨", oil: "油画笔" };
   let nameTimer = null;
   function syncName() {
     const el = $("#dock-name"); if (!el) return;
@@ -2021,10 +2411,14 @@
     syncName();
     paintNib();     // 换了工具，笔尖的粗细倍率和浓淡都变了
   }
-  document.querySelectorAll("#tools button").forEach(b => b.onclick = () => {
-    if (b.disabled) return;
-    applyTool(b.dataset.tool); logEvent(EV.BRUSH_CHANGE, { tool });
-  });
+  // 专业版换一套笔时 dock 上的按钮是重新生成的，所以绑定单拎出来
+  function bindTools() {
+    document.querySelectorAll("#tools button").forEach(b => b.onclick = () => {
+      if (b.disabled) return;
+      applyTool(b.dataset.tool); logEvent(EV.BRUSH_CHANGE, { tool });
+    });
+  }
+  bindTools(); bindLayerPanel(); bindEdition();
   // 壳把画存进相册之后回一句：成了就把钮变成「存好了」，没成说一句孩子看得懂的话，能再试
   window.addEventListener("artquest:saved", (e) => {
     const sv = $("#btn-save"); if (!sv) return;
@@ -2472,7 +2866,7 @@
     const mine = rows.filter(r => r.status !== "withdrawn");
     const done = mine.filter(r => r.status === "done");
     if (empty) empty.classList.toggle("hidden", !!mine.length);
-    const titleOf = (qid) => (state.quests.find(q => q.id === qid) || {}).title || qid;
+    const titleOf = (qid) => (state.quests.find(q => q.id === qid) || state.classQuests[qid] || {}).title || qid;
     grid.innerHTML = mine.map((r, i) => {
       const st = styleOf(r.quest_id);
       const feat = (r.featured || {}).state;
@@ -2669,7 +3063,7 @@
     }
     else refImgs.forEach(im => im.removeAttribute("src"));
     state.timeUp = false;
-    const allowed = q.allowed_tools;
+    const allowed = pro ? null : q.allowed_tools;      // 「只许用铅笔」说的是日常版那四支笔
     document.querySelectorAll("#tools button").forEach(b => {
       const ok = !allowed || allowed.indexOf(b.dataset.tool) >= 0;
       b.disabled = !ok; b.classList.toggle("off", !ok);
@@ -3570,6 +3964,7 @@
   });
   $("#btn-start-draw").onclick = () => startDrawing();
   async function startDrawing() {
+    prepareCanvas(state.quest);          // 先定画布：建 session 时要把它的尺寸和引擎报上去
     const intent = { emotion: state.emotion || "", text: $("#intent-text").value.trim() };   // 心情不是必选
     const pid = $("#participant").value.trim();
     if (pid && pid !== savedPid()) setPid(pid);
@@ -3580,7 +3975,8 @@
       condition: state.condition, device: deviceInfo(), canvas: canvasGeom(),
       // 首访任务库：这张地图是按年龄路由的——年龄、年龄从哪来、年龄段；从首访地图上进来的 M 族题也带（bank 为空），
       // 服务端预算下一次决策时靠它知道下一张地图还是首访模式。老地图 / 研究模式这里是空的。
-      routing: state.bank ? { ...(state.bank || {}), first_visit: true, bank: isBank(state.quest) ? state.quest.bank : "" } : {},
+      // 课堂任务：带上是哪个班的（哪节课、练习还是作业服务端按任务自己认）
+      routing: isClassTask(state.quest) ? { classroom: { class_code: (state.classroom || {}).class_code || "" } } : state.bank ? { ...(state.bank || {}), first_visit: true, bank: isBank(state.quest) ? state.quest.bank : "" } : {},
       // 这道题怎么来的 + 服务端影子决策的 id（有就带；没网就标 offline，服务端记成 client_offline）
       selection: Object.assign({}, state.choice || {}, state.decision && state.decision.entrypoint === ((state.choice || {}).entrypoint || "map")
         ? { decision_id: state.decision.decision_id, offer_id: state.decision.offer_id, client_offered: state.decision.client_offered,
@@ -3608,7 +4004,7 @@
     state.feedback = null; state.offlineSession = !!ticket;
     renderHistory(r.personalization);
     state.condition = { ...state.condition, ...(r.session.condition || {}) };  // the server froze it; mirror it back
-    resetCanvas(); state.startedAt = Date.now();
+    resetCanvas(); proStart(); state.startedAt = Date.now();
     strokeCount = 0; state.lastActivity = 0; state.idle = false;
     applyTool("pencil");                 // 上一张用橡皮收的尾，不该带进下一张
     // 起手色：不是黑。每个任务按 id 定一个（同一任务永远同一色，任务之间不同），孩子随时能换。
@@ -3884,6 +4280,8 @@
     fm.classList.toggle("hidden", !state.study);
     if (state.study) fm.textContent = `Session ${session.session_id} · 过程截图 ${session.snapshots.length} 张`
       + ` · 事件 ${session.events.length} 条 · 数据目录 data/sessions/${session.session_id}/`;
+    if (isClassTask(state.quest)) classMarkDone(state.quest.id);     // 课堂页上这道题标成「画过了」
+    $("#btn-again").textContent = isClassTask(state.quest) ? "回到课堂" : "再画一幅";
     show("final");
   }
 
@@ -3897,7 +4295,7 @@
     const show = fe.state === "pending" && (fe.by || "").startsWith("buddy/");
     box.classList.toggle("hidden", !show);
     if (!show) return;
-    const title = (state.quests.find(q => q.id === session.quest_id) || {}).title || session.quest_id;
+    const title = (state.quests.find(q => q.id === session.quest_id) || state.classQuests[session.quest_id] || {}).title || (session.task || {}).title || session.quest_id;
     paintBuddy($("#invite-sprite"), "encourage", buddyColor(), "fig");
     $("#invite-text").textContent = `你画得好棒！${buddyName()}想把你推荐到展览馆里。`;
     $("#invite-work").textContent = `${myDisplayName()} · 《${title}》`;
@@ -4427,7 +4825,9 @@
     }
     await loadCollection();
     renderQuests();
-    show("quest");
+    // 课堂上画的：回到那节课，接着做下一道，不是回地图
+    if (isClassTask(state.quest) && cl.lesson) { await openTab("class"); await openLesson(cl.lesson.id); }
+    else show("quest");
     checkFeatured();
   };
 

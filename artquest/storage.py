@@ -1183,6 +1183,8 @@ def dataset_manifest(root: Optional[Path] = None) -> Dict[str, Any]:
                             "personalisation, self-report, QC",
             "strokes.jsonl[.gz]": "one line per stroke: geometry + time + tool state; "
                                   "points are [x, y, dt_ms, pressure, tilt_x, tilt_y] "
+                                  "(+ [twist, contact] for a pen or a finger; contact is "
+                                  "the finger's contact-patch size, a proxy, never pressure) "
                                   "in canvas pixels, dt from the stroke's t0_ms",
             "events.jsonl[.gz]": "every non-drawing operation, feedback included",
             "labels.jsonl": "human ground truth: teacher ratings + expert process spans",

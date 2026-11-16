@@ -984,6 +984,13 @@ class IPadGestures(ZoomKeepsStrokesInCanvasSpace):
             self.assertFalse(stroke["pressure_supported"])
             for pt in stroke["points"]:
                 self.assertIsNone(pt[3], "pressure was fabricated")
+                # a finger carries the two extra slots; twist is a pen's, never a finger's
+                self.assertEqual(len(pt), 8)
+                self.assertIsNone(pt[6])
+            # the contact patch is either a real size or absent — and the flag agrees
+            sizes = [pt[7] for pt in stroke["points"] if pt[7] is not None]
+            self.assertEqual(stroke["contact_supported"], bool(sizes))
+            self.assertTrue(all(v > 1 for v in sizes), sizes)
 
         # every gesture's first finger left a mark that was rolled back, and said so
         self.assertEqual(kinds.count("STROKE_CANCELLED"), kinds.count("STROKE_START") - 2)

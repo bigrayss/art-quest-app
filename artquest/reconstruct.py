@@ -17,6 +17,10 @@ the UI actually implements (undo removes the most recent visible stroke, redo
 puts back what the last undo took, clear removes everything). That is exact for
 every history except undo *across* a clear, which the old log cannot express.
 """
+import json
+import shutil
+import subprocess
+import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -24,7 +28,7 @@ from PIL import Image, ImageChops, ImageColor, ImageDraw
 
 from . import events as ev
 from .logstore import read_json, read_jsonl as _read_jsonl
-from .storage import session_task
+from .storage import session_meta, session_task
 
 # Mirrors static/app.js TOOLS: {size multiplier, pressure sensitivity}
 TOOL_WIDTH = {"pencil": 1.0, "brush": 3.0, "marker": 6.0, "eraser": 6.0}
@@ -35,7 +39,7 @@ TOOL_PRESSURE = {"pencil": 0.4, "brush": 1.0, "marker": 0.0, "eraser": 0.0}
 TOOL_CAP = {"pencil": "round", "brush": "round", "marker": "square", "eraser": "round"}
 
 DRAW_TYPES = ev.DRAW_TYPES                      # STROKE_END / ERASE, old name folded in
-TIMELINE_TYPES = DRAW_TYPES + (ev.UNDO, ev.REDO, ev.CLEAR)
+TIMELINE_TYPES = DRAW_TYPES + (ev.UNDO, ev.REDO, ev.CLEAR, ev.LAYER_OP)
 
 DEFAULT_CANVAS = (1024, 704)
 # Width the replay and the saved artwork are both reduced to before comparing.
@@ -71,8 +75,10 @@ def visible_ids(events: List[Dict[str, Any]]) -> Optional[List[str]]:
 
     for e in ops:
         kind, p = ev.canonical(e.get("type")), e.get("payload") or {}
-        if kind in DRAW_TYPES:
-            sid = p.get("stroke_id")
+        if kind in DRAW_TYPES or kind == ev.LAYER_OP:
+            # a layer operation is a step on the canvas like a stroke is: it has
+            # an id, undo takes it off, redo puts it back
+            sid = p.get("stroke_id") or p.get("op_id")
             if sid:
                 visible.append(sid)
             undone.clear()          # a new stroke drops the redo stack
@@ -456,10 +462,78 @@ def process_cuts(n_strokes: int, fractions: Tuple[float, ...] = PROCESS_FRACTION
     return [c for c in cuts if 0 < c < n_strokes]
 
 
+# -- the pro engine ----------------------------------------------------------
+# A pro session is painted by static/paint.js (textured brushes, layers). Its
+# replay runs that same file under Node — one implementation, so the rebuilt
+# image is pixel-identical to what was on screen. Without Node on the machine
+# the session still loads: the image falls back to the saved final.png and the
+# report says the replay did not run.
+REPLAY_SCRIPT = Path(__file__).resolve().parent.parent / "tools" / "replay_paint.js"
+_LAYER_KEYS = ("layer", "index", "name", "to", "props")
+
+
+def paint_ops(events: List[Dict[str, Any]], strokes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """The steps still on the canvas — strokes and layer operations — in order."""
+    by_stroke = {s.get("stroke_id"): s for s in strokes if s.get("stroke_id")}
+    by_op = {}
+    for e in events:
+        if ev.canonical(e.get("type")) == ev.LAYER_OP:
+            p = e.get("payload") or {}
+            if p.get("op_id"):
+                by_op[p["op_id"]] = p
+    order = visible_ids(events)
+    if order is None:
+        order = [s.get("stroke_id") for s in sorted(strokes, key=lambda s: int(s.get("seq") or 0))]
+    ops: List[Dict[str, Any]] = []
+    for i in order:
+        if i in by_stroke:
+            s = by_stroke[i]
+            ops.append({"id": i, "kind": "stroke", "brush": s.get("tool"), "layer": s.get("layer") or "L1",
+                        "color": s.get("color"), "size": s.get("size"), "opacity": s.get("opacity"),
+                        "seed": s.get("seed") or 0, "points": s.get("points") or []})
+        elif i in by_op:
+            p = by_op[i]
+            ops.append({"id": i, "kind": p.get("kind"), **{k: p[k] for k in _LAYER_KEYS if k in p}})
+    return ops
+
+
+def _paint_rebuild(d: Path, events, strokes, size, cuts) -> Tuple[Image.Image, Dict[int, Image.Image], str]:
+    ops = paint_ops(events, strokes)
+    # a cut counts strokes; the replay counts steps — find the step each cut lands on
+    at, n = {}, 0
+    for i, op in enumerate(ops, start=1):
+        if op["kind"] == "stroke":
+            n += 1
+            if n in cuts:
+                at[i] = n
+    node = shutil.which("node")
+    if node and REPLAY_SCRIPT.exists():
+        with tempfile.TemporaryDirectory(prefix="artquest-replay-") as out:
+            job = {"spec": {"width": size[0], "height": size[1], "background": "#ffffff"},
+                   "ops": ops, "cuts": sorted(at), "out": out}
+            try:
+                subprocess.run([node, str(REPLAY_SCRIPT)], input=json.dumps(job).encode("utf-8"),
+                               capture_output=True, check=True, timeout=300)
+                with Image.open(Path(out) / "final.png") as f:
+                    image = f.convert("RGB")
+                frames = {}
+                for i, c in at.items():
+                    with Image.open(Path(out) / f"cut_{i}.png") as f:
+                        frames[c] = f.convert("RGB")
+                return image, frames, "node"
+            except (subprocess.SubprocessError, OSError):
+                pass
+    final = d / "final.png"
+    if final.exists():
+        with Image.open(final) as f:
+            return f.convert("RGB"), {}, "unavailable"
+    return Image.new("RGB", size, (255, 255, 255)), {}, "unavailable"
+
+
 def rebuild(session_dir: Path) -> Dict[str, Any]:
     """Reconstruct one session directory from its logs alone."""
     d = Path(session_dir)
-    meta = read_json(d / "metadata.json") or {}
+    meta = session_meta(d) or read_json(d / "metadata.json") or {}
     strokes = read_jsonl(d / "strokes.jsonl")
     events = read_jsonl(d / "events.jsonl")
     vis = visible_strokes(events, strokes)
@@ -467,12 +541,18 @@ def rebuild(session_dir: Path) -> Dict[str, Any]:
     # the frozen condition is what says whether the canvas started blank
     stimulus = (session_task(d) or {}).get("stimulus") or None
     cuts = process_cuts(len(vis))
-    image, frames = render_with_frames(vis, size, tuple(cuts), stimulus)
+    engine = str((meta.get("canvas") or {}).get("engine") or "")
+    replayed = "python"
+    if engine.startswith("paint/"):
+        image, frames, replayed = _paint_rebuild(d, events, strokes, size, cuts)
+    else:
+        image, frames = render_with_frames(vis, size, tuple(cuts), stimulus)
     # each frame says when in the session it was reached: the end of the last stroke in it
     process = [{"n_strokes": c, "elapsed_ms": int(round(ev.stroke_end_ms(vis[c - 1]))), "image": frames[c]}
                for c in cuts if c in frames]
     return {"meta": meta, "size": size, "strokes": vis, "stimulus": stimulus,
             "boundaries": boundaries(events, vis),
+            "engine": engine, "replayed": replayed,
             "image": image, "process": process,
             "audit": audit_streams(events, strokes),
             "logged": len(strokes), "visible": len(vis),
@@ -495,5 +575,12 @@ def check_final(session_dir: Path, built: Optional[Dict[str, Any]] = None) -> Di
         report["rel"] = report["diff"] = None
         return report
     with Image.open(final) as f:
-        report.update(compare(built["image"], f.convert("RGB")))
+        rgb = f.convert("RGB")
+        report.update(compare(built["image"], rgb))
+        if built.get("engine"):
+            # the pro engine replays with the very code that drew it, so the
+            # check is not "about the same ink" but "the same pixels"
+            report["engine"], report["replayed"] = built["engine"], built.get("replayed")
+            report["exact"] = (built.get("replayed") == "node" and rgb.size == built["image"].size
+                               and ImageChops.difference(built["image"].convert("RGB"), rgb).getbbox() is None)
     return report

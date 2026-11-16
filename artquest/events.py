@@ -34,6 +34,9 @@ ERASE = "ERASE"
 UNDO = "UNDO"
 REDO = "REDO"
 CLEAR = "CLEAR"
+# 专业版的图层操作（新建 / 删除 / 移动 / 属性 / 清空 / 向下合并）。和一笔一样是画面上的一步：
+# 带 op_id，能被 UNDO 拿掉、被 REDO 放回，重放时按顺序再做一遍。
+LAYER_OP = "LAYER_OP"
 
 # -- tools -------------------------------------------------------------------
 BRUSH_CHANGE = "BRUSH_CHANGE"
@@ -118,7 +121,7 @@ VOCABULARY: Set[str] = {
     PAUSE_START, PAUSE_END, TIME_LIMIT_REACHED,
     ASSIST_OPEN, ASSIST_SHOW, MASCOT_STATE,
     FEEDBACK_SHOW, FEEDBACK_DISMISS, REVISION_START, REVISION_SKIPPED, MODEL_FALLBACK,
-    HISTORY_SHOWN, RATING_ADDED, QUESTIONNAIRE_SUBMITTED, DOWNLOAD,
+    LAYER_OP, HISTORY_SHOWN, RATING_ADDED, QUESTIONNAIRE_SUBMITTED, DOWNLOAD,
     FEATURED_PROPOSED, FEATURED_ACCEPTED, FEATURED_DECLINED,
 }
 
@@ -153,7 +156,8 @@ def unknown_types(types: Iterable[str]) -> Set[str]:
 # see while drawing this stroke, and `pressure_supported` / `tilt_supported` say
 # *why* a null is null — no sensor, rather than a sensor that read nothing.
 STROKE_FIELDS = ("stroke_id", "seq", "phase", "op", "tool", "color", "size", "opacity",
-                 "pointer", "pressure_supported", "tilt_supported", "zoom", "t0_ms", "points")
+                 "pointer", "pressure_supported", "tilt_supported", "twist_supported",
+                 "contact_supported", "layer", "seed", "engine", "zoom", "t0_ms", "points")
 _STROKE_ALIASES = {"t_start_ms": "t0_ms", "pointer_type": "pointer"}
 
 

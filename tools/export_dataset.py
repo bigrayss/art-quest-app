@@ -33,9 +33,17 @@ TASK_COLS = ["task_id", "family", "mission_family", "form_id", "version", "promp
              "process_targets", "research_goal"]
 
 
-def _mean_pressure(points):
-    vals = [p[3] for p in points if len(p) > 3 and isinstance(p[3], (int, float))]
+def _class_tag(m):
+    return ((m.get("routing") or {}).get("classroom")) or {}
+
+
+def _mean_slot(points, i):
+    vals = [p[i] for p in points if len(p) > i and isinstance(p[i], (int, float))]
     return round(sum(vals) / len(vals), 4) if vals else ""
+
+
+def _mean_pressure(points):
+    return _mean_slot(points, 3)
 
 
 def _flat_task(t):
@@ -71,7 +79,8 @@ SESSION_COLS = [
     # 首访任务库（2026-10-12）：按年龄路由的记录 + 任务实例的几项条件（年龄是协变量，不是能力分数）
     "bank", "band", "routing_age", "routing_age_source", "first_visit", "revision_enabled", "reference_fit", "post_config",
     "n_strokes", "n_points", "n_events", "n_snapshots",
-    "qc_ok", "qc_failed", "app_version", "schema_version", "canvas_w", "canvas_h", "device_platform",
+    "qc_ok", "qc_failed", "app_version", "schema_version", "canvas_w", "canvas_h", "canvas_edition", "canvas_engine",
+    "class_code", "class_lesson", "class_task_kind", "device_platform",
     "calls_recorded", "n_calls",
 ]
 
@@ -157,6 +166,11 @@ def _flat_session(m: Dict[str, Any]) -> Dict[str, Any]:
         "qc_ok": qc.get("ok"), "qc_failed": "|".join(qc.get("failed") or []),
         "app_version": (m.get("app") or {}).get("version", ""), "schema_version": m.get("schema_version", 1),
         "canvas_w": canvas.get("width"), "canvas_h": canvas.get("height"),
+        # 日常版 / 专业版，和画这张画的引擎（空 = 日常版那四支笔）
+        "canvas_edition": canvas.get("edition") or "daily", "canvas_engine": canvas.get("engine") or "",
+        # 课堂上画的：哪个班、哪节课、课堂练习还是课后作业（平时画的这三格是空的）
+        "class_code": _class_tag(m).get("class_code", ""), "class_lesson": _class_tag(m).get("lesson_id", ""),
+        "class_task_kind": _class_tag(m).get("task_kind", ""),
         "device_platform": (m.get("device") or {}).get("platform", ""),
     }
 
@@ -266,7 +280,8 @@ def export(out: Path, with_points: bool = False) -> Dict[str, int]:
     pf = points_path.open("w", newline="", encoding="utf-8") if with_points else None
     pw = csv.writer(pf) if pf else None
     if pw:
-        pw.writerow(["session_id", "stroke_id", "i", "x", "y", "t_ms", "pressure", "tilt_x", "tilt_y"])
+        pw.writerow(["session_id", "stroke_id", "i", "x", "y", "t_ms", "pressure", "tilt_x", "tilt_y",
+                     "twist", "contact"])
 
     for d in sorted(config.SESSIONS_DIR.iterdir()):
         m = session_meta(d)
@@ -311,11 +326,20 @@ def export(out: Path, with_points: bool = False) -> Dict[str, int]:
                 # only over points that actually measured it; blank when the
                 # device never did, rather than a mean of fabricated values
                 "mean_pressure": _mean_pressure(pts),
+                "tilt_supported": s.get("tilt_supported"),
+                "twist_supported": s.get("twist_supported", False),
+                # a finger's contact patch: a proxy for how hard it pressed, kept
+                # apart from pressure so the two are never averaged together
+                "contact_supported": s.get("contact_supported", False),
+                "mean_contact": _mean_slot(pts, 7),
+                # 专业版：哪个图层、随机种子、引擎版本（日常版这三格是空的）
+                "layer": s.get("layer", ""), "seed": s.get("seed") or "", "engine": s.get("engine", ""),
             })
             if pw:
                 for i, p in enumerate(pts):
-                    p = list(p) + [""] * (6 - len(p))
-                    pw.writerow([sid, s.get("stroke_id"), i, p[0], p[1], t0 + (p[2] or 0), p[3], p[4], p[5]])
+                    p = list(p) + [""] * (8 - len(p))
+                    pw.writerow([sid, s.get("stroke_id"), i, p[0], p[1], t0 + (p[2] or 0), p[3], p[4], p[5],
+                                 p[6], p[7]])
 
         for e in session_events(d):
             events.append({"session_id": sid, "seq": e.get("seq"), "src": e.get("src"),
@@ -372,7 +396,9 @@ def export(out: Path, with_points: bool = False) -> Dict[str, int]:
         "strokes": _write(out / "strokes.csv", ["session_id", "stroke_id", "seq", "phase", "t0_ms", "t_end_ms",
                                                 "duration_ms", "tool", "color", "size", "opacity", "op",
                                                 "pointer", "pressure_supported", "zoom",
-                                                "n_points", "mean_pressure"], strokes),
+                                                "n_points", "mean_pressure", "tilt_supported",
+                                                "twist_supported", "contact_supported",
+                                                "mean_contact", "layer", "seed", "engine"], strokes),
         "events": _write(out / "events.csv", ["session_id", "seq", "src", "t_ms", "type", "payload"], events),
         "feedback": _write(out / "feedback.csv", ["session_id", "feedback_id", "t_ms", "phase", "source",
                                                   "feedback_type", "backend", "trigger", "model",
