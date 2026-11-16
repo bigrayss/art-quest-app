@@ -33,6 +33,10 @@ li::before { content: ""; position: absolute; left: 0; top: .62em; width: 11px; 
 .figs.many { grid-template-columns: 1fr 1fr; }
 figure { margin: 0; background: #fff; border: 2px solid #ececec; border-radius: 18px; padding: 16px; }
 figure svg { display: block; width: 100%; height: auto; }
+.figs.pic figure { padding: 10px; border: 0; background: none; text-align: center; }
+.figs.pic img { max-width: 100%; max-height: 430px; border-radius: 10px; }
+.cover .figs.pic img { max-height: 300px; } .cover .figs.pic figcaption { display: none; }
+.cover figure:has(img) { width: auto; background: none; padding: 0; }
 figcaption { margin-top: 6px; font-size: 16px; text-align: center; line-height: 1.4; }
 .ask { margin: 0; padding: 16px 22px; border-radius: 16px; background: var(--tint); font-size: 24px; font-weight: 700; color: #2f2f2f; }
 .ask::before { content: "想一想　"; color: var(--deep); }
@@ -72,7 +76,11 @@ def page_html(lesson, i):
         n += 1
         figs, caps = s.get("figures") or [], s.get("captions") or []
         fig_html = ""
-        if figs:
+        if s.get("img"):
+            src = (classroom.COURSEWARE_DIR / "img" / f"{s['img']}.jpg").as_uri()
+            fig_html = f'<div class="figs pic"><figure><img src="{src}"><figcaption>{e(s.get("credit"))}</figcaption></figure></div>'
+            figs = [1]
+        elif figs:
             fig_html = '<div class="figs%s">%s</div>' % (" many" if len(figs) > 1 else "", "".join(
                 f'<figure>{f}{"<figcaption>" + e(caps[k]) + "</figcaption>" if k < len(caps) and caps[k] else ""}</figure>'
                 for k, f in enumerate(figs)))
@@ -104,7 +112,9 @@ def main():
         browser = pw.chromium.launch(channel="chrome")
         page = browser.new_page(viewport={"width": 1280, "height": 720})
         for i, lesson in enumerate(classroom.LESSONS):
-            page.set_content(page_html(lesson, i))
+            tmp = out / "_page.html"                       # 从文件打开，file:// 的图才加载得了
+            tmp.write_text(page_html(lesson, i), encoding="utf-8")
+            page.goto(tmp.as_uri(), wait_until="load")
             page.pdf(path=str(out / f"{lesson['id']}.pdf"), width="1280px", height="720px", print_background=True)
             if "--shots" in sys.argv:
                 n = page.locator(".page").count()
@@ -112,6 +122,7 @@ def main():
                     page.locator(".page").nth(k).screenshot(path=f"{sys.argv[sys.argv.index('--shots') + 1]}/{lesson['id']}_{k + 1:02d}.png")
             print(lesson["id"], (out / f"{lesson['id']}.pdf").stat().st_size // 1024, "KB")
         browser.close()
+    (out / "_page.html").unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

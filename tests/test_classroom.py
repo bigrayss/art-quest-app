@@ -59,7 +59,7 @@ class Classroom(unittest.TestCase):
         self.assertEqual(self.c.get("/api/classroom/lessons/nope").status_code, 404)
 
     def test_every_reference_lesson_comes_with_a_cover_tasks_and_a_pdf(self):
-        cards = [c for c in self.c.get("/api/classroom/lessons").json() if c["builtin"]]
+        cards = [c for c in self.c.get("/api/classroom/lessons").json() if c["builtin"] and not c["public"]]
         self.assertEqual([c["title"] for c in cards], ["家乡的桥", "皮影戏", "田园村舍", "藏书票"])
         for card in cards:
             self.assertTrue(card["cover"].startswith("<svg"), card["id"])
@@ -70,6 +70,21 @@ class Classroom(unittest.TestCase):
             r = self.c.get(pdf[0]["url"])
             self.assertEqual(r.status_code, 200)
             self.assertTrue(r.content.startswith(b"%PDF"))
+        # 公开课：不用班级码人人看得到；配的是仓库里的名画（公有领域），挂不到班上也不用挂
+        pub = [c for c in self.c.get("/api/classroom/lessons").json() if c["public"]]
+        self.assertEqual([c["title"] for c in pub], ["美术欣赏", "素描入门", "油画入门"])
+        for card in pub:
+            self.assertTrue(card["cover_url"].startswith("/static/classroom/img/"), card)
+            lesson = self.c.get(f"/api/classroom/lessons/{card['id']}").json()
+            self.assertGreaterEqual(len(lesson["tasks"]), 3)
+            pics = [sl for sl in lesson["slides"] if sl.get("image_url")]
+            self.assertGreaterEqual(len(pics), 4)
+            for sl in pics:
+                self.assertTrue(sl["credit"], sl["title"])
+                self.assertEqual(self.c.get(sl["image_url"]).status_code, 200, sl["image_url"])
+        t0, cls0 = self._class(teacher="公开课老师", name="五（9）班")
+        r = self.c.post(f"/api/classroom/classes/{cls0['code']}/lessons", headers=t0, json={"lesson_ids": [LESSON, pub[0]["id"]]})
+        self.assertEqual([l["id"] for l in r.json()["lessons"]], [LESSON])
         # 新建的班默认只挂第一节，别的课老师自己勾
         _, cls = self._class(teacher="参考课例老师", name="五（8）班")
         self.assertEqual([l["id"] for l in cls["lessons"]], [LESSON])
@@ -362,6 +377,11 @@ class ClassroomInTheBrowser(unittest.TestCase):
 
             page.click('.tab[data-tab="class"]')
             page.wait_for_selector("#view-class:not(.hidden) #cl-code")
+            # 没输码也有公开课
+            self.assertEqual(page.eval_on_selector_all("#cl-public .cl-lesson b", "e=>e.map(x=>x.textContent)"), ["美术欣赏", "素描入门", "油画入门"])
+            if SHOTS:
+                page.wait_for_timeout(600)
+                page.screenshot(path=SHOTS + "/student_home.png", full_page=True)
             page.fill("#cl-code", "nosuch")
             page.click("#cl-join-go")
             page.wait_for_selector("#cl-msg:not(.hidden)")              # 码不对：说一句，不进班
@@ -387,7 +407,19 @@ class ClassroomInTheBrowser(unittest.TestCase):
             if SHOTS:
                 page.screenshot(path=SHOTS + "/lesson.png", full_page=True)
             self.assertIn("老师的讲稿.pdf", page.inner_text("#cl-lesson-files"))
+            self.assertNotIn("课件.pdf", page.inner_text("#cl-lesson-files"), "参考课例那份整份 PDF 只给老师")
+            # 课件没看完：任务还没出来。翻到最后一页：提醒一句，任务出来，同时放进「任务」
+            self.assertEqual(page.eval_on_selector_all("#cl-lesson-tasks .cl-task", "e=>e.length"), 0)
+            self.assertTrue(page.is_visible(".cl-locked"))
+            for _ in range(6):
+                page.keyboard.press("ArrowRight")
+            self.assertEqual(page.inner_text("#cl-page"), "8 / 8")
+            page.wait_for_selector("#cl-lesson-done:not(.hidden)")
+            self.assertIn("4", page.inner_text("#cl-lesson-done"))
             self.assertEqual(page.eval_on_selector_all("#cl-lesson-tasks .cl-task", "e=>e.length"), 4)
+            self.assertTrue(page.evaluate("document.querySelector('.tab[data-tab=\"map\"]').classList.contains('has-new')"))
+            if SHOTS:
+                page.screenshot(path=SHOTS + "/lesson_done.png", full_page=True)
 
             page.click('[data-task="CL_%s_p1"]' % LESSON)
             page.wait_for_selector("#view-draw:not(.hidden)")
@@ -405,6 +437,20 @@ class ClassroomInTheBrowser(unittest.TestCase):
             page.wait_for_selector("#class-lesson:not(.hidden) #cl-lesson-tasks .cl-tag.ok")
             self.assertEqual(page.eval_on_selector_all("#cl-lesson-tasks .cl-tag.ok", "e=>e.length"), 1)
 
+            # 「任务」页最上面是课程任务：标题 = 课程名 · 任务名；画过的排在后面；点一下就开画
+            page.click('.tab[data-tab="map"]')
+            page.wait_for_selector("#class-tasks:not(.hidden) .ct-card")
+            titles = page.eval_on_selector_all("#class-tasks .ct-card b", "e=>e.map(x=>x.textContent)")
+            self.assertEqual(titles, ["家乡的桥 · 一座有远近的桥", "家乡的桥 · 我家乡的桥", "家乡的桥 · 未来的桥", "家乡的桥 · 桥的样子"])
+            self.assertEqual(page.eval_on_selector_all("#class-tasks .ct-card.done", "e=>e.length"), 1)
+            self.assertFalse(page.evaluate("document.querySelector('.tab[data-tab=\"map\"]').classList.contains('has-new')"))
+            if SHOTS:
+                page.wait_for_timeout(500)
+                page.screenshot(path=SHOTS + "/map_tasks.png", full_page=True)
+            page.click("#class-tasks .ct-card")
+            page.wait_for_selector("#view-draw:not(.hidden)")
+            self.assertIn("一座有远近的桥", page.inner_text("#draw-quest-card"))
+
             # 老师登录进来：课堂页上有这个班、有交上来的那张画
             tpage = browser.new_context(viewport={"width": 1280, "height": 860}).new_page()
             tpage.on("pageerror", lambda e: errors.append(str(e)))
@@ -417,7 +463,7 @@ class ClassroomInTheBrowser(unittest.TestCase):
             # 老师的课堂页两个分页：课程库（所有的课）、我的班级
             tpage.wait_for_selector("#cl-lessons .cl-lesson-wrap")
             self.assertEqual(tpage.eval_on_selector_all("#cl-lessons .cl-lesson b", "e=>e.map(x=>x.textContent)"),
-                             ["家乡的桥", "皮影戏", "田园村舍", "藏书票"])
+                             ["美术欣赏", "素描入门", "油画入门", "家乡的桥", "皮影戏", "田园村舍", "藏书票"])
             self.assertTrue(tpage.is_visible("#cl-up-lesson"))
             if SHOTS:
                 tpage.screenshot(path=SHOTS + "/library.png", full_page=True)
@@ -438,7 +484,8 @@ class ClassroomInTheBrowser(unittest.TestCase):
 
         self.assertEqual(errors, [])
         work = c.get(f"/api/classroom/classes/{code}/work", headers=t).json()
-        self.assertEqual([(w["task_kind"], w["task_key"], w["status"]) for w in work["work"]], [("practice", "p1", "done")])
+        self.assertEqual([(w["task_kind"], w["task_key"], w["status"]) for w in work["work"]], [("practice", "p2", "drawing"), ("practice", "p1", "done")],
+                             "从「任务」页开画的那张也带着班级码")
         self.assertEqual(len(work["members"]), 1)
 
 
@@ -495,7 +542,8 @@ class ClassroomInTheBrowser(unittest.TestCase):
 
             # 现成的 PDF 课件传上来就是一节课：课题先用文件名，直接进编辑页；这节课打开来 PDF 就是课件
             tpage.click('[data-cltab="library"]')
-            tpage.set_input_files("#cl-up-file", {"name": "色彩的冷暖.pdf", "mimeType": "application/pdf", "buffer": PDF})
+            real = (classroom.COURSEWARE_DIR / "zj5a_bridge.pdf").read_bytes()
+            tpage.set_input_files("#cl-up-file", {"name": "色彩的冷暖.pdf", "mimeType": "application/pdf", "buffer": real})
             tpage.wait_for_selector("#class-edit:not(.hidden) #ed-title")
             self.assertEqual(tpage.input_value("#ed-title"), "色彩的冷暖")
             self.assertIn("色彩的冷暖.pdf", tpage.inner_text("#ed-files"))
@@ -506,8 +554,12 @@ class ClassroomInTheBrowser(unittest.TestCase):
             if SHOTS:
                 tpage.screenshot(path=SHOTS + "/library2.png", full_page=True)
             tpage.click(card + " .cl-lesson")
-            tpage.wait_for_selector("#class-lesson:not(.hidden) iframe.cl-pdf")
+            # PDF 在页面里一页页往下滚（pdf.js），不用下载
+            tpage.wait_for_selector("#class-lesson:not(.hidden) canvas.cl-pdfpage.ready")
+            self.assertEqual(tpage.eval_on_selector_all("canvas.cl-pdfpage", "e=>e.length"), 9)
             self.assertFalse(tpage.is_visible("#cl-next"))
+            if SHOTS:
+                tpage.screenshot(path=SHOTS + "/pdf_lesson.png", full_page=True)
 
             page = browser.new_context(viewport={"width": 1280, "height": 860}).new_page()
             page.on("pageerror", lambda e: errors.append(str(e)))
@@ -519,15 +571,15 @@ class ClassroomInTheBrowser(unittest.TestCase):
             page.wait_for_selector("#quest-grid .quest-card")
             page.click('.tab[data-tab="class"]')
             page.wait_for_selector("#view-class:not(.hidden) #cl-code")
-            self.assertEqual(page.eval_on_selector_all(".cl-lesson", "e=>e.length"), 0, "没输码：只有输码那一栏")
+            self.assertEqual(page.eval_on_selector_all("#cl-mycls .cl-lesson", "e=>e.length"), 0, "没输码：我的课堂里只有输码那一栏")
             if SHOTS:
                 page.screenshot(path=SHOTS + "/join.png", full_page=True)
             page.fill("#cl-code", code)
             page.click("#cl-join-go")
             page.wait_for_selector(".cl-mine")
-            self.assertEqual(page.eval_on_selector_all(".cl-lesson b", "e=>e.map(x=>x.textContent)"), ["会跳舞的线"])
+            self.assertEqual(page.eval_on_selector_all("#cl-mycls .cl-lesson b", "e=>e.map(x=>x.textContent)"), ["会跳舞的线"])
             self.assertEqual(page.eval_on_selector_all("[data-edit], [data-copy], #cl-new-lesson", "e=>e.length"), 0)
-            page.click(".cl-lesson")
+            page.click("#cl-mycls .cl-lesson")
             page.wait_for_selector("#class-lesson:not(.hidden) #cl-slide h2")
             self.assertEqual(page.inner_text("#cl-slide h2"), "线会动")
             self.assertEqual(page.eval_on_selector_all("#cl-slide li", "e=>e.map(x=>x.textContent)"), ["直线很安静", "曲线像在跳舞"])

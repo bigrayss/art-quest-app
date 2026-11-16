@@ -2546,3 +2546,36 @@ body.offline .needs-net { display:none !important; }
 .cl-chips i.warn { color:var(--yellow-d); font-weight:700; }
 .ed-card input:not([type=checkbox]), .ed-card textarea, .ed-card select { min-height:38px; padding:6px 10px; }
 @media (max-width:640px) { .ed-meta, .ed-task { grid-template-columns:1fr; } }
+
+/* 课堂：公开课 / 我的课堂、看完课件的提醒、任务页的课程任务、页面内 PDF（2026-11-17） */
+.cl-h-note { font-weight:400; font-size:.8125rem; }
+.cl-joinrow { display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:14px 18px; border:2px dashed var(--line-d); border-radius:16px; }
+.cl-joinrow p { flex:1; min-width:12em; margin:0; color:var(--muted-2); }
+.cl-joinrow .cl-banner-ic { background:var(--blue-l); }
+.cl-figs.pic { grid-template-columns:minmax(0, 620px); }
+.cl-figs.pic figure { padding:8px; }
+.cl-figs.pic img { max-height:50vh; border-radius:8px; }
+.cl-stage:fullscreen .cl-figs.pic { grid-template-columns:minmax(0, 1fr); } .cl-stage:fullscreen .cl-figs.pic img { max-height:56vh; }
+.cl-figs figcaption { color:var(--muted-2); }
+.cl-locked { display:flex; align-items:center; gap:10px; margin:16px 0 0; padding:12px 16px; border-radius:14px; background:var(--soft); color:var(--muted-2); }
+.cl-done { display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-top:14px; padding:14px 18px; border-radius:16px; background:var(--green-l); border:2px solid var(--green); }
+.cl-done > div { flex:1; min-width:12em; display:flex; flex-direction:column; gap:2px; }
+.cl-done b { font-size:1.0625rem; } .cl-done .cl-banner-ic { color:var(--green-d); }
+.tab.has-new span::after { content:""; display:inline-block; width:8px; height:8px; margin-left:6px; border-radius:50%; background:var(--red); vertical-align:middle; }
+.class-tasks { margin:0 0 14px; }
+.class-tasks .cl-h { margin:4px 0 10px; }
+.ct-list { display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:10px; }
+.ct-card { display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start; gap:4px; height:auto; padding:12px 14px; border-radius:14px; text-align:left; font-weight:400; border-left:5px solid var(--blue); }
+.ct-card b { font-size:1rem; font-weight:800; line-height:1.35; }
+.ct-what { font-size:.875rem; line-height:1.5; color:var(--muted-2); display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.ct-card.done { border-left-color:var(--line-d); opacity:.7; }
+.cl-chips i.ok { color:var(--green-d); font-weight:700; }
+.cl-pdfview { height:min(72vh, 700px); overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding:4px; border-radius:12px; background:var(--soft); -webkit-overflow-scrolling:touch; }
+.cl-pdfpage { display:block; width:100%; height:auto; background:#fff; border-radius:6px; box-shadow:0 1px 4px rgba(0,0,0,.12); flex:none; }
+.cl-stage.pdf:fullscreen .cl-pdfview { height:92vh; }
+.cl-viewer { position:fixed; inset:0; z-index:60; display:flex; flex-direction:column; background:rgba(40,40,40,.55); padding:clamp(8px, 3vw, 28px); }
+.cl-viewer-bar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 14px; background:var(--card); border-radius:14px 14px 0 0; }
+.cl-viewer-body { flex:1; min-height:0; background:var(--card); border-radius:0 0 14px 14px; padding:0 10px 10px; }
+.cl-viewer-body .cl-pdfview, .cl-viewer-body .cl-pdf { height:100%; }
+.cl-cover { position:relative; overflow:hidden; flex:none; }
+.cl-cover.pic img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }

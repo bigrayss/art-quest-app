@@ -1,0 +1,107 @@
+{
+ "starry": {
+  "file": "File:Vincent van Gogh - Starry Night - Google Art Project.jpg",
+  "license": "Public domain",
+  "page": "https://commons.wikimedia.org/wiki/File:Vincent_van_Gogh_-_Starry_Night_-_Google_Art_Project.jpg",
+  "w": 1100,
+  "h": 850
+ },
+ "sunrise": {
+  "file": "File:Monet - Impression, Sunrise.jpg",
+  "license": "Public domain",
+  "page": "https://commons.wikimedia.org/wiki/File:Monet_-_Impression,_Sunrise.jpg",
+  "w": 1100,
+  "h": 853
+ },
+ "qianli": {
+  "file": "File:1c Wang Ximeng. A Thousand Li of Rivers and Mountains. (51,3x1191,5cm)1113. (section) Palace museum, Beijing.jpg",
+  "license": "Public domain",
+  "page": "https://commons.wikimedia.org/wiki/File:1c_Wang_Ximeng._A_Thousand_Li_of_Rivers_and_Mountains._(51,3x1191,5cm)1113._(section)_Palace_museum,_Beijing.jpg",
+  "w": 1100,
+  "h": 500
+ },
+ "qingming": {
+  "file": "File:Along the River During the Qingming Festival (detail of original).jpg",
+  "license": "Public domain",
+  "page": "https://commons.wikimedia.org/wiki/File:Along_the_River_During_the_Qingming_Festival_(detail_of_original).jpg",
+  "w": 1100,
+  "h": 550
+ },
+ "pearl": {
+  "file": "File:Meisje met de parel.jpg",
+  "license": "Public domain",
+  "page": "https://commons.wikimedia.org/wiki/File:Meisje_met_de_parel.jpg",
+  "w": 940,
+  "h": 1100
+ },
+ "wave": {
+  "file": "File:The Great Wave off Kanagawa.jpg",
+  "license": "Public domain",
+  "page": "https://commons.wikimedia.org/wiki/File:The_Great_Wave_off_Kanagawa.jpg",
+  "w": 1100,
+  "h": 759
+ },
+ "seurat": {
+  "file": "File:A Sunday on La Grande Jatte, Georges Seurat, 1884.jpg",
+  "license": "Public domain",
+  "page": "https://commons.wikimedia.org/wiki/File:A_Sunday_on_La_Grande_Jatte,_Georges_Seurat,_1884.jpg",
+  "w": 1100,
+  "h": 732
+ },
+ "hands": {
+  "file": "File:Albrecht Dürer - Praying Hands, 1508 - Google Art Project.jpg",
+  "license": "Public domain",
+  "page": "https://commons.wikimedia.org/wiki/File:Albrecht_D%C3%BCrer_-_Praying_Hands,_1508_-_Google_Art_Project.jpg",
+  "w": 756,
+  "h": 1100
+ },
+ "leonardo": {
+  "file": "File:Leonardo da Vinci - RCIN 912558, A study of a woman's hands c.1490.jpg",
+  "license": "Public domain",
+  "page": "https://commons.wikimedia.org/wiki/File:Leonardo_da_Vinci_-_RCIN_912558,_A_study_of_a_woman%27s_hands_c.1490.jpg",
+  "w": 802,
+  "h": 1100
+ },
+ "rhino": {
+  "file": "File:Albrecht Dürer, The Rhinoceros, 1515, NGA 47903.jpg",
+  "license": "CC0",
+  "page": "https://commons.wikimedia.org/wiki/File:Albrecht_D%C3%BCrer,_The_Rhinoceros,_1515,_NGA_47903.jpg",
+  "w": 1100,
+  "h": 864
+ },
+ "sunflowers": {
+  "file": "File:Vincent van Gogh - Sunflowers (1888, National Gallery London).jpg",
+  "license": "Public domain",
+  "page": "https://commons.wikimedia.org/wiki/File:Vincent_van_Gogh_-_Sunflowers_(1888,_National_Gallery_London).jpg",
+  "w": 865,
+  "h": 1100
+ },
+ "milkmaid": {
+  "file": "File:Johannes Vermeer - Het melkmeisje - Google Art Project.jpg",
+  "license": "Public domain",
+  "page": "https://commons.wikimedia.org/wiki/File:Johannes_Vermeer_-_Het_melkmeisje_-_Google_Art_Project.jpg",
+  "w": 981,
+  "h": 1100
+ },
+ "haystacks": {
+  "file": "File:Claude Monet - Haystacks, end of Summer - Google Art Project.jpg",
+  "license": "Public domain",
+  "page": "https://commons.wikimedia.org/wiki/File:Claude_Monet_-_Haystacks,_end_of_Summer_-_Google_Art_Project.jpg",
+  "w": 1100,
+  "h": 647
+ },
+ "cezanne": {
+  "file": "File:Paul Cézanne - Still Life with Apples - Google Art Project.jpg",
+  "license": "Public domain",
+  "page": "https://commons.wikimedia.org/wiki/File:Paul_C%C3%A9zanne_-_Still_Life_with_Apples_-_Google_Art_Project.jpg",
+  "w": 1100,
+  "h": 879
+ },
+ "rembrandt": {
+  "file": "File:Rembrandt van Rijn - Self-Portrait - Google Art Project.jpg",
+  "license": "Public domain",
+  "page": "https://commons.wikimedia.org/wiki/File:Rembrandt_van_Rijn_-_Self-Portrait_-_Google_Art_Project.jpg",
+  "w": 849,
+  "h": 1100
+ }
+}

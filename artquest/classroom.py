@@ -166,6 +166,52 @@ FIGURES.update({
                  + _TXT + '<text x="64" y="118">白底黑图</text><text x="160" y="118">黑底白图</text><text x="256" y="118">排线成灰</text></g>'),
 })
 
+FIGURES.update({
+    # —— 素描入门 ——
+    "hatch": _plain("排线", '<g stroke-width="2"><path d="M22 92L52 24M34 92L64 24M46 92L76 24M58 92L88 24M70 92l30-68"/>'
+                    '<path d="M124 92l30-68M131 92l30-68M138 92l30-68M145 92l30-68M152 92l30-68M159 92l30-68M166 92l30-68M173 92l30-68"/>'
+                    '<path d="M226 92l30-68M236 92l30-68M246 92l30-68M256 92l30-68M266 92l30-68M276 92l30-68"/>'
+                    '<path d="M222 40l80 24M222 54l80 24M222 68l80 24M230 26l72 22" /></g>'
+                    + _TXT + '<text x="60" y="118">疏：亮</text><text x="164" y="118">密：暗</text><text x="262" y="118">交叉：更暗</text></g>'),
+    "tones": _plain("球体的明暗", '<circle cx="130" cy="70" r="50"/>'
+                    '<path d="M150 24c40 22 40 78-6 94c22-28 24-62 6-94z" fill="currentColor" fill-opacity=".55" stroke="none"/>'
+                    '<path d="M162 112c8-6 14-14 17-24" stroke="#fff" stroke-width="5" opacity=".7"/>'
+                    '<ellipse cx="196" cy="124" rx="56" ry="9" fill="currentColor" fill-opacity=".4" stroke="none"/>'
+                    '<circle cx="108" cy="48" r="7" stroke-width="1.5" stroke-dasharray="3 3"/>'
+                    '<path d="M20 20l22 14M100 44L70 20M142 30l40-14M168 76h60M176 108l56-10M240 124h30" stroke-width="1.5"/>'
+                    '<g fill="currentColor" stroke="none" font-size="13" font-family="sans-serif">'
+                    '<text x="4" y="16">光</text><text x="44" y="16">高光</text><text x="186" y="18">明暗交界线</text><text x="232" y="80">暗面</text>'
+                    '<text x="236" y="102">反光</text><text x="274" y="128">投影</text><text x="86" y="84">亮面</text></g>'),
+    "solids": _plain("几何体", '<path d="M20 50l34-16h44v54l-34 16H20zM20 50h44l34-16M64 50v54"/>'
+                     '<ellipse cx="150" cy="38" rx="26" ry="9"/><path d="M124 38v58c0 12 52 12 52 0V38"/>'
+                     '<path d="M232 22l-30 76c0 12 60 12 60 0z"/><path d="M202 98c0-10 60-10 60 0" stroke-width="1.5" stroke-dasharray="4 4"/>'
+                     + _TXT + '<text x="58" y="130">方：箱子、房子</text><text x="150" y="130">圆柱：杯子、树干</text><text x="240" y="130">圆锥：屋顶、甜筒</text></g>'),
+    "blockin": _plain("起形三步", '<rect x="18" y="26" width="76" height="76" stroke-dasharray="5 5" stroke-width="2"/>'
+                      '<path d="M40 26L18 50v32l20 20h36l20-22V48L74 26z"/>'
+                      '<rect x="122" y="26" width="76" height="76" stroke-dasharray="5 5" stroke-width="1.5" opacity=".5"/><circle cx="160" cy="64" r="38"/>'
+                      '<path d="M160 16c-4-8 4-12 8-10" stroke-width="2"/>'
+                      '<circle cx="264" cy="64" r="38"/><path d="M264 16c-4-8 4-12 8-10" stroke-width="2"/>'
+                      '<path d="M278 30c30 18 30 54-4 70c16-22 18-48 4-70z" fill="currentColor" fill-opacity=".5" stroke="none"/>'
+                      + _TXT + '<text x="56" y="126">① 用直线切出大形</text><text x="160" y="126">② 修成准确的轮廓</text><text x="264" y="126">③ 分出亮和暗</text></g>'),
+    # —— 油画入门 ——
+    "oiltools": _plain("油画的工具", '<path d="M24 118L92 50M92 50l16-18c6-6 16 4 10 10l-18 16z"/><path d="M98 44l10 10" stroke-width="2"/>'
+                       '<path d="M136 118l44-52M180 66c10-22 28-34 38-30c4 14-10 30-30 38z"/>'
+                       '<path d="M250 36c34-10 60 10 60 40s-28 46-58 40c-16-4-8-18-18-24s-18-10-14-26s14-26 30-30z"/>'
+                       '<circle cx="262" cy="92" r="7"/><g fill="currentColor" stroke="none"><circle cx="262" cy="54" r="6"/><circle cx="284" cy="56" r="6" opacity=".7"/><circle cx="296" cy="74" r="6" opacity=".45"/></g>'
+                       + _TXT + '<text x="66" y="140">画笔</text><text x="176" y="140">刮刀</text><text x="274" y="140">调色板</text></g>'),
+    "warmcool": _plain("冷色和暖色", '<g stroke="none"><circle cx="50" cy="56" r="26" fill="#e4572e"/><circle cx="104" cy="56" r="26" fill="#f29e38"/><circle cx="76" cy="92" r="26" fill="#f2d03b"/>'
+                       '<circle cx="216" cy="56" r="26" fill="#3a7bd5"/><circle cx="270" cy="56" r="26" fill="#3fa37c"/><circle cx="244" cy="92" r="26" fill="#7a5cc4"/></g>'
+                       + _TXT + '<text x="78" y="140">暖色：往前跳</text><text x="244" y="140">冷色：往后退</text></g>'),
+    "oilsteps": _plain("油画四步", '<rect x="10" y="20" width="66" height="66" rx="4"/><rect x="88" y="20" width="66" height="66" rx="4"/><rect x="166" y="20" width="66" height="66" rx="4"/><rect x="244" y="20" width="66" height="66" rx="4"/>'
+                       '<path d="M22 70q20-34 42-6M30 70h28" stroke-width="2"/>'
+                       '<g stroke="none" fill="currentColor"><path d="M92 54h58v28H92z" fill-opacity=".3"/><path d="M104 66q16-28 34-4z" fill-opacity=".6"/>'
+                       '<path d="M170 54h58v28h-58z" fill-opacity=".3"/><path d="M182 66q16-28 34-4z" fill-opacity=".6"/><path d="M200 50q10 4 14 12h-12z" fill-opacity=".9"/>'
+                       '<path d="M248 54h58v28h-58z" fill-opacity=".3"/><path d="M260 66q16-28 34-4z" fill-opacity=".6"/><path d="M278 50q10 4 14 12h-12z" fill-opacity=".9"/><circle cx="270" cy="56" r="3" fill="#fff"/></g>'
+                       '<path d="M256 36h20M286 32l8 8" stroke-width="2"/>'
+                       + _TXT + '<text x="43" y="106">① 起稿</text><text x="121" y="106">② 铺大色</text><text x="199" y="106">③ 塑造</text><text x="277" y="106">④ 调整</text>'
+                       '<text x="43" y="124" font-size="11">稀颜料勾形</text><text x="121" y="124" font-size="11">大块、薄涂</text><text x="199" y="124" font-size="11">加暗、加亮</text><text x="277" y="124" font-size="11">高光和细节</text></g>'),
+})
+
 # ---------------------------------------------------------------------------
 #  课
 # ---------------------------------------------------------------------------
@@ -424,6 +470,220 @@ LESSONS: List[Dict[str, Any]] = [
              "hint": "外框和字的位置不变，只换图画。"},
         ],
     },
+    # ---------------- 公开课：不用班级码，人人看得到 ----------------
+    # 画都是公有领域的名作（维基共享资源，出处在 static/classroom/img/credits.json），文字是自己写的。
+    {
+        "id": "pub_appreciation",
+        "public": True,
+        "title": "美术欣赏",
+        "grade": None,
+        "subject": "公开课 · 欣赏",
+        "minutes": 30,
+        "summary": "看七幅名画，学会用四个问题看懂一幅画。",
+        "objectives": [
+            "看一幅画时，知道先看什么、再看什么。",
+            "说得出颜色、线条、构图是怎么让一幅画有感觉的。",
+            "能用自己的话说出喜欢一幅画的理由。",
+        ],
+        "slides": [
+            {"title": "美术欣赏", "kind": "cover", "img": "starry", "credit": "梵高《罗纳河上的星夜》1888 年",
+             "lines": ["一幅画不会说话，但它什么都说了。", "今天看七幅名画，学四个看画的问题。"]},
+            {"title": "看画的四个问题", "img": "pearl", "credit": "维米尔《戴珍珠耳环的少女》约 1665 年",
+             "lines": ["一，我看到了什么？先不管好不好，把看到的说出来。",
+                       "二，它是怎么画的？颜色、线条、明暗、构图。",
+                       "三，它给我什么感觉？安静、热闹、害怕、温暖……",
+                       "四，画家为什么要这样画？"],
+             "ask": "看这幅画十秒钟：你最先看到的是哪里？为什么是那里？"},
+            {"title": "颜色会说话", "img": "starry", "credit": "梵高《罗纳河上的星夜》1888 年，巴黎奥赛博物馆",
+             "lines": ["梵高画的是法国阿尔勒的夜晚，罗纳河边。",
+                       "深蓝的夜空和水面，配上黄色的星光和灯光：蓝和黄放在一起，两边都更亮。",
+                       "一笔一笔短短的笔触，让水面像在晃动。"],
+             "ask": "如果把星星换成白色，这幅画的感觉会变吗？"},
+            {"title": "画的是一瞬间", "img": "sunrise", "credit": "莫奈《印象·日出》1872 年",
+             "lines": ["莫奈画的是法国勒阿弗尔港口的清晨。",
+                       "他没有画清楚船和码头，只画下太阳刚出来那一刻的光和雾。",
+                       "“印象派”这个名字，就是从这幅画的题目来的。"],
+             "ask": "走近看是一团团颜色，走远看是日出。你平时看东西，是先看清细节，还是先有一个印象？"},
+            {"title": "一卷走不完的山水", "img": "qianli", "credit": "王希孟《千里江山图》（局部）北宋，北京故宫博物院",
+             "lines": ["北宋的王希孟画这卷画时，只有十八岁左右。",
+                       "整卷画将近十二米长，要一段一段展开来看，像坐船游了一趟。",
+                       "山石用的是矿物磨成的石青、石绿，九百多年了颜色还很鲜亮。这种画叫青绿山水。"],
+             "ask": "西方的画常常挂在墙上一眼看完，这卷画要慢慢展开看。两种看法有什么不同？"},
+            {"title": "画里有一座城", "img": "qingming", "credit": "张择端《清明上河图》（局部）北宋，北京故宫博物院",
+             "lines": ["张择端画的是北宋都城汴京，也就是今天的河南开封。",
+                       "全卷五米多长，画了几百个人，还有船、桥、店铺、牲口。",
+                       "这一段是全卷最热闹的地方：一条大船正要过拱桥，桥上桥下的人都在喊。"],
+             "ask": "在画里找一找：谁最着急？你是从哪里看出来的？"},
+            {"title": "线条的力量", "img": "wave", "credit": "葛饰北斋《神奈川冲浪里》约 1831 年",
+             "lines": ["这是日本画家葛饰北斋的木版画，是《富岳三十六景》里的一幅。",
+                       "巨浪卷起来像一只大爪子，浪尖的线一根一根都很清楚。",
+                       "远处小小的一座山是富士山：浪画得越大，山就显得越远、越静。"],
+             "ask": "这幅画里只有很少几种颜色。少的颜色有什么好处？"},
+            {"title": "用点画成的画", "img": "seurat", "credit": "修拉《大碗岛的星期天下午》1884—1886 年，芝加哥艺术博物馆",
+             "lines": ["法国画家修拉不用笔涂，而是点上成千上万个小色点。",
+                       "站远了看，小点在眼睛里混在一起，变成了草地、阳光和影子。",
+                       "他画了两年。画里的人都很安静，像一下子停住了。"],
+             "ask": "梵高的短笔触、修拉的小圆点、北斋的线：三种画法，你最喜欢哪一种？"},
+            {"title": "动手画", "kind": "tasks",
+             "lines": ["看完了画，轮到你画。", "任务会出现在「任务」里：先学一位画家的画法，再画一幅自己的画。"]},
+        ],
+        "tasks": [
+            {"key": "t1", "kind": "practice", "minutes": 15, "title": "只用蓝和黄画夜晚",
+             "instruction": "学梵高：只用蓝色和黄色（可以有深浅），画一个有灯光或星光的夜晚。",
+             "requirements": "只用蓝、黄两类颜色；看得出是夜晚；有亮的地方。",
+             "hint": "先铺深蓝，再点黄色的光。"},
+            {"key": "t2", "kind": "practice", "minutes": 20, "title": "用点画一幅画",
+             "instruction": "学修拉：不涂、不画线，只用一个一个小点，画一样你喜欢的东西，比如一棵树、一只水果、一朵云。",
+             "requirements": "整幅画都是点；远看看得出画的是什么；用了至少三种颜色的点。",
+             "hint": "亮的地方点得疏一些，暗的地方点得密一些。"},
+            {"key": "t3", "kind": "homework", "minutes": 30, "title": "我最喜欢的一幅",
+             "instruction": "从今天的七幅画里选你最喜欢的一幅，用它的画法，画你自己身边的东西：你家窗外、你的小区、你上学的路。",
+             "requirements": "看得出学的是哪一幅的画法；画的是你自己身边的东西。",
+             "hint": "学的是画法，不是照着抄。"},
+        ],
+    },
+    {
+        "id": "pub_sketch",
+        "public": True,
+        "title": "素描入门",
+        "grade": None,
+        "subject": "公开课 · 素描",
+        "minutes": 40,
+        "summary": "从排线到明暗：用一支铅笔把一个球画得鼓起来。",
+        "objectives": [
+            "会排线，知道疏密能画出深浅。",
+            "看得出一样东西是由哪些几何体组成的。",
+            "认识亮面、暗面、明暗交界线、反光、投影，并画出一个有立体感的球。",
+        ],
+        "slides": [
+            {"title": "素描入门", "kind": "cover", "img": "hands", "credit": "丢勒《祈祷的手》1508 年",
+             "lines": ["只用一种颜色，也能把东西画得像真的一样。", "今天从一根线开始，到画出一个鼓起来的球。"]},
+            {"title": "什么是素描", "img": "leonardo", "credit": "达·芬奇 手的习作，约 1490 年",
+             "lines": ["素描是用单一颜色的笔来画：铅笔、炭笔、钢笔都可以。",
+                       "它不靠颜色，只靠线条和明暗，把形状和立体感画出来。",
+                       "画家画大画之前，常常先画素描来研究。这是达·芬奇研究手的姿势时画的。"],
+             "ask": "这张纸上有画完的手，也有只勾了几根线的手。画家为什么不把它们都画完？"},
+            {"title": "线能画出深浅", "img": "rhino", "credit": "丢勒《犀牛》1515 年，木刻版画",
+             "lines": ["这头犀牛只有黑线，没有一块灰色，可是看得出哪里亮、哪里暗。",
+                       "秘密是线的疏密：线排得密的地方暗，排得疏的地方亮。",
+                       "丢勒自己没见过犀牛，是照着别人的描述和速写画的。"],
+             "ask": "找一找：犀牛身上哪里的线最密？那里是亮还是暗？"},
+            {"title": "第一步：排线", "figure": "hatch",
+             "lines": ["排线是一根挨一根、方向一致的线。",
+                       "手腕放松，线要两头轻、中间重，一根一根快速地排。",
+                       "想更暗：排得更密，或者换个方向再排一层。"],
+             "ask": "试着在纸上排出从浅到深的五格。"},
+            {"title": "第二步：看出几何体", "figure": "solids",
+             "lines": ["再复杂的东西，都可以先看成几个简单的几何体。",
+                       "苹果是球，杯子是圆柱，房子是方块加三角。",
+                       "先画对大的几何体，再去改细的轮廓。"],
+             "ask": "看看你的周围：台灯、水壶、书包，各是什么几何体？"},
+            {"title": "第三步：起形", "figure": "blockin",
+             "lines": ["不要一上来就描轮廓，先用长长的直线把大形切出来。",
+                       "线画轻一些，画错了不用擦，在旁边再画一根更准的。",
+                       "大形对了，再把直线修圆。"]},
+            {"title": "第四步：明暗", "figure": "tones",
+             "lines": ["光从一边照过来，球上就有了亮面和暗面。",
+                       "亮和暗交界的地方最深，叫明暗交界线。",
+                       "暗面靠下的地方被桌面的光照亮一点，叫反光；它比亮面暗。",
+                       "球挡住了光，在桌上留下投影：离球越近越深。"],
+             "ask": "图上的光是从哪边来的？你是怎么知道的？"},
+            {"title": "大师是怎么用这些的", "img": "hands", "credit": "丢勒《祈祷的手》1508 年",
+             "lines": ["丢勒在蓝色的纸上画：蓝纸本身就是中间的灰。",
+                       "暗的地方用深色的线排，亮的地方用白色提亮。",
+                       "看手指：每一根都像一个圆柱，有亮面、暗面和交界线。"],
+             "ask": "在画里找出一处明暗交界线，一处反光。"},
+            {"title": "动手画", "kind": "tasks",
+             "lines": ["看完了，轮到你画。", "任务会出现在「任务」里：排线、一个球、一样身边的东西。"]},
+        ],
+        "tasks": [
+            {"key": "t1", "kind": "practice", "minutes": 10, "title": "排线五格",
+             "instruction": "画五个并排的方格，只用排线，把它们从最浅排到最深。",
+             "requirements": "五格深浅分得开；每一格里的线方向一致。",
+             "hint": "在「我的」里切到专业版，就有铅笔和炭笔。越深的格子，线排得越密，或者多排一层。"},
+            {"key": "t2", "kind": "practice", "minutes": 20, "title": "一个鼓起来的球",
+             "instruction": "画一个放在桌上的球。先定光从哪边来，再画出亮面、暗面、明暗交界线、反光和投影。",
+             "requirements": "看得出光从哪边来；交界线最深；有反光；有投影。",
+             "hint": "先起形，再排线。最亮的地方留白。"},
+            {"key": "t3", "kind": "homework", "minutes": 30, "title": "身边的一样东西",
+             "instruction": "选一样身边的东西来画素描：杯子、苹果、鸡蛋、书包都可以。先看出它是什么几何体，再起形、画明暗。",
+             "requirements": "形状画得稳；有亮有暗；有投影。",
+             "hint": "把它放在窗边或台灯旁，明暗最清楚。"},
+        ],
+    },
+    {
+        "id": "pub_oil",
+        "public": True,
+        "title": "油画入门",
+        "grade": None,
+        "subject": "公开课 · 油画",
+        "minutes": 40,
+        "summary": "认识油画的材料和画法，跟着四个步骤画一幅静物。",
+        "objectives": [
+            "知道油画是什么、用什么画。",
+            "看得出厚涂和薄涂、冷色和暖色。",
+            "会按起稿、铺大色、塑造、调整四步画一幅画。",
+        ],
+        "slides": [
+            {"title": "油画入门", "kind": "cover", "img": "sunflowers", "credit": "梵高《向日葵》1888 年",
+             "lines": ["颜料可以厚得像奶油，也可以薄得像一层纱。", "今天认识油画，再跟着四个步骤画一幅。"]},
+            {"title": "什么是油画", "img": "milkmaid", "credit": "维米尔《倒牛奶的女仆》约 1658—1660 年，阿姆斯特丹国立博物馆",
+             "lines": ["油画颜料是把颜色的粉末和油调在一起做成的，常用的是亚麻籽油。",
+                       "它干得很慢，几天之内都可以接着改，颜色之间能揉得很柔和。",
+                       "五百多年前，尼德兰的画家把这种画法用得很成熟，后来传遍了欧洲。"],
+             "ask": "看牛奶、面包和墙：哪些地方亮得发光？画家是怎么让它们亮起来的？"},
+            {"title": "油画的工具", "figure": "oiltools",
+             "lines": ["画笔：猪鬃的硬笔留得下笔触，软毛笔画得平滑。",
+                       "刮刀：调颜料用，也可以直接把颜料抹上去。",
+                       "调色板：在上面把颜料调好再画。",
+                       "画在绷好的画布上，也可以画在木板上。"]},
+            {"title": "厚涂：看得见的笔触", "img": "sunflowers", "credit": "梵高《向日葵》1888 年，伦敦国家美术馆",
+             "lines": ["梵高把颜料厚厚地堆上去，花瓣和花心是鼓起来的。",
+                       "每一笔的方向都看得见：花瓣顺着长的方向画，花心是一点一点戳上去的。",
+                       "整幅画几乎只有黄色，深深浅浅十几种。"],
+             "ask": "只用一种颜色的深浅，怎么让花和背景分得开？"},
+            {"title": "薄涂：从暗里亮起来", "img": "rembrandt", "credit": "伦勃朗《自画像》1659 年，华盛顿国家美术馆",
+             "lines": ["伦勃朗先用薄薄的深色铺满背景和衣服。",
+                       "只有脸被光照亮，亮的地方颜料最厚。",
+                       "暗的地方薄、亮的地方厚，是油画常用的办法。"],
+             "ask": "画面里最亮的是哪一小块？它旁边是什么颜色？"},
+            {"title": "冷色和暖色", "figure": "warmcool",
+             "lines": ["红、橙、黄让人想到太阳和火，叫暖色，看起来往前跳。",
+                       "蓝、绿、紫让人想到水和夜晚，叫冷色，看起来往后退。",
+                       "亮的地方偏暖，暗的地方就偏冷；反过来也可以。有冷有暖，画面才活。"]},
+            {"title": "影子不是黑的", "img": "haystacks", "credit": "莫奈《干草堆（夏末）》1891 年，巴黎奥赛博物馆",
+             "lines": ["莫奈在田野里对着干草堆画了很多幅，每幅是一天里不同的时候。",
+                       "阳光照到的地方是暖的黄和橙，影子里是冷的蓝和紫。",
+                       "他不用黑色画影子。"],
+             "ask": "找一找影子里有哪几种颜色。"},
+            {"title": "用色块把东西画结实", "img": "cezanne", "credit": "塞尚《静物：苹果》约 1893—1894 年",
+             "lines": ["塞尚画苹果不描边，是用一小块一小块的颜色垒起来的。",
+                       "一个苹果上有红、有黄、有绿：朝着光的一面暖，背光的一面冷。",
+                       "静物不会动，最适合慢慢研究颜色和形状。"],
+             "ask": "数一数，一个苹果上你能看出几种颜色？"},
+            {"title": "画一幅油画的四步", "figure": "oilsteps",
+             "lines": ["一，起稿：用稀稀的颜料勾出大形，定好位置。",
+                       "二，铺大色：用大笔把亮、灰、暗几大块颜色薄薄地铺上。",
+                       "三，塑造：一层一层加，暗的更暗，亮的更亮，颜料越画越厚。",
+                       "四，调整：退远了看，加上高光和最要紧的细节。"]},
+            {"title": "动手画", "kind": "tasks",
+             "lines": ["看完了，轮到你画。", "任务会出现在「任务」里：冷和暖、一只水果、一幅静物。"]},
+        ],
+        "tasks": [
+            {"key": "t1", "kind": "practice", "minutes": 10, "title": "冷和暖",
+             "instruction": "把同一样简单的东西画两遍，比如一座小房子或一棵树：一遍只用暖色，一遍只用冷色。",
+             "requirements": "两遍画的是同一样东西；一遍暖，一遍冷。",
+             "hint": "在「我的」里切到专业版，就有油画笔。比一比：两幅的感觉有什么不一样？"},
+            {"key": "t2", "kind": "practice", "minutes": 20, "title": "一只水果",
+             "instruction": "按四步画一只水果：起稿、铺大色、塑造、调整。朝着光的一面用暖色，背光的一面用冷色，影子不用黑色。",
+             "requirements": "看得出亮面和暗面；一只水果上至少三种颜色；影子有颜色。",
+             "hint": "先用大笔铺色，最后再点高光。"},
+            {"key": "t3", "kind": "homework", "minutes": 40, "title": "我的静物",
+             "instruction": "摆两三样东西在桌上，画一幅静物：水果、杯子、瓶子、一块布都可以。让笔触留在画面上。",
+             "requirements": "东西有前有后；有冷有暖；看得见笔触。",
+             "hint": "退远一点看看，再决定哪里要加。"},
+        ],
+    },
 ]
 LESSONS_BY_ID = {l["id"]: l for l in LESSONS}
 KIND_NAMES = {"practice": "课堂练习", "homework": "课后作业"}
@@ -529,7 +789,11 @@ def _clean_lesson(data: Dict[str, Any], old: Dict[str, Any]) -> Dict[str, Any]:
                 row["captions"] = caps
         if sl.get("kind") in ("cover", "tasks"):
             row["kind"] = sl["kind"]
-        if row["title"] or row["lines"] or row.get("image") or figs:
+        # 从公开课复制来的名画：只认仓库里有的
+        pic = re.sub(r"[^a-z0-9_]", "", str(sl.get("img") or ""))
+        if pic and not row.get("image") and (COURSEWARE_DIR / "img" / f"{pic}.jpg").exists():
+            row["img"], row["credit"] = pic, _text(sl.get("credit"), 80)
+        if row["title"] or row["lines"] or row.get("image") or figs or row.get("img"):
             slides.append(row)
     used = {t["key"] for t in old.get("tasks") or []}
     n, tasks = 0, []
@@ -589,6 +853,8 @@ def new_lesson(owner_id: str, owner_name: str, copy_of: str = "") -> Dict[str, A
         for sl in src["slides"]:
             row = {"title": sl.get("title", ""), "lines": list(sl.get("lines") or []), "ask": sl.get("ask", "")}
             names = sl.get("figures") or ([sl["figure"]] if sl.get("figure") else [])
+            if sl.get("img"):
+                row["img"], row["credit"] = sl["img"], sl.get("credit", "")
             if names:
                 row["figures"] = list(names)
             if sl.get("captions"):
@@ -708,6 +974,8 @@ def lesson_card(lesson: Dict[str, Any]) -> Dict[str, Any]:
     cover, cover_url, used = "", "", set()
     for s in lesson["slides"]:
         names = s.get("figures") or ([s["figure"]] if s.get("figure") else [])
+        if not cover and not cover_url and s.get("img"):
+            cover_url = f"/static/classroom/img/{s['img']}.jpg"
         if not cover and not cover_url and names and names[0] in FIGURES:
             cover = FIGURES[names[0]]
         if s.get("image") in files:
@@ -718,7 +986,7 @@ def lesson_card(lesson: Dict[str, Any]) -> Dict[str, Any]:
     builtin = lesson["id"] in LESSONS_BY_ID
     return {"id": lesson["id"], "title": lesson["title"], "grade": lesson.get("grade"), "subject": lesson.get("subject", ""),
             "minutes": lesson.get("minutes", 40), "textbook": lesson.get("textbook") or {}, "summary": lesson.get("summary", ""),
-            "builtin": builtin, "owner_name": lesson.get("owner_name", ""),
+            "builtin": builtin, "public": bool(lesson.get("public")), "owner_name": lesson.get("owner_name", ""),
             "n_slides": len(lesson["slides"]), "n_tasks": len(lesson["tasks"]),
             "cover": cover, "cover_url": cover_url,
             "n_files": len(attached) + len(builtin_files(lesson)),
@@ -730,6 +998,8 @@ def lesson_full(lesson: Dict[str, Any]) -> Dict[str, Any]:
     slides, used = [], set()
     for s in lesson["slides"]:
         row = {k: v for k, v in s.items() if k not in ("figure", "figures", "image")}
+        if s.get("img"):                       # 参考课例、公开课里的名画：仓库里的静态图
+            row["image_url"] = f"/static/classroom/img/{s['img']}.jpg"
         names = s.get("figures") or ([s["figure"]] if s.get("figure") else [])
         row["figure_names"] = [n for n in names if n in FIGURES]
         row["figures"] = [FIGURES[n] for n in row["figure_names"]]
@@ -792,7 +1062,7 @@ def _own_lessons(lesson_ids: List[str], teacher_id: str) -> List[str]:
     out = []
     for lid in lesson_ids or []:
         lesson = get_lesson(lid)
-        if lesson and lid not in out and (lid in LESSONS_BY_ID or lesson.get("owner_id") == teacher_id):
+        if lesson and lid not in out and not lesson.get("public") and (lid in LESSONS_BY_ID or lesson.get("owner_id") == teacher_id):
             out.append(lid)
     return out
 

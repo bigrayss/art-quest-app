@@ -137,6 +137,8 @@
     <p class="acct-hint">填年龄是为了推荐更合适的任务。</p>
     <div class="age-gate-row"><input id="age-gate-input" type="text" inputmode="numeric" maxlength="2" placeholder="几岁"><button class="primary" id="btn-age-gate">开始<i data-icon="arrowRight" data-size="17"></i></button></div>
   </div>
+  <!-- 课程任务：在「课堂」里看完一节课的课件，它的画画任务放到这里（标题 = 课程名 · 任务名） -->
+  <div class="class-tasks hidden" id="class-tasks"></div>
   <div class="map-lead" id="map-lead"><span id="map-lead-text">选一个主题，开始今天的创作。</span><span class="map-count hidden" id="map-count"></span></div>
   <p class="map-note hidden" id="age-gate-note">先从下面的主题里挑一个。</p>
   <div class="map" id="quest-grid">
@@ -229,8 +231,14 @@
         <button class="secondary" id="cl-full">全屏</button>
       </div>
     </div>
+    <div class="cl-done hidden" id="cl-lesson-done" role="status"></div>
     <div id="cl-lesson-files"></div>
     <div id="cl-lesson-tasks"></div>
+  </div>
+  <!-- 课件文件（PDF、图片）点开在页面上看 -->
+  <div class="cl-viewer hidden" id="cl-viewer">
+    <div class="cl-viewer-bar"><b id="cl-viewer-name" data-no-i18n></b><button class="secondary" id="cl-viewer-close">关闭</button></div>
+    <div class="cl-viewer-body" id="cl-viewer-body"></div>
   </div>
   <!-- 老师录入 / 修改一节课 -->
   <div class="hidden" id="class-edit"></div>
