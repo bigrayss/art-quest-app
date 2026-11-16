@@ -129,7 +129,7 @@
   // ---- 撤销：一步 = 一个 op。像素改动按小块存「改之前」，撤销时和现状对调，所以它自己就是重做。 ----
   D._begin = function (opId, kind) { this._act = { op: opId, kind, tiles: new Map(), struct: null, rect: null }; };
   D._touch = function (layer, x0, y0, x1, y1) {
-    const a = this._act; if (!a) return;
+    const a = this._act; if (!a || this.noHistory) return;
     const tw = Math.ceil(this.w / TILE);
     for (let ty = (y0 / TILE) | 0; ty <= ((y1 / TILE) | 0); ty++) for (let tx = (x0 / TILE) | 0; tx <= ((x1 / TILE) | 0); tx++) {
       const key = layer.id + ":" + (ty * tw + tx);
@@ -156,6 +156,8 @@
   D._commit = function (rect) {
     const a = this._act; this._act = null; if (!a) return null;
     a.rect = rect || full(this);
+    // 重放不需要撤销：不存「改之前」的像素，内存只剩图层本身（不影响画出来的像素）
+    if (this.noHistory) return a;
     a.bytes = 0; a.tiles.forEach(t => { a.bytes += t.px.length; });
     if (a.struct && a.struct.px) a.bytes += a.struct.px.length;
     this.undoStack.push(a); this._bytes += a.bytes;

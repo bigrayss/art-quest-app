@@ -40,7 +40,7 @@ from .reconstruct import check_final, rebuild
 from .rubric import apply_contract, check_rating
 from .revision import attribute as attribute_revision
 from .schemas import (
-    Opinion, ClassCreate, ClassJoin,
+    Opinion, ClassCreate, ClassJoin, ClassLessons, LessonNew,
     TeacherPoolUpdate,
     AssistClick, AssistIn,Abandon, Annotation, ClaimDevice, CreateSession, Curate, DrawEvent, EarnedBadges,
                       FeaturedAnswer, FeedbackIn, Finalize, HARDEST_PARTS_SHOWN, IssueTickets, TaskOptions, Login, LogBatch,
@@ -521,21 +521,112 @@ def _class_teacher_view(cls: Dict[str, Any]) -> Dict[str, Any]:
     return dict(classroom.public(cls), created_at=cls.get("created_at"), n_members=len(cls.get("members") or []))
 
 
-@api.get("/classroom/lessons")
-def classroom_lessons():
-    return [classroom.lesson_card(l) for l in classroom.LESSONS]
-
-
-@api.get("/classroom/lessons/{lesson_id}")
-def classroom_lesson(lesson_id: str, request: Request):
-    lesson = classroom.LESSONS_BY_ID.get(lesson_id)
-    if not lesson:
-        raise HTTPException(404, "没有这节课")
+def _lesson_out(lesson: Dict[str, Any], request: Request) -> Dict[str, Any]:
     out = classroom.lesson_full(lesson)
     lang = i18n.pick_lang(request)
     for t in out["tasks"]:      # 任务按任务库的形状给，前端拿它直接开画
         t["quest"] = _slim(i18n.quest_for(QUESTS_BY_ID[t["task_id"]], lang))
     return out
+
+
+def _own_lesson(request: Request, lesson_id: str) -> Dict[str, Any]:
+    """老师自己录入的课：只有录它的老师（和研究员）能改。样板课谁也改不了，要改先复制一份。"""
+    me = _require_teacher(request)
+    lesson = classroom.get_lesson(lesson_id)
+    if not lesson:
+        raise HTTPException(404, "没有这节课")
+    if not classroom.is_custom_id(lesson_id):
+        raise HTTPException(403, "样板课不能直接改，请先复制一份")
+    if me["rater_id"] != "admin" and lesson.get("owner_id") != me["rater_id"]:
+        raise HTTPException(403, "这不是你的课")
+    return lesson
+
+
+@api.get("/classroom/lessons")
+def classroom_lessons(request: Request):
+    """样板课人人看得到；带着老师的令牌来，再加上这位老师自己录入的课（研究员看所有老师的）。"""
+    rows = list(classroom.LESSONS)
+    acc = accounts.by_token(_bearer(request)) if _bearer(request) else None
+    if _is_admin(request):
+        rows += classroom.custom_lessons(None)
+    elif acc and acc.get("role") == "teacher":
+        rows += classroom.custom_lessons(acc["account_id"])
+    return [classroom.lesson_card(l) for l in rows]
+
+
+@api.post("/classroom/lessons", status_code=201)
+def classroom_lesson_new(body: LessonNew, request: Request):
+    me = _require_teacher(request)
+    try:
+        lesson = classroom.new_lesson(me["rater_id"], me["name"], body.copy_of)
+    except KeyError:
+        raise HTTPException(404, "没有这节课")
+    return _lesson_out(lesson, request)
+
+
+@api.get("/classroom/lessons/{lesson_id}")
+def classroom_lesson(lesson_id: str, request: Request):
+    lesson = classroom.get_lesson(lesson_id)
+    if not lesson:
+        raise HTTPException(404, "没有这节课")
+    return _lesson_out(lesson, request)
+
+
+@api.put("/classroom/lessons/{lesson_id}")
+async def classroom_lesson_save(lesson_id: str, request: Request):
+    _own_lesson(request, lesson_id)
+    try:
+        data = await request.json()
+        if not isinstance(data, dict):
+            raise ValueError("格式不对")
+        lesson = classroom.save_lesson(lesson_id, data)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    return _lesson_out(lesson, request)
+
+
+@api.delete("/classroom/lessons/{lesson_id}")
+def classroom_lesson_delete(lesson_id: str, request: Request):
+    _own_lesson(request, lesson_id)
+    classroom.delete_lesson(lesson_id)
+    return {"ok": True}
+
+
+@api.post("/classroom/lessons/{lesson_id}/files", status_code=201)
+async def classroom_lesson_upload(lesson_id: str, request: Request, filename: str = ""):
+    """课里的配图和附件。文件就是请求体本身，文件名走 `?filename=`。"""
+    _own_lesson(request, lesson_id)
+    if int(request.headers.get("content-length") or 0) > classroom.MAX_UPLOAD_BYTES:
+        raise HTTPException(413, f"文件太大了，最多 {classroom.MAX_UPLOAD_BYTES // (1024 * 1024)} MB")
+    try:
+        return classroom.add_lesson_file(lesson_id, filename, await request.body())
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+
+
+@api.get("/classroom/lessons/{lesson_id}/files/{fid}")
+def classroom_lesson_file(lesson_id: str, fid: str):
+    f = classroom.lesson_file(lesson_id, fid)
+    if not f:
+        raise HTTPException(404, "这个文件不在了")
+    return FileResponse(f["path"], media_type=f["media_type"], filename=f["filename"],
+                        content_disposition_type="inline" if f["viewable"] else "attachment",
+                        headers={"X-Content-Type-Options": "nosniff"})
+
+
+@api.delete("/classroom/lessons/{lesson_id}/files/{fid}")
+def classroom_lesson_file_delete(lesson_id: str, fid: str, request: Request):
+    _own_lesson(request, lesson_id)
+    if not classroom.remove_lesson_file(lesson_id, fid):
+        raise HTTPException(404, "这个文件不在了")
+    return {"ok": True}
+
+
+@api.post("/classroom/classes/{code}/lessons")
+def classroom_class_lessons(code: str, body: ClassLessons, request: Request):
+    """这个班上哪几节课。学生输了班级码，看到的就是这几节。"""
+    cls = _own_class(request, code)
+    return _class_teacher_view(classroom.set_lessons(cls["code"], body.lesson_ids))
 
 
 @api.get("/classroom/classes")

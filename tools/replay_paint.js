@@ -31,7 +31,9 @@ function writePng(file, px, w, h) {
 }
 
 const job = JSON.parse(fs.readFileSync(0, "utf8"));
-const doc = Paint.create(job.spec), cuts = new Set(job.cuts || []), made = [];
+const doc = Paint.create(job.spec);
+doc.noHistory = true;          // 重放只往前走，不留撤销用的像素
+const cuts = new Set(job.cuts || []), made = [];
 if (job.out) fs.mkdirSync(job.out, { recursive: true });
 if (cuts.has(0) && job.out) { writePng(path.join(job.out, "cut_0.png"), doc.flatten(), doc.w, doc.h); made.push(0); }
 (job.ops || []).forEach((op, i) => {

@@ -121,7 +121,9 @@
   function tell() {
     notifyTimer = null;
     const st = { pending: pendingN + outboxN, online: navigator.onLine, quarantined };
-    const key = `${st.pending}|${st.online}|${st.quarantined}`;
+    // 键里带上「现在记的是哪一张画」：开画那一刻待传数可能前后都是 0（几条事件在这 250 ms 里记下又传走了），
+    // 只比数字的话这一次就不通知，顶栏那行「我在这里」开了画也不亮。
+    const key = `${st.pending}|${st.online}|${st.quarantined}|${sid || ""}`;
     if (key === lastTold) return;
     lastTold = key;
     listeners.forEach(fn => { try { fn(st); } catch (e) { /* ignore */ } });

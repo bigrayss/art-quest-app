@@ -17,6 +17,8 @@ ADMIN_TOKEN = os.environ.setdefault("ARTQUEST_ADMIN_TOKEN", "test-admin-token")
 os.environ.setdefault("ARTQUEST_FIRST_VISIT", "off")
 # 模型健康探测线程（2026-11-10）测试里不起：它会真发请求。
 os.environ.setdefault("ARTQUEST_LLM_PROBE_SEC", "0")
+# 专业版按日志重放：线上默认关（共用的机器内存紧），测试里打开——逐像素对得上是要守的东西。
+os.environ.setdefault("ARTQUEST_PAINT_REPLAY", "on")
 ADMIN = {"Authorization": f"Bearer {ADMIN_TOKEN}"}
 
 import artquest.config  # noqa: E402

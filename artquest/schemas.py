@@ -617,3 +617,13 @@ class ClassJoin(BaseModel):
     """学生凭班级码进班。登录着按账号记，没登录按设备记。"""
     anon_id: str = ""
     name: str = ""
+
+
+class ClassLessons(BaseModel):
+    """这个班上哪几节课（样板课和这位老师自己的课）。"""
+    lesson_ids: List[str] = []
+
+
+class LessonNew(BaseModel):
+    """老师开一节新课。`copy_of` 给了就是把那节课复制一份来改。"""
+    copy_of: str = ""

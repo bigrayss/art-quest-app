@@ -16,11 +16,14 @@ import sys
 from pathlib import Path
 from typing import Any, Dict
 
+import os
+os.environ.setdefault("ARTQUEST_PAINT_REPLAY", "on")   # 这个工具就是用来在本机重建的：专业版的重放在这里打开
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from artquest import config  # noqa: E402
 from artquest.qc import MAX_REPLAY_REL_DIFF  # noqa: E402
 from artquest.logstore import JsonlLog  # noqa: E402
-from artquest.reconstruct import check_final, rebuild, render  # noqa: E402
+from artquest.reconstruct import check_final, frames_at, rebuild, render  # noqa: E402
 from artquest.storage import session_meta  # noqa: E402
 
 KEYFRAME_PCTS = (10, 25, 50, 75, 100)
@@ -41,16 +44,20 @@ def replay_session(sid: str, out_dir: Path = None, keyframes: bool = False) -> D
 
     strokes, frames, marks = built["strokes"], [], []
     if keyframes and strokes:
-        for pct in KEYFRAME_PCTS:
-            n = max(1, round(len(strokes) * pct / 100))
-            render(strokes, built["size"], n, stimulus=built.get("stimulus")).save(
-                out / f"keyframe_{pct:03d}.png")
-            frames.append(pct)
+        # one pass for every frame wanted, with the engine that drew the session
+        # (a pro drawing is replayed by the brush engine itself, under Node)
+        at_pct = {pct: max(1, round(len(strokes) * pct / 100)) for pct in KEYFRAME_PCTS}
+        bounds = [b for b in (built.get("boundaries") or []) if b.get("n_strokes")]
+        got = frames_at(d, list(at_pct.values()) + [b["n_strokes"] for b in bounds], built)
+        for pct, n in at_pct.items():
+            if n in got:
+                got[n].save(out / f"keyframe_{pct:03d}.png")
+                frames.append(pct)
         # …and at the moments that matter, not only at round percentages
-        for b in built.get("boundaries") or []:
-            render(strokes, built["size"], b["n_strokes"], stimulus=built.get("stimulus")).save(
-                out / f"keyframe_{b['name']}.png")
-            marks.append(b["name"])
+        for b in bounds:
+            if b["n_strokes"] in got:
+                got[b["n_strokes"]].save(out / f"keyframe_{b['name']}.png")
+                marks.append(b["name"])
 
     report = {"session_id": sid, "canvas": list(built["size"]),
               "points": built["points"], "keyframes": frames, "marks": marks,

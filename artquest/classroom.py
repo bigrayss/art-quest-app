@@ -10,7 +10,8 @@
   * **班级**（`data/classroom/`）——班级码、成员、老师上传的课件。作品不存在这里：一张课堂作品就是
     一条普通的 session，`routing.classroom = {class_code, lesson_id, task_kind}` 说它是哪个班哪节课的。
 
-加一节课：往 `LESSONS` 里加一条，重启即可。
+课有两种来源：`LESSONS` 里内置的样板课，和老师自己在界面上录入的课（`data/classroom/lessons/<id>.json`）。
+老师的课可以从空白写起，也可以把样板课复制一份来改。两种课对外是同一个形状（`get_lesson`）。
 """
 import copy
 import json
@@ -27,6 +28,11 @@ from .quests import QUESTS_BY_ID
 ROOT = config.DATA_DIR / "classroom"
 CLASSES_DIR = ROOT / "classes"
 FILES_DIR = ROOT / "files"
+LESSONS_DIR = ROOT / "lessons"            # 老师录入的课
+LESSON_FILES_DIR = ROOT / "lesson_files"  # 课里的配图和附件
+IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".webp")
+# 一节课的上限：够一堂课用，又不至于被塞成一本书
+MAX_SLIDES, MAX_LINES, MAX_TASKS = 40, 8, 8
 _LOCK = threading.Lock()
 
 # 班级码要能念、能抄在黑板上：去掉 0/O、1/I/L 这些分不清的
@@ -163,7 +169,7 @@ def task_id(lesson_id: str, key: str) -> str:
 def _quest(lesson: Dict[str, Any], t: Dict[str, Any]) -> Dict[str, Any]:
     q = copy.deepcopy(QUESTS_BY_ID[_TEMPLATE_ID])
     tid = task_id(lesson["id"], t["key"])
-    text = f"{t['instruction']} 要做到：{t['requirements']}"
+    text = t["instruction"] + (f" 要做到：{t['requirements']}" if t.get("requirements") else "")
     q.update({
         "id": tid, "task_id": tid, "form_id": t["key"],
         "family": "CL", "family_slug": "classroom", "family_name": "课堂", "category": "classroom",
@@ -176,36 +182,269 @@ def _quest(lesson: Dict[str, Any], t: Dict[str, Any]) -> Dict[str, Any]:
     return q
 
 
-def register() -> List[str]:
-    """把课堂任务登记成任务库认得的任务。模板不在（任务库被换掉了）就什么都不登记。"""
+def register_lesson(lesson: Dict[str, Any]) -> List[str]:
+    """把一节课的任务登记成任务库认得的任务；这节课里删掉的任务一并撤下。"""
     if _TEMPLATE_ID not in QUESTS_BY_ID:
         return []
-    ids = []
-    for lesson in LESSONS:
-        for t in lesson["tasks"]:
-            q = _quest(lesson, t)
-            QUESTS_BY_ID[q["id"]] = q
-            ids.append(q["id"])
+    prefix, ids = f"CL_{lesson['id']}_", []
+    for t in lesson.get("tasks") or []:
+        q = _quest(lesson, t)
+        QUESTS_BY_ID[q["id"]] = q
+        ids.append(q["id"])
+    for tid in [k for k in QUESTS_BY_ID if k.startswith(prefix) and k not in ids]:
+        del QUESTS_BY_ID[tid]
     return ids
 
 
-register()
+def register() -> List[str]:
+    """内置的课和老师录入的课，全部登记。模板不在（任务库被换掉了）就什么都不登记。"""
+    ids: List[str] = []
+    for lesson in LESSONS + custom_lessons(None):
+        ids += register_lesson(lesson)
+    return ids
+
+
+# ---------------------------------------------------------------------------
+#  老师录入的课
+# ---------------------------------------------------------------------------
+def _lesson_path(lesson_id: str) -> Path:
+    return LESSONS_DIR / f"{lesson_id}.json"
+
+
+def is_custom_id(lesson_id: str) -> bool:
+    return bool(re.fullmatch(r"t[0-9a-f]{10}", str(lesson_id or "")))
+
+
+def get_lesson(lesson_id: str) -> Optional[Dict[str, Any]]:
+    if lesson_id in LESSONS_BY_ID:
+        return LESSONS_BY_ID[lesson_id]
+    if not is_custom_id(lesson_id) or not _lesson_path(lesson_id).exists():
+        return None
+    try:
+        return json.loads(_lesson_path(lesson_id).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def custom_lessons(owner_id: Optional[str]) -> List[Dict[str, Any]]:
+    """`None` = 所有老师的。"""
+    if not LESSONS_DIR.exists():
+        return []
+    rows = [get_lesson(p.stem) for p in sorted(LESSONS_DIR.glob("*.json"))]
+    rows = [l for l in rows if l and (owner_id is None or l.get("owner_id") == owner_id)]
+    return sorted(rows, key=lambda l: l.get("created_at") or "")
+
+
+def _text(v: Any, n: int) -> str:
+    return re.sub(r"[\x00-\x08\x0b-\x1f]", "", str(v or "")).strip()[:n]
+
+
+def _clean_lesson(data: Dict[str, Any], old: Dict[str, Any]) -> Dict[str, Any]:
+    """老师交上来的一节课，收拾成存盘的样子。`id`、归属、任务的 key 以存着的那份为准。"""
+    title = _text(data.get("title"), 60)
+    if not title:
+        raise ValueError("请写上课题")
+    files = {f["id"]: f for f in old.get("files") or []}
+    slides = []
+    for sl in (data.get("slides") or [])[:MAX_SLIDES]:
+        lines = [_text(x, 200) for x in (sl.get("lines") or [])]
+        row = {"title": _text(sl.get("title"), 60), "lines": [x for x in lines if x][:MAX_LINES], "ask": _text(sl.get("ask"), 200)}
+        img = str(sl.get("image") or "")
+        if img in files and files[img]["ext"] in IMAGE_EXTS:
+            row["image"] = img
+        # 从样板课复制来的示意图：只认内置的那几张
+        figs = [n for n in (sl.get("figure_names") or []) if n in FIGURES][:4]
+        if figs:
+            row["figures"] = figs
+            caps = [_text(c, 60) for c in (sl.get("captions") or [])][:len(figs)]
+            if any(caps):
+                row["captions"] = caps
+        if sl.get("kind") in ("cover", "tasks"):
+            row["kind"] = sl["kind"]
+        if row["title"] or row["lines"] or row.get("image") or figs:
+            slides.append(row)
+    used = {t["key"] for t in old.get("tasks") or []}
+    n, tasks = 0, []
+    for t in (data.get("tasks") or [])[:MAX_TASKS]:
+        name, what = _text(t.get("title"), 40), _text(t.get("instruction"), 400)
+        if not name and not what:
+            continue
+        if not name or not what:
+            raise ValueError("每个任务都要有题目，也要写清楚画什么")
+        key = str(t.get("key") or "")
+        if key not in used or any(x["key"] == key for x in tasks):   # 新任务：发一个没用过的 key
+            while True:
+                n += 1
+                key = f"t{n}"
+                if key not in used and not any(x["key"] == key for x in tasks):
+                    break
+        try:
+            minutes = max(1, min(240, int(t.get("minutes") or 15)))
+        except (TypeError, ValueError):
+            minutes = 15
+        tasks.append({"key": key, "kind": "homework" if t.get("kind") == "homework" else "practice",
+                      "title": name, "instruction": what, "requirements": _text(t.get("requirements"), 200),
+                      "hint": _text(t.get("hint"), 120), "minutes": minutes, "optional": bool(t.get("optional"))})
+    try:
+        minutes = max(5, min(240, int(data.get("minutes") or 40)))
+    except (TypeError, ValueError):
+        minutes = 40
+    return dict(old, title=title, subject=_text(data.get("subject"), 40), summary=_text(data.get("summary"), 200),
+                minutes=minutes, objectives=[x for x in (_text(o, 120) for o in (data.get("objectives") or [])) if x][:6],
+                slides=slides, tasks=tasks, updated_at=now_iso())
+
+
+def _write_lesson(lesson: Dict[str, Any]) -> Dict[str, Any]:
+    LESSONS_DIR.mkdir(parents=True, exist_ok=True)
+    tmp = _lesson_path(lesson["id"]).with_suffix(".tmp")
+    tmp.write_text(json.dumps(lesson, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(_lesson_path(lesson["id"]))
+    register_lesson(lesson)
+    return lesson
+
+
+def new_lesson(owner_id: str, owner_name: str, copy_of: str = "") -> Dict[str, Any]:
+    """开一节新课：空白的，或者把一节现成的课（样板课、自己的课）复制一份来改。"""
+    src = get_lesson(copy_of) if copy_of else None
+    if copy_of and (not src or (src.get("owner_id") and src["owner_id"] != owner_id)):
+        raise KeyError(copy_of)
+    lesson = {"id": "t" + secrets.token_hex(5), "owner_id": owner_id, "owner_name": owner_name, "grade": None,
+              "created_at": now_iso(), "updated_at": now_iso(), "copied_from": copy_of or "", "files": [],
+              "title": "未命名的课", "subject": "", "summary": "", "minutes": 40, "objectives": [], "slides": [], "tasks": []}
+    if src:
+        lesson.update(title=src["title"], subject=src.get("subject", ""), summary=src.get("summary", ""),
+                      minutes=src.get("minutes", 40), objectives=list(src.get("objectives") or []), grade=src.get("grade"),
+                      tasks=[{k: t.get(k, d) for k, d in (("key", ""), ("kind", "practice"), ("title", ""), ("instruction", ""),
+                                                           ("requirements", ""), ("hint", ""), ("minutes", 15), ("optional", False))}
+                             for t in src["tasks"]])
+        slides = []
+        for sl in src["slides"]:
+            row = {"title": sl.get("title", ""), "lines": list(sl.get("lines") or []), "ask": sl.get("ask", "")}
+            names = sl.get("figures") or ([sl["figure"]] if sl.get("figure") else [])
+            if names:
+                row["figures"] = list(names)
+            if sl.get("captions"):
+                row["captions"] = list(sl["captions"])
+            if sl.get("kind"):
+                row["kind"] = sl["kind"]
+            slides.append(row)                 # 别人课里的配图不跟着走：文件是那节课的
+        lesson["slides"] = slides
+    with _LOCK:
+        return _write_lesson(lesson)
+
+
+def save_lesson(lesson_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    with _LOCK:
+        old = get_lesson(lesson_id)
+        if not old or not is_custom_id(lesson_id):
+            raise KeyError(lesson_id)
+        return _write_lesson(_clean_lesson(data, old))
+
+
+def delete_lesson(lesson_id: str) -> bool:
+    """删一节课。已经画出来的作品不受影响：每条 session 里冻着当时的题面。"""
+    with _LOCK:
+        if not is_custom_id(lesson_id) or not _lesson_path(lesson_id).exists():
+            return False
+        _lesson_path(lesson_id).unlink()
+        for tid in [k for k in QUESTS_BY_ID if k.startswith(f"CL_{lesson_id}_")]:
+            del QUESTS_BY_ID[tid]
+        d = LESSON_FILES_DIR / lesson_id
+        if d.exists():
+            for f in d.iterdir():
+                f.unlink()
+            d.rmdir()
+        for p in (CLASSES_DIR.glob("*.json") if CLASSES_DIR.exists() else []):
+            cls = load(p.stem)
+            if cls and lesson_id in cls.get("lesson_ids", []):
+                cls["lesson_ids"] = [x for x in cls["lesson_ids"] if x != lesson_id]
+                _save(cls)
+    return True
+
+
+def _lesson_file_row(lesson_id: str, f: Dict[str, Any]) -> Dict[str, Any]:
+    return {"id": f["id"], "filename": f["filename"], "size": f["size"], "viewable": bool(f.get("viewable")),
+            "image": f["ext"] in IMAGE_EXTS, "url": f"/api/v1/classroom/lessons/{lesson_id}/files/{f['id']}"}
+
+
+def _check_upload(filename: str, data: bytes):
+    name = Path(str(filename or "")).name.strip()[:120]
+    ext = Path(name).suffix.lower()
+    if ext not in UPLOAD_TYPES:
+        raise ValueError("课件请用 PDF、图片（PNG / JPG）或 PPT")
+    if not data:
+        raise ValueError("这个文件是空的")
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise ValueError(f"文件太大了，最多 {MAX_UPLOAD_BYTES // (1024 * 1024)} MB")
+    return name, ext
+
+
+def add_lesson_file(lesson_id: str, filename: str, data: bytes) -> Dict[str, Any]:
+    """课里的配图（某一页用）或附件（整份 PDF / PPT 课件）。"""
+    name, ext = _check_upload(filename, data)
+    with _LOCK:
+        lesson = get_lesson(lesson_id)
+        if not lesson or not is_custom_id(lesson_id):
+            raise KeyError(lesson_id)
+        fid = "lf-" + secrets.token_hex(6)
+        d = LESSON_FILES_DIR / lesson_id
+        d.mkdir(parents=True, exist_ok=True)
+        (d / f"{fid}{ext}").write_bytes(data)
+        f = {"id": fid, "filename": name, "ext": ext, "size": len(data), "viewable": UPLOAD_TYPES[ext][1], "uploaded_at": now_iso()}
+        lesson.setdefault("files", []).append(f)
+        _write_lesson(lesson)
+    return _lesson_file_row(lesson_id, f)
+
+
+def lesson_file(lesson_id: str, fid: str) -> Optional[Dict[str, Any]]:
+    f = next((f for f in ((get_lesson(lesson_id) or {}).get("files") or []) if f["id"] == fid), None)
+    path = LESSON_FILES_DIR / lesson_id / f"{fid}{f['ext']}" if f else None
+    if not path or not path.exists():
+        return None
+    return {"path": path, "filename": f["filename"], "media_type": UPLOAD_TYPES[f["ext"]][0], "viewable": f["viewable"]}
+
+
+def remove_lesson_file(lesson_id: str, fid: str) -> bool:
+    with _LOCK:
+        lesson = get_lesson(lesson_id)
+        f = next((f for f in ((lesson or {}).get("files") or []) if f["id"] == fid), None)
+        if not f or not is_custom_id(lesson_id):
+            return False
+        lesson["files"] = [x for x in lesson["files"] if x["id"] != fid]
+        for sl in lesson["slides"]:
+            if sl.get("image") == fid:
+                sl.pop("image")
+        _write_lesson(lesson)
+        try:
+            (LESSON_FILES_DIR / lesson_id / f"{fid}{f['ext']}").unlink()
+        except OSError:
+            pass
+    return True
 
 
 def lesson_card(lesson: Dict[str, Any]) -> Dict[str, Any]:
-    return {k: lesson[k] for k in ("id", "title", "grade", "subject", "minutes", "textbook", "summary")} | {
-        "n_slides": len(lesson["slides"]), "n_tasks": len(lesson["tasks"])}
+    return {"id": lesson["id"], "title": lesson["title"], "grade": lesson.get("grade"), "subject": lesson.get("subject", ""),
+            "minutes": lesson.get("minutes", 40), "textbook": lesson.get("textbook") or {}, "summary": lesson.get("summary", ""),
+            "builtin": lesson["id"] in LESSONS_BY_ID, "owner_name": lesson.get("owner_name", ""),
+            "n_slides": len(lesson["slides"]), "n_tasks": len(lesson["tasks"])}
 
 
 def lesson_full(lesson: Dict[str, Any]) -> Dict[str, Any]:
-    slides = []
+    files = {f["id"]: _lesson_file_row(lesson["id"], f) for f in lesson.get("files") or []}
+    slides, used = [], set()
     for s in lesson["slides"]:
-        row = {k: v for k, v in s.items() if k not in ("figure", "figures")}
+        row = {k: v for k, v in s.items() if k not in ("figure", "figures", "image")}
         names = s.get("figures") or ([s["figure"]] if s.get("figure") else [])
-        row["figures"] = [FIGURES[n] for n in names]
+        row["figure_names"] = [n for n in names if n in FIGURES]
+        row["figures"] = [FIGURES[n] for n in row["figure_names"]]
+        if s.get("image") in files:
+            row["image"], row["image_url"] = s["image"], files[s["image"]]["url"]
+            used.add(s["image"])
         slides.append(row)
     tasks = [dict(t, task_id=task_id(lesson["id"], t["key"]), kind_name=KIND_NAMES[t["kind"]]) for t in lesson["tasks"]]
-    return dict(lesson_card(lesson), objectives=lesson["objectives"], slides=slides, tasks=tasks)
+    # 没有被哪一页当配图用的文件，就是附件（整份的 PDF / PPT 课件）
+    return dict(lesson_card(lesson), objectives=lesson.get("objectives") or [], slides=slides, tasks=tasks,
+                files=[f for fid, f in files.items() if fid not in used])
 
 
 # ---------------------------------------------------------------------------
@@ -240,7 +479,7 @@ def create(name: str, teacher_id: str, teacher_name: str, lesson_ids: List[str])
     name = str(name or "").strip()[:40]
     if not name:
         raise ValueError("请给班级起个名字")
-    lessons = [l for l in (lesson_ids or [l["id"] for l in LESSONS]) if l in LESSONS_BY_ID]
+    lessons = _own_lessons(lesson_ids or [l["id"] for l in LESSONS], teacher_id)
     with _LOCK:
         for _ in range(50):
             code = "".join(secrets.choice(CODE_ALPHABET) for _ in range(CODE_LEN))
@@ -248,6 +487,26 @@ def create(name: str, teacher_id: str, teacher_name: str, lesson_ids: List[str])
                 break
         cls = {"code": code, "name": name, "teacher_id": teacher_id, "teacher_name": teacher_name,
                "created_at": now_iso(), "lesson_ids": lessons, "members": [], "uploads": []}
+        _save(cls)
+    return cls
+
+
+def _own_lessons(lesson_ids: List[str], teacher_id: str) -> List[str]:
+    """一个班能挂的课：样板课，和这位老师自己的课。"""
+    out = []
+    for lid in lesson_ids or []:
+        lesson = get_lesson(lid)
+        if lesson and lid not in out and (lid in LESSONS_BY_ID or lesson.get("owner_id") == teacher_id):
+            out.append(lid)
+    return out
+
+
+def set_lessons(code: str, lesson_ids: List[str]) -> Optional[Dict[str, Any]]:
+    with _LOCK:
+        cls = load(code)
+        if not cls:
+            return None
+        cls["lesson_ids"] = _own_lessons(lesson_ids, cls.get("teacher_id", ""))
         _save(cls)
     return cls
 
@@ -279,7 +538,7 @@ def join(code: str, who: str, name: str) -> Optional[Dict[str, Any]]:
 def public(cls: Dict[str, Any]) -> Dict[str, Any]:
     """学生看得到的那部分：没有成员名单。"""
     return {"code": cls["code"], "name": cls["name"], "teacher_name": cls.get("teacher_name", ""),
-            "lessons": [lesson_card(LESSONS_BY_ID[l]) for l in cls.get("lesson_ids", []) if l in LESSONS_BY_ID],
+            "lessons": [lesson_card(l) for l in (get_lesson(i) for i in cls.get("lesson_ids", [])) if l],
             "uploads": [upload_row(cls["code"], u) for u in cls.get("uploads", [])]}
 
 
@@ -290,14 +549,7 @@ def upload_row(code: str, u: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def add_upload(code: str, lesson_id: str, filename: str, data: bytes) -> Dict[str, Any]:
-    name = Path(str(filename or "")).name.strip()[:120]
-    ext = Path(name).suffix.lower()
-    if ext not in UPLOAD_TYPES:
-        raise ValueError("课件请用 PDF、图片（PNG / JPG）或 PPT")
-    if not data:
-        raise ValueError("这个文件是空的")
-    if len(data) > MAX_UPLOAD_BYTES:
-        raise ValueError(f"文件太大了，最多 {MAX_UPLOAD_BYTES // (1024 * 1024)} MB")
+    name, ext = _check_upload(filename, data)
     with _LOCK:
         cls = load(code)
         if not cls:
@@ -306,7 +558,7 @@ def add_upload(code: str, lesson_id: str, filename: str, data: bytes) -> Dict[st
         d = FILES_DIR / cls["code"]
         d.mkdir(parents=True, exist_ok=True)
         (d / f"{fid}{ext}").write_bytes(data)
-        u = {"id": fid, "lesson_id": lesson_id if lesson_id in LESSONS_BY_ID else "", "filename": name, "ext": ext,
+        u = {"id": fid, "lesson_id": lesson_id if get_lesson(lesson_id) else "", "filename": name, "ext": ext,
              "size": len(data), "viewable": UPLOAD_TYPES[ext][1], "uploaded_at": now_iso()}
         cls["uploads"].append(u)
         _save(cls)
@@ -342,3 +594,6 @@ def remove_upload(code: str, fid: str) -> bool:
 def tag_of(meta: Dict[str, Any]) -> Dict[str, Any]:
     """一条 session 的课堂标签，没有就是空的。"""
     return dict(((meta.get("routing") or {}).get("classroom")) or {})
+
+
+register()

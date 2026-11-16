@@ -18,6 +18,7 @@ puts back what the last undo took, clear removes everything). That is exact for
 every history except undo *across* a clear, which the old log cannot express.
 """
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -469,6 +470,32 @@ def process_cuts(n_strokes: int, fractions: Tuple[float, ...] = PROCESS_FRACTION
 # the session still loads: the image falls back to the saved final.png and the
 # report says the replay did not run.
 REPLAY_SCRIPT = Path(__file__).resolve().parent.parent / "tools" / "replay_paint.js"
+# 重放一张画要把每个图层整张放进内存。服务器是和别人共用的：估出来超过这个数就不放，
+# 退回终稿图（数据不丢，日志是全的，换台机器照样能重放）。
+REPLAY_MAX_MB = int(os.environ.get("ARTQUEST_REPLAY_MAX_MB", "600"))
+
+
+def replay_enabled() -> bool:
+    """专业版的重放默认**不在服务器上做**（2026-11-16 用户定的）：线上那台机器是共用的，内存紧。
+    日志是全的，数据下载下来在本机重建——`tools/replay.py` 和导出脚本会自己把它打开。
+    想让服务器在交卷时就重放，环境变量 `ARTQUEST_PAINT_REPLAY=on`。"""
+    return os.environ.get("ARTQUEST_PAINT_REPLAY", "off").lower() in ("on", "1", "true", "yes")
+REPLAY_TIMEOUT_SEC = 120
+
+
+def _node() -> Optional[str]:
+    """Node 在哪。没有管理员权限的机器上它装在家目录里，服务的 PATH 里不一定有。"""
+    found = os.environ.get("ARTQUEST_NODE") or shutil.which("node")
+    if found:
+        return found
+    home = Path.home() / ".local" / "bin" / "node"
+    return str(home) if home.exists() else None
+
+
+def replay_mb(size: Tuple[int, int], ops: List[Dict[str, Any]]) -> float:
+    """重放这张画大概要多少内存：图层 ×4 字节，一笔的浓度图 ×4，合成一张 ×4，再留 120 MB 给 Node 自己。"""
+    layers = min(12, 1 + sum(1 for op in ops if op.get("kind") == "layer_add"))
+    return size[0] * size[1] * 4 * (layers + 3) / (1024 * 1024) + 120
 _LAYER_KEYS = ("layer", "index", "name", "to", "props")
 
 
@@ -506,14 +533,14 @@ def _paint_rebuild(d: Path, events, strokes, size, cuts) -> Tuple[Image.Image, D
             n += 1
             if n in cuts:
                 at[i] = n
-    node = shutil.which("node")
-    if node and REPLAY_SCRIPT.exists():
+    node = _node()
+    if replay_enabled() and node and REPLAY_SCRIPT.exists() and replay_mb(size, ops) <= REPLAY_MAX_MB:
         with tempfile.TemporaryDirectory(prefix="artquest-replay-") as out:
             job = {"spec": {"width": size[0], "height": size[1], "background": "#ffffff"},
                    "ops": ops, "cuts": sorted(at), "out": out}
             try:
                 subprocess.run([node, str(REPLAY_SCRIPT)], input=json.dumps(job).encode("utf-8"),
-                               capture_output=True, check=True, timeout=300)
+                               capture_output=True, check=True, timeout=REPLAY_TIMEOUT_SEC)
                 with Image.open(Path(out) / "final.png") as f:
                     image = f.convert("RGB")
                 frames = {}
@@ -557,6 +584,20 @@ def rebuild(session_dir: Path) -> Dict[str, Any]:
             "audit": audit_streams(events, strokes),
             "logged": len(strokes), "visible": len(vis),
             "points": sum(len(s.get("points") or []) for s in vis)}
+
+
+def frames_at(session_dir: Path, counts: List[int], built: Optional[Dict[str, Any]] = None) -> Dict[int, Image.Image]:
+    """The canvas after the first `n` visible strokes, for each `n` asked for —
+    whichever engine drew the session. A pro session that cannot be replayed
+    here (no Node, or replay switched off) yields no frames rather than wrong ones."""
+    d = Path(session_dir)
+    built = built or rebuild(d)
+    vis, want = built["strokes"], sorted({int(n) for n in counts if 0 < int(n) <= len(built["strokes"])})
+    if not built.get("engine"):
+        _, frames = render_with_frames(vis, built["size"], tuple(want), built.get("stimulus"))
+        return frames
+    _, frames, how = _paint_rebuild(d, read_jsonl(d / "events.jsonl"), read_jsonl(d / "strokes.jsonl"), built["size"], want)
+    return frames if how == "node" else {}
 
 
 def check_final(session_dir: Path, built: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:

@@ -2429,3 +2429,28 @@ body.teacher #cl-lessons { order:2; }
 .cl-tag { font-size:.75rem; padding:2px 8px; border-radius:999px; background:var(--soft); color:var(--muted); font-weight:700; }
 .cl-tag.ok { background:#e3f5e1; color:#2c7a3a; }
 .cl-req span { display:inline-block; margin-right:8px; padding:1px 8px; border-radius:999px; background:var(--soft); font-size:.8125rem; font-weight:700; }
+
+/* 课堂：老师录课 */
+.cl-lesson-wrap { display:flex; flex-direction:column; gap:6px; }
+.cl-lesson-wrap .cl-lesson { flex:1; }
+.cl-lesson-acts { display:flex; align-items:center; gap:12px; padding:0 6px; font-size:.875rem; }
+.cl-newlesson { align-self:start; justify-self:start; }
+.cl-pick { display:flex; flex-wrap:wrap; gap:8px 18px; }
+.cl-pick label { display:inline-flex; align-items:center; gap:6px; margin:0; cursor:pointer; }
+.cl-pick input { width:20px; height:20px; }
+.cl-figs img { display:block; width:100%; height:auto; max-height:46vh; object-fit:contain; }
+.ed-card { display:flex; flex-direction:column; gap:10px; padding:14px 16px; margin-bottom:12px; border:2px solid var(--line); border-radius:16px; background:#fff; }
+.ed-card label { display:flex; flex-direction:column; gap:4px; margin:0; font-size:.875rem; font-weight:700; }
+.ed-card input:not([type=checkbox]), .ed-card textarea, .ed-card select { min-height:42px; padding:8px 10px; border:2px solid var(--line); border-radius:10px; font:inherit; font-weight:400; background:#fff; width:100%; box-sizing:border-box; }
+.ed-card textarea { resize:vertical; line-height:1.5; max-width:none; }
+.ed-card select { width:auto; font-weight:700; }
+.ed-card .ed-min input { width:7em; }
+.ed-head { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+.ed-acts { display:inline-flex; align-items:center; gap:12px; font-size:.875rem; }
+.ed-card label.ed-check { flex-direction:row; align-items:center; gap:6px; font-weight:400; }
+.ed-check input { width:18px; height:18px; }
+.ed-pic { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.ed-pic img { height:72px; width:auto; border:1px solid var(--line); border-radius:8px; }
+.ed-figs { display:inline-flex; gap:6px; }
+.ed-figs svg { height:48px; width:auto; border:1px solid var(--line); border-radius:6px; background:#fff; }
+.ed-save { margin-top:20px; }

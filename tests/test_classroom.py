@@ -168,6 +168,125 @@ class Classroom(unittest.TestCase):
         self.assertNotIn("classroom", plain["routing"])
 
 
+class TeacherWritesALesson(unittest.TestCase):
+    """课由老师录入：从空白写，或者把样板课复制一份来改；挂到班上，学生凭班级码看到。"""
+
+    def setUp(self):
+        self.c = TestClient(app)
+        self.h = Classroom._account(self, "录课的老师", "teacher")[0]
+
+    def _new(self, **body):
+        r = self.c.post("/api/classroom/lessons", headers=self.h, json=body)
+        self.assertEqual(r.status_code, 201, r.text[:300])
+        return r.json()
+
+    def test_a_lesson_written_from_scratch_gets_pages_and_tasks(self):
+        lesson = self._new()
+        lid = lesson["id"]
+        r = self.c.put(f"/api/classroom/lessons/{lid}", headers=self.h, json={
+            "title": "线的旅行", "subject": "美术", "minutes": 35, "summary": "认识线条",
+            "slides": [{"title": "线会走路", "lines": ["直线", "", "曲线"], "ask": "你见过什么线？"},
+                       {"title": "", "lines": []}],                                     # 空的一页不留
+            "tasks": [{"kind": "practice", "title": "十种线", "instruction": "画出十种不一样的线。", "minutes": 8},
+                      {"kind": "homework", "title": "线的画", "instruction": "只用线画一幅画。", "requirements": "至少三种线", "optional": True},
+                      {"title": "", "instruction": ""}]})                               # 空的任务不留
+        self.assertEqual(r.status_code, 200, r.text[:300])
+        got = r.json()
+        self.assertEqual((got["title"], got["minutes"], got["builtin"]), ("线的旅行", 35, False))
+        self.assertEqual([(s["title"], s["lines"]) for s in got["slides"]], [("线会走路", ["直线", "曲线"])])
+        self.assertEqual([(t["key"], t["kind"], t["optional"]) for t in got["tasks"]], [("t1", "practice", False), ("t2", "homework", True)])
+        self.assertIn("要做到：至少三种线", got["tasks"][1]["quest"]["prompt"])
+        self.assertNotIn("要做到", got["tasks"][0]["quest"]["prompt"])
+
+        # 改一次：留着的任务 key 不变（已经交上来的画靠它认题），新加的拿新 key，删掉的撤下
+        t1 = dict(got["tasks"][0], title="十二种线")
+        r = self.c.put(f"/api/classroom/lessons/{lid}", headers=self.h, json=dict(got, tasks=[
+            {"title": "新任务", "instruction": "画一条最长的线。"}, t1]))
+        self.assertEqual([(t["key"], t["title"]) for t in r.json()["tasks"]], [("t3", "新任务"), ("t1", "十二种线")])
+        self.assertIn(f"CL_{lid}_t1", QUESTS_BY_ID)
+        self.assertNotIn(f"CL_{lid}_t2", QUESTS_BY_ID)
+        self.assertEqual(QUESTS_BY_ID[f"CL_{lid}_t1"]["title"], "十二种线")
+
+        self.assertEqual(self.c.put(f"/api/classroom/lessons/{lid}", headers=self.h, json={"title": " "}).status_code, 422)
+        self.assertEqual(self.c.put(f"/api/classroom/lessons/{lid}", headers=self.h,
+                                    json={"title": "x", "tasks": [{"title": "只有题目"}]}).status_code, 422)
+
+    def test_only_its_author_changes_a_lesson_and_the_sample_is_copied_not_edited(self):
+        lid = self._new()["id"]
+        other = Classroom._account(self, "路过的老师", "teacher")[0]
+        student = Classroom._account(self, "课堂学生戊")[0]
+        for who, code in ((other, 403), (student, 403), ({}, 401)):
+            self.assertEqual(self.c.put(f"/api/classroom/lessons/{lid}", headers=who, json={"title": "抢"}).status_code, code)
+            self.assertEqual(self.c.delete(f"/api/classroom/lessons/{lid}", headers=who).status_code, code)
+        self.assertEqual(self.c.post("/api/classroom/lessons", headers=student, json={}).status_code, 403)
+        self.assertEqual(self.c.put(f"/api/classroom/lessons/{LESSON}", headers=self.h, json={"title": "改样板"}).status_code, 403)
+        self.assertEqual(self.c.post("/api/classroom/lessons", headers=other, json={"copy_of": lid}).status_code, 404)   # 别人的课不能复制
+
+        copy = self._new(copy_of=LESSON)
+        self.assertNotEqual(copy["id"], LESSON)
+        self.assertEqual((copy["title"], len(copy["slides"]), len(copy["tasks"])), ("家乡的桥", 8, 4))
+        self.assertEqual(len(copy["slides"][2]["figures"]), 4, "样板课的示意图跟着复制过来")
+        # 原样存回去，示意图还在
+        saved = self.c.put(f"/api/classroom/lessons/{copy['id']}", headers=self.h, json=dict(copy, title="我们这儿的桥")).json()
+        self.assertEqual(len(saved["slides"][2]["figures"]), 4)
+        self.assertEqual(self.c.get(f"/api/classroom/lessons/{LESSON}").json()["title"], "家乡的桥")   # 样板没动
+
+        mine = [l["id"] for l in self.c.get("/api/classroom/lessons", headers=self.h).json()]
+        self.assertTrue({LESSON, lid, copy["id"]} <= set(mine))
+        self.assertNotIn(lid, [l["id"] for l in self.c.get("/api/classroom/lessons", headers=other).json()])
+        self.assertEqual([l["id"] for l in self.c.get("/api/classroom/lessons").json()], [LESSON])
+
+    def test_a_page_can_carry_a_picture_and_a_lesson_an_attachment(self):
+        lid = self._new()["id"]
+        up = f"/api/classroom/lessons/{lid}/files"
+        png = __import__("base64").b64decode(_png().split(",", 1)[1])
+        img = self.c.post(up, headers=self.h, params={"filename": "桥.png"}, content=png).json()
+        pdf = self.c.post(up, headers=self.h, params={"filename": "讲稿.pdf"}, content=PDF).json()
+        self.assertTrue(img["image"])
+        self.assertEqual(self.c.post(up, headers=self.h, params={"filename": "x.exe"}, content=b"MZ").status_code, 422)
+        got = self.c.put(f"/api/classroom/lessons/{lid}", headers=self.h, json={
+            "title": "带图的课", "slides": [{"title": "看图", "lines": ["这是一座桥"], "image": img["id"]},
+                                         {"title": "不能拿 PDF 当配图", "image": pdf["id"]},
+                                         {"title": "乱写的图", "image": "lf-nope"}]}).json()
+        self.assertEqual(got["slides"][0]["image_url"], img["url"])
+        self.assertNotIn("image_url", got["slides"][1])
+        self.assertNotIn("image_url", got["slides"][2])
+        self.assertEqual([f["filename"] for f in got["files"]], ["讲稿.pdf"], "没被当配图用的才是附件")
+        self.assertEqual(self.c.get(img["url"]).content, png)                              # 学生不带令牌也看得到图
+        self.assertEqual(self.c.delete(img["url"], headers=self.h).status_code, 200)
+        self.assertNotIn("image_url", self.c.get(f"/api/classroom/lessons/{lid}").json()["slides"][0])
+
+    def test_the_class_code_shows_the_lessons_the_teacher_picked(self):
+        lid = self._new()["id"]
+        self.c.put(f"/api/classroom/lessons/{lid}", headers=self.h, json={
+            "title": "我录的课", "tasks": [{"title": "试一试", "instruction": "画一个圆。"}]})
+        code = self.c.post("/api/classroom/classes", headers=self.h, json={"name": "选课的班"}).json()["code"]
+        other = Classroom._account(self, "路过的老师", "teacher")[0]
+        theirs = self.c.post("/api/classroom/lessons", headers=other, json={}).json()["id"]
+        self.assertEqual(self.c.post(f"/api/classroom/classes/{code}/lessons", headers=other, json={"lesson_ids": [lid]}).status_code, 403)
+        r = self.c.post(f"/api/classroom/classes/{code}/lessons", headers=self.h, json={"lesson_ids": [lid, theirs, "nope", lid]})
+        self.assertEqual([l["id"] for l in r.json()["lessons"]], [lid], "别人的课、不存在的课挂不上")
+        self.assertEqual([l["title"] for l in self.c.get(f"/api/classroom/classes/{code}").json()["lessons"]], ["我录的课"])
+
+        # 学生画老师录的任务：和样板课一样是一条普通的 session
+        s, acc = Classroom._account(self, "课堂学生己")
+        r = self.c.post("/api/sessions", headers=s, json={
+            "quest_id": f"CL_{lid}_t1", "intent": {"emotion": "", "text": ""},
+            "participant": {"anon_id": "dev-课堂学生己", "account_id": acc["account_id"]},
+            "routing": {"classroom": {"class_code": code}}})
+        self.assertEqual(r.status_code, 201, r.text[:300])
+        meta = self.c.get(f"/api/sessions/{r.json()['session_id']}", headers=ADMIN).json()
+        self.assertEqual(meta["routing"]["classroom"], {"lesson_id": lid, "task_kind": "practice", "task_key": "t1", "class_code": code})
+        self.assertEqual(meta["task"]["instruction"], "画一个圆。")
+
+        # 课删了：班里不再有它，新的画开不出来，已经画的那张还在、题面还在
+        self.assertEqual(self.c.delete(f"/api/classroom/lessons/{lid}", headers=self.h).status_code, 200)
+        self.assertEqual(self.c.get(f"/api/classroom/classes/{code}").json()["lessons"], [])
+        self.assertEqual(self.c.get(f"/api/classroom/lessons/{lid}").status_code, 404)
+        again = self.c.get(f"/api/sessions/{r.json()['session_id']}", headers=ADMIN).json()
+        self.assertEqual(again["task"]["title"], "试一试")
+
+
 SHOTS = None     # 调试时填一个目录，课件页和老师页各存一张截图
 
 
@@ -296,6 +415,88 @@ class ClassroomInTheBrowser(unittest.TestCase):
         work = c.get(f"/api/classroom/classes/{code}/work", headers=t).json()
         self.assertEqual([(w["task_kind"], w["task_key"], w["status"]) for w in work["work"]], [("practice", "p1", "done")])
         self.assertEqual(len(work["members"]), 1)
+
+
+    def test_a_teacher_writes_a_lesson_on_the_page_and_the_class_code_opens_it(self):
+        from playwright.sync_api import sync_playwright
+
+        c = TestClient(app)
+        reg = c.post("/api/accounts/register", json={"name": "页面上录课的老师", "pin": "2468", "role": "teacher", "teacher_code": "code-777"})
+        if reg.status_code == 409:
+            reg = c.post("/api/accounts/login", json={"name": "页面上录课的老师", "pin": "2468"})
+        t = {"Authorization": f"Bearer {reg.json()['token']}"}
+        code = c.post("/api/classroom/classes", headers=t, json={"name": "五（4）班"}).json()["code"]
+
+        errors = []
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(channel="chrome")
+            tpage = browser.new_context(viewport={"width": 1280, "height": 900}).new_page()
+            tpage.on("pageerror", lambda e: errors.append(str(e)))
+            tpage.on("dialog", lambda d: d.accept())
+            tpage.set_default_timeout(15000)
+            tpage.add_init_script("localStorage.setItem('artquest.token', %r); localStorage.setItem('artquest.tour/2','1')" % reg.json()["token"])
+            tpage.goto(self.base + "/teacher")
+            tpage.wait_for_selector("body.teacher")
+            tpage.click('.tab[data-tab="class"]')
+            tpage.click("#cl-new-lesson")
+            tpage.wait_for_selector("#class-edit:not(.hidden) #ed-title")
+            tpage.fill("#ed-title", "会跳舞的线")
+            tpage.fill("#ed-summary", "用线条画出动起来的感觉。")
+            tpage.click("#ed-add-slide")
+            tpage.fill('.ed-slide[data-i="0"] [data-f="title"]', "线会动")
+            tpage.fill('.ed-slide[data-i="0"] [data-f="lines"]', "直线很安静\n曲线像在跳舞")
+            tpage.click("#ed-add-slide")                                  # 加第二页时第一页填的字不能丢
+            tpage.fill('.ed-slide[data-i="1"] [data-f="title"]', "第二页")
+            tpage.click('.ed-slide[data-i="1"] [data-up]')                # 挪到前面
+            self.assertEqual(tpage.input_value('.ed-slide[data-i="1"] [data-f="title"]'), "线会动")
+            tpage.click('.ed-slide[data-i="0"] [data-del]')               # 再删掉
+            tpage.click("#ed-add-task")
+            tpage.fill('.ed-task[data-i="0"] [data-f="title"]', "跳舞的人")
+            tpage.fill('.ed-task[data-i="0"] [data-f="instruction"]', "只用线画一个正在跳舞的人。")
+            tpage.fill('.ed-task[data-i="0"] [data-f="requirements"]', "看得出他在动")
+            if SHOTS:
+                tpage.screenshot(path=SHOTS + "/editor.png", full_page=True)
+            tpage.click("#ed-save")
+            tpage.wait_for_selector("#class-home:not(.hidden) .cl-lesson-wrap [data-edit]")
+            lid = tpage.get_attribute(".cl-lesson-wrap [data-edit]", "data-edit")
+            # 样板课默认挂在班上；把它拿下来，换成自己录的这节
+            tpage.uncheck('#cl-pick input[value="%s"]' % LESSON)
+            tpage.wait_for_selector('#cl-pick input[value="%s"]:not(:checked)' % LESSON)
+            tpage.check('#cl-pick input[value="%s"]' % lid)
+            tpage.wait_for_selector('#cl-pick input[value="%s"]:checked' % lid)
+            if SHOTS:
+                tpage.screenshot(path=SHOTS + "/teacher2.png", full_page=True)
+
+            page = browser.new_context(viewport={"width": 1280, "height": 860}).new_page()
+            page.on("pageerror", lambda e: errors.append(str(e)))
+            page.set_default_timeout(15000)
+            page.add_init_script("localStorage.setItem('artquest.tour/2','1'); localStorage.setItem('artquest.acct_prompted','1')")
+            page.goto(self.base)
+            page.wait_for_selector("#view-world:not(.hidden)", timeout=8000)
+            page.click("#btn-enter-world")
+            page.wait_for_selector("#quest-grid .quest-card")
+            page.click('.tab[data-tab="class"]')
+            page.wait_for_selector("#view-class:not(.hidden) #cl-code")
+            self.assertEqual(page.eval_on_selector_all(".cl-lesson", "e=>e.length"), 0, "没输码：只有输码那一栏")
+            page.fill("#cl-code", code)
+            page.click("#cl-join-go")
+            page.wait_for_selector(".cl-mine")
+            self.assertEqual(page.eval_on_selector_all(".cl-lesson b", "e=>e.map(x=>x.textContent)"), ["会跳舞的线"])
+            self.assertEqual(page.eval_on_selector_all("[data-edit], [data-copy], #cl-new-lesson", "e=>e.length"), 0)
+            page.click(".cl-lesson")
+            page.wait_for_selector("#class-lesson:not(.hidden) #cl-slide h2")
+            self.assertEqual(page.inner_text("#cl-slide h2"), "线会动")
+            self.assertEqual(page.eval_on_selector_all("#cl-slide li", "e=>e.map(x=>x.textContent)"), ["直线很安静", "曲线像在跳舞"])
+            self.assertEqual(page.inner_text("#cl-page"), "1 / 1")
+            page.click("#cl-lesson-tasks [data-task]")
+            page.wait_for_selector("#view-draw:not(.hidden)")
+            self.assertIn("跳舞的人", page.inner_text("#draw-quest-card"))
+            self.assertIn("看得出他在动", page.inner_text("#draw-quest-card"))
+            browser.close()
+        self.assertEqual(errors, [])
+        lesson = c.get(f"/api/classroom/lessons/{lid}").json()
+        self.assertEqual((lesson["title"], lesson["summary"], len(lesson["slides"]), len(lesson["tasks"])),
+                         ("会跳舞的线", "用线条画出动起来的感觉。", 1, 1))
 
 
 if __name__ == "__main__":
