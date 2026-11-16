@@ -58,6 +58,22 @@ class Classroom(unittest.TestCase):
             self.assertTrue(q["rubric"])
         self.assertEqual(self.c.get("/api/classroom/lessons/nope").status_code, 404)
 
+    def test_every_reference_lesson_comes_with_a_cover_tasks_and_a_pdf(self):
+        cards = [c for c in self.c.get("/api/classroom/lessons").json() if c["builtin"]]
+        self.assertEqual([c["title"] for c in cards], ["家乡的桥", "皮影戏", "田园村舍", "藏书票"])
+        for card in cards:
+            self.assertTrue(card["cover"].startswith("<svg"), card["id"])
+            lesson = self.c.get(f"/api/classroom/lessons/{card['id']}").json()
+            self.assertEqual({"practice", "homework"}, {t["kind"] for t in lesson["tasks"]})
+            pdf = [f for f in lesson["files"] if f["filename"].endswith(".pdf")]
+            self.assertEqual(len(pdf), 1, "参考课例各配一份整份的 PDF 课件")
+            r = self.c.get(pdf[0]["url"])
+            self.assertEqual(r.status_code, 200)
+            self.assertTrue(r.content.startswith(b"%PDF"))
+        # 新建的班默认只挂第一节，别的课老师自己勾
+        _, cls = self._class(teacher="参考课例老师", name="五（8）班")
+        self.assertEqual([l["id"] for l in cls["lessons"]], [LESSON])
+
     def test_classroom_tasks_stay_off_the_map(self):
         """课堂任务能建 session，但不在地图、选题、研究协议遍历的那张表里。"""
         ids = [classroom.task_id(LESSON, t["key"]) for t in classroom.LESSONS_BY_ID[LESSON]["tasks"]]
@@ -234,7 +250,7 @@ class TeacherWritesALesson(unittest.TestCase):
         mine = [l["id"] for l in self.c.get("/api/classroom/lessons", headers=self.h).json()]
         self.assertTrue({LESSON, lid, copy["id"]} <= set(mine))
         self.assertNotIn(lid, [l["id"] for l in self.c.get("/api/classroom/lessons", headers=other).json()])
-        self.assertEqual([l["id"] for l in self.c.get("/api/classroom/lessons").json()], [LESSON])
+        self.assertEqual([l["id"] for l in self.c.get("/api/classroom/lessons").json()], [l["id"] for l in classroom.LESSONS])
 
     def test_a_page_can_carry_a_picture_and_a_lesson_an_attachment(self):
         lid = self._new()["id"]
@@ -287,7 +303,7 @@ class TeacherWritesALesson(unittest.TestCase):
         self.assertEqual(again["task"]["title"], "试一试")
 
 
-SHOTS = None     # 调试时填一个目录，课件页和老师页各存一张截图
+SHOTS = os.environ.get("ARTQUEST_SHOTS")     # 调试时指一个目录，各页存一张截图
 
 
 class ClassroomInTheBrowser(unittest.TestCase):
@@ -398,6 +414,14 @@ class ClassroomInTheBrowser(unittest.TestCase):
             tpage.goto(self.base + "/teacher")
             tpage.wait_for_selector("body.teacher")
             tpage.click('.tab[data-tab="class"]')
+            # 老师的课堂页两个分页：课程库（所有的课）、我的班级
+            tpage.wait_for_selector("#cl-lessons .cl-lesson-wrap")
+            self.assertEqual(tpage.eval_on_selector_all("#cl-lessons .cl-lesson b", "e=>e.map(x=>x.textContent)"),
+                             ["家乡的桥", "皮影戏", "田园村舍", "藏书票"])
+            self.assertTrue(tpage.is_visible("#cl-up-lesson"))
+            if SHOTS:
+                tpage.screenshot(path=SHOTS + "/library.png", full_page=True)
+            tpage.click('[data-cltab="classes"]')
             tpage.wait_for_selector(".cl-class.on")
             self.assertIn(code, tpage.inner_text(".cl-class.on"))
             tpage.wait_for_selector(".cl-piece img")
@@ -405,6 +429,7 @@ class ClassroomInTheBrowser(unittest.TestCase):
             self.assertIn("老师的讲稿.pdf", tpage.inner_text("#cl-files"))
             if SHOTS:
                 tpage.screenshot(path=SHOTS + "/teacher.png", full_page=True)
+            tpage.click('[data-cltab="library"]')
             tpage.click('.cl-lesson[data-lesson="%s"]' % LESSON)
             tpage.wait_for_selector("#class-lesson:not(.hidden) #cl-slide h2")
             self.assertTrue(tpage.is_visible("#cl-lesson-note"))
@@ -460,12 +485,29 @@ class ClassroomInTheBrowser(unittest.TestCase):
             tpage.wait_for_selector("#class-home:not(.hidden) .cl-lesson-wrap [data-edit]")
             lid = tpage.get_attribute(".cl-lesson-wrap [data-edit]", "data-edit")
             # 样板课默认挂在班上；把它拿下来，换成自己录的这节
+            tpage.click('[data-cltab="classes"]')
             tpage.uncheck('#cl-pick input[value="%s"]' % LESSON)
             tpage.wait_for_selector('#cl-pick input[value="%s"]:not(:checked)' % LESSON)
             tpage.check('#cl-pick input[value="%s"]' % lid)
             tpage.wait_for_selector('#cl-pick input[value="%s"]:checked' % lid)
             if SHOTS:
                 tpage.screenshot(path=SHOTS + "/teacher2.png", full_page=True)
+
+            # 现成的 PDF 课件传上来就是一节课：课题先用文件名，直接进编辑页；这节课打开来 PDF 就是课件
+            tpage.click('[data-cltab="library"]')
+            tpage.set_input_files("#cl-up-file", {"name": "色彩的冷暖.pdf", "mimeType": "application/pdf", "buffer": PDF})
+            tpage.wait_for_selector("#class-edit:not(.hidden) #ed-title")
+            self.assertEqual(tpage.input_value("#ed-title"), "色彩的冷暖")
+            self.assertIn("色彩的冷暖.pdf", tpage.inner_text("#ed-files"))
+            tpage.click("#ed-back")
+            card = '.cl-lesson-wrap:has-text("色彩的冷暖")'
+            tpage.wait_for_selector("#class-home:not(.hidden) " + card)
+            self.assertEqual(tpage.inner_text(card + " .cl-doc"), "PDF")
+            if SHOTS:
+                tpage.screenshot(path=SHOTS + "/library2.png", full_page=True)
+            tpage.click(card + " .cl-lesson")
+            tpage.wait_for_selector("#class-lesson:not(.hidden) iframe.cl-pdf")
+            self.assertFalse(tpage.is_visible("#cl-next"))
 
             page = browser.new_context(viewport={"width": 1280, "height": 860}).new_page()
             page.on("pageerror", lambda e: errors.append(str(e)))
@@ -478,6 +520,8 @@ class ClassroomInTheBrowser(unittest.TestCase):
             page.click('.tab[data-tab="class"]')
             page.wait_for_selector("#view-class:not(.hidden) #cl-code")
             self.assertEqual(page.eval_on_selector_all(".cl-lesson", "e=>e.length"), 0, "没输码：只有输码那一栏")
+            if SHOTS:
+                page.screenshot(path=SHOTS + "/join.png", full_page=True)
             page.fill("#cl-code", code)
             page.click("#cl-join-go")
             page.wait_for_selector(".cl-mine")

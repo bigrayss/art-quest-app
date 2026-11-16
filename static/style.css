@@ -2377,16 +2377,9 @@ body.offline .needs-net { display:none !important; }
 .cl-msg { padding:10px 14px; border-radius:12px; background:var(--soft); margin-bottom:12px; }
 .cl-dim { color:var(--muted); font-size:.875rem; }
 .cl-h { margin:22px 0 10px; font-size:1.0625rem; }
-.cl-join, .cl-mine { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
 .cl-join label { font-weight:700; }
 .cl-join input { min-height:44px; padding:6px 12px; border:2px solid var(--line); border-radius:12px; font:inherit; background:#fff; width:13em; max-width:100%; }
 #cl-code { text-transform:uppercase; letter-spacing:.12em; font-weight:700; }
-.cl-lessons { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:14px; }
-.cl-lesson { display:flex; flex-direction:column; align-items:flex-start; gap:6px; text-align:left; padding:16px; border-radius:16px; height:auto; }
-.cl-lesson b { font-size:1.25rem; }
-.cl-sub { font-size:.8125rem; color:var(--muted); }
-.cl-sum { font-weight:400; color:var(--ink, #333); }
-.cl-open { display:inline-flex; align-items:center; gap:4px; margin-top:6px; color:var(--accent); font-weight:700; }
 .cl-classes { display:flex; gap:10px; flex-wrap:wrap; }
 .cl-class { display:flex; flex-direction:column; align-items:flex-start; gap:2px; padding:12px 16px; border-radius:14px; height:auto; text-align:left; }
 .cl-class.on { border-color:var(--accent); background:var(--soft); }
@@ -2395,9 +2388,6 @@ body.offline .needs-net { display:none !important; }
 .cl-file a { font-weight:700; }
 #cl-upload { margin-top:8px; }
 #class-home { display:flex; flex-direction:column; }
-body.teacher #cl-teacher { order:1; }
-body.teacher #cl-lessons { order:2; }
-.cl-lessons .cl-h { grid-column:1 / -1; margin-bottom:0; }
 .cl-work { display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:12px; }
 .cl-piece { display:flex; flex-direction:column; align-items:flex-start; gap:2px; padding:8px; border-radius:12px; height:auto; text-align:left; }
 .cl-piece img, .cl-blank { width:100%; aspect-ratio:1024 / 704; object-fit:contain; background:#fff; border:1px solid var(--line); border-radius:8px; }
@@ -2431,12 +2421,6 @@ body.teacher #cl-lessons { order:2; }
 .cl-req span { display:inline-block; margin-right:8px; padding:1px 8px; border-radius:999px; background:var(--soft); font-size:.8125rem; font-weight:700; }
 
 /* 课堂：老师录课 */
-.cl-lesson-wrap { display:flex; flex-direction:column; gap:6px; }
-.cl-lesson-wrap .cl-lesson { flex:1; }
-.cl-lesson-acts { display:flex; align-items:center; gap:12px; padding:0 6px; font-size:.875rem; }
-.cl-newlesson { align-self:start; justify-self:start; }
-.cl-pick { display:flex; flex-wrap:wrap; gap:8px 18px; }
-.cl-pick label { display:inline-flex; align-items:center; gap:6px; margin:0; cursor:pointer; }
 .cl-pick input { width:20px; height:20px; }
 .cl-figs img { display:block; width:100%; height:auto; max-height:46vh; object-fit:contain; }
 .ed-card { display:flex; flex-direction:column; gap:10px; padding:14px 16px; margin-bottom:12px; border:2px solid var(--line); border-radius:16px; background:#fff; }
@@ -2454,3 +2438,111 @@ body.teacher #cl-lessons { order:2; }
 .ed-figs { display:inline-flex; gap:6px; }
 .ed-figs svg { height:48px; width:auto; border:1px solid var(--line); border-radius:6px; background:#fff; }
 .ed-save { margin-top:20px; }
+
+/* 课堂首页（2026-11-17 重排）：课程卡片带封面；老师分「课程库 / 我的班级」两页 */
+.cl-join { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.cl-h { display:flex; align-items:center; gap:8px; }
+.cl-count { font-size:.75rem; font-weight:800; padding:1px 9px; border-radius:999px; background:var(--soft); color:var(--muted-2); }
+.cl-tabs { margin-bottom:16px; }
+.cl-hero { display:flex; align-items:center; justify-content:space-between; gap:16px 24px; flex-wrap:wrap; padding:20px 24px; border-radius:20px; background:var(--blue-l); }
+.cl-hero h2 { margin:0 0 4px; font-size:1.375rem; }
+.cl-hero p { margin:0; max-width:34em; line-height:1.6; color:var(--muted-2); }
+.cl-hero-acts { display:flex; gap:10px; flex-wrap:wrap; }
+.cl-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:16px; }
+.cl-lesson-wrap { --tint:var(--orange-l); --deep:var(--orange-d); display:flex; flex-direction:column; overflow:hidden; background:var(--card);
+  border:2px solid var(--line); border-radius:18px; box-shadow:0 var(--edge) 0 var(--line-d); transition:border-color .12s; }
+.cl-lesson-wrap.t1 { --tint:var(--blue-l); --deep:var(--blue-d); }
+.cl-lesson-wrap.t2 { --tint:var(--green-l); --deep:var(--green-d); }
+.cl-lesson-wrap.t3 { --tint:var(--purple-l); --deep:var(--purple-d); }
+.cl-lesson-wrap.t4 { --tint:var(--yellow-l); --deep:var(--yellow-d); }
+.cl-lesson-wrap:hover { border-color:var(--deep); }
+.cl-lesson { flex:1; display:flex; flex-direction:column; align-items:stretch; justify-content:flex-start; gap:0; padding:0; height:auto;
+  border:0; border-radius:0; box-shadow:none; background:none; text-align:left; font-weight:400; }
+.cl-lesson:hover { background:none; } .cl-lesson:active { transform:none; }
+.cl-cover { display:flex; align-items:center; justify-content:center; aspect-ratio:16 / 9; padding:14px 26px; background:var(--tint); color:var(--deep); }
+.cl-cover svg { width:100%; height:100%; }
+.cl-cover.pic { padding:0; } .cl-cover.pic img { width:100%; height:100%; object-fit:cover; }
+.cl-doc { display:flex; align-items:center; justify-content:center; width:66px; height:84px; border-radius:8px 18px 8px 8px; background:#fff;
+  border:2px solid currentColor; font-weight:800; font-size:.9375rem; letter-spacing:.04em; }
+.cl-doc svg { width:30px; height:30px; }
+.cl-card-body { display:flex; flex-direction:column; gap:5px; padding:14px 16px 16px; }
+.cl-card-body b { font-size:1.25rem; font-weight:800; line-height:1.3; }
+.cl-sub { font-size:.75rem; font-weight:700; color:var(--deep); min-height:1em; }
+.cl-sum { color:var(--muted-2); font-size:.9375rem; line-height:1.5; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.cl-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+.cl-chips i { font-style:normal; font-size:.75rem; font-weight:700; padding:2px 9px; border-radius:999px; background:var(--soft); color:var(--muted-2); }
+.cl-lesson-acts { display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:8px 16px; border-top:2px solid var(--line); font-size:.875rem; }
+.cl-tag.warn { background:var(--yellow-l); color:var(--yellow-d); }
+.cl-drop { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; min-height:190px; height:auto; padding:20px;
+  border:2px dashed var(--line-d); border-radius:18px; box-shadow:none; background:transparent; color:var(--blue-d); }
+.cl-drop:hover { border-color:var(--blue); background:var(--blue-l); } .cl-drop:active { transform:none; }
+.cl-drop .cl-dim { font-weight:400; }
+.cl-plus { font-size:2rem; line-height:1; font-weight:400; }
+.cl-empty { padding:32px; text-align:center; color:var(--muted-2); border:2px dashed var(--line-d); border-radius:18px; }
+.cl-banner { display:flex; align-items:center; gap:14px; padding:14px 18px; margin-bottom:18px; border-radius:18px; background:var(--blue-l); }
+.cl-banner > div { flex:1; display:flex; flex-direction:column; gap:2px; }
+.cl-banner b { font-size:1.25rem; }
+.cl-banner-ic { display:flex; align-items:center; justify-content:center; width:48px; height:48px; border-radius:14px; background:#fff; color:var(--blue-d); }
+.cl-banner-ic.big { width:76px; height:76px; border-radius:22px; background:var(--blue-l); }
+.cl-joincard { display:flex; flex-direction:column; align-items:center; gap:10px; max-width:460px; margin:6vh auto 0; padding:32px 28px; text-align:center;
+  background:var(--card); border:2px solid var(--line); border-radius:24px; box-shadow:0 var(--edge) 0 var(--line-d); }
+.cl-joincard h2 { margin:6px 0 0; } .cl-joincard p { margin:0 0 8px; color:var(--muted-2); line-height:1.6; }
+.cl-joincard .cl-join { justify-content:center; }
+.cl-classes { margin-top:18px; }
+.cl-panel { margin-top:16px; padding:4px 20px 20px; background:var(--card); border:2px solid var(--line); border-radius:18px; }
+.cl-panel .cl-h { margin-top:16px; }
+.cl-panel > .cl-dim { margin:-4px 0 12px; }
+.cl-pick { display:flex; flex-wrap:wrap; gap:10px; }
+.cl-pick label { display:inline-flex; align-items:center; gap:8px; margin:0; padding:8px 14px; border:2px solid var(--line); border-radius:999px; cursor:pointer; font-weight:700; }
+.cl-pick label:has(input:checked) { border-color:var(--blue); background:var(--blue-l); color:var(--blue-d); }
+.cl-stage.pdf { padding:10px; } .cl-stage.pdf .cl-slide { min-height:0; }
+.cl-stage.pdf #cl-prev, .cl-stage.pdf #cl-next, .cl-stage.pdf #cl-page { display:none; }
+.cl-pdf { display:block; width:100%; height:min(72vh, 680px); border:0; border-radius:12px; background:#fff; }
+.cl-stage.pdf:fullscreen { padding:0; } .cl-stage.pdf:fullscreen .cl-pdf { height:92vh; border-radius:0; }
+.cl-file a { color:var(--blue-d); }
+
+/* 课堂：小卡片 + 课页面、录课页收紧（2026-11-17） */
+.cl-grid { grid-template-columns:repeat(auto-fill, minmax(176px, 1fr)); gap:12px; }
+.cl-lesson-wrap { border-radius:14px; }
+.cl-cover { aspect-ratio:2 / 1; padding:10px 18px; }
+.cl-doc { width:44px; height:56px; border-radius:6px 13px 6px 6px; font-size:.75rem; }
+.cl-doc svg { width:22px; height:22px; }
+.cl-card-body { gap:3px; padding:10px 12px 12px; }
+.cl-card-body b { font-size:1.0625rem; }
+.cl-sub { font-size:.6875rem; }
+.cl-sum { font-size:.8125rem; line-height:1.45; }
+.cl-chips { gap:0; margin-top:4px; }
+.cl-chips i { padding:0; background:none; font-weight:400; color:var(--muted); }
+.cl-chips i + i::before { content:"·"; margin:0 5px; }
+.cl-lesson-acts { gap:10px; padding:6px 12px; font-size:.8125rem; border-top-width:1px; }
+.cl-lesson-acts .cl-tag { font-size:.6875rem; padding:1px 7px; }
+.cl-drop { min-height:150px; border-radius:14px; padding:14px; }
+.cl-plus { font-size:1.5rem; }
+.cl-hero { padding:16px 20px; border-radius:16px; }
+.cl-hero h2 { font-size:1.25rem; }
+.cl-hero p { font-size:.9375rem; }
+.cl-h { margin:20px 0 10px; }
+.cl-class { border-radius:14px; padding:10px 16px; }
+.cl-codebig { font-size:1.375rem; }
+.cl-work { grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); }
+.cl-piece b { font-size:.9375rem; }
+/* 课页面 */
+.cl-tasks { grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:12px; }
+.cl-task { gap:6px; padding:12px 14px; border-radius:14px; }
+.cl-task-head b { font-size:1.0625rem; }
+.cl-task p { font-size:.9375rem; line-height:1.55; }
+.cl-task .cl-req { color:var(--muted-2); font-size:.875rem; }
+.cl-task .primary { margin-top:6px; padding:7px 14px; }
+#cl-lesson-files { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+#cl-lesson-files .cl-h { flex-basis:100%; margin-bottom:2px; }
+#cl-lesson-files .cl-file { padding:6px 12px; border:2px solid var(--line); border-radius:999px; background:var(--card); font-size:.9375rem; }
+.cl-file a { text-decoration:none; } .cl-file a:hover { text-decoration:underline; }
+.cl-slide { min-height:min(46vh, 380px); }
+/* 录课页：短的栏位并排 */
+.ed-card { gap:8px; padding:12px 14px; border-radius:14px; }
+.ed-meta, .ed-task { display:grid; grid-template-columns:1fr 1fr; gap:10px 14px; }
+.ed-task .ed-head, .ed-task label:has(textarea) { grid-column:1 / -1; }
+.ed-task > label:nth-child(2) { grid-column:1 / -1; }
+.cl-chips i.warn { color:var(--yellow-d); font-weight:700; }
+.ed-card input:not([type=checkbox]), .ed-card textarea, .ed-card select { min-height:38px; padding:6px 10px; }
+@media (max-width:640px) { .ed-meta, .ed-task { grid-template-columns:1fr; } }

@@ -1517,7 +1517,7 @@
   const clDone = () => { try { return JSON.parse(lsGet("artquest.class.done") || "[]"); } catch (e) { return []; } };
   function classMarkDone(taskId) { const d = clDone(); if (d.indexOf(taskId) < 0) { d.push(taskId); lsSet("artquest.class.done", JSON.stringify(d)); } }
   const myClassCode = () => lsGet("artquest.class") || "";
-  const cl = { cls: null, lessons: [], lesson: null, page: 0, classes: [], cur: "", work: null, edit: null };
+  const cl = { cls: null, lessons: [], lesson: null, page: 0, classes: [], cur: "", work: null, edit: null, tab: "library", pdf: null };
   /** 把一个文件传上去：文件本身就是请求体，文件名放在查询串里。→ 服务器回的那一行，或者抛出一句能给人看的话 */
   async function clUpload(url, f) {
     const r = await fetch(`${url}?filename=${encodeURIComponent(f.name)}`, { method: "POST",
@@ -1548,16 +1548,31 @@
     } catch (e) { clToast("课堂暂时打不开，请检查网络后再试。"); }
     renderClassHome();
   }
-  function lessonCards() {
-    // 老师这边每节课多一排：样板课「复制一份来改」，自己的课「编辑 / 删除」
-    return cl.lessons.map(l => `<div class="cl-lesson-wrap"><button class="cl-lesson" data-lesson="${l.id}">
-        <span class="cl-sub" data-no-i18n>${escapeHtml(l.subject || "")}</span><b data-no-i18n>${escapeHtml(l.title)}</b>
-        <span class="cl-sum" data-no-i18n>${escapeHtml(l.summary || "")}</span>
-        <span class="cl-open">打开这节课${icon("arrowRight", 15)}</span></button>
+  /** 一节课的卡片：封面（示意图 / 配图 / 文件的样子）+ 课题 + 几页几个任务。老师这边底下多一排操作 */
+  function lessonCard(l, i) {
+    const tb = l.textbook || {}, ext = (l.file_ext || "").toUpperCase();
+    const cover = l.cover_url ? `<span class="cl-cover pic"><img src="${l.cover_url}" alt="" loading="lazy"></span>`
+      : l.cover ? `<span class="cl-cover">${l.cover}</span>`
+      : `<span class="cl-cover"><span class="cl-doc" data-no-i18n>${ext || icon("board", 30)}</span></span>`;
+    const chips = [l.n_slides ? `<i>${l.n_slides} 页</i>` : "", l.n_tasks ? `<i>${l.n_tasks} 个任务</i>` : (isTeacher() && !l.builtin ? `<i class="warn">还没有画画任务</i>` : ""),
+      `<i>${l.minutes} 分钟</i>`].join("");
+    return `<div class="cl-lesson-wrap t${i % 5}"><button class="cl-lesson" data-lesson="${l.id}">${cover}
+        <span class="cl-card-body"><span class="cl-sub" data-no-i18n>${escapeHtml([tb.lesson, l.subject].filter(Boolean).join(" · "))}</span>
+        <b data-no-i18n>${escapeHtml(l.title)}</b><span class="cl-sum" data-no-i18n>${escapeHtml(l.summary || "")}</span>
+        <span class="cl-chips">${chips}</span></span></button>
         ${!isTeacher() ? "" : l.builtin
-          ? `<div class="cl-lesson-acts"><span class="cl-tag">样板课</span><button class="linkbtn" data-copy="${l.id}">复制一份来改</button></div>`
+          ? `<div class="cl-lesson-acts"><button class="linkbtn" data-copy="${l.id}">复制一份来改</button></div>`
           : `<div class="cl-lesson-acts"><button class="linkbtn" data-edit="${l.id}">编辑</button><button class="linkbtn" data-rm="${l.id}">删除</button></div>`}
-      </div>`).join("");
+      </div>`;
+  }
+  function bindLessonCards(root) {
+    root.querySelectorAll("[data-lesson]").forEach(b => b.onclick = () => openLesson(b.dataset.lesson));
+    root.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => editLesson(b.dataset.edit));
+    root.querySelectorAll("[data-copy]").forEach(b => b.onclick = () => newLesson(b.dataset.copy));
+    root.querySelectorAll("[data-rm]").forEach(b => b.onclick = async () => {
+      if (!confirm("删除这节课？已经交上来的画不受影响。")) return;
+      await api(`${API}/classroom/lessons/${b.dataset.rm}`, { method: "DELETE" }).catch(() => {}); openClass();
+    });
   }
   function uploadRows(list, canDelete) {
     if (!list.length) return "";
@@ -1565,65 +1580,99 @@
       <span class="cl-dim" data-no-i18n>${fmtSize(u.size)}</span>${u.viewable ? "" : `<span class="cl-dim">下载后打开</span>`}
       ${canDelete ? `<button class="linkbtn" data-del="${u.id}">删除</button>` : ""}</div>`).join("");
   }
+  /** 一份现成的课件（PDF / PPT）传上来就是一节课：课题先用文件名，接着进编辑页补画画任务 */
+  async function uploadLesson(f) {
+    clToast("正在上传…");
+    let L = null;
+    try {
+      L = await api(`${API}/classroom/lessons`, { method: "POST", body: JSON.stringify({ copy_of: "" }) });
+      await clUpload(`${API}/classroom/lessons/${L.id}/files`, f);
+      L.title = f.name.replace(/\.[^.]+$/, "").slice(0, 60) || L.title;
+      await api(`${API}/classroom/lessons/${L.id}`, { method: "PUT", body: JSON.stringify(L) });
+    } catch (err) {
+      if (L) await api(`${API}/classroom/lessons/${L.id}`, { method: "DELETE" }).catch(() => {});
+      clToast(/^\d{3} /.test(err.message || "") || !err.message ? "没有传上去，请再试一次。" : err.message); return;
+    }
+    await editLesson(L.id);
+    clToast("课件传好了。加上画画任务，学生就能跟着画。");
+  }
   function renderClassHome() {
-    const bar = $("#cl-bar"), box = $("#cl-teacher");
-    $("#cl-lessons").innerHTML = (isTeacher() ? `<h3 class="cl-h">课</h3>` : "") + lessonCards()
-      + (isTeacher() ? `<button class="secondary cl-newlesson" id="cl-new-lesson">新建一节课</button>`
-         : (cl.cls && !cl.lessons.length ? `<p class="cl-dim">老师还没有往这个班里放课。</p>` : ""));
-    const box0 = $("#cl-lessons");
-    box0.querySelectorAll("[data-lesson]").forEach(b => b.onclick = () => openLesson(b.dataset.lesson));
-    box0.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => editLesson(b.dataset.edit));
-    box0.querySelectorAll("[data-copy]").forEach(b => b.onclick = () => newLesson(b.dataset.copy));
-    box0.querySelectorAll("[data-rm]").forEach(b => b.onclick = async () => {
-      if (!confirm("删除这节课？已经交上来的画不受影响。")) return;
-      await api(`${API}/classroom/lessons/${b.dataset.rm}`, { method: "DELETE" }).catch(() => {}); openClass();
-    });
-    if ($("#cl-new-lesson")) $("#cl-new-lesson").onclick = () => newLesson("");
-    box.classList.toggle("hidden", !isTeacher());
+    const bar = $("#cl-bar"), list = $("#cl-lessons"), box = $("#cl-teacher");
     if (!isTeacher()) {
+      // 学生：没进班只有输码这一块；进了班是班级 + 老师放进来的课
+      box.classList.add("hidden"); list.classList.remove("hidden");
       bar.innerHTML = cl.cls
-        ? `<div class="cl-mine"><b data-no-i18n>${escapeHtml(cl.cls.name)}</b><span class="cl-dim" data-no-i18n>${escapeHtml(cl.cls.teacher_name || "")}</span>
-             <button class="linkbtn" id="cl-leave">退出班级</button></div>`
-        : `<div class="cl-join"><label for="cl-code">班级码</label><input id="cl-code" type="text" maxlength="8" autocomplete="off" autocapitalize="characters" placeholder="老师给的六位码">
-             <button class="primary" id="cl-join-go">加入班级</button></div>`;
+        ? `<div class="cl-banner cl-mine"><span class="cl-banner-ic">${icon("board", 26)}</span><div><b data-no-i18n>${escapeHtml(cl.cls.name)}</b>
+             <span class="cl-dim" data-no-i18n>${escapeHtml(cl.cls.teacher_name || "")}</span></div><button class="linkbtn" id="cl-leave">退出班级</button></div>`
+        : `<div class="cl-joincard"><span class="cl-banner-ic big">${icon("board", 40)}</span><h2>加入班级</h2>
+             <p>输入老师给的班级码，打开这节课的课件和画画任务。</p>
+             <div class="cl-join"><input id="cl-code" type="text" maxlength="8" autocomplete="off" autocapitalize="characters" aria-label="班级码" placeholder="老师给的六位码">
+             <button class="primary" id="cl-join-go">加入班级</button></div></div>`;
+      list.innerHTML = !cl.cls ? "" : cl.lessons.length ? `<div class="cl-grid">${cl.lessons.map(lessonCard).join("")}</div>`
+        : `<p class="cl-empty">老师还没有往这个班里放课。</p>`;
+      bindLessonCards(list);
       const go = $("#cl-join-go");
-      if (go) go.onclick = async () => {
-        const code = $("#cl-code").value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
-        if (!code) return;
-        try {
-          const c = await api(`${API}/classroom/classes/${code}/join`, { method: "POST",
-            body: JSON.stringify({ anon_id: state.anonId, name: (state.account || {}).name || "" }) });
-          lsSet("artquest.class", c.code); openClass();
-        } catch (e) { clToast("没有这个班级码，请再看一下老师给的码。"); }
-      };
+      if (go) {
+        go.onclick = async () => {
+          const code = $("#cl-code").value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+          if (!code) return;
+          try {
+            const c = await api(`${API}/classroom/classes/${code}/join`, { method: "POST",
+              body: JSON.stringify({ anon_id: state.anonId, name: (state.account || {}).name || "" }) });
+            lsSet("artquest.class", c.code); openClass();
+          } catch (e) { clToast("没有这个班级码，请再看一下老师给的码。"); }
+        };
+        $("#cl-code").onkeydown = (e) => { if (e.key === "Enter") go.click(); };
+      }
       const leave = $("#cl-leave");
       if (leave) leave.onclick = () => { lsSet("artquest.class", ""); openClass(); };
       return;
     }
-    // 老师：我的班级、这个班的课件、交上来的画
-    bar.innerHTML = `<div class="cl-join"><label for="cl-name">新班级</label><input id="cl-name" type="text" maxlength="40" placeholder="例如 五（2）班">
-      <button class="primary" id="cl-new">建班</button></div>`;
-    $("#cl-new").onclick = async () => {
-      const name = $("#cl-name").value.trim(); if (!name) return;
-      try { const c = await api(`${API}/classroom/classes`, { method: "POST", body: JSON.stringify({ name }) }); cl.cur = c.code; openClass(); }
-      catch (e) { clToast("班级没有建成，请再试一次。"); }
-    };
-    if (!cl.cls) { box.innerHTML = `<p class="cl-dim">建一个班，把班级码写在黑板上，学生在「课堂」里输入它就进来了。</p>`; return; }
+    // 老师：两个分页——课程库（所有的课 + 上传）、我的班级（班级码、班上的课、交上来的画）
+    const lib = cl.tab !== "classes";
+    bar.innerHTML = `<div class="tfilter cl-tabs"><button data-cltab="library" class="${lib ? "on" : ""}">课程库<b data-no-i18n>${cl.lessons.length}</b></button>
+      <button data-cltab="classes" class="${lib ? "" : "on"}">我的班级<b data-no-i18n>${cl.classes.length}</b></button></div>`;
+    bar.querySelectorAll("[data-cltab]").forEach(b => b.onclick = () => { cl.tab = b.dataset.cltab; clToast(""); renderClassHome(); });
+    list.classList.toggle("hidden", !lib); box.classList.toggle("hidden", lib);
+    if (lib) {
+      const mine = cl.lessons.filter(l => !l.builtin), refs = cl.lessons.filter(l => l.builtin);
+      list.innerHTML = `<div class="cl-hero"><div><h2>课程库</h2><p>参考课例可以直接挂到班上，也可以复制一份来改。已有的 PDF 或 PPT 课件，传上来就是一节课。</p></div>
+          <div class="cl-hero-acts"><button class="primary" id="cl-up-lesson">上传课件</button><button class="secondary" id="cl-new-lesson">新建一节课</button></div>
+          <input type="file" id="cl-up-file" accept=".pdf,.ppt,.pptx" hidden></div>
+        <h3 class="cl-h">我的课<span class="cl-count" data-no-i18n>${mine.length}</span></h3>
+        <div class="cl-grid">${mine.map((l, i) => lessonCard(l, i + refs.length)).join("")}
+          <button class="cl-drop" id="cl-drop"><span class="cl-plus" data-no-i18n>＋</span><b>上传课件</b><span class="cl-dim">PDF 或 PPT，最大 40 MB</span></button></div>
+        <h3 class="cl-h">参考课例<span class="cl-count" data-no-i18n>${refs.length}</span></h3>
+        <div class="cl-grid">${refs.map(lessonCard).join("")}</div>`;
+      bindLessonCards(list);
+      $("#cl-new-lesson").onclick = () => newLesson("");
+      $("#cl-up-lesson").onclick = $("#cl-drop").onclick = () => $("#cl-up-file").click();
+      $("#cl-up-file").onchange = (e) => { const f = e.target.files[0]; if (f) uploadLesson(f); };
+      return;
+    }
     const w = (cl.work || {}).work || [], kinds = { practice: "课堂练习", homework: "课后作业" };
-    box.innerHTML = `
-      <div class="cl-classes">${cl.classes.map(c => `<button class="cl-class${c.code === cl.cur ? " on" : ""}" data-code="${c.code}">
+    box.innerHTML = `<div class="cl-hero"><div><h2>我的班级</h2><p>建一个班，把班级码写在黑板上，学生在「课堂」里输入它就进来了。</p></div>
+        <div class="cl-join"><input id="cl-name" type="text" maxlength="40" aria-label="新班级" placeholder="例如 五（2）班"><button class="primary" id="cl-new">建班</button></div></div>
+      ${!cl.cls ? "" : `<div class="cl-classes">${cl.classes.map(c => `<button class="cl-class${c.code === cl.cur ? " on" : ""}" data-code="${c.code}">
         <b data-no-i18n>${escapeHtml(c.name)}</b><span class="cl-codebig" data-no-i18n>${c.code}</span><span class="cl-dim">${c.n_members} 人已加入</span></button>`).join("")}</div>
-      <h3 class="cl-h">这个班上的课</h3>
+      <div class="cl-panel"><h3 class="cl-h">这个班上的课</h3><p class="cl-dim">勾上的课，学生输入班级码就能看到。</p>
       <div class="cl-pick" id="cl-pick">${cl.lessons.map(l => `<label><input type="checkbox" value="${l.id}" ${cl.cls.lessons.some(x => x.id === l.id) ? "checked" : ""}>
-        <span data-no-i18n>${escapeHtml(l.title)}</span></label>`).join("")}</div>
-      <h3 class="cl-h">我的课件</h3>
+        <span data-no-i18n>${escapeHtml(l.title)}</span></label>`).join("")}</div></div>
+      <div class="cl-panel"><h3 class="cl-h">这个班的补充课件</h3>
       <div class="cl-files" id="cl-files">${uploadRows(cl.cls.uploads, true) || `<p class="cl-dim">还没有上传。PDF 和图片学生能直接翻，PPT 需要下载。</p>`}</div>
-      <button class="secondary" id="cl-upload">上传课件</button><input type="file" id="cl-file" accept=".pdf,.png,.jpg,.jpeg,.webp,.ppt,.pptx" hidden>
-      <h3 class="cl-h">交上来的画</h3>
+      <button class="secondary" id="cl-upload">上传课件</button><input type="file" id="cl-file" accept=".pdf,.png,.jpg,.jpeg,.webp,.ppt,.pptx" hidden></div>
+      <div class="cl-panel"><h3 class="cl-h">交上来的画<span class="cl-count" data-no-i18n>${w.length}</span></h3>
       <div class="cl-work">${w.length ? w.map(r => `<button class="cl-piece" data-sid="${r.session_id}" ${r.status === "done" ? "" : "disabled"}>
         ${r.image ? `<img src="${r.image}" alt="" loading="lazy">` : `<span class="cl-blank">还在画</span>`}
         <b data-no-i18n>${escapeHtml(r.student || "")}</b><span class="cl-dim">${kinds[r.task_kind] || ""}</span><span class="cl-dim" data-no-i18n>${escapeHtml(r.task_title || "")}</span></button>`).join("")
-        : `<p class="cl-dim">还没有人交。</p>`}</div>`;
+        : `<p class="cl-dim">还没有人交。</p>`}</div></div>`}`;
+    $("#cl-new").onclick = async () => {
+      const name = $("#cl-name").value.trim(); if (!name) return;
+      try { const c = await api(`${API}/classroom/classes`, { method: "POST", body: JSON.stringify({ name }) }); cl.cur = c.code; cl.tab = "classes"; openClass(); }
+      catch (e) { clToast("班级没有建成，请再试一次。"); }
+    };
+    $("#cl-name").onkeydown = (e) => { if (e.key === "Enter") $("#cl-new").click(); };
+    if (!cl.cls) return;
     box.querySelectorAll("[data-code]").forEach(b => b.onclick = () => { cl.cur = b.dataset.code; openClass(); });
     box.querySelectorAll("[data-del]").forEach(b => b.onclick = async () => {
       await api(`${API}/classroom/classes/${cl.cur}/courseware/${b.dataset.del}`, { method: "DELETE" }).catch(() => {}); openClass(); });
@@ -1745,7 +1794,7 @@
         try { msg = JSON.parse(String(err.message).replace(/^\d+ /, "")).detail || msg; } catch (e2) { /* 用默认那句 */ }
         clToast(msg); window.scrollTo(0, 0); return;
       }
-      await openClass(); clToast("这节课保存好了。");
+      cl.tab = "library"; await openClass(); clToast("这节课保存好了。");
     };
   }
   async function openLesson(id) {
@@ -1761,7 +1810,8 @@
     $("#cl-lesson-note").classList.toggle("hidden", !(isTeacher() && tb.verified === false));
     // 这节课自带的附件 + 老师在这个班里另外传的
     const mine = (L.files || []).concat(((cl.cls || {}).uploads || []).filter(u => !u.lesson_id || u.lesson_id === L.id));
-    $("#cl-lesson-files").innerHTML = mine.length ? `<h3 class="cl-h">老师的课件</h3>${uploadRows(mine, false)}` : "";
+    $("#cl-lesson-files").innerHTML = mine.length ? `<h3 class="cl-h">课件文件</h3>${uploadRows(mine, false)}` : "";
+    cl.pdf = L.slides.length ? null : (mine.find(f => f.viewable && /\.pdf$/i.test(f.filename)) || null);
     const done = clDone(), group = (kind, name) => {
       const ts = L.tasks.filter(t => t.kind === kind); if (!ts.length) return "";
       return `<h3 class="cl-h">${name}</h3><div class="cl-tasks">${ts.map(t => `<div class="cl-task">
@@ -1782,7 +1832,12 @@
     const L = cl.lesson; if (!L) return;
     cl.page = clamp(cl.page, 0, L.slides.length - 1);
     const s = L.slides[cl.page], figs = (s || {}).figures || [], caps = (s || {}).captions || [];
-    if (!s) { $("#cl-slide").className = "cl-slide"; $("#cl-slide").innerHTML = ""; $("#cl-stage").classList.add("hidden"); return; }
+    $("#cl-stage").classList.toggle("pdf", !s && !!cl.pdf);
+    if (!s) {
+      $("#cl-slide").className = "cl-slide";
+      $("#cl-slide").innerHTML = cl.pdf ? `<iframe class="cl-pdf" src="${cl.pdf.url}#view=FitH" title="${escapeHtml(cl.pdf.filename)}"></iframe>` : "";
+      $("#cl-stage").classList.toggle("hidden", !cl.pdf); return;
+    }
     $("#cl-stage").classList.remove("hidden");
     $("#cl-slide").className = "cl-slide" + (s.kind ? " " + s.kind : "") + (figs.length > 1 ? " many" : "");
     $("#cl-slide").innerHTML = `<h2 data-no-i18n>${escapeHtml(s.title)}</h2>
