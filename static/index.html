@@ -137,11 +137,12 @@
     <p class="acct-hint">填年龄是为了推荐更合适的任务。</p>
     <div class="age-gate-row"><input id="age-gate-input" type="text" inputmode="numeric" maxlength="2" placeholder="几岁"><button class="primary" id="btn-age-gate">开始<i data-icon="arrowRight" data-size="17"></i></button></div>
   </div>
-  <!-- 顶上细细一条三栏：日常任务（下面这张地图）/ 课程任务（看完课件放进来的，标题 = 课程名 · 任务名）/ 已完成。没有课程任务时这一条不出现 -->
-  <div class="task-tabs hidden" id="task-tabs" role="tablist"></div>
-  <div class="class-tasks hidden" id="class-tasks"></div>
   <div class="map-lead" id="map-lead"><span id="map-lead-text">选一个主题，开始今天的创作。</span><span class="map-count hidden" id="map-count"></span></div>
   <p class="map-note hidden" id="age-gate-note">先从下面的主题里挑一个。</p>
+  <!-- 任务都在这一页（2026-11-17）：日常任务（地图）/ 课程任务 / 已完成，三段各自能收起来；右边那张卡只有一张，选谁放谁。
+       一道课程任务都没有时三个段头不出现，这一页就是原来的样子。 -->
+  <div class="task-left" id="task-left">
+  <button class="task-sec hidden" id="sec-daily" data-sec="daily" aria-expanded="true"></button>
   <div class="map" id="quest-grid">
     <!-- 十个地方之间的小路。它**不表示顺序**（家族之间本来就没有先后），
          它只做一件事：把十个散落的点变成一片连着的地。
@@ -149,11 +150,14 @@
          2026-10-04 起先藏起来（CSS）：用户说只是装饰就先不画，等背景和地标升级再定。 -->
     <svg class="map-path" id="map-path" aria-hidden="true" preserveAspectRatio="none"></svg>
   </div>
+  <button class="task-sec hidden" id="sec-class" data-sec="class"></button>
+  <div class="class-tasks hidden" id="class-tasks"></div>
+  <button class="task-sec hidden" id="sec-done" data-sec="done"></button>
+  <div class="class-tasks hidden" id="done-tasks"></div>
+  </div>
   <!-- 右边（窄屏在下面）的任务卡：当前选择 / 任务名 / 简介 / 开始画 / 探索精灵。
        点地图上的地点只是换这张卡；进去的那一步在卡上。 -->
   <div class="today hidden" id="today"></div>
-  <!-- 课程任务 / 已完成这两栏的右边：和上面那张一样的卡，放选中的那道课程任务 -->
-  <div class="today hidden" id="today-class"></div>
 </section>
 
 <!-- ===== tab 2：画廊 =====

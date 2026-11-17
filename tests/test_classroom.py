@@ -452,39 +452,40 @@ class ClassroomInTheBrowser(unittest.TestCase):
             page.wait_for_selector("#class-lesson:not(.hidden) #cl-lesson-tasks .cl-tag.ok")
             self.assertEqual(page.eval_on_selector_all("#cl-lesson-tasks .cl-tag.ok", "e=>e.length"), 1)
 
-            # 「任务」页顶上细细一条三栏：日常任务 / 课程任务 / 已完成。刚看完课件过来，落在「课程任务」
+            # 「任务」是一页三段：日常任务（地图）/ 课程任务 / 已完成，各自能收起来；右边只有一张卡，选谁放谁
             page.click('.tab[data-tab="map"]')
             page.wait_for_selector("#class-tasks:not(.hidden) .ct-row")
-            self.assertEqual(page.eval_on_selector_all("#task-tabs button", "e=>e.map(x=>x.textContent)"), ["日常任务", "课程任务3", "已完成1"])
-            self.assertEqual(page.get_attribute("#task-tabs button.on", "data-pane"), "class")
+            self.assertEqual(page.eval_on_selector_all(".task-sec", "e=>e.map(x=>x.textContent)"), ["日常任务", "课程任务3", "已完成1"])
+            self.assertTrue(page.is_visible("#quest-grid .quest-card"), "地图和课程任务在同一页")
             titles = page.eval_on_selector_all("#class-tasks .ct-row b", "e=>e.map(x=>x.textContent)")
             self.assertEqual(titles, ["家乡的桥 · 一座有远近的桥", "家乡的桥 · 我家乡的桥", "家乡的桥 · 未来的桥"])
-            self.assertFalse(page.is_visible("#quest-grid"), "课程任务这一栏里没有地图")
+            # 简介只有一句短的
+            self.assertEqual(page.inner_text("#class-tasks .ct-row .ct-what"), "画一座从近处伸向远处的桥")
             self.assertFalse(page.evaluate("document.querySelector('.tab[data-tab=\"map\"]').classList.contains('has-new')"))
+            # 刚看完课件过来：右边那张卡上就是新来的第一道
+            self.assertIn("家乡的桥 · 一座有远近的桥", page.inner_text("#today .t-title"))
+            self.assertEqual(page.eval_on_selector_all("#today, #today-class", "e=>e.length"), 1, "右边只有一张卡")
+            page.click('#class-tasks .ct-row >> nth=1')                  # 点一条只是选中
+            self.assertIn("家乡的桥 · 我家乡的桥", page.inner_text("#today .t-title"))
+            self.assertFalse(page.is_visible("#view-draw"))
             if SHOTS:
                 page.wait_for_timeout(500)
                 page.screenshot(path=SHOTS + "/map_tasks.png", full_page=True)
-            page.click('#task-tabs [data-pane="done"]')                  # 画过的在「已完成」
-            self.assertEqual(page.eval_on_selector_all("#class-tasks .ct-row b", "e=>e.map(x=>x.textContent)"), ["家乡的桥 · 桥的样子"])
-            page.click('#task-tabs [data-pane="daily"]')                 # 「日常任务」就是原来那张地图
-            page.wait_for_selector("#quest-grid .quest-card")
-            self.assertFalse(page.is_visible("#class-tasks"))
+            self.assertFalse(page.is_visible("#done-tasks"), "已完成默认收着")
+            page.click("#sec-done")
+            self.assertEqual(page.eval_on_selector_all("#done-tasks .ct-row b", "e=>e.map(x=>x.textContent)"), ["家乡的桥 · 桥的样子"])
+            page.click("#sec-daily")                                     # 日常任务收起来
+            self.assertFalse(page.is_visible("#quest-grid"))
             if SHOTS:
-                page.wait_for_timeout(500)
-                page.screenshot(path=SHOTS + "/map_daily.png", full_page=True)
-            page.click('#task-tabs [data-pane="class"]')
-            # 和日常任务一样：点一条只是选中，右边那张卡上有精灵、标题、具体介绍和「开始画」
-            self.assertIn("家乡的桥 · 一座有远近的桥", page.inner_text("#today-class .t-title"))
-            self.assertEqual(page.eval_on_selector_all("#class-tasks .ct-row.next b", "e=>e.map(x=>x.textContent)"), ["家乡的桥 · 一座有远近的桥"])
-            page.click('#class-tasks .ct-row >> nth=1')
-            self.assertIn("家乡的桥 · 我家乡的桥", page.inner_text("#today-class .t-title"))
-            self.assertIn("要做到", page.inner_text("#today-class"))
-            self.assertFalse(page.is_visible("#view-draw"), "点一条只是选中，不直接开画")
+                page.wait_for_timeout(300)
+                page.screenshot(path=SHOTS + "/map_folded.png", full_page=True)
+            page.click("#sec-daily")
+            self.assertTrue(page.is_visible("#quest-grid .quest-card"))
+            page.click("#quest-grid .quest-card")                        # 点地图上的地方：右边那张卡换回日常任务
+            self.assertNotIn("家乡的桥", page.inner_text("#today .t-title"))
+            self.assertEqual(page.eval_on_selector_all(".ct-row.next", "e=>e.length"), 0)
             page.click("#class-tasks .ct-row")
-            if SHOTS:
-                page.wait_for_timeout(500)
-                page.screenshot(path=SHOTS + "/map_tasks.png", full_page=True)
-            page.click("#btn-ct-go")
+            page.click("#btn-today")
             page.wait_for_selector("#view-draw:not(.hidden)")
             self.assertIn("一座有远近的桥", page.inner_text("#draw-quest-card"))
 

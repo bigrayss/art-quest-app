@@ -1538,53 +1538,64 @@
     return n;
   }
   function classNewDot() { const t = document.querySelector('.tab[data-tab="map"]'); if (t) t.classList.toggle("has-new", lsGet("artquest.class.new") === "1"); }
-  /** 「任务」页顶上细细一条三栏：日常任务（原来那张地图）/ 课程任务（看完课件放进来的，没画的）/ 已完成（画过的课程任务）。
-   *  一道课程任务都没有的时候，这一条不出现，任务页就是原来的样子。 */
+  /** 「任务」这一页三段：日常任务（原来那张地图）/ 课程任务（看完课件放进来的，没画的）/ 已完成（画过的课程任务）。
+   *  每段能收起来；右边那张卡（#today）只有一张——点地图上的地方放那个地方，点一条课程任务放那道任务。
+   *  一道课程任务都没有的时候段头不出现，任务页就是原来的样子。 */
+  const secOpen = () => { let v = {}; try { v = JSON.parse(lsGet("artquest.tasks.open") || "{}") || {}; } catch (e) { /* 用默认的 */ }
+    return { daily: v.daily !== false, class: v.class !== false, done: v.done === true }; };
+  const ctBrief = (t) => { const x = String(t || "").split(/[。；;：:！？!?\n]/)[0].trim(); return x.length > 20 ? x.slice(0, 19) + "…" : x; };
   function renderClassTasks() {
-    const view = $("#view-quest"), tabs = $("#task-tabs"), box = $("#class-tasks"); if (!box || !tabs) return;
+    const view = $("#view-quest"), box = $("#class-tasks"), dbox = $("#done-tasks"); if (!box || !dbox) return;
     const rows = clTasks(), done = clDone();
     const hide = !rows.length || isTeacher() || !!(state.study && state.study.sequence);
-    tabs.classList.toggle("hidden", hide);
-    if (hide) { view.dataset.pane = "daily"; box.classList.add("hidden"); return; }
-    // 刚看完课件过来的：直接落在「课程任务」
-    if (lsGet("artquest.class.new") === "1") { lsSet("artquest.class.new", ""); classNewDot(); state.taskPane = "class"; }
-    const pane = state.taskPane || "daily";
+    view.classList.toggle("has-secs", !hide);
+    ["daily", "class", "done"].forEach(k => $(`#sec-${k}`).classList.toggle("hidden", hide));
+    if (hide) { box.classList.add("hidden"); dbox.classList.add("hidden"); view.classList.remove("sec-daily-closed"); return; }
+    const open = secOpen();
+    const fresh = lsGet("artquest.class.new") === "1";      // 刚看完课件过来
+    if (fresh) { lsSet("artquest.class.new", ""); classNewDot(); open.class = true; lsSet("artquest.tasks.open", JSON.stringify(open)); }
     const isDone = (r) => done.indexOf(r.task_id) >= 0, kinds = { practice: "课堂练习", homework: "课后作业" };
     const todo = rows.filter(r => !isDone(r)), fin = rows.filter(isDone);
-    view.dataset.pane = pane;
-    tabs.innerHTML = [["daily", "日常任务", null], ["class", "课程任务", todo.length], ["done", "已完成", fin.length]].map(([k, name, n]) =>
-      `<button role="tab" data-pane="${k}" class="${k === pane ? "on" : ""}">${name}${n == null ? "" : `<b data-no-i18n>${n}</b>`}</button>`).join("");
-    tabs.querySelectorAll("[data-pane]").forEach(b => b.onclick = () => { state.taskPane = b.dataset.pane; renderClassTasks(); if (state.taskPane === "daily") paintMapPath(); });
-    box.classList.toggle("hidden", pane === "daily");
-    const side = $("#today-class");
-    if (pane === "daily") { side.classList.add("hidden"); return; }
-    const list = pane === "done" ? fin : todo;
-    // 和日常任务一样：点一条只是选中，右边那张卡上是精灵、「开始画」、标题和具体介绍
-    const sel = list.find(r => r.task_id === state.ctSel) || list[0] || null;
-    side.classList.toggle("hidden", !sel);
-    if (sel) {
-      side.style.setProperty("--tc-l", mixHex(buddyColor(), 14, "#fff")); side.style.setProperty("--tc-d", mixHex(buddyColor(), 72, "#000"));
-      side.innerHTML = buddyHtml("t-sprite", isDone(sel) ? "happy" : "explore", null, "fig")
-        + `<div class="t-go"><button class="primary big grow" id="btn-ct-go">${isDone(sel) ? "再画一张" : "开始画"}${icon("arrowRight", 17)}</button></div>`
-        + `<div class="t-body"><div class="t-kicker"><span>${kinds[sel.kind] || ""}</span> · <span>${sel.minutes} 分钟</span>${sel.optional ? ` · <span>选做</span>` : ""}</div>
-           <div class="t-title" data-no-i18n>${escapeHtml(sel.lesson_title)} · ${escapeHtml(sel.title)}</div>
-           <p class="t-blurb" data-no-i18n>${escapeHtml(sel.instruction)}</p>
-           ${sel.requirements ? `<p class="t-blurb t-req" data-no-i18n><span class="req-k">要做到</span>${escapeHtml(sel.requirements)}</p>` : ""}
-           ${sel.hint ? `<p class="t-blurb t-hint" data-no-i18n>${escapeHtml(sel.hint)}</p>` : ""}</div>`;
-      $("#btn-ct-go").onclick = () => startClassTask(sel);
+    const head = (k, name, n) => { const el = $(`#sec-${k}`);
+      el.className = "task-sec" + (open[k] ? " open" : ""); el.setAttribute("aria-expanded", open[k] ? "true" : "false");
+      el.innerHTML = `<span>${name}</span>${n == null ? "" : `<b data-no-i18n>${n}</b>`}`;
+      el.onclick = () => { const o = secOpen(); o[k] = !o[k]; lsSet("artquest.tasks.open", JSON.stringify(o)); renderClassTasks(); if (k === "daily" && o.daily) paintMapPath(); }; };
+    head("daily", "日常任务", null); head("class", "课程任务", todo.length); head("done", "已完成", fin.length);
+    view.classList.toggle("sec-daily-closed", !open.daily);
+    if (fresh && todo.length) {          // 右边那张卡直接放上新来的第一道
+      const latest = rows[rows.length - 1].lesson_id;
+      state.ctSel = (todo.find(r => r.lesson_id === latest) || todo[0]).task_id;
     }
-    // 和日常任务列表同一种框：左边小图标（这节课的封面，没有就用黑板），右边两行——标题、简介
-    box.innerHTML = list.length ? `<div class="ct-list">${list.map(r => `<button class="ct-row${isDone(r) ? " done" : ""}${sel && r.task_id === sel.task_id ? " next" : ""}" data-ct="${r.task_id}">
+    // 和日常任务列表同一种框：左边小图标（这节课的封面，没有就用黑板），右边两行——标题、一句短简介
+    const row = (r) => `<button class="ct-row${isDone(r) ? " done" : ""}${r.task_id === state.ctSel ? " next" : ""}" data-ct="${r.task_id}">
         <span class="ct-ic">${r.cover_url ? `<img src="${r.cover_url}" alt="" loading="lazy">` : icon("board", 26)}${isDone(r) ? `<span class="node-star">${icon("star", 14)}</span>` : ""}</span>
         <span class="qc-text"><span class="ct-title"><b data-no-i18n>${escapeHtml(r.lesson_title)} · ${escapeHtml(r.title)}</b>
           <span class="ct-meta"><i>${kinds[r.kind] || ""}</i><i>${r.minutes} 分钟</i>${r.optional ? `<i>选做</i>` : ""}</span></span>
-        <span class="ct-what" data-no-i18n>${escapeHtml(r.instruction)}</span></span></button>`).join("")}</div>`
-      : `<p class="cl-empty">${pane === "done" ? "画完的课程任务会放在这里。" : "课程任务都画完了。去「课堂」看一节新课，会有新的任务。"}</p>`;
-    box.querySelectorAll("[data-ct]").forEach(b => b.onclick = () => {
-      state.ctSel = b.dataset.ct; renderClassTasks();
-      // 窄屏上那张卡在列表上面：选了就滚回去，和日常任务一样
-      if (innerWidth <= 700) $("#today-class").scrollIntoView({ block: "start", behavior: "smooth" });
-    });
+        <span class="ct-what" data-no-i18n>${escapeHtml(ctBrief(r.instruction))}</span></span></button>`;
+    const fill = (el, list, on, empty) => {
+      el.classList.toggle("hidden", !on);
+      el.innerHTML = !on ? "" : list.length ? `<div class="ct-list">${list.map(row).join("")}</div>` : `<p class="cl-empty">${empty}</p>`;
+      el.querySelectorAll("[data-ct]").forEach(b => b.onclick = () => {
+        state.ctSel = b.dataset.ct; renderClassTasks();
+        // 窄屏上那张卡在最上面：选了就滚回去，和日常任务一样
+        if (innerWidth <= 700) $("#today").scrollIntoView({ block: "start", behavior: "smooth" });
+      });
+    };
+    fill(box, todo, open.class, "课程任务都画完了。去「课堂」看一节新课，会有新的任务。");
+    fill(dbox, fin, open.done, "画完的课程任务会放在这里。");
+    const sel = rows.find(r => r.task_id === state.ctSel);
+    if (!sel) return;
+    // 右边那张卡换成这道课程任务：精灵、「开始画」、标题、画什么
+    const side = $("#today");
+    document.querySelectorAll("#quest-grid .quest-card.next").forEach(x => x.classList.remove("next"));
+    side.style.setProperty("--tc-l", mixHex(buddyColor(), 14, "#fff")); side.style.setProperty("--tc-d", mixHex(buddyColor(), 72, "#000"));
+    side.innerHTML = buddyHtml("t-sprite", isDone(sel) ? "happy" : "explore", null, "fig")
+      + `<div class="t-go"><button class="primary big grow" id="btn-today">${isDone(sel) ? "再画一张" : "开始画"}${icon("arrowRight", 17)}</button></div>`
+      + `<div class="t-body"><div class="t-title" data-no-i18n>${escapeHtml(sel.lesson_title)} · ${escapeHtml(sel.title)}</div>
+         <p class="t-blurb" data-no-i18n>${escapeHtml(sel.instruction)}</p></div>`;
+    side.classList.remove("hidden");
+    $("#btn-today").onclick = () => startClassTask(sel);
+    if (fresh) $("#sec-class").scrollIntoView({ block: "nearest" });
   }
   async function startClassTask(r) {
     let L = null;
@@ -4065,6 +4076,7 @@
    *  以为这一屏坏了。 */
   function paintToday(card, nDone, nTotal) {
     const box = $("#today"); if (!box) return;
+    if (state.ctSel) { state.ctSel = null; document.querySelectorAll(".ct-row.next").forEach(x => x.classList.remove("next")); }
     const all = !card && nTotal > 0 && nDone >= nTotal;
     if (!card && !all) { box.classList.add("hidden"); box.innerHTML = ""; return; }
     const c = (card && card.color) || buddyColor();
