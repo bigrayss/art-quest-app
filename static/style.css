@@ -2620,3 +2620,32 @@ body.offline .needs-net { display:none !important; }
 .cl-drop { cursor:default; } .cl-drop:hover { background:transparent; border-color:var(--line-d); }
 .cl-drop-acts { display:flex; gap:8px; margin:4px 0; }
 .cl-drop-acts button { padding:6px 16px; }
+
+/* 任务页三栏（2026-11-17）：顶上细细一条，课程任务一行一条 */
+#view-quest .task-tabs, #view-quest .class-tasks { grid-column:1 / -1; order:-1; }
+.task-tabs { display:flex; gap:2px; margin:0 0 12px; border-bottom:2px solid var(--line); overflow-x:auto; }
+.task-tabs button { flex:none; padding:8px 16px 9px; margin-bottom:-2px; border:0; border-bottom:3px solid transparent; border-radius:0; box-shadow:none; background:none;
+  color:var(--muted-2); font-weight:800; white-space:nowrap; }
+.task-tabs button:hover { background:none; color:var(--ink); } .task-tabs button:active { transform:none; }
+.task-tabs button.on { color:var(--accent-d); border-bottom-color:var(--accent); }
+.task-tabs button b { margin-left:6px; padding:0 7px; border-radius:999px; background:var(--soft); color:var(--muted-2); font-size:.75rem; font-weight:800; }
+.task-tabs button.on b { background:var(--accent-l); color:var(--accent-d); }
+/* 不在「日常任务」这一栏时，地图那一套整个收起来 */
+#view-quest[data-pane="class"] > :not(.task-tabs):not(.class-tasks), #view-quest[data-pane="done"] > :not(.task-tabs):not(.class-tasks) { display:none !important; }
+.class-tasks { margin:0; }
+.ct-list { display:flex; flex-direction:column; gap:6px; }
+.ct-row { display:flex; align-items:center; justify-content:flex-start; gap:12px; width:100%; height:auto; min-height:44px; padding:8px 14px; border-radius:12px;
+  text-align:left; font-weight:400; border-left:4px solid var(--blue); }
+.ct-row b { flex:none; max-width:46%; font-size:.9375rem; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ct-row .ct-what { flex:1; min-width:0; display:block; -webkit-line-clamp:unset; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:.875rem; color:var(--muted-2); }
+.ct-meta { flex:none; display:flex; font-size:.75rem; color:var(--muted); white-space:nowrap; }
+.ct-meta i { font-style:normal; } .ct-meta i + i::before { content:"·"; margin:0 5px; }
+.ct-row > svg { flex:none; color:var(--muted); }
+.ct-row.done { border-left-color:var(--green); }
+@media (max-width:700px) {
+  .ct-row { flex-wrap:wrap; gap:2px 10px; }
+  .ct-row b { max-width:100%; flex:1 1 100%; white-space:normal; }
+  .ct-row .ct-what { flex:1 1 100%; }
+}
+
+#cl-mycls .cl-grid + .cl-joinrow { margin-top:14px; }

@@ -1516,14 +1516,17 @@
   const isClassTask = (q) => !!q && String(q.id || "").indexOf("CL_") === 0;
   const clDone = () => { try { return JSON.parse(lsGet("artquest.class.done") || "[]"); } catch (e) { return []; } };
   function classMarkDone(taskId) { const d = clDone(); if (d.indexOf(taskId) < 0) { d.push(taskId); lsSet("artquest.class.done", JSON.stringify(d)); } }
-  const myClassCode = () => lsGet("artquest.class") || "";
+  // 学生加过的班级码：加一个就一直在（没有「退出」）。老的单个码（artquest.class）并进来
+  const myCodes = () => { const v = lsList("artquest.classes"), old = lsGet("artquest.class") || ""; return old && v.indexOf(old) < 0 ? v.concat(old) : v; };
+  /** 这节课是哪个班的：学生 = 加过的班里第一个挂着它的；老师 = 正在看的那个班 */
+  const classOf = (lessonId) => isTeacher() ? cl.cls : ((cl.joined || []).find(c => c.lessons.some(x => x.id === lessonId)) || null);
   const lsList = (k) => { try { const v = JSON.parse(lsGet(k) || "[]"); return Array.isArray(v) ? v : []; } catch (e) { return []; } };
   // 看完一节课的课件，它的画画任务就放进「任务」里：seen = 看完了哪几节，tasks = 放进去的任务（标题 = 课程名 · 任务名）
   const clSeen = () => lsList("artquest.class.seen"), clTasks = () => lsList("artquest.class.tasks");
   function classUnlock(L) {
     const seen = clSeen(), rows = clTasks(); let n = 0;
     if (seen.indexOf(L.id) < 0) { seen.push(L.id); lsSet("artquest.class.seen", JSON.stringify(seen)); }
-    const code = cl.cls && cl.cls.lessons.some(x => x.id === L.id) ? cl.cls.code : "";
+    const code = (classOf(L.id) || {}).code || "";
     L.tasks.forEach(t => {
       if (rows.some(r => r.task_id === t.task_id)) return;
       rows.push({ task_id: t.task_id, lesson_id: L.id, lesson_title: L.title, title: t.title, instruction: t.instruction,
@@ -1534,20 +1537,30 @@
     return n;
   }
   function classNewDot() { const t = document.querySelector('.tab[data-tab="map"]'); if (t) t.classList.toggle("has-new", lsGet("artquest.class.new") === "1"); }
-  /** 「任务」页最上面的一块：看完课件放进来的课程任务。没画的在前，画过的排后面 */
+  /** 「任务」页顶上细细一条三栏：日常任务（原来那张地图）/ 课程任务（看完课件放进来的，没画的）/ 已完成（画过的课程任务）。
+   *  一道课程任务都没有的时候，这一条不出现，任务页就是原来的样子。 */
   function renderClassTasks() {
-    const box = $("#class-tasks"); if (!box) return;
+    const view = $("#view-quest"), tabs = $("#task-tabs"), box = $("#class-tasks"); if (!box || !tabs) return;
     const rows = clTasks(), done = clDone();
     const hide = !rows.length || isTeacher() || !!(state.study && state.study.sequence);
-    box.classList.toggle("hidden", hide);
-    if (hide) return;
-    if (lsGet("artquest.class.new") === "1") { lsSet("artquest.class.new", ""); classNewDot(); }
+    tabs.classList.toggle("hidden", hide);
+    if (hide) { view.dataset.pane = "daily"; box.classList.add("hidden"); return; }
+    // 刚看完课件过来的：直接落在「课程任务」
+    if (lsGet("artquest.class.new") === "1") { lsSet("artquest.class.new", ""); classNewDot(); state.taskPane = "class"; }
+    const pane = state.taskPane || "daily";
     const isDone = (r) => done.indexOf(r.task_id) >= 0, kinds = { practice: "课堂练习", homework: "课后作业" };
-    const sorted = rows.filter(r => !isDone(r)).concat(rows.filter(isDone));
-    box.innerHTML = `<h3 class="cl-h">课程任务<span class="cl-count" data-no-i18n>${rows.filter(r => !isDone(r)).length}</span></h3>
-      <div class="ct-list">${sorted.map(r => `<button class="ct-card${isDone(r) ? " done" : ""}" data-ct="${r.task_id}">
+    const todo = rows.filter(r => !isDone(r)), fin = rows.filter(isDone);
+    view.dataset.pane = pane;
+    tabs.innerHTML = [["daily", "日常任务", null], ["class", "课程任务", todo.length], ["done", "已完成", fin.length]].map(([k, name, n]) =>
+      `<button role="tab" data-pane="${k}" class="${k === pane ? "on" : ""}">${name}${n == null ? "" : `<b data-no-i18n>${n}</b>`}</button>`).join("");
+    tabs.querySelectorAll("[data-pane]").forEach(b => b.onclick = () => { state.taskPane = b.dataset.pane; renderClassTasks(); if (state.taskPane === "daily") paintMapPath(); });
+    box.classList.toggle("hidden", pane === "daily");
+    if (pane === "daily") return;
+    const list = pane === "done" ? fin : todo;
+    box.innerHTML = list.length ? `<div class="ct-list">${list.map(r => `<button class="ct-row${isDone(r) ? " done" : ""}" data-ct="${r.task_id}">
         <b data-no-i18n>${escapeHtml(r.lesson_title)} · ${escapeHtml(r.title)}</b><span class="ct-what" data-no-i18n>${escapeHtml(r.instruction)}</span>
-        <span class="cl-chips"><i>${kinds[r.kind] || ""}</i><i>${r.minutes} 分钟</i>${r.optional ? `<i>选做</i>` : ""}${isDone(r) ? `<i class="ok">画过了</i>` : ""}</span></button>`).join("")}</div>`;
+        <span class="ct-meta"><i>${kinds[r.kind] || ""}</i><i>${r.minutes} 分钟</i>${r.optional ? `<i>选做</i>` : ""}</span>${icon("arrowRight", 16)}</button>`).join("")}</div>`
+      : `<p class="cl-empty">${pane === "done" ? "画完的课程任务会放在这里。" : "课程任务都画完了。去「课堂」看一节新课，会有新的任务。"}</p>`;
     box.querySelectorAll("[data-ct]").forEach(b => b.onclick = () => startClassTask(rows.find(r => r.task_id === b.dataset.ct)));
   }
   async function startClassTask(r) {
@@ -1651,7 +1664,7 @@
     root.querySelectorAll("a[data-view]").forEach(a => a.onclick = (e) => {
       e.preventDefault(); openViewer(a.dataset.view === "slides" ? a.dataset.play : a.getAttribute("href"), a.textContent, a.dataset.view); });
   }
-  const cl = { cls: null, lessons: [], lesson: null, page: 0, classes: [], cur: "", work: null, edit: null, tab: "library", pdf: null, pub: [], unlocked: false };
+  const cl = { cls: null, lessons: [], lesson: null, page: 0, classes: [], cur: "", work: null, edit: null, tab: "library", pdf: null, pub: [], unlocked: false, joined: [] };
   /** 把一个文件传上去：文件本身就是请求体，文件名放在查询串里。→ 服务器回的那一行，或者抛出一句能给人看的话 */
   async function clUpload(url, f) {
     const r = await fetch(`${url}?filename=${encodeURIComponent(f.name)}`, { method: "POST",
@@ -1675,12 +1688,14 @@
         cl.work = cl.cur ? await api(`${API}/classroom/classes/${cl.cur}/work`) : null;
       } else {
         cl.cls = null;
-        if (myClassCode()) cl.cls = await api(`${API}/classroom/classes/${myClassCode()}`).catch(() => null);
+        // 加过的班一个个取；码不在了（老师删了班）就跳过。同一节课在两个班里只摆一张卡
+        cl.joined = (await Promise.all(myCodes().map(c => api(`${API}/classroom/classes/${c}`).catch(() => null)))).filter(Boolean);
       }
       // 老师：样板课 + 自己录的课，全摆出来。学生：只有班上的课——没进班就只有输码那一栏
       const all = await api(`${API}/classroom/lessons`);
       cl.pub = all.filter(l => l.public);
-      cl.lessons = isTeacher() ? all : (cl.cls ? cl.cls.lessons : []);
+      const seenIds = new Set();
+      cl.lessons = isTeacher() ? all : cl.joined.flatMap(c => c.lessons).filter(l => !seenIds.has(l.id) && seenIds.add(l.id));
     } catch (e) { clToast("课堂暂时打不开，请检查网络后再试。"); }
     renderClassHome();
   }
@@ -1742,30 +1757,29 @@
       bar.innerHTML = "";
       list.innerHTML = `<h3 class="cl-h">公开课<span class="cl-count" data-no-i18n>${cl.pub.length}</span></h3>
         <div class="cl-grid" id="cl-public">${cl.pub.map(lessonCard).join("")}</div>
-        <h3 class="cl-h">我的课堂${cl.cls ? `<span class="cl-count" data-no-i18n>${cl.lessons.length}</span>` : ""}</h3>
-        <div id="cl-mycls">${cl.cls
-          ? `<div class="cl-banner cl-mine"><span class="cl-banner-ic">${icon("board", 26)}</span><div><b data-no-i18n>${escapeHtml(cl.cls.name)}</b>
-               <span class="cl-dim" data-no-i18n>${escapeHtml(cl.cls.teacher_name || "")}</span></div><button class="linkbtn" id="cl-leave">退出班级</button></div>
-             ${cl.lessons.length ? `<div class="cl-grid">${cl.lessons.map((l, i) => lessonCard(l, i + cl.pub.length)).join("")}</div>` : `<p class="cl-empty">老师还没有往这个班里放课。</p>`}`
-          : `<div class="cl-joinrow"><span class="cl-banner-ic">${icon("board", 26)}</span><p>输入老师给的班级码，班上的课会出现在这里。</p>
-               <div class="cl-join"><input id="cl-code" type="text" maxlength="8" autocomplete="off" autocapitalize="characters" aria-label="班级码" placeholder="老师给的六位码">
-               <button class="primary" id="cl-join-go">加入班级</button></div></div>`}</div>`;
+        <h3 class="cl-h">我的课堂${cl.lessons.length ? `<span class="cl-count" data-no-i18n>${cl.lessons.length}</span>` : ""}</h3>
+        <div id="cl-mycls">${cl.lessons.length ? `<div class="cl-grid">${cl.lessons.map((l, i) => lessonCard(l, i + cl.pub.length)).join("")}</div>` : ""}
+          <div class="cl-joinrow"><span class="cl-banner-ic">${icon("board", 26)}</span>
+            <p>${cl.lessons.length ? "还有别的班级码？输进来，那个班的课也加到这里。" : "输入老师给的班级码，班上的课就加到这里。"}</p>
+            <div class="cl-join"><input id="cl-code" type="text" maxlength="8" autocomplete="off" autocapitalize="characters" aria-label="班级码" placeholder="老师给的六位码">
+            <button class="primary" id="cl-join-go">添加</button></div></div></div>`;
       bindLessonCards(list);
       const go = $("#cl-join-go");
-      if (go) {
-        go.onclick = async () => {
-          const code = $("#cl-code").value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
-          if (!code) return;
-          try {
-            const c = await api(`${API}/classroom/classes/${code}/join`, { method: "POST",
-              body: JSON.stringify({ anon_id: state.anonId, name: (state.account || {}).name || "" }) });
-            lsSet("artquest.class", c.code); openClass();
-          } catch (e) { clToast("没有这个班级码，请再看一下老师给的码。"); }
-        };
-        $("#cl-code").onkeydown = (e) => { if (e.key === "Enter") go.click(); };
-      }
-      const leave = $("#cl-leave");
-      if (leave) leave.onclick = () => { lsSet("artquest.class", ""); openClass(); };
+      go.onclick = async () => {
+        const code = $("#cl-code").value.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+        if (!code) return;
+        let c = null;
+        try {
+          c = await api(`${API}/classroom/classes/${code}/join`, { method: "POST",
+            body: JSON.stringify({ anon_id: state.anonId, name: (state.account || {}).name || "" }) });
+        } catch (e) { clToast("没有这个班级码，请再看一下老师给的码。"); return; }
+        const codes = myCodes();
+        if (codes.indexOf(c.code) < 0) codes.push(c.code);
+        lsSet("artquest.classes", JSON.stringify(codes)); lsSet("artquest.class", "");
+        await openClass();
+        clToast(c.lessons.length ? `${c.name}的课加进来了。` : `${c.name}加上了，老师还没有往这个班里放课。`);
+      };
+      $("#cl-code").onkeydown = (e) => { if (e.key === "Enter") go.click(); };
       return;
     }
     // 老师：两个分页——课程库（所有的课 + 上传）、我的班级（班级码、班上的课、交上来的画）
@@ -1962,7 +1976,7 @@
     $("#cl-lesson-note").classList.toggle("hidden", !(isTeacher() && tb.verified === false));
     // 这节课自带的附件 + 老师在这个班里另外传的。参考课例那份整份 PDF 和一页页的课件是同一个内容，只给老师（打印、投屏用）
     const mine = (L.files || []).filter(f => isTeacher() || !(L.builtin && f.id === "pdf"))
-      .concat(((cl.cls || {}).uploads || []).filter(u => !u.lesson_id || u.lesson_id === L.id));
+      .concat(((classOf(L.id) || {}).uploads || []).filter(u => !u.lesson_id || u.lesson_id === L.id));
     $("#cl-lesson-files").innerHTML = mine.length ? `<h3 class="cl-h">课件文件</h3>${uploadRows(mine, false)}` : "";
     bindViewer($("#cl-lesson-files"));
     cl.pdf = L.slides.length ? null : (mine.find(f => f.play_url || (f.viewable && /\.pdf$/i.test(f.filename))) || null);
@@ -1991,7 +2005,7 @@
     box.innerHTML = group("practice", "课堂练习") + group("homework", "课后作业");
     box.querySelectorAll("[data-task]").forEach(b => b.onclick = () => {
       const t = L.tasks.find(x => x.task_id === b.dataset.task);
-      state.classroom = { class_code: cl.cls && cl.cls.lessons.some(x => x.id === L.id) ? cl.cls.code : "", lesson_id: L.id };
+      state.classroom = { class_code: (classOf(L.id) || {}).code || "", lesson_id: L.id };
       chooseQuest(t.quest, { entrypoint: "classroom", choice_source: "child_click" });
     });
   }

@@ -389,8 +389,21 @@ class ClassroomInTheBrowser(unittest.TestCase):
             page.wait_for_selector("#cl-msg:not(.hidden)")              # 码不对：说一句，不进班
             page.fill("#cl-code", code.lower())
             page.click("#cl-join-go")
-            page.wait_for_selector(".cl-mine")
-            self.assertIn("五（3）班", page.inner_text(".cl-mine"))
+            # 加一个码，那个班的课就加进「我的课堂」，和公开课一样是卡片；没有「退出班级」，输码栏还在，可以再加别的班
+            page.wait_for_selector("#cl-mycls .cl-lesson")
+            self.assertIn("五（3）班", page.inner_text("#cl-msg"))
+            self.assertEqual(page.eval_on_selector_all("#cl-leave, .cl-mine", "e=>e.length"), 0)
+            self.assertTrue(page.is_visible("#cl-code"))
+            self.assertEqual(page.evaluate("JSON.parse(localStorage.getItem('artquest.classes'))"), [code])
+            # 再加一个班的码：两个班的课都在
+            code2 = c.post("/api/classroom/classes", headers=t, json={"name": "美术社团", "lesson_ids": ["zj5a_shadow"]}).json()["code"]
+            page.fill("#cl-code", code2)
+            page.click("#cl-join-go")
+            page.wait_for_selector('#cl-mycls .cl-lesson[data-lesson="zj5a_shadow"]')
+            self.assertEqual(page.eval_on_selector_all("#cl-mycls .cl-lesson b", "e=>e.map(x=>x.textContent)"), ["家乡的桥", "皮影戏"])
+            if SHOTS:
+                page.wait_for_timeout(400)
+                page.screenshot(path=SHOTS + "/student_home2.png", full_page=True)
 
             page.click('.cl-lesson[data-lesson="%s"]' % LESSON)
             page.wait_for_selector("#class-lesson:not(.hidden) #cl-slide h2")
@@ -439,17 +452,28 @@ class ClassroomInTheBrowser(unittest.TestCase):
             page.wait_for_selector("#class-lesson:not(.hidden) #cl-lesson-tasks .cl-tag.ok")
             self.assertEqual(page.eval_on_selector_all("#cl-lesson-tasks .cl-tag.ok", "e=>e.length"), 1)
 
-            # 「任务」页最上面是课程任务：标题 = 课程名 · 任务名；画过的排在后面；点一下就开画
+            # 「任务」页顶上细细一条三栏：日常任务 / 课程任务 / 已完成。刚看完课件过来，落在「课程任务」
             page.click('.tab[data-tab="map"]')
-            page.wait_for_selector("#class-tasks:not(.hidden) .ct-card")
-            titles = page.eval_on_selector_all("#class-tasks .ct-card b", "e=>e.map(x=>x.textContent)")
-            self.assertEqual(titles, ["家乡的桥 · 一座有远近的桥", "家乡的桥 · 我家乡的桥", "家乡的桥 · 未来的桥", "家乡的桥 · 桥的样子"])
-            self.assertEqual(page.eval_on_selector_all("#class-tasks .ct-card.done", "e=>e.length"), 1)
+            page.wait_for_selector("#class-tasks:not(.hidden) .ct-row")
+            self.assertEqual(page.eval_on_selector_all("#task-tabs button", "e=>e.map(x=>x.textContent)"), ["日常任务", "课程任务3", "已完成1"])
+            self.assertEqual(page.get_attribute("#task-tabs button.on", "data-pane"), "class")
+            titles = page.eval_on_selector_all("#class-tasks .ct-row b", "e=>e.map(x=>x.textContent)")
+            self.assertEqual(titles, ["家乡的桥 · 一座有远近的桥", "家乡的桥 · 我家乡的桥", "家乡的桥 · 未来的桥"])
+            self.assertFalse(page.is_visible("#quest-grid"), "课程任务这一栏里没有地图")
             self.assertFalse(page.evaluate("document.querySelector('.tab[data-tab=\"map\"]').classList.contains('has-new')"))
             if SHOTS:
                 page.wait_for_timeout(500)
                 page.screenshot(path=SHOTS + "/map_tasks.png", full_page=True)
-            page.click("#class-tasks .ct-card")
+            page.click('#task-tabs [data-pane="done"]')                  # 画过的在「已完成」
+            self.assertEqual(page.eval_on_selector_all("#class-tasks .ct-row b", "e=>e.map(x=>x.textContent)"), ["家乡的桥 · 桥的样子"])
+            page.click('#task-tabs [data-pane="daily"]')                 # 「日常任务」就是原来那张地图
+            page.wait_for_selector("#quest-grid .quest-card")
+            self.assertFalse(page.is_visible("#class-tasks"))
+            if SHOTS:
+                page.wait_for_timeout(500)
+                page.screenshot(path=SHOTS + "/map_daily.png", full_page=True)
+            page.click('#task-tabs [data-pane="class"]')
+            page.click("#class-tasks .ct-row")
             page.wait_for_selector("#view-draw:not(.hidden)")
             self.assertIn("一座有远近的桥", page.inner_text("#draw-quest-card"))
 
@@ -470,7 +494,8 @@ class ClassroomInTheBrowser(unittest.TestCase):
             if SHOTS:
                 tpage.screenshot(path=SHOTS + "/library.png", full_page=True)
             tpage.click('[data-cltab="classes"]')
-            tpage.wait_for_selector(".cl-class.on")
+            tpage.click('.cl-class[data-code="%s"]' % code)             # 这位老师现在有两个班，点开学生交了画的那个
+            tpage.wait_for_selector('.cl-class.on[data-code="%s"]' % code)
             self.assertIn(code, tpage.inner_text(".cl-class.on"))
             tpage.wait_for_selector(".cl-piece img")
             self.assertIn("课堂练习", tpage.inner_text(".cl-piece"))
@@ -660,7 +685,7 @@ class ClassroomInTheBrowser(unittest.TestCase):
                 page.screenshot(path=SHOTS + "/join.png", full_page=True)
             page.fill("#cl-code", code)
             page.click("#cl-join-go")
-            page.wait_for_selector(".cl-mine")
+            page.wait_for_selector("#cl-mycls .cl-lesson")
             self.assertEqual(page.eval_on_selector_all("#cl-mycls .cl-lesson b", "e=>e.map(x=>x.textContent)"), ["会跳舞的线"])
             self.assertEqual(page.eval_on_selector_all("[data-edit], [data-copy], #cl-new-lesson", "e=>e.length"), 0)
             page.click("#cl-mycls .cl-lesson")

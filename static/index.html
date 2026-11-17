@@ -137,7 +137,8 @@
     <p class="acct-hint">填年龄是为了推荐更合适的任务。</p>
     <div class="age-gate-row"><input id="age-gate-input" type="text" inputmode="numeric" maxlength="2" placeholder="几岁"><button class="primary" id="btn-age-gate">开始<i data-icon="arrowRight" data-size="17"></i></button></div>
   </div>
-  <!-- 课程任务：在「课堂」里看完一节课的课件，它的画画任务放到这里（标题 = 课程名 · 任务名） -->
+  <!-- 顶上细细一条三栏：日常任务（下面这张地图）/ 课程任务（看完课件放进来的，标题 = 课程名 · 任务名）/ 已完成。没有课程任务时这一条不出现 -->
+  <div class="task-tabs hidden" id="task-tabs" role="tablist"></div>
   <div class="class-tasks hidden" id="class-tasks"></div>
   <div class="map-lead" id="map-lead"><span id="map-lead-text">选一个主题，开始今天的创作。</span><span class="map-count hidden" id="map-count"></span></div>
   <p class="map-note hidden" id="age-gate-note">先从下面的主题里挑一个。</p>
