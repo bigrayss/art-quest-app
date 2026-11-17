@@ -287,7 +287,7 @@ window.ARTQUEST_LANG_EN = {
   "正在打开课件…": "Opening the courseware…",
   "日常任务": "Daily tasks",
   "已完成": "Done",
-  "画完的课程任务会放在这里。": "Lesson tasks you finish show up here.",
+  "画完的任务会放在这里。": "Tasks you finish show up here.",
   "课程任务都画完了。去「课堂」看一节新课，会有新的任务。": "All lesson tasks are done. Open a new lesson under Class for more.",
   "添加": "Add",
   "还有别的班级码？输进来，那个班的课也加到这里。": "Have another class code? Enter it and that class's lessons are added here too.",

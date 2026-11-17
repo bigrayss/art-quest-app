@@ -528,6 +528,70 @@ class ClassroomInTheBrowser(unittest.TestCase):
         self.assertEqual(len(work["members"]), 1)
 
 
+    def test_the_first_visit_list_and_the_lesson_tasks_share_one_finished_section(self):
+        """首访列表自己折着一个「已完成 · n」。有了课程任务之后这一页只留一个「已完成」：画完的日常任务和课程任务都在里面，各标一句。"""
+        import json
+
+        import artquest.config as cfg_mod
+        from playwright.sync_api import sync_playwright
+
+        rows = [{"task_id": f"CL_{LESSON}_{k}", "lesson_id": LESSON, "lesson_title": "家乡的桥", "title": name, "instruction": "画一座桥。再画上水面。",
+                 "kind": "practice", "minutes": 10, "optional": False, "class_code": ""} for k, name in (("p1", "桥的样子"), ("p2", "一座有远近的桥"))]
+        old = cfg_mod.FIRST_VISIT_BANK
+        cfg_mod.FIRST_VISIT_BANK = True
+        errors = []
+        try:
+            with sync_playwright() as pw:
+                browser = pw.chromium.launch(channel="chrome")
+                page = browser.new_page(viewport={"width": 1280, "height": 900})
+                page.on("pageerror", lambda e: errors.append(str(e)))
+                page.set_default_timeout(15000)
+                page.add_init_script("localStorage.setItem('artquest.tour/2','1'); localStorage.setItem('artquest.acct_prompted','1');"
+                                     "localStorage.setItem('artquest.class.tasks', %r); localStorage.setItem('artquest.class.done', %r)"
+                                     % (json.dumps(rows), json.dumps([rows[0]["task_id"]])))
+                page.goto(self.base)
+                page.wait_for_selector("#view-world:not(.hidden)", timeout=8000)
+                page.click("#btn-enter-world")
+                page.wait_for_selector("#age-gate:not(.hidden)")
+                page.fill("#age-gate-input", "9")
+                page.click("#btn-age-gate")
+                page.wait_for_selector("#quest-grid.list .map-col.todo .quest-card")
+                self.assertEqual(page.eval_on_selector_all(".task-sec", "e=>e.map(x=>x.textContent)"), ["日常任务", "课程任务1", "已完成1"])
+                # 画完一道日常任务
+                page.click("#quest-grid .map-col.todo .quest-card")
+                page.click("#btn-today")
+                page.wait_for_selector("#view-draw:not(.hidden)")
+                _, _, stroke_from = self.tb.ZoomKeepsStrokesInCanvasSpace._canvas_tools(page)
+                stroke_from(200, 200, 160, 40)
+                page.wait_for_timeout(3000)
+                page.click("#btn-submit")
+                page.wait_for_selector("#view-result:not(.hidden)")
+                page.click("#btn-skip-revise")
+                page.wait_for_selector("#view-survey:not(.hidden), #view-final:not(.hidden)", timeout=20000)
+                if page.is_visible("#view-survey"):
+                    page.click("#btn-survey-skip")
+                page.wait_for_selector("#view-final:not(.hidden)", timeout=20000)
+                page.click("#btn-again")
+                page.wait_for_selector("#quest-grid.list .map-col.todo .quest-card")
+                page.wait_for_function("document.querySelector('#sec-done').textContent === '已完成2'")
+                # 地图里自己那个「已完成」不再露面；这一页写着「已完成」的只有一处
+                self.assertFalse(page.is_visible("#quest-grid details.map-col.done"))
+                self.assertEqual(page.evaluate("[...document.querySelectorAll('#view-quest summary, #view-quest .task-sec')].filter(e => e.offsetParent && e.textContent.includes('已完成')).length"), 1)
+                page.click("#sec-done")
+                self.assertEqual(page.eval_on_selector_all("#done-tasks .ct-row", "e=>e.length"), 1)
+                self.assertEqual(page.eval_on_selector_all("#done-daily .quest-card", "e=>e.length"), 1)
+                self.assertEqual(page.eval_on_selector_all(".done-cap", "e=>e.filter(x=>x.offsetParent).map(x=>x.textContent)"), ["课程任务", "日常任务"])
+                if SHOTS:
+                    page.wait_for_timeout(400)
+                    page.screenshot(path=SHOTS + "/one_done.png", full_page=True)
+                page.click("#sec-done")                                  # 收起来再打开，卡还在
+                page.click("#sec-done")
+                self.assertEqual(page.eval_on_selector_all("#done-daily .quest-card", "e=>e.filter(x=>x.offsetParent).length"), 1)
+                browser.close()
+        finally:
+            cfg_mod.FIRST_VISIT_BANK = old
+        self.assertEqual(errors, [])
+
     def test_opening_the_class_tab_right_after_launch_is_not_pulled_back_to_the_cover(self):
         """启动时封面要等服务器（彩点长到哪了）。等的这一下人已经点去了「课堂」，回来不能把他拽回封面。"""
         from playwright.sync_api import sync_playwright

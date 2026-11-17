@@ -1550,7 +1550,16 @@
     const hide = !rows.length || isTeacher() || !!(state.study && state.study.sequence);
     view.classList.toggle("has-secs", !hide);
     ["daily", "class", "done"].forEach(k => $(`#sec-${k}`).classList.toggle("hidden", hide));
-    if (hide) { box.classList.add("hidden"); dbox.classList.add("hidden"); view.classList.remove("sec-daily-closed"); return; }
+    const dd = $("#done-daily"), fold = $("#quest-grid details.map-col.done");
+    if (hide) {
+      box.classList.add("hidden"); dbox.classList.add("hidden"); dd.classList.add("hidden"); view.classList.remove("sec-daily-closed");
+      $("#done-daily-cap").classList.add("hidden");
+      if (fold) [...dd.children].forEach(el => fold.appendChild(el));     // 段头不在了：画完的日常任务回到地图自己那个折叠里
+      return;
+    }
+    // 首访列表自己折着一个「已完成 · n」，和这一页的「已完成」撞了：把那几张画完的日常任务搬过来，一页只留一个「已完成」
+    if (fold) [...fold.querySelectorAll(".quest-card")].forEach(el => dd.appendChild(el));
+    const nDaily = dd.children.length;
     const open = secOpen();
     const fresh = lsGet("artquest.class.new") === "1";      // 刚看完课件过来
     if (fresh) { lsSet("artquest.class.new", ""); classNewDot(); open.class = true; lsSet("artquest.tasks.open", JSON.stringify(open)); }
@@ -1560,7 +1569,7 @@
       el.className = "task-sec" + (open[k] ? " open" : ""); el.setAttribute("aria-expanded", open[k] ? "true" : "false");
       el.innerHTML = `<span>${name}</span>${n == null ? "" : `<b data-no-i18n>${n}</b>`}`;
       el.onclick = () => { const o = secOpen(); o[k] = !o[k]; lsSet("artquest.tasks.open", JSON.stringify(o)); renderClassTasks(); if (k === "daily" && o.daily) paintMapPath(); }; };
-    head("daily", "日常任务", null); head("class", "课程任务", todo.length); head("done", "已完成", fin.length);
+    head("daily", "日常任务", null); head("class", "课程任务", todo.length); head("done", "已完成", fin.length + nDaily);
     view.classList.toggle("sec-daily-closed", !open.daily);
     if (fresh && todo.length) {          // 右边那张卡直接放上新来的第一道
       const latest = rows[rows.length - 1].lesson_id;
@@ -1582,7 +1591,11 @@
       });
     };
     fill(box, todo, open.class, "课程任务都画完了。去「课堂」看一节新课，会有新的任务。");
-    fill(dbox, fin, open.done, "画完的课程任务会放在这里。");
+    fill(dbox, fin, open.done && (fin.length > 0 || !nDaily), "画完的任务会放在这里。");
+    dd.classList.toggle("hidden", !open.done || !nDaily);
+    // 两种都有的时候各标一句小字，分清楚
+    if (open.done && fin.length && nDaily) dbox.insertAdjacentHTML("afterbegin", `<p class="done-cap">课程任务</p>`);
+    $("#done-daily-cap").classList.toggle("hidden", !(open.done && fin.length && nDaily));
     const sel = rows.find(r => r.task_id === state.ctSel);
     if (!sel) return;
     // 右边那张卡换成这道课程任务：精灵、「开始画」、标题、画什么
@@ -3854,6 +3867,7 @@
     }
     const grid = $("#quest-grid"); if (!grid) return;
     grid.querySelectorAll(".quest-card, .map-col").forEach(el => el.remove());
+    const dd0 = $("#done-daily"); if (dd0) dd0.innerHTML = "";      // 搬去「已完成」那一段的旧卡也清掉
     const seq = state.study && state.study.sequence ? state.study.sequence : null;
     const byId = Object.fromEntries(state.quests.map(q => [q.id, q]));
 
@@ -4005,6 +4019,7 @@
       else grid.appendChild(el);
     });
     paintToday(nextCard, nDone, cards.length);
+    renderClassTasks();      // 三段的段头、数字跟着地图一起更新（画完的日常任务要搬进「已完成」）
     paintMapPath();
     // 上报：摆了哪几道（protocol 是整条序列；老地图是家族卡；首访是五个待办位，不含锁卡和已完成）。
     // client 权威下这是影子对照；server 权威下回来的那份就是要摆的（不一样就重摆一次）。按服务端那份重摆时不再上报。

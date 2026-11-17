@@ -2710,3 +2710,9 @@ body.offline .needs-net { display:none !important; }
 }
 @media (max-width:700px) { #view-quest .task-left { order:2; } }
 #view-quest .task-left .class-tasks { align-self:stretch; }
+
+/* 一页只留一个「已完成」：首访列表里画完的日常任务搬到这一段 */
+#view-quest.has-secs .map.list details.map-col.done { display:none; }
+#view-quest .map.done-daily { height:auto; min-height:0; padding:0; margin:0 0 4px; background:none; border:0; box-shadow:none; }
+.done-cap { margin:2px 4px 6px; font-size:.8125rem; font-weight:800; color:var(--muted); }
+#done-daily-cap { margin-top:10px; }
