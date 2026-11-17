@@ -1607,15 +1607,49 @@
       if (onEnd) onEnd();
     }
   }
-  /** 课件文件（PDF、图片）点开就在页面上看 */
-  function openViewer(url, name) {
+  /** 放映：一次一页，上一页 / 下一页（PPT 传上来转成的那份 PDF 这样放）。翻到最后一页叫 `onEnd`。→ { go(±1) } */
+  async function pdfDeck(el, url, onEnd) {
+    el.innerHTML = `<div class="cl-deck"><div class="cl-deck-page"><p class="cl-dim">正在打开课件…</p></div>
+      <div class="cl-nav cl-deck-nav"><button class="secondary" data-d="-1">上一页</button><span class="cl-deck-n" data-no-i18n></span><button class="secondary" data-d="1">下一页</button></div></div>`;
+    const box = el.querySelector(".cl-deck-page"), label = el.querySelector(".cl-deck-n");
+    const ctl = { n: 0, i: 1, go: () => {} };
+    try {
+      const lib = await loadPdfLib(), doc = await lib.getDocument(url).promise;
+      if (!box.isConnected) return ctl;
+      const c = document.createElement("canvas"); c.className = "cl-pdfpage"; box.innerHTML = ""; box.appendChild(c);
+      let busy = null;
+      const draw = async () => {
+        const page = await doc.getPage(ctl.i), w = page.getViewport({ scale: 1 }).width;
+        const vp = page.getViewport({ scale: Math.min(3, (box.clientWidth || 900) * Math.min(2, devicePixelRatio || 1) / w) });
+        if (busy) { try { busy.cancel(); } catch (e) { /* 上一页还没画完 */ } }
+        c.width = vp.width; c.height = vp.height; c.style.aspectRatio = `${vp.width} / ${vp.height}`;
+        busy = page.render({ canvasContext: c.getContext("2d"), viewport: vp });
+        try { await busy.promise; c.classList.add("ready"); } catch (e) { /* 被下一次翻页取消了 */ }
+        label.textContent = `${ctl.i} / ${doc.numPages}`;
+        el.querySelector('[data-d="-1"]').disabled = ctl.i === 1; el.querySelector('[data-d="1"]').disabled = ctl.i === doc.numPages;
+        if (ctl.i === doc.numPages && onEnd) onEnd();
+      };
+      ctl.n = doc.numPages;
+      ctl.go = (d) => { const j = clamp(ctl.i + d, 1, doc.numPages); if (j !== ctl.i) { ctl.i = j; draw(); } };
+      el.querySelectorAll("[data-d]").forEach(b => b.onclick = () => ctl.go(+b.dataset.d));
+      await draw();
+    } catch (e) {
+      if (box.isConnected) { el.innerHTML = `<iframe class="cl-pdf" src="${url}#view=FitH" title=""></iframe>`; if (onEnd) onEnd(); }
+    }
+    return ctl;
+  }
+  /** 课件文件点开就在页面上看：PDF 往下滚，PPT 一页一页放，图片直接摆 */
+  function openViewer(url, name, mode) {
     const v = $("#cl-viewer"); v.classList.remove("hidden");
     $("#cl-viewer-name").textContent = name || "";
-    if (/\.pdf$/i.test(name || url)) pdfView($("#cl-viewer-body"), url);
+    cl.viewDeck = null;
+    if (mode === "slides") pdfDeck($("#cl-viewer-body"), url).then(d => { cl.viewDeck = d; });
+    else if (/\.pdf$/i.test(name || url)) pdfView($("#cl-viewer-body"), url);
     else $("#cl-viewer-body").innerHTML = `<div class="cl-pdfview"><img class="cl-pdfpage ready" src="${url}" alt=""></div>`;
   }
   function bindViewer(root) {
-    root.querySelectorAll("a[data-view]").forEach(a => a.onclick = (e) => { e.preventDefault(); openViewer(a.getAttribute("href"), a.textContent); });
+    root.querySelectorAll("a[data-view]").forEach(a => a.onclick = (e) => {
+      e.preventDefault(); openViewer(a.dataset.view === "slides" ? a.dataset.play : a.getAttribute("href"), a.textContent, a.dataset.view); });
   }
   const cl = { cls: null, lessons: [], lesson: null, page: 0, classes: [], cur: "", work: null, edit: null, tab: "library", pdf: null, pub: [], unlocked: false };
   /** 把一个文件传上去：文件本身就是请求体，文件名放在查询串里。→ 服务器回的那一行，或者抛出一句能给人看的话 */
@@ -1678,17 +1712,18 @@
   }
   function uploadRows(list, canDelete) {
     if (!list.length) return "";
-    return list.map(u => `<div class="cl-file"><a href="${u.url}" target="_blank" rel="noopener" data-no-i18n${u.viewable ? " data-view" : ""}>${escapeHtml(u.filename)}</a>
-      <span class="cl-dim" data-no-i18n>${fmtSize(u.size)}</span>${u.viewable ? "" : `<span class="cl-dim">下载后打开</span>`}
+    return list.map(u => `<div class="cl-file"><a href="${u.url}" target="_blank" rel="noopener" data-no-i18n${u.play_url ? ` data-view="slides" data-play="${u.play_url}"` : u.viewable ? ` data-view="scroll"` : ""}>${escapeHtml(u.filename)}</a>
+      <span class="cl-dim" data-no-i18n>${fmtSize(u.size)}</span>${u.viewable || u.play_url ? "" : `<span class="cl-dim">下载后打开</span>`}
       ${canDelete ? `<button class="linkbtn" data-del="${u.id}">删除</button>` : ""}</div>`).join("");
   }
   /** 一份现成的课件（PDF / PPT）传上来就是一节课：课题先用文件名，接着进编辑页补画画任务 */
   async function uploadLesson(f) {
-    clToast("正在上传…");
-    let L = null;
+    const ppt = /\.pptx?$/i.test(f.name);
+    clToast(ppt ? "正在上传并转成放映，可能要等半分钟…" : "正在上传…");
+    let L = null, row = null;
     try {
       L = await api(`${API}/classroom/lessons`, { method: "POST", body: JSON.stringify({ copy_of: "" }) });
-      await clUpload(`${API}/classroom/lessons/${L.id}/files`, f);
+      row = await clUpload(`${API}/classroom/lessons/${L.id}/files`, f);
       L.title = f.name.replace(/\.[^.]+$/, "").slice(0, 60) || L.title;
       await api(`${API}/classroom/lessons/${L.id}`, { method: "PUT", body: JSON.stringify(L) });
     } catch (err) {
@@ -1696,7 +1731,8 @@
       clToast(/^\d{3} /.test(err.message || "") || !err.message ? "没有传上去，请再试一次。" : err.message); return;
     }
     await editLesson(L.id);
-    clToast("课件传好了。加上画画任务，学生就能跟着画。");
+    clToast(ppt && !row.play_url ? "PPT 传上来了，但没能转成放映，学生只能下载后打开。另存为 PDF 再传一份就能直接看。"
+      : "课件传好了。加上画画任务，学生就能跟着画。");
   }
   function renderClassHome() {
     const bar = $("#cl-bar"), list = $("#cl-lessons"), box = $("#cl-teacher");
@@ -1740,20 +1776,23 @@
     list.classList.toggle("hidden", !lib); box.classList.toggle("hidden", lib);
     if (lib) {
       const mine = cl.lessons.filter(l => !l.builtin), refs = cl.lessons.filter(l => l.builtin && !l.public);
-      list.innerHTML = `<div class="cl-hero"><div><h2>课程库</h2><p>参考课例可以直接挂到班上，也可以复制一份来改。已有的 PDF 或 PPT 课件，传上来就是一节课。</p></div>
-          <div class="cl-hero-acts"><button class="primary" id="cl-up-lesson">上传课件</button><button class="secondary" id="cl-new-lesson">新建一节课</button></div>
-          <input type="file" id="cl-up-file" accept=".pdf,.ppt,.pptx" hidden></div>
+      list.innerHTML = `<div class="cl-hero"><div><h2>课程库</h2><p>已有的课件传上来就是一节课：PDF 学生往下滚着看，PPT 一页一页放映。也可以把参考课例复制一份来改。</p></div>
+          <div class="cl-hero-acts"><button class="primary" id="cl-up-lesson">上传 PDF</button><button class="primary" id="cl-up-ppt-btn">上传 PPT</button><button class="secondary" id="cl-new-lesson">新建一节课</button></div>
+          <input type="file" id="cl-up-file" accept=".pdf" hidden><input type="file" id="cl-up-ppt" accept=".ppt,.pptx" hidden></div>
         <h3 class="cl-h">我的课<span class="cl-count" data-no-i18n>${mine.length}</span></h3>
         <div class="cl-grid">${mine.map((l, i) => lessonCard(l, i + refs.length)).join("")}
-          <button class="cl-drop" id="cl-drop"><span class="cl-plus" data-no-i18n>＋</span><b>上传课件</b><span class="cl-dim">PDF 或 PPT，最大 40 MB</span></button></div>
+          <div class="cl-drop"><span class="cl-plus" data-no-i18n>＋</span><b>上传课件</b>
+            <span class="cl-drop-acts"><button class="secondary" id="cl-drop-pdf">PDF</button><button class="secondary" id="cl-drop-ppt">PPT</button></span>
+            <span class="cl-dim">最大 40 MB</span></div></div>
         <h3 class="cl-h">公开课<span class="cl-count" data-no-i18n>${cl.pub.length}</span><span class="cl-dim cl-h-note">不用班级码，学生都看得到</span></h3>
         <div class="cl-grid">${cl.pub.map((l, i) => lessonCard(l, i + refs.length)).join("")}</div>
         <h3 class="cl-h">参考课例<span class="cl-count" data-no-i18n>${refs.length}</span><span class="cl-dim cl-h-note">勾到班上，学生输班级码才看得到</span></h3>
         <div class="cl-grid">${refs.map(lessonCard).join("")}</div>`;
       bindLessonCards(list);
       $("#cl-new-lesson").onclick = () => newLesson("");
-      $("#cl-up-lesson").onclick = $("#cl-drop").onclick = () => $("#cl-up-file").click();
-      $("#cl-up-file").onchange = (e) => { const f = e.target.files[0]; if (f) uploadLesson(f); };
+      $("#cl-up-lesson").onclick = $("#cl-drop-pdf").onclick = () => $("#cl-up-file").click();
+      $("#cl-up-ppt-btn").onclick = $("#cl-drop-ppt").onclick = () => $("#cl-up-ppt").click();
+      $("#cl-up-file").onchange = $("#cl-up-ppt").onchange = (e) => { const f = e.target.files[0]; if (f) uploadLesson(f); };
       return;
     }
     const w = (cl.work || {}).work || [], kinds = { practice: "课堂练习", homework: "课后作业" };
@@ -1843,11 +1882,11 @@
       <button class="secondary" id="ed-add-slide">加一页</button>
       <h3 class="cl-h">附件</h3>
       <div id="ed-files">${(L.files || []).map(f => `<div class="cl-file"><a href="${f.url}" target="_blank" rel="noopener" data-no-i18n>${escapeHtml(f.filename)}</a>
-        <span class="cl-dim" data-no-i18n>${fmtSize(f.size)}</span><button class="linkbtn" data-rmfile="${f.id}">删除</button></div>`).join("")
+        <span class="cl-dim" data-no-i18n>${fmtSize(f.size)}</span><span class="cl-dim">${f.play_url ? "放映" : /\.pdf$/i.test(f.filename) ? "滚动" : /\.pptx?$/i.test(f.filename) ? "下载后打开" : ""}</span><button class="linkbtn" data-rmfile="${f.id}">删除</button></div>`).join("")
         || `<p class="cl-dim">已有现成的 PDF 或 PPT 课件，可以直接传上来。</p>`}</div>
-      <p class="cl-dim">PDF 学生在页面里直接往下翻；PPT 只能下载后打开，建议另存为 PDF 再传。</p>
-      <button class="secondary" id="ed-add-file">上传 PDF 或 PPT</button>
-      <input type="file" id="ed-file" accept=".pdf,.ppt,.pptx,.png,.jpg,.jpeg,.webp" hidden><input type="file" id="ed-img" accept=".png,.jpg,.jpeg,.webp" hidden>
+      <p class="cl-dim">PDF 学生在页面里往下滚着看；PPT 会转成一页一页的放映。</p>
+      <div class="cl-hero-acts"><button class="secondary" id="ed-add-file">上传 PDF</button><button class="secondary" id="ed-add-ppt">上传 PPT</button></div>
+      <input type="file" id="ed-file" accept=".pdf" hidden><input type="file" id="ed-ppt" accept=".ppt,.pptx" hidden><input type="file" id="ed-img" accept=".png,.jpg,.jpeg,.webp" hidden>
       <h3 class="cl-h">画画任务</h3>
       <div id="ed-tasks">${L.tasks.map(task).join("")}</div>
       <button class="secondary" id="ed-add-task">加一个任务</button>
@@ -1885,10 +1924,15 @@
       catch (err) { clToast(err.message); }
     };
     $("#ed-add-file").onclick = () => $("#ed-file").click();
-    $("#ed-file").onchange = async (e) => {
+    $("#ed-add-ppt").onclick = () => $("#ed-ppt").click();
+    $("#ed-file").onchange = $("#ed-ppt").onchange = async (e) => {
       const f = e.target.files[0]; if (!f) return;
-      try { const row = await clUpload(files, f); redo(() => { (L.files = L.files || []).push(row); }); clToast(""); }
-      catch (err) { clToast(err.message); }
+      const ppt = /\.pptx?$/i.test(f.name);
+      clToast(ppt ? "正在上传并转成放映，可能要等半分钟…" : "正在上传…");
+      try {
+        const row = await clUpload(files, f); redo(() => { (L.files = L.files || []).push(row); });
+        clToast(ppt && !row.play_url ? "PPT 传上来了，但没能转成放映，学生只能下载后打开。另存为 PDF 再传一份就能直接看。" : "");
+      } catch (err) { clToast(err.message); }
     };
     root.querySelectorAll("[data-rmfile]").forEach(b => b.onclick = async () => {
       await api(`${files}/${b.dataset.rmfile}`, { method: "DELETE" }).catch(() => {});
@@ -1921,7 +1965,8 @@
       .concat(((cl.cls || {}).uploads || []).filter(u => !u.lesson_id || u.lesson_id === L.id));
     $("#cl-lesson-files").innerHTML = mine.length ? `<h3 class="cl-h">课件文件</h3>${uploadRows(mine, false)}` : "";
     bindViewer($("#cl-lesson-files"));
-    cl.pdf = L.slides.length ? null : (mine.find(f => f.viewable && /\.pdf$/i.test(f.filename)) || null);
+    cl.pdf = L.slides.length ? null : (mine.find(f => f.play_url || (f.viewable && /\.pdf$/i.test(f.filename))) || null);
+    cl.deck = null;
     // 学生：课件看到最后一页，画画任务才出来，同时放进「任务」里。老师随时看得到
     cl.unlocked = isTeacher() || clSeen().indexOf(L.id) >= 0;
     $("#cl-lesson-done").classList.add("hidden");
@@ -1972,11 +2017,15 @@
     if (!s) {
       $("#cl-slide").className = "cl-slide";
       $("#cl-stage").classList.toggle("hidden", !cl.pdf);
-      if (cl.pdf) pdfView($("#cl-slide"), cl.pdf.url, lessonSeen); else $("#cl-slide").innerHTML = "";
+      if (!cl.pdf) $("#cl-slide").innerHTML = "";
+      else if (cl.pdf.play_url) pdfDeck($("#cl-slide"), cl.pdf.play_url, lessonSeen).then(d => { cl.deck = d; });
+      else pdfView($("#cl-slide"), cl.pdf.url, lessonSeen);
       return;
     }
     $("#cl-stage").classList.remove("hidden");
-    $("#cl-slide").className = "cl-slide" + (s.kind ? " " + s.kind : "") + (figs.length > 1 ? " many" : "");
+    // 类名带 k- 前缀：原来直接用 kind（"cover"），撞上了网站封面的全局 .cover
+    $("#cl-slide").className = "cl-slide" + (s.kind ? " k-" + s.kind : "") + (figs.length > 1 ? " many" : "")
+      + (!s.kind && figs.length <= 1 && (s.image_url || figs.length) ? " k-side" : "");
     $("#cl-slide").innerHTML = `<h2 data-no-i18n>${escapeHtml(s.title)}</h2>
       ${s.image_url ? `<div class="cl-figs pic"><figure><img src="${s.image_url}" alt="">${s.credit ? `<figcaption data-no-i18n>${escapeHtml(s.credit)}</figcaption>` : ""}</figure></div>` : ""}
       ${figs.length ? `<div class="cl-figs">${figs.map((f, i) => `<figure>${f}${caps[i] ? `<figcaption data-no-i18n>${escapeHtml(caps[i])}</figcaption>` : ""}</figure>`).join("")}</div>` : ""}
@@ -2002,8 +2051,13 @@
     document.addEventListener("keydown", (e) => {
       if ($("#view-class").classList.contains("hidden") || $("#class-lesson").classList.contains("hidden")) return;
       if (/^(INPUT|TEXTAREA|SELECT)$/.test((e.target || {}).tagName || "")) return;
-      if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") { e.preventDefault(); cl.page++; renderSlide(); }
-      if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); cl.page--; renderSlide(); }
+      const fwd = e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ", back = e.key === "ArrowLeft" || e.key === "PageUp";
+      if (!fwd && !back) return;
+      // 放映着的 PPT（浮层里的优先）用它自己的翻页；滚动的 PDF 不拦键盘
+      const deck = !$("#cl-viewer").classList.contains("hidden") ? cl.viewDeck : cl.deck;
+      if (deck) { e.preventDefault(); deck.go(fwd ? 1 : -1); return; }
+      if (!cl.lesson || !cl.lesson.slides.length || !$("#cl-viewer").classList.contains("hidden")) return;
+      e.preventDefault(); cl.page += fwd ? 1 : -1; renderSlide();
     });
   }
   bindClass();

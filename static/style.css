@@ -2398,10 +2398,10 @@ body.offline .needs-net { display:none !important; }
 .cl-stage:fullscreen { border:0; border-radius:0; padding:4vh 6vw; justify-content:space-between; font-size:1.5rem; overflow:auto; }
 .cl-slide { min-height:min(52vh, 420px); display:flex; flex-direction:column; gap:14px; }
 .cl-slide h2 { margin:0; font-size:1.75em; }
-.cl-slide.cover { align-items:center; justify-content:center; text-align:center; }
-.cl-slide.cover h2 { font-size:2.6em; }
+.cl-slide.k-cover { align-items:center; justify-content:center; text-align:center; }
+.cl-slide.k-cover h2 { font-size:2.6em; }
 .cl-slide ul { margin:0; padding-left:1.2em; display:flex; flex-direction:column; gap:.5em; font-size:1.125em; line-height:1.6; }
-.cl-slide.cover ul { list-style:none; padding:0; }
+.cl-slide.k-cover ul { list-style:none; padding:0; }
 .cl-figs { display:grid; grid-template-columns:minmax(0, 420px); justify-content:center; gap:14px; color:var(--ink, #333); }
 .cl-slide.many .cl-figs { grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); justify-content:stretch; }
 .cl-figs figure { margin:0; background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px; }
@@ -2579,3 +2579,44 @@ body.offline .needs-net { display:none !important; }
 .cl-viewer-body .cl-pdfview, .cl-viewer-body .cl-pdf { height:100%; }
 .cl-cover { position:relative; overflow:hidden; flex:none; }
 .cl-cover.pic img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+
+/* 课件页在各种屏幕上都要装得下（2026-11-17）。第一页原来叫 .cover，和网站封面的全局 .cover 撞名，被套了固定高度 → 内容溢出。
+   课件页自己的类一律带 k- 前缀。 */
+.cl-stage { font-size:clamp(.875rem, .6rem + 1vw, 1.0625rem); padding:clamp(10px, 2.4vw, 24px); gap:10px; }
+.cl-slide { min-height:0; gap:clamp(8px, 1.6vh, 14px); }
+.cl-slide h2 { font-size:1.6em; line-height:1.25; }
+.cl-slide.k-cover { padding:clamp(4px, 2vh, 20px) 0; }
+.cl-slide.k-cover h2 { font-size:clamp(1.6rem, 1rem + 3vw, 2.6rem); }
+.cl-slide ul { font-size:1.0625em; gap:.4em; }
+.cl-figs { width:100%; }
+.cl-figs.pic { grid-template-columns:minmax(0, 1fr); justify-items:center; }
+.cl-figs.pic figure { padding:6px; max-width:100%; display:flex; flex-direction:column; align-items:center; }
+.cl-figs.pic img, .cl-figs img { width:auto; max-width:100%; height:auto; max-height:min(44vh, 400px); object-fit:contain; }
+.cl-slide.k-cover .cl-figs.pic img { max-height:min(34vh, 300px); }
+.cl-slide.many .cl-figs { grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); }
+.cl-ask { font-size:1em; padding:8px 12px; }
+.cl-nav { gap:8px; }
+.cl-nav button { padding:7px 14px; }
+.cl-stage:fullscreen { font-size:clamp(1rem, .6rem + 1.6vw, 1.75rem); padding:3vh 5vw; }
+.cl-stage:fullscreen .cl-figs.pic img, .cl-stage:fullscreen .cl-figs img { max-height:52vh; }
+.cl-stage:fullscreen .cl-slide.k-cover .cl-figs.pic img { max-height:44vh; }
+/* 宽屏上有图的一页：字在左、图在右，一屏装得下，不用往下滚 */
+@media (min-width:900px) and (min-height:560px) {
+  .cl-slide.k-side { display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1.05fr); grid-template-areas:"h h" "t f" "a a"; align-items:center; column-gap:24px; }
+  .cl-slide.k-side h2 { grid-area:h; } .cl-slide.k-side .cl-figs { grid-area:f; } .cl-slide.k-side ul { grid-area:t; } .cl-slide.k-side .cl-ask { grid-area:a; }
+}
+@media (max-width:560px) {
+  .cl-top { gap:8px; } .cl-top h2 { font-size:1.125rem; }
+  .cl-figs figcaption { font-size:.75rem; }
+}
+
+/* 放映（PPT 转出来的一页一页）+ 两个上传入口 */
+.cl-deck { display:flex; flex-direction:column; gap:10px; }
+.cl-deck-page { display:flex; justify-content:center; background:var(--soft); border-radius:12px; padding:4px; min-height:120px; }
+.cl-deck-page .cl-pdfpage { width:auto; max-width:100%; max-height:min(70vh, 720px); }
+.cl-deck-n { min-width:4.5em; text-align:center; font-variant-numeric:tabular-nums; }
+.cl-stage.pdf:fullscreen .cl-deck-page .cl-pdfpage, .cl-viewer-body .cl-deck-page .cl-pdfpage { max-height:78vh; }
+.cl-viewer-body .cl-deck { height:100%; justify-content:center; }
+.cl-drop { cursor:default; } .cl-drop:hover { background:transparent; border-color:var(--line-d); }
+.cl-drop-acts { display:flex; gap:8px; margin:4px 0; }
+.cl-drop-acts button { padding:6px 16px; }

@@ -19,6 +19,8 @@ os.environ.setdefault("ARTQUEST_FIRST_VISIT", "off")
 os.environ.setdefault("ARTQUEST_LLM_PROBE_SEC", "0")
 # 专业版按日志重放：线上默认关（共用的机器内存紧），测试里打开——逐像素对得上是要守的东西。
 os.environ.setdefault("ARTQUEST_PAINT_REPLAY", "on")
+# PPT 转放映要起 LibreOffice，一次几秒：测试里默认关，test_classroom 里专门那一条自己打开。
+os.environ.setdefault("ARTQUEST_SOFFICE", "off")
 ADMIN = {"Authorization": f"Bearer {ADMIN_TOKEN}"}
 
 import artquest.config  # noqa: E402

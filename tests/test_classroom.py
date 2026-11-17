@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 """课堂模块：一节课有课件和配套的画画任务；老师建班传课件，学生凭班级码进班交作业。"""
 import os
+import shutil
 import unittest
+from pathlib import Path
 
 from .env import ADMIN, TMP as _TMP  # noqa: F401  (offline backends, throwaway data dir)
 
@@ -511,6 +513,65 @@ class ClassroomInTheBrowser(unittest.TestCase):
             self.assertTrue(page.is_visible("#view-class"), "被拽回封面了")
             self.assertTrue(page.is_visible("#cl-public .cl-lesson"))
             browser.close()
+
+    @unittest.skipUnless(shutil.which("soffice") or shutil.which("libreoffice"), "这台机器没有 LibreOffice")
+    def test_a_ppt_uploaded_by_the_teacher_plays_slide_by_slide_on_the_page(self):
+        """老师传 PPT：服务器转一份放映用的 PDF，页面上一页一页放，不用下载。传 PDF 是另一个入口，往下滚。"""
+        from playwright.sync_api import sync_playwright
+
+        c = TestClient(app)
+        reg = c.post("/api/accounts/register", json={"name": "传 PPT 的老师", "pin": "2468", "role": "teacher", "teacher_code": "code-777"})
+        if reg.status_code == 409:
+            reg = c.post("/api/accounts/login", json={"name": "传 PPT 的老师", "pin": "2468"})
+        pptx = (Path(__file__).parent / "two_slides.pptx").read_bytes()
+        old = os.environ.get("ARTQUEST_SOFFICE")
+        os.environ["ARTQUEST_SOFFICE"] = ""              # 测试环境默认关着转换，这一条打开
+        errors = []
+        try:
+            with sync_playwright() as pw:
+                browser = pw.chromium.launch(channel="chrome")
+                page = browser.new_context(viewport={"width": 1280, "height": 900}).new_page()
+                page.on("pageerror", lambda e: errors.append(str(e)))
+                page.set_default_timeout(60000)
+                page.add_init_script("localStorage.setItem('artquest.token', %r); localStorage.setItem('artquest.tour/2','1')" % reg.json()["token"])
+                page.goto(self.base + "/teacher")
+                page.wait_for_selector("body.teacher")
+                page.click('.tab[data-tab="class"]')
+                page.wait_for_selector("#cl-up-ppt-btn")
+                self.assertEqual(page.get_attribute("#cl-up-file", "accept"), ".pdf")
+                self.assertEqual(page.get_attribute("#cl-up-ppt", "accept"), ".ppt,.pptx")
+                page.set_input_files("#cl-up-ppt", {"name": "色彩的冷暖.pptx", "buffer": pptx,
+                                                    "mimeType": "application/vnd.openxmlformats-officedocument.presentationml.presentation"})
+                page.wait_for_selector("#class-edit:not(.hidden) #ed-title")
+                self.assertEqual(page.input_value("#ed-title"), "色彩的冷暖")
+                self.assertIn("放映", page.inner_text("#ed-files"))
+                page.click("#ed-back")
+                card = '.cl-lesson-wrap:has-text("色彩的冷暖")'
+                page.click(card + " .cl-lesson")
+                page.wait_for_selector("#class-lesson:not(.hidden) .cl-deck canvas.cl-pdfpage.ready")
+                self.assertEqual(page.inner_text(".cl-deck-n"), "1 / 2")
+                page.keyboard.press("ArrowRight")                        # 键盘也能翻
+                page.wait_for_function("document.querySelector('.cl-deck-n').textContent === '2 / 2'")
+                self.assertTrue(page.is_disabled('.cl-deck [data-d="1"]'))
+                if SHOTS:
+                    page.screenshot(path=SHOTS + "/ppt_lesson.png", full_page=True)
+                browser.close()
+        finally:
+            if old is None:
+                os.environ.pop("ARTQUEST_SOFFICE", None)
+            else:
+                os.environ["ARTQUEST_SOFFICE"] = old
+        self.assertEqual(errors, [])
+        # 原件还是 PPT（下载用），放映的那份是 PDF；没开转换的机器上 PPT 只能下载，照样传得上去
+        lesson = next(l for l in c.get("/api/classroom/lessons", headers={"Authorization": f"Bearer {reg.json()['token']}"}).json() if l["title"] == "色彩的冷暖")
+        f = c.get(f"/api/classroom/lessons/{lesson['id']}").json()["files"][0]
+        self.assertTrue(c.get(f["play_url"]).content.startswith(b"%PDF"))
+        self.assertTrue(c.get(f["url"]).content.startswith(b"PK"))
+        t = {"Authorization": f"Bearer {reg.json()['token']}"}
+        r = c.post(f"/api/classroom/lessons/{lesson['id']}/files", headers=t, params={"filename": "第二份.pptx"}, content=pptx)
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(r.json()["play_url"], "")
+        self.assertEqual(c.get(r.json()["url"] + "?as=pdf").status_code, 404)
 
     def test_a_teacher_writes_a_lesson_on_the_page_and_the_class_code_opens_it(self):
         from playwright.sync_api import sync_playwright

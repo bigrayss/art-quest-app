@@ -7,7 +7,7 @@ import secrets
 import time
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, FastAPI, HTTPException, Request
+from fastapi import APIRouter, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
@@ -33,6 +33,8 @@ from .assist import get_assist_engine
 from .feedback import get_feedback_engine
 from .personalize import MODES as HISTORY_MODES, get_personalizer
 from .qc import check as qc_check
+from starlette.concurrency import run_in_threadpool
+
 from . import classroom
 from .quests import (EMOTIONS, QUESTS, QUESTS_BY_ID, condition_snapshot,
                      families as task_families)
@@ -599,14 +601,15 @@ async def classroom_lesson_upload(lesson_id: str, request: Request, filename: st
     if int(request.headers.get("content-length") or 0) > classroom.MAX_UPLOAD_BYTES:
         raise HTTPException(413, f"文件太大了，最多 {classroom.MAX_UPLOAD_BYTES // (1024 * 1024)} MB")
     try:
-        return classroom.add_lesson_file(lesson_id, filename, await request.body())
+        # PPT 要转一份放映用的 PDF，得等 LibreOffice 几秒到几十秒：放到线程里，别堵着别人的请求
+        return await run_in_threadpool(classroom.add_lesson_file, lesson_id, filename, await request.body())
     except ValueError as e:
         raise HTTPException(422, str(e))
 
 
 @api.get("/classroom/lessons/{lesson_id}/files/{fid}")
-def classroom_lesson_file(lesson_id: str, fid: str):
-    f = classroom.lesson_file(lesson_id, fid)
+def classroom_lesson_file(lesson_id: str, fid: str, as_: str = Query("", alias="as")):
+    f = classroom.lesson_file(lesson_id, fid, as_pdf=as_ == "pdf")
     if not f:
         raise HTTPException(404, "这个文件不在了")
     return FileResponse(f["path"], media_type=f["media_type"], filename=f["filename"],
@@ -670,14 +673,14 @@ async def classroom_upload(code: str, request: Request, filename: str = "", less
         raise HTTPException(413, f"文件太大了，最多 {classroom.MAX_UPLOAD_BYTES // (1024 * 1024)} MB")
     data = await request.body()
     try:
-        return classroom.add_upload(cls["code"], lesson_id, filename, data)
+        return await run_in_threadpool(classroom.add_upload, cls["code"], lesson_id, filename, data)
     except ValueError as e:
         raise HTTPException(422, str(e))
 
 
 @api.get("/classroom/classes/{code}/courseware/{fid}")
-def classroom_courseware(code: str, fid: str):
-    f = classroom.upload_file(code, fid)
+def classroom_courseware(code: str, fid: str, as_: str = Query("", alias="as")):
+    f = classroom.upload_file(code, fid, as_pdf=as_ == "pdf")
     if not f:
         raise HTTPException(404, "这份课件不在了")
     # PDF 和图片直接在页面里翻；PPT 浏览器打不开，只能下载

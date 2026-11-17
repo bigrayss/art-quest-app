@@ -15,8 +15,12 @@
 """
 import copy
 import json
+import os
 import re
 import secrets
+import shutil
+import subprocess
+import tempfile
 import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -46,6 +50,50 @@ UPLOAD_TYPES = {
     ".ppt": ("application/vnd.ms-powerpoint", False),
     ".pptx": ("application/vnd.openxmlformats-officedocument.presentationml.presentation", False),
 }
+
+# ---------------------------------------------------------------------------
+#  PPT → 放映：浏览器放不了 PPT，传上来的时候用 LibreOffice 转一份 PDF 存在旁边（`<文件 id>.play.pdf`），
+#  页面上一页一页放。机器上没有 LibreOffice 就不转，那份 PPT 只能下载。
+#  找法：环境变量 ARTQUEST_SOFFICE（填路径；填 off 就是不转）→ PATH 里的 soffice / libreoffice → ~/.local/bin/soffice。
+# ---------------------------------------------------------------------------
+PPT_EXTS = (".ppt", ".pptx")
+CONVERT_TIMEOUT_SEC = 180
+_CONVERT_LOCK = threading.Lock()      # 一次只转一份：它吃内存，机器是和别人共用的
+
+
+def soffice() -> str:
+    conf = os.environ.get("ARTQUEST_SOFFICE", "").strip()
+    if conf.lower() in ("off", "0", "no"):
+        return ""
+    if conf:
+        return conf if Path(conf).exists() else ""
+    return (shutil.which("soffice") or shutil.which("libreoffice")
+            or next((str(x) for x in [Path.home() / ".local" / "bin" / "soffice"] if x.exists()), ""))
+
+
+def play_path(src: Path) -> Path:
+    return src.with_name(src.stem + ".play.pdf")
+
+
+def ppt_to_pdf(src: Path) -> bool:
+    """把一份 PPT 转成 PDF 放在它旁边。转不了（没装、超时、文件坏了）就回 False，不抛。"""
+    exe = soffice()
+    if not exe:
+        return False
+    with _CONVERT_LOCK, tempfile.TemporaryDirectory(prefix="artquest-ppt-") as tmp:
+        try:
+            # 自带一个用完就扔的用户目录：不碰这台机器上别人的 LibreOffice 配置，也不会被别的实例锁住
+            subprocess.run([exe, f"-env:UserInstallation=file://{tmp}/profile", "--headless", "--norestore",
+                            "--convert-to", "pdf", "--outdir", tmp, str(src)],
+                           timeout=CONVERT_TIMEOUT_SEC, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            out = Path(tmp) / (src.stem + ".pdf")
+            if not out.exists() or out.stat().st_size < 100:
+                return False
+            shutil.move(str(out), str(play_path(src)))
+            return True
+        except (OSError, subprocess.SubprocessError):
+            return False
+
 
 # ---------------------------------------------------------------------------
 #  示意图：自己画的线稿，跟着文字颜色走
@@ -897,8 +945,9 @@ def delete_lesson(lesson_id: str) -> bool:
 
 
 def _lesson_file_row(lesson_id: str, f: Dict[str, Any]) -> Dict[str, Any]:
+    url = f"/api/v1/classroom/lessons/{lesson_id}/files/{f['id']}"
     return {"id": f["id"], "filename": f["filename"], "size": f["size"], "viewable": bool(f.get("viewable")),
-            "image": f["ext"] in IMAGE_EXTS, "url": f"/api/v1/classroom/lessons/{lesson_id}/files/{f['id']}"}
+            "image": f["ext"] in IMAGE_EXTS, "url": url, "play_url": f"{url}?as=pdf" if f.get("slides") else ""}
 
 
 def _check_upload(filename: str, data: bytes):
@@ -916,26 +965,41 @@ def _check_upload(filename: str, data: bytes):
 def add_lesson_file(lesson_id: str, filename: str, data: bytes) -> Dict[str, Any]:
     """课里的配图（某一页用）或附件（整份 PDF / PPT 课件）。"""
     name, ext = _check_upload(filename, data)
+    if not get_lesson(lesson_id) or not is_custom_id(lesson_id):
+        raise KeyError(lesson_id)
+    fid = "lf-" + secrets.token_hex(6)
+    d = LESSON_FILES_DIR / lesson_id
+    d.mkdir(parents=True, exist_ok=True)
+    (d / f"{fid}{ext}").write_bytes(data)
+    slides = ext in PPT_EXTS and ppt_to_pdf(d / f"{fid}{ext}")      # 转换要几秒到几十秒：不占着锁
     with _LOCK:
         lesson = get_lesson(lesson_id)
-        if not lesson or not is_custom_id(lesson_id):
+        if not lesson:
             raise KeyError(lesson_id)
-        fid = "lf-" + secrets.token_hex(6)
-        d = LESSON_FILES_DIR / lesson_id
-        d.mkdir(parents=True, exist_ok=True)
-        (d / f"{fid}{ext}").write_bytes(data)
-        f = {"id": fid, "filename": name, "ext": ext, "size": len(data), "viewable": UPLOAD_TYPES[ext][1], "uploaded_at": now_iso()}
+        f = {"id": fid, "filename": name, "ext": ext, "size": len(data), "viewable": UPLOAD_TYPES[ext][1],
+             "slides": bool(slides), "uploaded_at": now_iso()}
         lesson.setdefault("files", []).append(f)
         _write_lesson(lesson)
     return _lesson_file_row(lesson_id, f)
 
 
-def lesson_file(lesson_id: str, fid: str) -> Optional[Dict[str, Any]]:
-    f = next((f for f in ((get_lesson(lesson_id) or {}).get("files") or []) if f["id"] == fid), None)
-    path = LESSON_FILES_DIR / lesson_id / f"{fid}{f['ext']}" if f else None
-    if not path or not path.exists():
+def _served(path: Optional[Path], f: Optional[Dict[str, Any]], as_pdf: bool) -> Optional[Dict[str, Any]]:
+    """要发出去的那个文件。`as_pdf`：PPT 转出来的那份放映用的 PDF。"""
+    if not f or not path:
+        return None
+    if as_pdf:
+        path = play_path(path)
+        if not f.get("slides") or not path.exists():
+            return None
+        return {"path": path, "filename": Path(f["filename"]).stem + ".pdf", "media_type": "application/pdf", "viewable": True}
+    if not path.exists():
         return None
     return {"path": path, "filename": f["filename"], "media_type": UPLOAD_TYPES[f["ext"]][0], "viewable": f["viewable"]}
+
+
+def lesson_file(lesson_id: str, fid: str, as_pdf: bool = False) -> Optional[Dict[str, Any]]:
+    f = next((f for f in ((get_lesson(lesson_id) or {}).get("files") or []) if f["id"] == fid), None)
+    return _served(LESSON_FILES_DIR / lesson_id / f"{fid}{f['ext']}" if f else None, f, as_pdf)
 
 
 def remove_lesson_file(lesson_id: str, fid: str) -> bool:
@@ -949,10 +1013,12 @@ def remove_lesson_file(lesson_id: str, fid: str) -> bool:
             if sl.get("image") == fid:
                 sl.pop("image")
         _write_lesson(lesson)
-        try:
-            (LESSON_FILES_DIR / lesson_id / f"{fid}{f['ext']}").unlink()
-        except OSError:
-            pass
+        src = LESSON_FILES_DIR / lesson_id / f"{fid}{f['ext']}"
+        for x in (src, play_path(src)):
+            try:
+                x.unlink()
+            except OSError:
+                pass
     return True
 
 
@@ -1111,35 +1177,35 @@ def public(cls: Dict[str, Any]) -> Dict[str, Any]:
 def upload_row(code: str, u: Dict[str, Any]) -> Dict[str, Any]:
     return {"id": u["id"], "lesson_id": u.get("lesson_id", ""), "filename": u["filename"], "size": u["size"],
             "viewable": bool(u.get("viewable")), "uploaded_at": u.get("uploaded_at"),
-            "url": f"/api/v1/classroom/classes/{code}/courseware/{u['id']}"}
+            "url": f"/api/v1/classroom/classes/{code}/courseware/{u['id']}",
+            "play_url": f"/api/v1/classroom/classes/{code}/courseware/{u['id']}?as=pdf" if u.get("slides") else ""}
 
 
 def add_upload(code: str, lesson_id: str, filename: str, data: bytes) -> Dict[str, Any]:
     name, ext = _check_upload(filename, data)
+    cls = load(code)
+    if not cls:
+        raise KeyError(code)
+    fid = "cw-" + secrets.token_hex(6)
+    d = FILES_DIR / cls["code"]
+    d.mkdir(parents=True, exist_ok=True)
+    (d / f"{fid}{ext}").write_bytes(data)
+    slides = ext in PPT_EXTS and ppt_to_pdf(d / f"{fid}{ext}")
     with _LOCK:
         cls = load(code)
         if not cls:
             raise KeyError(code)
-        fid = "cw-" + secrets.token_hex(6)
-        d = FILES_DIR / cls["code"]
-        d.mkdir(parents=True, exist_ok=True)
-        (d / f"{fid}{ext}").write_bytes(data)
         u = {"id": fid, "lesson_id": lesson_id if get_lesson(lesson_id) else "", "filename": name, "ext": ext,
-             "size": len(data), "viewable": UPLOAD_TYPES[ext][1], "uploaded_at": now_iso()}
+             "size": len(data), "viewable": UPLOAD_TYPES[ext][1], "slides": bool(slides), "uploaded_at": now_iso()}
         cls["uploads"].append(u)
         _save(cls)
     return upload_row(cls["code"], u)
 
 
-def upload_file(code: str, fid: str) -> Optional[Dict[str, Any]]:
+def upload_file(code: str, fid: str, as_pdf: bool = False) -> Optional[Dict[str, Any]]:
     cls = load(code)
     u = next((u for u in (cls or {}).get("uploads", []) if u["id"] == fid), None)
-    if not u:
-        return None
-    path = FILES_DIR / cls["code"] / f"{u['id']}{u['ext']}"
-    if not path.exists():
-        return None
-    return {"path": path, "filename": u["filename"], "media_type": UPLOAD_TYPES[u["ext"]][0], "viewable": u["viewable"]}
+    return _served(FILES_DIR / cls["code"] / f"{u['id']}{u['ext']}" if u else None, u, as_pdf)
 
 
 def remove_upload(code: str, fid: str) -> bool:
@@ -1150,10 +1216,12 @@ def remove_upload(code: str, fid: str) -> bool:
             return False
         cls["uploads"] = [x for x in cls["uploads"] if x["id"] != fid]
         _save(cls)
-        try:
-            (FILES_DIR / cls["code"] / f"{u['id']}{u['ext']}").unlink()
-        except OSError:
-            pass
+        src = FILES_DIR / cls["code"] / f"{u['id']}{u['ext']}"
+        for x in (src, play_path(src)):
+            try:
+                x.unlink()
+            except OSError:
+                pass
     return True
 
 
