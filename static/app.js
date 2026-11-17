@@ -1530,7 +1530,7 @@
     L.tasks.forEach(t => {
       if (rows.some(r => r.task_id === t.task_id)) return;
       rows.push({ task_id: t.task_id, lesson_id: L.id, lesson_title: L.title, title: t.title, instruction: t.instruction,
-                  kind: t.kind, minutes: t.minutes, optional: !!t.optional, class_code: code }); n++;
+                  kind: t.kind, minutes: t.minutes, optional: !!t.optional, class_code: code, cover_url: L.cover_url || "" }); n++;
     });
     lsSet("artquest.class.tasks", JSON.stringify(rows));
     if (n) { lsSet("artquest.class.new", "1"); classNewDot(); }
@@ -1557,9 +1557,12 @@
     box.classList.toggle("hidden", pane === "daily");
     if (pane === "daily") return;
     const list = pane === "done" ? fin : todo;
+    // 和日常任务列表同一种框：左边小图标（这节课的封面，没有就用黑板），右边两行——标题、简介
     box.innerHTML = list.length ? `<div class="ct-list">${list.map(r => `<button class="ct-row${isDone(r) ? " done" : ""}" data-ct="${r.task_id}">
-        <b data-no-i18n>${escapeHtml(r.lesson_title)} · ${escapeHtml(r.title)}</b><span class="ct-what" data-no-i18n>${escapeHtml(r.instruction)}</span>
-        <span class="ct-meta"><i>${kinds[r.kind] || ""}</i><i>${r.minutes} 分钟</i>${r.optional ? `<i>选做</i>` : ""}</span>${icon("arrowRight", 16)}</button>`).join("")}</div>`
+        <span class="ct-ic">${r.cover_url ? `<img src="${r.cover_url}" alt="" loading="lazy">` : icon("board", 26)}${isDone(r) ? `<span class="node-star">${icon("star", 14)}</span>` : ""}</span>
+        <span class="qc-text"><span class="ct-title"><b data-no-i18n>${escapeHtml(r.lesson_title)} · ${escapeHtml(r.title)}</b>
+          <span class="ct-meta"><i>${kinds[r.kind] || ""}</i><i>${r.minutes} 分钟</i>${r.optional ? `<i>选做</i>` : ""}</span></span>
+        <span class="ct-what" data-no-i18n>${escapeHtml(r.instruction)}</span></span></button>`).join("")}</div>`
       : `<p class="cl-empty">${pane === "done" ? "画完的课程任务会放在这里。" : "课程任务都画完了。去「课堂」看一节新课，会有新的任务。"}</p>`;
     box.querySelectorAll("[data-ct]").forEach(b => b.onclick = () => startClassTask(rows.find(r => r.task_id === b.dataset.ct)));
   }
@@ -4283,7 +4286,48 @@
     }
     document.body.classList.remove("booting");
   }
+  /** 专业版：进任务之前先定画布（也可以在这里换回日常版）。→ true 开画 / false 不画了 */
+  function askCanvas() {
+    const modal = $("#canvas-modal"), seg = $("#cv-seg"), grid = $("#cv-presets"), cw = $("#cv-w"), ch = $("#cv-h");
+    const paint = () => {
+      const ed = edition(), [w, h] = proCanvasSize(), key = `${w}x${h}`;
+      const custom = lsGet("artquest.canvas.custom") === "1" || !CANVAS_PRESETS.some(p => p[0] === key);
+      seg.querySelectorAll("button").forEach(b => b.classList.toggle("active", b.dataset.edition === ed));
+      $("#cv-pro").classList.toggle("hidden", ed !== "pro");
+      $("#cv-daily").classList.toggle("hidden", ed === "pro");
+      grid.innerHTML = CANVAS_PRESETS.map(([v, t]) => {
+        const [pw, ph] = v === "custom" ? [w, h] : v.split("x").map(Number), k = 34 / Math.max(pw, ph);
+        return `<button class="cv-tile${(v === "custom" ? custom : !custom && v === key) ? " on" : ""}" data-v="${v}">
+          <span class="cv-shape"><i style="width:${Math.max(8, Math.round(pw * k))}px;height:${Math.max(8, Math.round(ph * k))}px"></i></span><span>${t}</span></button>`;
+      }).join("");
+      $("#cv-custom").classList.toggle("hidden", !custom);
+      cw.value = w; ch.value = h;
+      grid.querySelectorAll("[data-v]").forEach(b => b.onclick = () => {
+        lsSet("artquest.canvas.custom", b.dataset.v === "custom" ? "1" : "0");
+        if (b.dataset.v !== "custom") lsSet("artquest.canvas", b.dataset.v);
+        paint();
+      });
+    };
+    seg.querySelectorAll("button").forEach(b => b.onclick = () => { lsSet("artquest.edition", b.dataset.edition); paint(); });
+    const custom = () => {
+      const w = clamp(Math.round(+cw.value) || DAILY_SIZE[0], CANVAS_MIN, CANVAS_MAX), h = clamp(Math.round(+ch.value) || DAILY_SIZE[1], CANVAS_MIN, CANVAS_MAX);
+      lsSet("artquest.canvas", `${w}x${h}`); paint();
+    };
+    cw.onchange = custom; ch.onchange = custom;
+    paint();
+    modal.classList.remove("hidden");
+    return new Promise((done) => {
+      const close = (ok) => { modal.classList.add("hidden"); if (typeof bindEdition === "function") bindEdition(); done(ok); };
+      $("#canvas-go").onclick = () => close(true);
+      $("#canvas-cancel").onclick = () => close(false);
+    });
+  }
   function chooseQuest(q, via) {
+    const printed = q && q.stimulus && q.stimulus.kind === "fragments";     // 印着图形的题只有日常版
+    if (edition() === "pro" && window.Paint && !printed) { askCanvas().then(ok => { if (ok) beginQuest(q, via); }); return; }
+    return beginQuest(q, via);
+  }
+  function beginQuest(q, via) {
     state.quest = q;
     // 这道题怎么来的（PR 3）：默认是孩子在地图上点的；成长面板「去 X 练习」和研究协议另记
     const seqMode = !!(state.study && state.study.sequence);

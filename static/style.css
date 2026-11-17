@@ -2649,3 +2649,33 @@ body.offline .needs-net { display:none !important; }
 }
 
 #cl-mycls .cl-grid + .cl-joinrow { margin-top:14px; }
+
+/* 课程任务的框：和日常任务列表（.map.list .quest-card）一个样——小图标 + 标题行 + 简介行（2026-11-17） */
+.ct-list { gap:10px; }
+.ct-row { gap:14px; min-height:0; padding:10px 14px 10px 10px; border:2px solid var(--line); border-left:2px solid var(--line); border-radius:18px; background:var(--card); flex-wrap:nowrap; }
+.ct-row:hover { border-color:var(--accent); background:#fff8ef; }
+.ct-ic { position:relative; flex:0 0 auto; display:flex; align-items:center; justify-content:center; width:64px; height:64px; border-radius:50%;
+  background:var(--blue-l); color:var(--blue-d); border:3px solid #fff; box-shadow:0 0 0 2px var(--line); }
+.ct-ic img { width:100%; height:100%; border-radius:50%; object-fit:cover; }
+.ct-ic .node-star { position:absolute; right:-4px; top:-4px; }
+.ct-row .qc-text { flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
+.ct-title { display:flex; align-items:baseline; gap:10px; min-width:0; }
+.ct-row b { flex:0 1 auto; max-width:none; font-size:1rem; }
+.ct-row .ct-what { flex:none; font-size:.8125rem; font-weight:600; line-height:1.45; }
+.ct-row.done { border-left-color:var(--line); opacity:.8; }
+@media (max-width:700px) {
+  .ct-row { flex-wrap:nowrap; gap:12px; }
+  .ct-row b { flex:0 1 auto; white-space:nowrap; }
+  .ct-title { flex-wrap:wrap; gap:0 10px; }
+  .ct-row .ct-what { flex:none; }
+  .ct-ic { width:52px; height:52px; }
+}
+/* 开画前选画布 */
+.cv-presets { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:8px; margin:12px 0 6px; }
+.cv-tile { display:flex; align-items:center; justify-content:flex-start; gap:10px; height:auto; padding:8px 10px; border-radius:12px; font-size:.8125rem; font-weight:700; text-align:left; }
+.cv-tile.on { border-color:var(--accent); background:var(--accent-l); color:var(--accent-d); }
+.cv-shape { flex:none; display:flex; align-items:center; justify-content:center; width:38px; height:38px; }
+.cv-shape i { display:block; border:2px solid currentColor; border-radius:3px; background:#fff; }
+.cv-custom { display:flex; align-items:center; gap:8px; margin:6px 0; }
+.cv-custom input { width:6.5em; min-height:40px; padding:6px 10px; border:2px solid var(--line); border-radius:10px; font:inherit; }
+#canvas-modal .edition { margin:4px 0 0; }

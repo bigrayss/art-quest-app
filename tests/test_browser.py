@@ -441,6 +441,8 @@ class ZoomKeepsStrokesInCanvasSpace(unittest.TestCase):
         else:
             page.click("#quest-grid .quest-card")
         page.click("#btn-today")           # 点地点只是选中，右边那颗「开始画」才进去；只剩简单版，没有心愿页
+        if page.evaluate("localStorage.getItem('artquest.edition')") == "pro":
+            page.click("#canvas-go")       # 专业版：进任务之前先定画布（2026-11-17），用存着的那个尺寸
         void_intent = intent               # 心愿文字不再收（2026-10-12），参数留着免得改一串调用
         page.wait_for_selector("#view-draw:not(.hidden)")
 

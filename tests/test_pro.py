@@ -174,6 +174,34 @@ class ProEdition(unittest.TestCase):
         self.assertLess(box["dockTop"], box["vh"])
         self.assertLess(dark, 600, "the stroke did not land under the pointer")
 
+    def test_the_canvas_is_chosen_before_entering_a_task(self):
+        """专业版：点了「开始画」先出一张「选一张画布」，选好了才进任务；在这里也能换回日常版。"""
+        import os
+        shots = os.environ.get("ARTQUEST_SHOTS")
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(channel="chrome")
+            page = browser.new_page(viewport={"width": 1366, "height": 900})
+            page.set_default_timeout(15000)
+            page.add_init_script("localStorage.setItem('artquest.edition','pro'); localStorage.setItem('artquest.tour/2','1'); localStorage.setItem('artquest.acct_prompted','1')")
+            page.goto(self.base)
+            page.wait_for_selector("#view-world:not(.hidden)", timeout=8000)
+            page.click("#btn-enter-world")
+            page.wait_for_selector("#quest-grid .quest-card")
+            page.click("#quest-grid .quest-card")
+            page.click("#btn-today")
+            page.wait_for_selector("#canvas-modal:not(.hidden) .cv-tile")
+            self.assertFalse(page.is_visible("#view-draw"), "还没选画布，不进任务")
+            page.click('.cv-tile[data-v="2048x2048"]')
+            self.assertEqual(page.eval_on_selector_all(".cv-tile.on", "e=>e.map(x=>x.dataset.v)"), ["2048x2048"])
+            if shots:
+                page.wait_for_timeout(400)
+                page.screenshot(path=shots + "/canvas_pick.png")
+            page.click("#canvas-go")
+            page.wait_for_selector("#view-draw:not(.hidden)")
+            got = page.evaluate("() => { const c = document.querySelector('#canvas'); return [c.width, c.height, document.body.classList.contains('pro')] }")
+            self.assertEqual(got, [2048, 2048, True])
+            browser.close()
+
     def test_the_daily_edition_is_untouched(self):
         with sync_playwright() as pw:
             browser = pw.chromium.launch(channel="chrome")

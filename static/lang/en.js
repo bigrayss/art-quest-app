@@ -294,6 +294,8 @@ window.ARTQUEST_LANG_EN = {
   "输入老师给的班级码，班上的课就加到这里。": "Enter the class code from your teacher and the class lessons are added here.",
   "{c}的课加进来了。": "Lessons from {c} have been added.",
   "{c}加上了，老师还没有往这个班里放课。": "{c} is added. The teacher hasn't put any lessons in it yet.",
+  "选一张画布": "Pick a canvas",
+  "日常版是一张 1024 × 704 的画布，四支笔。": "The daily edition is one 1024 × 704 canvas with four pens.",
   "复制一份来改": "Copy and edit",
   "编辑": "Edit",
   "新建一节课": "New lesson",

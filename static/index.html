@@ -681,6 +681,22 @@
 </div>
 
 <!-- 给伙伴起名字 -->
+<!-- 专业版：进任务之前先定画布 -->
+<div class="modal hidden" id="canvas-modal">
+  <div class="modal-card">
+    <h3>选一张画布</h3>
+    <div class="edition"><div class="seg" id="cv-seg"><button data-edition="daily">日常版</button><button data-edition="pro">专业版</button></div></div>
+    <p class="muted hidden" id="cv-daily">日常版是一张 1024 × 704 的画布，四支笔。</p>
+    <div class="hidden" id="cv-pro">
+      <div class="cv-presets" id="cv-presets"></div>
+      <div class="cv-custom hidden" id="cv-custom"><input id="cv-w" type="number" min="256" max="4096" step="1" aria-label="宽">×<input id="cv-h" type="number" min="256" max="4096" step="1" aria-label="高"></div>
+    </div>
+    <div class="actions column">
+      <button class="primary" id="canvas-go">开始画</button>
+      <button class="ghost" id="canvas-cancel">返回</button>
+    </div>
+  </div>
+</div>
 <div class="modal hidden" id="name-modal">
   <div class="modal-card">
     <h3>给它起个名字</h3>
