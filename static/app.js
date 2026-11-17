@@ -1530,7 +1530,8 @@
     L.tasks.forEach(t => {
       if (rows.some(r => r.task_id === t.task_id)) return;
       rows.push({ task_id: t.task_id, lesson_id: L.id, lesson_title: L.title, title: t.title, instruction: t.instruction,
-                  kind: t.kind, minutes: t.minutes, optional: !!t.optional, class_code: code, cover_url: L.cover_url || "" }); n++;
+                  kind: t.kind, minutes: t.minutes, optional: !!t.optional, class_code: code, cover_url: L.cover_url || "",
+                  requirements: t.requirements || "", hint: t.hint || "" }); n++;
     });
     lsSet("artquest.class.tasks", JSON.stringify(rows));
     if (n) { lsSet("artquest.class.new", "1"); classNewDot(); }
@@ -1555,16 +1556,35 @@
       `<button role="tab" data-pane="${k}" class="${k === pane ? "on" : ""}">${name}${n == null ? "" : `<b data-no-i18n>${n}</b>`}</button>`).join("");
     tabs.querySelectorAll("[data-pane]").forEach(b => b.onclick = () => { state.taskPane = b.dataset.pane; renderClassTasks(); if (state.taskPane === "daily") paintMapPath(); });
     box.classList.toggle("hidden", pane === "daily");
-    if (pane === "daily") return;
+    const side = $("#today-class");
+    if (pane === "daily") { side.classList.add("hidden"); return; }
     const list = pane === "done" ? fin : todo;
+    // 和日常任务一样：点一条只是选中，右边那张卡上是精灵、「开始画」、标题和具体介绍
+    const sel = list.find(r => r.task_id === state.ctSel) || list[0] || null;
+    side.classList.toggle("hidden", !sel);
+    if (sel) {
+      side.style.setProperty("--tc-l", mixHex(buddyColor(), 14, "#fff")); side.style.setProperty("--tc-d", mixHex(buddyColor(), 72, "#000"));
+      side.innerHTML = buddyHtml("t-sprite", isDone(sel) ? "happy" : "explore", null, "fig")
+        + `<div class="t-go"><button class="primary big grow" id="btn-ct-go">${isDone(sel) ? "再画一张" : "开始画"}${icon("arrowRight", 17)}</button></div>`
+        + `<div class="t-body"><div class="t-kicker"><span>${kinds[sel.kind] || ""}</span> · <span>${sel.minutes} 分钟</span>${sel.optional ? ` · <span>选做</span>` : ""}</div>
+           <div class="t-title" data-no-i18n>${escapeHtml(sel.lesson_title)} · ${escapeHtml(sel.title)}</div>
+           <p class="t-blurb" data-no-i18n>${escapeHtml(sel.instruction)}</p>
+           ${sel.requirements ? `<p class="t-blurb t-req" data-no-i18n><span class="req-k">要做到</span>${escapeHtml(sel.requirements)}</p>` : ""}
+           ${sel.hint ? `<p class="t-blurb t-hint" data-no-i18n>${escapeHtml(sel.hint)}</p>` : ""}</div>`;
+      $("#btn-ct-go").onclick = () => startClassTask(sel);
+    }
     // 和日常任务列表同一种框：左边小图标（这节课的封面，没有就用黑板），右边两行——标题、简介
-    box.innerHTML = list.length ? `<div class="ct-list">${list.map(r => `<button class="ct-row${isDone(r) ? " done" : ""}" data-ct="${r.task_id}">
+    box.innerHTML = list.length ? `<div class="ct-list">${list.map(r => `<button class="ct-row${isDone(r) ? " done" : ""}${sel && r.task_id === sel.task_id ? " next" : ""}" data-ct="${r.task_id}">
         <span class="ct-ic">${r.cover_url ? `<img src="${r.cover_url}" alt="" loading="lazy">` : icon("board", 26)}${isDone(r) ? `<span class="node-star">${icon("star", 14)}</span>` : ""}</span>
         <span class="qc-text"><span class="ct-title"><b data-no-i18n>${escapeHtml(r.lesson_title)} · ${escapeHtml(r.title)}</b>
           <span class="ct-meta"><i>${kinds[r.kind] || ""}</i><i>${r.minutes} 分钟</i>${r.optional ? `<i>选做</i>` : ""}</span></span>
         <span class="ct-what" data-no-i18n>${escapeHtml(r.instruction)}</span></span></button>`).join("")}</div>`
       : `<p class="cl-empty">${pane === "done" ? "画完的课程任务会放在这里。" : "课程任务都画完了。去「课堂」看一节新课，会有新的任务。"}</p>`;
-    box.querySelectorAll("[data-ct]").forEach(b => b.onclick = () => startClassTask(rows.find(r => r.task_id === b.dataset.ct)));
+    box.querySelectorAll("[data-ct]").forEach(b => b.onclick = () => {
+      state.ctSel = b.dataset.ct; renderClassTasks();
+      // 窄屏上那张卡在列表上面：选了就滚回去，和日常任务一样
+      if (innerWidth <= 700) $("#today-class").scrollIntoView({ block: "start", behavior: "smooth" });
+    });
   }
   async function startClassTask(r) {
     let L = null;
@@ -2253,29 +2273,11 @@
   }
   /** 「我的」里的版本和画布大小。换了从下一张画开始算。 */
   function bindEdition() {
-    const seg = $("#edition-seg"), box = $("#edition-canvas"), sel = $("#canvas-preset"), cw = $("#canvas-w"), ch = $("#canvas-h");
+    // 「我的」里只留版本开关；画布在进任务之前选（askCanvas）
+    const seg = $("#edition-seg");
     if (!seg) return;
-    sel.innerHTML = CANVAS_PRESETS.map(([v, t]) => `<option value="${v}">${t}</option>`).join("");
-    const sync = () => {
-      const ed = edition(), [w, h] = proCanvasSize(), key = `${w}x${h}`;
-      seg.querySelectorAll("button").forEach(b => b.classList.toggle("active", b.dataset.edition === ed));
-      box.classList.toggle("hidden", ed !== "pro");
-      const preset = CANVAS_PRESETS.some(p => p[0] === key) && lsGet("artquest.canvas.custom") !== "1";
-      sel.value = preset ? key : "custom";
-      $("#canvas-custom").classList.toggle("hidden", preset);
-      cw.value = w; ch.value = h;
-    };
+    const sync = () => seg.querySelectorAll("button").forEach(b => b.classList.toggle("active", b.dataset.edition === edition()));
     seg.querySelectorAll("button").forEach(b => b.onclick = () => { lsSet("artquest.edition", b.dataset.edition); sync(); });
-    sel.onchange = () => {
-      lsSet("artquest.canvas.custom", sel.value === "custom" ? "1" : "0");
-      if (sel.value !== "custom") lsSet("artquest.canvas", sel.value);
-      sync();
-    };
-    const custom = () => {
-      const w = clamp(Math.round(+cw.value) || DAILY_SIZE[0], CANVAS_MIN, CANVAS_MAX), h = clamp(Math.round(+ch.value) || DAILY_SIZE[1], CANVAS_MIN, CANVAS_MAX);
-      lsSet("artquest.canvas", `${w}x${h}`); sync();
-    };
-    cw.onchange = custom; ch.onchange = custom;
     sync();
   }
 

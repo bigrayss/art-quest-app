@@ -473,7 +473,18 @@ class ClassroomInTheBrowser(unittest.TestCase):
                 page.wait_for_timeout(500)
                 page.screenshot(path=SHOTS + "/map_daily.png", full_page=True)
             page.click('#task-tabs [data-pane="class"]')
+            # 和日常任务一样：点一条只是选中，右边那张卡上有精灵、标题、具体介绍和「开始画」
+            self.assertIn("家乡的桥 · 一座有远近的桥", page.inner_text("#today-class .t-title"))
+            self.assertEqual(page.eval_on_selector_all("#class-tasks .ct-row.next b", "e=>e.map(x=>x.textContent)"), ["家乡的桥 · 一座有远近的桥"])
+            page.click('#class-tasks .ct-row >> nth=1')
+            self.assertIn("家乡的桥 · 我家乡的桥", page.inner_text("#today-class .t-title"))
+            self.assertIn("要做到", page.inner_text("#today-class"))
+            self.assertFalse(page.is_visible("#view-draw"), "点一条只是选中，不直接开画")
             page.click("#class-tasks .ct-row")
+            if SHOTS:
+                page.wait_for_timeout(500)
+                page.screenshot(path=SHOTS + "/map_tasks.png", full_page=True)
+            page.click("#btn-ct-go")
             page.wait_for_selector("#view-draw:not(.hidden)")
             self.assertIn("一座有远近的桥", page.inner_text("#draw-quest-card"))
 

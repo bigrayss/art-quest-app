@@ -152,6 +152,8 @@
   <!-- 右边（窄屏在下面）的任务卡：当前选择 / 任务名 / 简介 / 开始画 / 探索精灵。
        点地图上的地点只是换这张卡；进去的那一步在卡上。 -->
   <div class="today hidden" id="today"></div>
+  <!-- 课程任务 / 已完成这两栏的右边：和上面那张一样的卡，放选中的那道课程任务 -->
+  <div class="today hidden" id="today-class"></div>
 </section>
 
 <!-- ===== tab 2：画廊 =====
@@ -347,11 +349,6 @@
   <!-- 日常版 / 专业版：随时能换，从下一张画起算。专业版多一行画布大小 -->
   <div class="edition student-only" id="edition-box">
     <div class="seg" id="edition-seg"><button data-edition="daily">日常版</button><button data-edition="pro">专业版</button></div>
-    <div class="edition-canvas hidden" id="edition-canvas">
-      <label for="canvas-preset">画布</label>
-      <select id="canvas-preset"></select>
-      <span class="hidden" id="canvas-custom"><input id="canvas-w" type="number" min="256" max="4096" step="1" aria-label="宽">×<input id="canvas-h" type="number" min="256" max="4096" step="1" aria-label="高"></span>
-    </div>
   </div>
   <button class="secondary" id="btn-lang-me"><i data-icon="swap" data-size="17"></i><span data-no-i18n id="lang-me-label"></span></button>
   <details class="techbox" id="techbox">

@@ -2631,7 +2631,7 @@ body.offline .needs-net { display:none !important; }
 .task-tabs button b { margin-left:6px; padding:0 7px; border-radius:999px; background:var(--soft); color:var(--muted-2); font-size:.75rem; font-weight:800; }
 .task-tabs button.on b { background:var(--accent-l); color:var(--accent-d); }
 /* 不在「日常任务」这一栏时，地图那一套整个收起来 */
-#view-quest[data-pane="class"] > :not(.task-tabs):not(.class-tasks), #view-quest[data-pane="done"] > :not(.task-tabs):not(.class-tasks) { display:none !important; }
+#view-quest[data-pane="class"] > :not(.task-tabs):not(.class-tasks):not(#today-class), #view-quest[data-pane="done"] > :not(.task-tabs):not(.class-tasks):not(#today-class) { display:none !important; }
 .class-tasks { margin:0; }
 .ct-list { display:flex; flex-direction:column; gap:6px; }
 .ct-row { display:flex; align-items:center; justify-content:flex-start; gap:12px; width:100%; height:auto; min-height:44px; padding:8px 14px; border-radius:12px;
@@ -2679,3 +2679,15 @@ body.offline .needs-net { display:none !important; }
 .cv-custom { display:flex; align-items:center; gap:8px; margin:6px 0; }
 .cv-custom input { width:6.5em; min-height:40px; padding:6px 10px; border:2px solid var(--line); border-radius:10px; font:inherit; }
 #canvas-modal .edition { margin:4px 0 0; }
+
+/* 课程任务 / 已完成：左边列表，右边和日常任务一样的那张卡（精灵、开始画、标题、具体介绍） */
+#view-quest .class-tasks { grid-column:1; order:0; align-self:start; }
+#view-quest #today-class { grid-column:2; order:0; align-self:start; }
+#view-quest[data-pane="daily"] #today-class, #view-quest:not([data-pane]) #today-class { display:none; }
+.ct-row.next { border-color:var(--accent); background:#fff8ef; }
+.today .t-req .req-k { margin-right:8px; padding:1px 8px; border-radius:999px; background:var(--soft); font-size:.75rem; font-weight:800; }
+.today .t-hint { color:var(--muted); }
+@media (max-width:700px) {
+  #view-quest #today-class { order:0; margin:0 0 12px; scroll-margin-top:calc(84px + env(safe-area-inset-top)); }
+  #view-quest .class-tasks { order:1; }
+}
