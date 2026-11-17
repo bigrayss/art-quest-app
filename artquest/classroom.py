@@ -975,7 +975,7 @@ def lesson_card(lesson: Dict[str, Any]) -> Dict[str, Any]:
     for s in lesson["slides"]:
         names = s.get("figures") or ([s["figure"]] if s.get("figure") else [])
         if not cover and not cover_url and s.get("img"):
-            cover_url = f"/static/classroom/img/{s['img']}.jpg"
+            cover_url = f"/static/classroom/img/thumb/{s['img']}.jpg"
         if not cover and not cover_url and names and names[0] in FIGURES:
             cover = FIGURES[names[0]]
         if s.get("image") in files:

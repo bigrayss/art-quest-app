@@ -1984,6 +1984,8 @@
       ${s.ask ? `<p class="cl-ask" data-no-i18n>${escapeHtml(s.ask)}</p>` : ""}`;
     $("#cl-page").textContent = `${cl.page + 1} / ${L.slides.length}`;
     $("#cl-prev").disabled = cl.page === 0; $("#cl-next").disabled = cl.page === L.slides.length - 1;
+    const nx = L.slides[cl.page + 1];
+    if (nx && nx.image_url) new Image().src = nx.image_url;      // 下一页的画先取着，翻过去不用等
     if (cl.page === L.slides.length - 1) lessonSeen();
   }
   function bindClass() {
@@ -4203,9 +4205,14 @@
     else if (TEACHER_ENTRANCE) { welcomeOn = true; show("welcome"); }     // 老师入口：先登录，别的什么都没有
     else if (quiet) { show("quest"); checkFeatured(); }
     else if (!welcomeSeen() && !state.account) { welcomeOn = true; show("welcome"); }
-    else if (!guideSeen()) { await renderWorld(); show("world"); startTour(); }
     else if (state.entered) { show("quest"); checkFeatured(); }
-    else { await renderWorld(); show("world"); checkFeatured(); }
+    else {
+      // 封面要先问服务器彩点长到哪了。**等的这一下人也可能点去了别的 tab**（2026-11-17 实测：刚打开就点「课堂」，
+      // 课堂页出来几百毫秒后被拽回封面，看起来像卡住）。和上面同一条规矩：他还停在原来那一屏，这一步才作数。
+      const at = curView();
+      await renderWorld();
+      if (curView() === at) { show("world"); if (!guideSeen()) startTour(); else checkFeatured(); }
+    }
     document.body.classList.remove("booting");
   }
   function chooseQuest(q, via) {

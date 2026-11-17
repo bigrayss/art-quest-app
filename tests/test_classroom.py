@@ -489,6 +489,29 @@ class ClassroomInTheBrowser(unittest.TestCase):
         self.assertEqual(len(work["members"]), 1)
 
 
+    def test_opening_the_class_tab_right_after_launch_is_not_pulled_back_to_the_cover(self):
+        """启动时封面要等服务器（彩点长到哪了）。等的这一下人已经点去了「课堂」，回来不能把他拽回封面。"""
+        from playwright.sync_api import sync_playwright
+
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(channel="chrome")
+            page = browser.new_context(viewport={"width": 1280, "height": 860}).new_page()
+            page.set_default_timeout(30000)
+            page.add_init_script("localStorage.setItem('artquest.tour/2','1'); localStorage.setItem('artquest.acct_prompted','1')")
+
+            # 慢网：封面要的那条请求晚一秒多才发出去（本机太快，那个窗口撞不上）
+            page.add_init_script("""const f = window.fetch; window.fetch = (u, o) => !String(u).includes('/growth?') ? f(u, o)
+                : (window.__asked = true, new Promise(r => setTimeout(r, 1200)).then(() => f(u, o)));""")
+            page.goto(self.base)
+            # 等到启动流程**已经停在这条请求上**再点：它回来之后就是 show("world")
+            page.wait_for_function("window.__asked === true")
+            page.click('.tab[data-tab="class"]')
+            page.wait_for_selector("#cl-public .cl-lesson")
+            page.wait_for_timeout(2500)
+            self.assertTrue(page.is_visible("#view-class"), "被拽回封面了")
+            self.assertTrue(page.is_visible("#cl-public .cl-lesson"))
+            browser.close()
+
     def test_a_teacher_writes_a_lesson_on_the_page_and_the_class_code_opens_it(self):
         from playwright.sync_api import sync_playwright
 
