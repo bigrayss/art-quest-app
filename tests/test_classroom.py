@@ -471,8 +471,23 @@ class ClassroomInTheBrowser(unittest.TestCase):
             if SHOTS:
                 page.wait_for_timeout(500)
                 page.screenshot(path=SHOTS + "/map_tasks.png", full_page=True)
+            # 右上角的叉：不想画的跳过去；这一页上能放回来；画完的那些没有叉
+            page.click('#class-tasks .ct-x >> nth=1')
+            self.assertEqual(page.eval_on_selector_all("#class-tasks .ct-row b", "e=>e.map(x=>x.textContent)"),
+                             ["家乡的桥 · 一座有远近的桥", "家乡的桥 · 未来的桥"])
+            self.assertEqual(page.inner_text("#sec-class b"), "2")
+            self.assertIn("家乡的桥 · 一座有远近的桥", page.inner_text("#today .t-title"), "右边那张卡换成下一道")
+            self.assertFalse(page.is_visible("#view-draw"))
+            self.assertIn("我家乡的桥", page.inner_text(".ct-undo"))
+            self.assertEqual(page.evaluate("JSON.parse(localStorage.getItem('artquest.class.tasks')).length"), 3, "存下来了（3 道没画的少一道 + 画完的一道）")
+            page.click('#class-tasks .ct-x >> nth=1')
+            page.click("#ct-undo")
+            self.assertEqual(page.eval_on_selector_all("#class-tasks .ct-row b", "e=>e.map(x=>x.textContent)"),
+                             ["家乡的桥 · 一座有远近的桥", "家乡的桥 · 未来的桥"])
+            self.assertEqual(page.eval_on_selector_all(".ct-undo", "e=>e.length"), 0)
             self.assertFalse(page.is_visible("#done-tasks"), "已完成默认收着")
             page.click("#sec-done")
+            self.assertEqual(page.eval_on_selector_all("#done-tasks .ct-x", "e=>e.length"), 0)
             self.assertEqual(page.eval_on_selector_all("#done-tasks .ct-row b", "e=>e.map(x=>x.textContent)"), ["家乡的桥 · 桥的样子"])
             page.click("#sec-daily")                                     # 日常任务收起来
             self.assertFalse(page.is_visible("#quest-grid"))
@@ -707,7 +722,12 @@ class ClassroomInTheBrowser(unittest.TestCase):
             tpage.click('.ed-slide[data-i="1"] [data-up]')                # 挪到前面
             self.assertEqual(tpage.input_value('.ed-slide[data-i="1"] [data-f="title"]'), "线会动")
             tpage.click('.ed-slide[data-i="0"] [data-del]')               # 再删掉
+            # 课件和题目分两栏：题目在「画画任务」那一栏里出，切过去课件那边填的字还在
+            self.assertFalse(tpage.is_visible("#ed-add-task"))
+            tpage.click('[data-edpane="tasks"]')
+            self.assertFalse(tpage.is_visible("#ed-add-slide"))
             tpage.click("#ed-add-task")
+            self.assertEqual(tpage.inner_text('[data-edpane="tasks"] b'), "1")
             tpage.fill('.ed-task[data-i="0"] [data-f="title"]', "跳舞的人")
             tpage.fill('.ed-task[data-i="0"] [data-f="instruction"]', "只用线画一个正在跳舞的人。")
             tpage.fill('.ed-task[data-i="0"] [data-f="requirements"]', "看得出他在动")
@@ -716,6 +736,13 @@ class ClassroomInTheBrowser(unittest.TestCase):
             tpage.click("#ed-save")
             tpage.wait_for_selector("#class-home:not(.hidden) .cl-lesson-wrap [data-edit]")
             lid = tpage.get_attribute(".cl-lesson-wrap [data-edit]", "data-edit")
+            tpage.click('.cl-lesson-wrap [data-edit][data-pane="tasks"]')   # 卡片上「出题目」直接到题目那一栏
+            tpage.wait_for_selector("#class-edit:not(.hidden) .ed-task")
+            self.assertEqual(tpage.input_value('.ed-task[data-i="0"] [data-f="title"]'), "跳舞的人")
+            self.assertEqual(tpage.input_value("#ed-title"), "会跳舞的线")
+            self.assertFalse(tpage.is_visible("#ed-title"))
+            tpage.click("#ed-back")
+            tpage.wait_for_selector("#class-home:not(.hidden) .cl-lesson-wrap [data-edit]")
             # 样板课默认挂在班上；把它拿下来，换成自己录的这节
             tpage.click('[data-cltab="classes"]')
             tpage.uncheck('#cl-pick input[value="%s"]' % LESSON)

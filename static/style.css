@@ -2716,3 +2716,14 @@ body.offline .needs-net { display:none !important; }
 #view-quest .map.done-daily { height:auto; min-height:0; padding:0; margin:0 0 4px; background:none; border:0; box-shadow:none; }
 .done-cap { margin:2px 4px 6px; font-size:.8125rem; font-weight:800; color:var(--muted); }
 #done-daily-cap { margin-top:10px; }
+
+/* 课程任务右上角的叉：不想画的跳过去（2026-11-18） */
+.ct-wrap { position:relative; }
+.ct-wrap .ct-row { padding-right:40px; }
+.ct-x { position:absolute; top:6px; right:6px; z-index:1; display:flex; align-items:center; justify-content:center; width:28px; height:28px; min-height:0; padding:0;
+  border:none; border-radius:50%; background:none; box-shadow:none; color:var(--muted-2); }
+.ct-x::after { content:""; position:absolute; inset:-8px; }      /* 手指点得到：热区 44px */
+.ct-x:hover { background:var(--soft); color:var(--ink); }
+.ct-x:active { transform:none; }
+.ct-undo { display:flex; align-items:center; gap:10px; margin:8px 2px 0; font-size:.8125rem; font-weight:600; color:var(--muted-2); }
+.ct-undo .linkbtn { min-height:0; padding:4px 12px; border-radius:999px; border:none; box-shadow:none; background:var(--soft); color:var(--ink); font-size:.8125rem; font-weight:800; }

@@ -115,6 +115,7 @@
   // 所以放进彩色圆章里也好、放进灰色未解锁态里也好，都是同一套形状。
   // 不用 emoji —— emoji 在每个系统上长得都不一样，还带着别人的视觉语言。
   const ICONS = {
+    close: '<path d="M6 6l12 12M18 6L6 18"/>',
     // 品牌 / 任务
     palette: '<path d="M12 2.8C6.4 2.8 2.4 6.8 2.4 12.2c0 5 3.8 8.8 8.8 8.8 1.6 0 2.6-.9 2.6-2.2 0-.6-.2-1-.6-1.5-.3-.4-.5-.8-.5-1.3 0-1 .8-1.8 1.9-1.8h1.6c3.2 0 5.4-2.2 5.4-5.4 0-3.9-3.7-6-9.6-6Z"/><circle cx="7.2" cy="11.8" r="1.2" fill="currentColor" stroke="none"/><circle cx="10.4" cy="7.8" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="8.8" r="1.2" fill="currentColor" stroke="none"/>',
     backpack: '<path d="M4.2 11.4a5.2 5.2 0 0 1 5.2-5.2h5.2a5.2 5.2 0 0 1 5.2 5.2v6.2a3 3 0 0 1-3 3H7.2a3 3 0 0 1-3-3Z"/><path d="M9 6.2V5a3 3 0 0 1 6 0v1.2"/><path d="M9.2 20.6v-5.4h5.6v5.4"/>',
@@ -1547,7 +1548,8 @@
   function renderClassTasks() {
     const view = $("#view-quest"), box = $("#class-tasks"), dbox = $("#done-tasks"); if (!box || !dbox) return;
     const rows = clTasks(), done = clDone();
-    const hide = !rows.length || isTeacher() || !!(state.study && state.study.sequence);
+    const undo = state.ctUndo;          // 刚叉掉的那一道：这一页上还能放回来
+    const hide = (!rows.length && !undo) || isTeacher() || !!(state.study && state.study.sequence);
     view.classList.toggle("has-secs", !hide);
     ["daily", "class", "done"].forEach(k => $(`#sec-${k}`).classList.toggle("hidden", hide));
     const dd = $("#done-daily"), fold = $("#quest-grid details.map-col.done");
@@ -1576,11 +1578,12 @@
       state.ctSel = (todo.find(r => r.lesson_id === latest) || todo[0]).task_id;
     }
     // 和日常任务列表同一种框：左边小图标（这节课的封面，没有就用黑板），右边两行——标题、一句短简介
-    const row = (r) => `<button class="ct-row${isDone(r) ? " done" : ""}${r.task_id === state.ctSel ? " next" : ""}" data-ct="${r.task_id}">
+    const row = (r) => `<div class="ct-wrap"><button class="ct-row${isDone(r) ? " done" : ""}${r.task_id === state.ctSel ? " next" : ""}" data-ct="${r.task_id}">
         <span class="ct-ic">${r.cover_url ? `<img src="${r.cover_url}" alt="" loading="lazy">` : icon("board", 26)}${isDone(r) ? `<span class="node-star">${icon("star", 14)}</span>` : ""}</span>
         <span class="qc-text"><span class="ct-title"><b data-no-i18n>${escapeHtml(r.lesson_title)} · ${escapeHtml(r.title)}</b>
           <span class="ct-meta"><i>${kinds[r.kind] || ""}</i><i>${r.minutes} 分钟</i>${r.optional ? `<i>选做</i>` : ""}</span></span>
-        <span class="ct-what" data-no-i18n>${escapeHtml(ctBrief(r.instruction))}</span></span></button>`;
+        <span class="ct-what" data-no-i18n>${escapeHtml(ctBrief(r.instruction))}</span></span></button>${
+        isDone(r) ? "" : `<button class="ct-x" data-skip="${r.task_id}" title="${T("跳过这道任务")}" aria-label="${T("跳过这道任务")}">${icon("close", 14)}</button>`}</div>`;
     const fill = (el, list, on, empty) => {
       el.classList.toggle("hidden", !on);
       el.innerHTML = !on ? "" : list.length ? `<div class="ct-list">${list.map(row).join("")}</div>` : `<p class="cl-empty">${empty}</p>`;
@@ -1590,7 +1593,26 @@
         if (innerWidth <= 700) $("#today").scrollIntoView({ block: "start", behavior: "smooth" });
       });
     };
-    fill(box, todo, open.class, "课程任务都画完了。去「课堂」看一节新课，会有新的任务。");
+    fill(box, todo, open.class, undo ? "" : "课程任务都画完了。去「课堂」看一节新课，会有新的任务。");
+    // 右上角的叉：不想画的这一道跳过去。它从列表里拿走，这一页上留一句话能放回来；再看一遍那节课的课件它也会回来
+    box.querySelectorAll("[data-skip]").forEach(b => b.onclick = () => {
+      const all = clTasks(), i = all.findIndex(r => r.task_id === b.dataset.skip); if (i < 0) return;
+      state.ctUndo = { row: all[i], at: i }; all.splice(i, 1);
+      lsSet("artquest.class.tasks", JSON.stringify(all));
+      if (state.ctSel === b.dataset.skip) {             // 右边那张卡上正是它：换成下一道；一道都不剩就换回日常任务
+        const next = all.find(r => clDone().indexOf(r.task_id) < 0);
+        state.ctSel = next ? next.task_id : null;
+        if (!next) return renderQuests();
+      }
+      renderClassTasks();
+    });
+    if (undo && open.class) {
+      box.insertAdjacentHTML("beforeend", `<p class="ct-undo"><span data-no-i18n>${T("跳过了")}「${escapeHtml(undo.row.title)}」</span><button class="linkbtn" id="ct-undo">${T("放回来")}</button></p>`);
+      $("#ct-undo").onclick = () => {
+        const all = clTasks(); if (!all.some(r => r.task_id === undo.row.task_id)) all.splice(Math.min(undo.at, all.length), 0, undo.row);
+        lsSet("artquest.class.tasks", JSON.stringify(all)); state.ctUndo = null; renderClassTasks();
+      };
+    }
     fill(dbox, fin, open.done && (fin.length > 0 || !nDaily), "画完的任务会放在这里。");
     dd.classList.toggle("hidden", !open.done || !nDaily);
     // 两种都有的时候各标一句小字，分清楚
@@ -1760,12 +1782,12 @@
         <span class="cl-chips">${chips}</span></span></button>
         ${!isTeacher() ? "" : l.builtin
           ? `<div class="cl-lesson-acts"><button class="linkbtn" data-copy="${l.id}">复制一份来改</button></div>`
-          : `<div class="cl-lesson-acts"><button class="linkbtn" data-edit="${l.id}">编辑</button><button class="linkbtn" data-rm="${l.id}">删除</button></div>`}
+          : `<div class="cl-lesson-acts"><button class="linkbtn" data-edit="${l.id}">改课件</button><button class="linkbtn" data-edit="${l.id}" data-pane="tasks">出题目</button><button class="linkbtn" data-rm="${l.id}">删除</button></div>`}
       </div>`;
   }
   function bindLessonCards(root) {
     root.querySelectorAll("[data-lesson]").forEach(b => b.onclick = () => openLesson(b.dataset.lesson));
-    root.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => editLesson(b.dataset.edit));
+    root.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => editLesson(b.dataset.edit, b.dataset.pane));
     root.querySelectorAll("[data-copy]").forEach(b => b.onclick = () => newLesson(b.dataset.copy));
     root.querySelectorAll("[data-rm]").forEach(b => b.onclick = async () => {
       if (!confirm("删除这节课？已经交上来的画不受影响。")) return;
@@ -1794,7 +1816,7 @@
     }
     await editLesson(L.id);
     clToast(ppt && !row.play_url ? "PPT 传上来了，但没能转成放映，学生只能下载后打开。另存为 PDF 再传一份就能直接看。"
-      : "课件传好了。加上画画任务，学生就能跟着画。");
+      : "课件传好了。题目在「画画任务」那一栏里出。");
   }
   function renderClassHome() {
     const bar = $("#cl-bar"), list = $("#cl-lessons"), box = $("#cl-teacher");
@@ -1903,11 +1925,13 @@
   // 课题、课件（一页一页：标题、几句话、一个提问、一张配图）、附件（整份 PDF / PPT）、画画任务。
   // 编辑时 `cl.edit` 是这节课的正本：动结构（加页、删页、挪位置）之前先把输入框里的字收回来，再重画。
   async function newLesson(copyOf) {
+    cl.edPane = "ware";
     try { cl.edit = await api(`${API}/classroom/lessons`, { method: "POST", body: JSON.stringify({ copy_of: copyOf || "" }) }); }
     catch (e) { clToast("这节课没有建成，请再试一次。"); return; }
     clPane("edit"); renderEditor();
   }
-  async function editLesson(id) {
+  async function editLesson(id, pane) {
+    cl.edPane = pane === "tasks" ? "tasks" : "ware";
     try { cl.edit = await api(`${API}/classroom/lessons/${id}`); }
     catch (e) { clToast("这节课暂时打不开，请检查网络后再试。"); return; }
     clPane("edit"); renderEditor();
@@ -1932,6 +1956,8 @@
       <label>给学生的提示（可不填）<input data-f="hint" maxlength="120" value="${edVal(t.hint)}"></label>
       <label class="ed-min">建议时长（分钟）<input data-f="minutes" type="number" min="1" max="240" value="${t.minutes || 15}"></label></div>`;
     root.innerHTML = `<div class="cl-top"><button class="secondary" id="ed-back">${icon("arrowLeft", 15)}返回课堂</button><h2>编辑这节课</h2></div>
+      <div class="tfilter cl-tabs" id="ed-tabs"><button data-edpane="ware" class="${cl.edPane !== "tasks" ? "on" : ""}">课件</button><button data-edpane="tasks" class="${cl.edPane === "tasks" ? "on" : ""}">画画任务<b data-no-i18n>${L.tasks.length}</b></button></div>
+      <div id="ed-pane-ware" class="${cl.edPane === "tasks" ? "hidden" : ""}">
       <div class="ed-card ed-meta">
         <label>课题<input id="ed-title" maxlength="60" value="${edVal(L.title)}"></label>
         <label>类型<input id="ed-subject" maxlength="40" placeholder="例如 美术 · 造型表现" value="${edVal(L.subject)}"></label>
@@ -1948,9 +1974,12 @@
       <p class="cl-dim">PDF 学生在页面里往下滚着看；PPT 会转成一页一页的放映。</p>
       <div class="cl-hero-acts"><button class="secondary" id="ed-add-file">上传 PDF</button><button class="secondary" id="ed-add-ppt">上传 PPT</button></div>
       <input type="file" id="ed-file" accept=".pdf" hidden><input type="file" id="ed-ppt" accept=".ppt,.pptx" hidden><input type="file" id="ed-img" accept=".png,.jpg,.jpeg,.webp" hidden>
-      <h3 class="cl-h">画画任务</h3>
-      <div id="ed-tasks">${L.tasks.map(task).join("")}</div>
+      </div>
+      <div id="ed-pane-tasks" class="${cl.edPane === "tasks" ? "" : "hidden"}">
+      <p class="cl-dim">学生看完这节课的课件，这里的题目就会放进他的「任务」里。</p>
+      <div id="ed-tasks">${L.tasks.map(task).join("") || `<p class="cl-empty">这节课还没有题目。</p>`}</div>
       <button class="secondary" id="ed-add-task">加一个任务</button>
+      </div>
       <div class="actions ed-save"><button class="primary big" id="ed-save">保存这节课</button></div>`;
     const sync = () => {     // 输入框 → cl.edit
       L.title = $("#ed-title").value; L.subject = $("#ed-subject").value; L.minutes = +$("#ed-minutes").value || 40; L.summary = $("#ed-summary").value;
@@ -1965,6 +1994,7 @@
     const redo = (fn) => { sync(); fn(); renderEditor(); };
     const move = (arr, i, d) => { const j = i + d; if (j < 0 || j >= arr.length) return; const x = arr[i]; arr[i] = arr[j]; arr[j] = x; };
     $("#ed-back").onclick = () => openClass();
+    root.querySelectorAll("[data-edpane]").forEach(b => b.onclick = () => redo(() => { cl.edPane = b.dataset.edpane; }));
     $("#ed-add-slide").onclick = () => redo(() => L.slides.push({ title: "", lines: [], ask: "" }));
     $("#ed-add-task").onclick = () => redo(() => L.tasks.push({ kind: "practice", title: "", instruction: "", requirements: "", hint: "", minutes: 15 }));
     let picFor = -1;
